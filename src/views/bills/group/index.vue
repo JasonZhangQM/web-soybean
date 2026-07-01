@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchGroups, syncGroup } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'BillsGroupPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Bills.Group[]>([]);
 const total = ref(0);
 
@@ -63,11 +66,7 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 async function handleSync() {
-  const { error } = await syncGroup();
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(syncGroup, syncLoading, fetchData);
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
@@ -115,7 +114,7 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NButton type="primary" :loading="loading" @click="handleSync">
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>

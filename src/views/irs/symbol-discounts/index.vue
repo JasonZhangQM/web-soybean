@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchSymbolDiscounts, syncIrs } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'IrsSymbolDiscountsPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Irs.SymbolDiscount[]>([]);
 const total = ref(0);
 
@@ -78,11 +81,7 @@ function handlePageSizeChange(pageSize: number) {
 
 // 触发贴水配置同步
 async function handleSync() {
-  const { error } = await syncIrs('symbol-discount');
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(() => syncIrs('symbol-discount'), syncLoading, fetchData);
 }
 
 // 日期截取前 10 位
@@ -117,7 +116,7 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NButton type="primary" :loading="loading" @click="handleSync">
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>

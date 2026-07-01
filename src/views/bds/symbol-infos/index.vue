@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchSymbolInfos, syncSymbolInfo } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'SymbolInfosPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Bds.SymbolInfo[]>([]);
 const total = ref(0);
 
@@ -68,13 +71,9 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 触发后端同步证券信息
+// 触发后端同步证券信息（executeSync 内置进度条/防重复/结果通知）
 async function handleSync() {
-  const { error } = await syncSymbolInfo();
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(syncSymbolInfo, syncLoading, fetchData);
 }
 
 // 数值格式化：后端 Decimal 字段返回字符串，需 Number() 转换后保留 2 位小数
@@ -117,7 +116,7 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NButton type="primary" :loading="loading" @click="handleSync">
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>

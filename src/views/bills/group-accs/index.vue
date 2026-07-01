@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchGroupAccs, syncGroupAcc } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'BillsGroupAccsPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Bills.GroupAcc[]>([]);
 const total = ref(0);
 
@@ -47,11 +50,7 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 async function handleSync() {
-  const { error } = await syncGroupAcc();
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(syncGroupAcc, syncLoading, fetchData);
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
@@ -86,7 +85,7 @@ onMounted(() => fetchData());
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper">
       <NSpace class="mb-16px">
-        <NButton type="primary" :loading="loading" @click="handleSync">
+        <NButton type="primary" :loading="syncLoading" @click="handleSync">
           <template #icon>
             <SvgIcon icon="mdi:sync" />
           </template>

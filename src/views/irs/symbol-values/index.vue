@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchSymbolValues, syncIrs } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'IrsSymbolValuesPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Irs.SymbolValue[]>([]);
 const total = ref(0);
 
@@ -62,11 +65,7 @@ function handlePageSizeChange(pageSize: number) {
 
 // 触发估值配置同步
 async function handleSync() {
-  const { error } = await syncIrs('symbol-value');
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(() => syncIrs('symbol-value'), syncLoading, fetchData);
 }
 
 // 数值字段统一保留两位小数，空值显示 '-'
@@ -102,7 +101,7 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NButton type="primary" :loading="loading" @click="handleSync">
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>

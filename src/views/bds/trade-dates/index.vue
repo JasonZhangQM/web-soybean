@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchTradeDates, syncTradeDate } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'TradeDatesPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Bds.TradeDate[]>([]);
 const total = ref(0);
 
@@ -47,13 +50,9 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 触发后端同步交易日历
+// 触发后端同步交易日历（executeSync 内置进度条/防重复/结果通知）
 async function handleSync() {
-  const { error } = await syncTradeDate();
-  if (!error) {
-    window.$message?.success('同步成功');
-    fetchData();
-  }
+  await executeSync(syncTradeDate, syncLoading, fetchData);
 }
 
 const columns = [
@@ -70,7 +69,7 @@ onMounted(() => fetchData());
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper">
       <NSpace class="mb-16px">
-        <NButton type="primary" :loading="loading" @click="handleSync">
+        <NButton type="primary" :loading="syncLoading" @click="handleSync">
           <template #icon><SvgIcon icon="mdi:sync" /></template>
           同步
         </NButton>
