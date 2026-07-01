@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchProfits } from '@/service/api';
+import { trimSearchParams } from '@/utils/common';
 
 defineOptions({ name: 'BillsProfitsPage' });
 
@@ -40,6 +41,7 @@ async function fetchData() {
 }
 
 function handleSearch() {
+  trimSearchParams(searchParams);
   pagination.page = 1;
   fetchData();
 }

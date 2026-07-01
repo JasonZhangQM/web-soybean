@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchMonitorOptionTs } from '@/service/api';
+import { trimSearchParams } from '@/utils/common';
 
 defineOptions({ name: 'IrsMonitorOptionTsPage' });
 
@@ -50,6 +51,7 @@ async function fetchData() {
 }
 
 function handleSearch() {
+  trimSearchParams(searchParams);
   pagination.page = 1;
   fetchData();
 }

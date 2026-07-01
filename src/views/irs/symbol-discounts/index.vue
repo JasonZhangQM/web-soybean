@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchSymbolDiscounts, syncIrs } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
+import { trimSearchParams } from '@/utils/common';
 
 defineOptions({ name: 'IrsSymbolDiscountsPage' });
 
@@ -57,6 +58,7 @@ async function fetchData() {
 }
 
 function handleSearch() {
+  trimSearchParams(searchParams);
   pagination.page = 1;
   fetchData();
 }

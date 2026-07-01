@@ -56,3 +56,17 @@ export function toggleHtmlClass(className: string) {
     remove
   };
 }
+
+/**
+ * 去除搜索参数对象中所有字符串字段的首尾空格（原地修改）
+ * @param params 搜索参数对象
+ */
+export function trimSearchParams<T extends Record<string, unknown>>(params: T): T {
+  Object.keys(params).forEach(key => {
+    const val = params[key];
+    if (typeof val === 'string') {
+      (params as Record<string, unknown>)[key] = val.trim();
+    }
+  });
+  return params;
+}
