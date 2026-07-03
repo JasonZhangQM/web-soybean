@@ -163,6 +163,9 @@ function transformElegantRouteToVueRoute(
 const routeMap: RouteMap = {
   "root": "/",
   "not-found": "/:pathMatch(.*)*",
+  "irs_discount": "/irs/discount",
+  "irs_option": "/irs/option",
+  "irs_value": "/irs/value",
   "403": "/403",
   "404": "/404",
   "500": "/500",
@@ -178,16 +181,13 @@ const routeMap: RouteMap = {
   "home": "/home",
   "iframe-page": "/iframe-page/:url",
   "irs": "/irs",
-  "irs_discount": "/irs/discount",
   "irs_monitor-discounts": "/irs/monitor-discounts",
   "irs_monitor-option-ts": "/irs/monitor-option-ts",
   "irs_monitor-options": "/irs/monitor-options",
-  "irs_option": "/irs/option",
   "irs_symbol-discounts": "/irs/symbol-discounts",
   "irs_symbol-kpis": "/irs/symbol-kpis",
   "irs_symbol-options": "/irs/symbol-options",
   "irs_symbol-values": "/irs/symbol-values",
-  "irs_value": "/irs/value",
   "irs_value-monitor": "/irs/value-monitor",
   "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?"
 };

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchBills } from '@/service/api';
+import { fetchBills, batchImportBills } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'BillsListPage' });
 
 const loading = ref(false);
+// 导入专用 loading：与表格 loading 分离，避免导入过程中表格闪烁
+const importLoading = ref(false);
 const tableData = ref<Api.Bills.Bill[]>([]);
 const total = ref(0);
 
@@ -52,6 +55,11 @@ function handleReset() {
   searchParams.symbol = undefined;
   searchParams.name = undefined;
   fetchData();
+}
+
+// 触发后端账单批量导入（executeSync 内置进度条/防重复/结果通知）
+async function handleImport() {
+  await executeSync(batchImportBills, importLoading, fetchData);
 }
 
 function handlePageChange(page: number) {
@@ -103,6 +111,7 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
+            <NButton type="info" :loading="importLoading" @click="handleImport">导入</NButton>
           </NSpace>
         </NFormItem>
       </NForm>

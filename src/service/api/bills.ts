@@ -134,3 +134,11 @@ export function syncGroupAcc() {
     method: 'post'
   });
 }
+
+/** 触发账单批量导入（后端执行 run/batch-import 任务） */
+export function batchImportBills() {
+  return request<Api.Bills.SyncResult>({
+    url: '/api/v1/bills/run/batch-import',
+    method: 'post'
+  });
+}
