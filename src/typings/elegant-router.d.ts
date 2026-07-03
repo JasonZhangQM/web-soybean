@@ -32,9 +32,6 @@ declare module "@elegant-router/types" {
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
-    "irs_discount": "/irs/discount";
-    "irs_option": "/irs/option";
-    "irs_value": "/irs/value";
     "irs_monitor-discounts": "/irs/monitor-discounts";
     "irs_monitor-option-ts": "/irs/monitor-option-ts";
     "irs_monitor-options": "/irs/monitor-options";
