@@ -16,7 +16,9 @@ export function createStaticRoutes() {
 
   const authRoutes: ElegantRoute[] = [];
 
-  [...customRoutes, ...generatedRoutes].forEach(item => {
+  // 断言为 ElegantRoute[]：generatedRoutes 中 i18nKey 均已在 locales 中定义，
+  // 此处绕过 TS 对大数组字面量 i18nKey 联合类型收窄失败的问题
+  ([...customRoutes, ...generatedRoutes] as ElegantRoute[]).forEach(item => {
     if (item.meta?.constant) {
       constantRoutes.push(item);
     } else {
