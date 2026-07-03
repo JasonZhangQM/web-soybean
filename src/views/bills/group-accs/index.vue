@@ -59,23 +59,16 @@ function renderAmount(row: Api.Bills.GroupAcc, key: keyof Api.Bills.GroupAcc) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
-// 盈亏率渲染：保留两位小数并追加百分号
-function renderRate(row: Api.Bills.GroupAcc, key: keyof Api.Bills.GroupAcc) {
-  const val = row[key];
-  return val != null ? `${Number(val).toFixed(2)}%` : '-';
-}
-
 const columns = [
   { title: '账户', key: 'account', width: 120 },
   { title: '资金余额', key: 'cash_acc', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cash_acc') },
-  { title: '账户浮盈', key: 'fm_acc', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'fm_acc') },
-  { title: '总成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cost_total') },
-  { title: '总市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'value_total') },
-  { title: '账户资产', key: 'acc_aset', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'acc_aset') },
-  { title: '总浮盈', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pf_total') },
-  { title: '总盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pl_all') },
-  { title: '总盈亏率', key: 'pfl_all', width: 100, render: (row: Api.Bills.GroupAcc) => renderRate(row, 'pfl_all') },
-  { title: '日盈亏率', key: 'pfl_day', width: 100, render: (row: Api.Bills.GroupAcc) => renderRate(row, 'pfl_day') }
+  { title: '理财余额', key: 'fm_acc', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'fm_acc') },
+  { title: '证券成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cost_total') },
+  { title: '证券市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'value_total') },
+  { title: '账户净值', key: 'acc_aset', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'acc_aset') },
+  { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pf_total') },
+  { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pl_all') },
+  { title: '盈亏合计', key: 'pfl_all', width: 100, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pfl_all') }
 ];
 
 onMounted(() => fetchData());

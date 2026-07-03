@@ -77,18 +77,18 @@ const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 
 const columns = [
   { title: '期权代码', key: 'symbol', width: 100 },
-  { title: '类型', key: 'option_type', width: 60 },
-  { title: '标的代码', key: 'underlying_symbol', width: 100 },
-  { title: '标的名称', key: 'underlying_name', width: 120 },
+  { title: '期权类型', key: 'option_type', width: 60 },
+  { title: '代码', key: 'underlying_symbol', width: 100 },
+  { title: '名称', key: 'underlying_name', width: 120 },
   { title: '期权现价', key: 'price', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.price) },
   { title: '标的现价', key: 'price_ud', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.price_ud) },
   { title: '时间价值', key: 'value_t', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.value_t) },
   { title: '内在价值', key: 'value_i', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.value_i) },
   { title: '行权价', key: 'option_price_strike', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.option_price_strike) },
   { title: '剩余天数', key: 'option_days_left', width: 80 },
-  { title: '平值度%', key: 'atm_i', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.atm_i) },
-  { title: '时间占比%', key: 'ratio_t', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.ratio_t) },
-  { title: '内在占比%', key: 'ratio_i', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.ratio_i) }
+  { title: '平值(%)', key: 'atm_i', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.atm_i) },
+  { title: '时间(%)', key: 'ratio_t', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.ratio_t) },
+  { title: '内在(%)', key: 'ratio_i', width: 100, render: (row: Api.Irs.MonitorOption) => fmt(row.ratio_i) }
 ];
 
 onMounted(() => fetchData());

@@ -81,13 +81,13 @@ const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 
 const columns = [
-  { title: '标的代码', key: 'underlying_symbol', width: 100 },
-  { title: '标的名称', key: 'underlying_name', width: 120 },
+  { title: '代码', key: 'underlying_symbol', width: 100 },
+  { title: '名称', key: 'underlying_name', width: 120 },
   { title: '行权价', key: 'price_strike', width: 100, render: (row: Api.Irs.SymbolOption) => fmt(row.price_strike) },
-  { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.SymbolOption) => fmtDate(row.delisted_date) },
+  { title: '行权日', key: 'delisted_date', width: 120, render: (row: Api.Irs.SymbolOption) => fmtDate(row.delisted_date) },
   { title: '剩余天数', key: 'days_left', width: 80 },
   { title: '单点价值', key: 'value_per', width: 100, render: (row: Api.Irs.SymbolOption) => fmt(row.value_per) },
-  { title: '标的乘数', key: 'underlying_multiplier', width: 100, render: (row: Api.Irs.SymbolOption) => fmt(row.underlying_multiplier) }
+  { title: '期权乘数', key: 'underlying_multiplier', width: 100, render: (row: Api.Irs.SymbolOption) => fmt(row.underlying_multiplier) }
 ];
 
 onMounted(() => fetchData());

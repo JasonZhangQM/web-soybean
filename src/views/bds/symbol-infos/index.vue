@@ -87,7 +87,7 @@ const columns = [
   { title: 'ID', key: 'id', width: 80 },
   { title: '代码', key: 'symbol', width: 100 },
   { title: '名称', key: 'name', width: 120 },
-  { title: '行业', key: 'industry', width: 100 },
+  { title: '所属行业', key: 'industry', width: 100 },
   { title: '上市日期', key: 'online_date', width: 120 },
   { title: '最新价', key: 'price', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.price) },
   { title: '涨幅%', key: 'rate', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.rate) },

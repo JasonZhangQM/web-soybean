@@ -53,10 +53,10 @@ const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 const columns = [
   { title: '代码', key: 'symbol_value_symbol', width: 100 },
   { title: '最新价', key: 'price', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.price) },
-  { title: '近期高点', key: 'rh', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.rh) },
-  { title: '估值低', key: 'symbol_value_pp_l', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_l) },
-  { title: '估值中', key: 'symbol_value_pp_m', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_m) },
-  { title: '估值高', key: 'symbol_value_pp_h', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_h) },
+  { title: '阶段高', key: 'rh', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.rh) },
+  { title: '低', key: 'symbol_value_pp_l', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_l) },
+  { title: '中', key: 'symbol_value_pp_m', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_m) },
+  { title: '高', key: 'symbol_value_pp_h', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_pp_h) },
   { title: '买点1', key: 'symbol_value_bg_p_bid1', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_bg_p_bid1) },
   { title: '买点2', key: 'symbol_value_bg_p_bid2', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_bg_p_bid2) },
   { title: '买点3', key: 'symbol_value_bg_p_bid3', width: 100, render: (row: Api.Irs.MonitorValue) => fmt(row.symbol_value_bg_p_bid3) }

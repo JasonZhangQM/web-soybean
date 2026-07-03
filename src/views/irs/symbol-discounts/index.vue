@@ -92,7 +92,7 @@ const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 const columns = [
   { title: '连续合约', key: 'symbol_con', width: 120 },
   { title: '真实合约', key: 'symbol', width: 120 },
-  { title: '类别', key: 'symbol_type', width: 80 },
+  { title: '合约类别', key: 'symbol_type', width: 80 },
   { title: '主力', key: 'is_main', width: 60, render: (row: Api.Irs.SymbolDiscount) => (row.is_main ? '是' : '否') },
   { title: '标的代码', key: 'symbol_ud', width: 100 },
   { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.SymbolDiscount) => fmtDate(row.delisted_date) }

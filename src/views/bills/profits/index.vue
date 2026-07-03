@@ -79,9 +79,9 @@ const columns = [
   { title: '空头持仓', key: 'p_short', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short') },
   { title: '多头成本', key: 'cost_t_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_long') },
   { title: '空头成本', key: 'cost_t_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short') },
-  { title: '多头盈亏', key: 'pl_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long') },
-  { title: '空头盈亏', key: 'pl_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short') },
-  { title: '资金差额', key: 'diff_dw', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw') }
+  { title: '平仓盈亏l', key: 'pl_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long') },
+  { title: '平仓盈亏s', key: 'pl_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short') },
+  { title: '入金净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw') }
 ];
 
 onMounted(() => fetchData());

@@ -66,17 +66,17 @@ function handlePageSizeChange(pageSize: number) {
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 
 const columns = [
-  { title: '配置ID', key: 'symbol_value_id', width: 80 },
-  { title: '最新涨跌%', key: 'last_ratio', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.last_ratio) },
-  { title: '区间最大涨幅%', key: 'max_ratio', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.max_ratio) },
-  { title: '区间最小跌幅%', key: 'min_ratio', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.min_ratio) },
-  { title: 'ROE扣非', key: 'roe_cut', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.roe_cut) },
-  { title: '营收同比%', key: 'inc_oper_yoy', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.inc_oper_yoy) },
-  { title: '扣非净利同比%', key: 'net_prof_pcom_cut_yoy', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.net_prof_pcom_cut_yoy) },
-  { title: '毛利率%', key: 'sale_gpm', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.sale_gpm) },
-  { title: 'PE_TTM扣非', key: 'pe_ttm_cut', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.pe_ttm_cut) },
-  { title: 'PB_LYR', key: 'pb_lyr', width: 80, render: (row: Api.Irs.SymbolKpi) => fmt(row.pb_lyr) },
-  { title: '股息率TTM%', key: 'dy_ttm', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.dy_ttm) }
+  { title: '估值标的', key: 'symbol_value_id', width: 80 },
+  { title: '昨收%', key: 'last_ratio', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.last_ratio) },
+  { title: '年高%', key: 'max_ratio', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.max_ratio) },
+  { title: '年低%', key: 'min_ratio', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.min_ratio) },
+  { title: 'ROE(cut)', key: 'roe_cut', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.roe_cut) },
+  { title: '营收yoy)', key: 'inc_oper_yoy', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.inc_oper_yoy) },
+  { title: '净利yoy', key: 'net_prof_pcom_cut_yoy', width: 120, render: (row: Api.Irs.SymbolKpi) => fmt(row.net_prof_pcom_cut_yoy) },
+  { title: '毛利率', key: 'sale_gpm', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.sale_gpm) },
+  { title: 'PE(ttm)', key: 'pe_ttm_cut', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.pe_ttm_cut) },
+  { title: 'PB(lyr)', key: 'pb_lyr', width: 80, render: (row: Api.Irs.SymbolKpi) => fmt(row.pb_lyr) },
+  { title: 'DY(ttm)', key: 'dy_ttm', width: 100, render: (row: Api.Irs.SymbolKpi) => fmt(row.dy_ttm) }
 ];
 
 onMounted(() => fetchData());

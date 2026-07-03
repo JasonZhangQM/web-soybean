@@ -81,12 +81,12 @@ const columns = [
   { title: '中', key: 'pp_m', width: 80, render: (row: Api.Irs.SymbolValue) => fmt(row.pp_m) },
   { title: '高', key: 'pp_h', width: 80, render: (row: Api.Irs.SymbolValue) => fmt(row.pp_h) },
   { title: '极高', key: 'pp_eh', width: 80, render: (row: Api.Irs.SymbolValue) => fmt(row.pp_eh) },
-  { title: '回撤率', key: 'vix', width: 80, render: (row: Api.Irs.SymbolValue) => fmt(row.vix) },
-  { title: '总批次', key: 'p_total', width: 80 },
-  { title: '总金额', key: 'm_tot', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.m_tot) },
-  { title: '最新收盘', key: 'last_close', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.last_close) },
-  { title: '近期高点', key: 'y_high', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.y_high) },
-  { title: '近期低点', key: 'y_low', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.y_low) }
+  { title: '波指', key: 'vix', width: 80, render: (row: Api.Irs.SymbolValue) => fmt(row.vix) },
+  { title: '目标量', key: 'p_total', width: 80 },
+  { title: '目标(万)', key: 'm_tot', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.m_tot) },
+  { title: '昨收', key: 'last_close', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.last_close) },
+  { title: '年高', key: 'y_high', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.y_high) },
+  { title: '年低', key: 'y_low', width: 100, render: (row: Api.Irs.SymbolValue) => fmt(row.y_low) }
 ];
 
 onMounted(() => fetchData());

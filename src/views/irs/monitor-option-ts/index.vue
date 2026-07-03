@@ -76,19 +76,19 @@ function handlePageSizeChange(pageSize: number) {
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 
 const columns = [
-  { title: '标的代码', key: 'underlying_symbol', width: 100 },
-  { title: '标的名称', key: 'underlying_name', width: 120 },
+  { title: '代码', key: 'underlying_symbol', width: 100 },
+  { title: '名称', key: 'underlying_name', width: 120 },
   { title: '行权价', key: 'option_price_strike', width: 100, render: (row: Api.Irs.MonitorOptionT) => fmt(row.option_price_strike) },
   { title: '剩余天数', key: 'option_days_left', width: 80 },
   { title: '标的现价', key: 'price_ud', width: 100, render: (row: Api.Irs.MonitorOptionT) => fmt(row.price_ud) },
   { title: '认购现价', key: 'price_c', width: 100, render: (row: Api.Irs.MonitorOptionT) => fmt(row.price_c) },
-  { title: '认购时间价值', key: 'value_t_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_t_c) },
-  { title: '认购内在价值', key: 'value_i_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_i_c) },
-  { title: '认购时间占比%', key: 'ratio_t_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.ratio_t_c) },
+  { title: '时间价值c', key: 'value_t_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_t_c) },
+  { title: '内在价值c', key: 'value_i_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_i_c) },
+  { title: '时间(%)c', key: 'ratio_t_c', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.ratio_t_c) },
   { title: '认沽现价', key: 'price_p', width: 100, render: (row: Api.Irs.MonitorOptionT) => fmt(row.price_p) },
-  { title: '认沽时间价值', key: 'value_t_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_t_p) },
-  { title: '认沽内在价值', key: 'value_i_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_i_p) },
-  { title: '认沽时间占比%', key: 'ratio_t_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.ratio_t_p) }
+  { title: '时间价值p', key: 'value_t_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_t_p) },
+  { title: '内在价值p', key: 'value_i_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.value_i_p) },
+  { title: '时间(%)p', key: 'ratio_t_p', width: 120, render: (row: Api.Irs.MonitorOptionT) => fmt(row.ratio_t_p) }
 ];
 
 onMounted(() => fetchData());

@@ -83,16 +83,16 @@ function renderRate(row: Api.Bills.GroupSymbol) {
 }
 
 const columns = [
-  { title: '类别', key: 'category', width: 80 },
+  { title: '交易分类', key: 'category', width: 80 },
   { title: '代码', key: 'symbol', width: 100 },
-  { title: '成交笔数', key: 'count', width: 80 },
-  { title: '总持仓', key: 'p_total', width: 100, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total') },
-  { title: '总成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total') },
-  { title: '总市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total') },
-  { title: '总浮盈', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pf_total') },
-  { title: '总盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pl_all') },
-  { title: '总盈亏率', key: 'pfl_all', width: 100, render: renderRate },
-  { title: '资金差额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'diff_dw') }
+  { title: '交易次数', key: 'count', width: 80 },
+  { title: '持仓量', key: 'p_total', width: 100, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total') },
+  { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total') },
+  { title: '当前市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total') },
+  { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pf_total') },
+  { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pl_all') },
+  { title: '盈亏合计', key: 'pfl_all', width: 100, render: renderRate },
+  { title: '出入净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'diff_dw') }
 ];
 
 onMounted(() => fetchData());

@@ -85,17 +85,17 @@ const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 const columns = [
   { title: '真实合约', key: 'symbol', width: 120 },
   { title: '连续合约', key: 'symbol_con', width: 120 },
-  { title: '类别', key: 'symbol_type', width: 80 },
+  { title: '合约类别', key: 'symbol_type', width: 80 },
   { title: '主力', key: 'is_main', width: 60, render: (row: Api.Irs.MonitorDiscount) => (row.is_main ? '是' : '否') },
   { title: '标的代码', key: 'symbol_ud', width: 100 },
   { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.MonitorDiscount) => fmtDate(row.delisted_date) },
   { title: '剩余天数', key: 'days_left', width: 80 },
-  { title: '持仓', key: 'position', width: 100 },
+  { title: '持仓量', key: 'position', width: 100 },
   { title: '合约现价', key: 'price', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.price) },
   { title: '基础现价', key: 'price_ud', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.price_ud) },
-  { title: '贴水值', key: 'discount', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.discount) },
-  { title: '贴水率%', key: 'ratio', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.ratio) },
-  { title: '年化贴水率%', key: 'ratio_y', width: 120, render: (row: Api.Irs.MonitorDiscount) => fmt(row.ratio_y) }
+  { title: '贴水', key: 'discount', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.discount) },
+  { title: '贴水率(%)', key: 'ratio', width: 100, render: (row: Api.Irs.MonitorDiscount) => fmt(row.ratio) },
+  { title: '贴水率(%Y)', key: 'ratio_y', width: 120, render: (row: Api.Irs.MonitorDiscount) => fmt(row.ratio_y) }
 ];
 
 onMounted(() => fetchData());
