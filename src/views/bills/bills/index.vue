@@ -78,13 +78,16 @@ const columns = [
   { title: '交易时间', key: 'trade_time', width: 160, render: (row: Api.Bills.Bill) => row.trade_time?.slice(0, 19) ?? '-' },
   { title: '代码', key: 'symbol', width: 100 },
   { title: '名称', key: 'name', width: 120 },
-  { title: '类别', key: 'exec_type', width: 80 },
-  { title: '分类', key: 'category', width: 80 },
-  { title: '买卖', key: 'b_s', width: 60 },
-  { title: '开平', key: 'o_c', width: 60 },
+  { title: '总分类', key: 'category', width: 80 },
+  { title: '一级分类', key: 'exec_type', width: 80 },
+  { title: '买/卖', key: 'b_s', width: 60 },
+  { title: '购/沽', key: 'c_p', width: 60 },
+  { title: '开/平', key: 'o_c', width: 60 },
   { title: '均价', key: 'price', width: 100, render: (row: Api.Bills.Bill) => Number(row.price).toFixed(2) },
   { title: '数量', key: 'vol', width: 80 },
-  { title: '金额', key: 'amount', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2) },
+  { title: '成交额', key: 'amount', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2) },
+  { title: '发生额', key: 'amount_act', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount_act).toFixed(2) },
+  { title: '税费合计', key: 'fee_tax', width: 120, render: (row: Api.Bills.Bill) => Number(row.fee_tax).toFixed(2) },
   { title: '账户', key: 'account', width: 100 }
 ];
 
