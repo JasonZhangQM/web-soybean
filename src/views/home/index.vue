@@ -5,6 +5,7 @@ import CardData from './modules/card-data.vue';
 import LineChart from './modules/line-chart.vue';
 import PieChart from './modules/pie-chart.vue';
 import BarChart from './modules/bar-chart.vue';
+import ProfitYearChart from './modules/profit-year-chart.vue';
 
 const appStore = useAppStore();
 
@@ -30,6 +31,13 @@ const gap = computed(() => (appStore.isMobile ? 0 : 16));
       <NGi span="24">
         <NCard :bordered="false" class="card-wrapper">
           <BarChart />
+        </NCard>
+      </NGi>
+    </NGrid>
+    <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
+      <NGi span="24">
+        <NCard :bordered="false" class="card-wrapper">
+          <ProfitYearChart />
         </NCard>
       </NGi>
     </NGrid>

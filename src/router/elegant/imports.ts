@@ -26,6 +26,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "bills_group-accs": () => import("@/views/bills/group-accs/index.vue"),
   "bills_group-symbols": () => import("@/views/bills/group-symbols/index.vue"),
   bills_group: () => import("@/views/bills/group/index.vue"),
+  "bills_profit-years": () => import("@/views/bills/profit-years/index.vue"),
   bills_profits: () => import("@/views/bills/profits/index.vue"),
   home: () => import("@/views/home/index.vue"),
   "irs_monitor-discounts": () => import("@/views/irs/monitor-discounts/index.vue"),

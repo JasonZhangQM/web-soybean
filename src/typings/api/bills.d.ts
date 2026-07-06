@@ -271,6 +271,28 @@ declare namespace Api {
       update_time: string;
     }
 
+    /** 年度收益（对应 ProfitYearOut，共 9 字段） */
+    interface ProfitYear {
+      /** 年度 */
+      year: number;
+      /** 平仓盈亏l */
+      pl_long: number | null;
+      /** 平仓盈亏s */
+      pl_short: number | null;
+      /** 其他损益 */
+      pl_other: number | null;
+      /** 平仓盈亏 */
+      pl_all: number | null;
+      /** 累计盈亏 */
+      pl_cumulative: number | null;
+      /** 主键 */
+      id: number;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
     /** 同步步骤结果 */
     interface SyncStepResult {
       /** 步骤名 */

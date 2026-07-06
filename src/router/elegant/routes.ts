@@ -127,6 +127,16 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'bills_profit-years',
+        path: '/bills/profit-years',
+        component: 'view.bills_profit-years',
+        meta: {
+          title: 'bills_profit-years',
+          i18nKey: 'route.bills_profit-years',
+          constant: true
+        }
+      },
+      {
         name: 'bills_profits',
         path: '/bills/profits',
         component: 'view.bills_profits',

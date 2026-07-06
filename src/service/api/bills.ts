@@ -111,6 +111,23 @@ export function fetchGroupSymbols(params?: GroupSymbolQueryParams) {
   });
 }
 
+/** 年度收益查询参数 */
+interface ProfitYearQueryParams {
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 查询年度收益列表 */
+export function fetchProfitYears(params?: ProfitYearQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bills.ProfitYear>>({
+    url: '/api/v1/bills/profit-years',
+    method: 'get',
+    params
+  });
+}
+
 /** 同步账单汇总 */
 export function syncGroup() {
   return request<Api.Bills.SyncResult>({

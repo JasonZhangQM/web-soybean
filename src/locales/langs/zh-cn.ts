@@ -236,6 +236,7 @@ const local: App.I18n.Schema = {
     'bills_profits': '账单收益',
     'bills_group-accs': '账户汇总',
     'bills_group-symbols': '标的汇总',
+    'bills_profit-years': '年度收益',
     'irs_value-monitor': '估值总览',
     'irs_discount': '贴水监测',
     'irs_option': '期权监测',

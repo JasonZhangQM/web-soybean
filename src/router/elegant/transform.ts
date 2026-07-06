@@ -178,6 +178,7 @@ const routeMap: RouteMap = {
   "bills_group-accs": "/bills/group-accs",
   "bills_group-symbols": "/bills/group-symbols",
   "bills_profits": "/bills/profits",
+  "bills_profit-years": "/bills/profit-years",
   "home": "/home",
   "iframe-page": "/iframe-page/:url",
   "irs": "/irs",

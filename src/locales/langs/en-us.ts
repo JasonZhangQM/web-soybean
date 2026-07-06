@@ -240,6 +240,7 @@ const local: App.I18n.Schema = {
     'bills_profits': 'Profits',
     'bills_group-accs': 'Group Accs',
     'bills_group-symbols': 'Group Symbols',
+    'bills_profit-years': 'Profit Years',
     'irs_value-monitor': 'Value Overview',
     'irs_discount': 'Discount Monitor',
     'irs_option': 'Option Monitor',

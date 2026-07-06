@@ -32,6 +32,7 @@ declare module "@elegant-router/types" {
     "bills_group-accs": "/bills/group-accs";
     "bills_group-symbols": "/bills/group-symbols";
     "bills_profits": "/bills/profits";
+    "bills_profit-years": "/bills/profit-years";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
@@ -115,6 +116,7 @@ declare module "@elegant-router/types" {
     | "bills_group-symbols"
     | "bills_group"
     | "bills_profits"
+    | "bills_profit-years"
     | "home"
     | "irs_monitor-discounts"
     | "irs_monitor-option-ts"
