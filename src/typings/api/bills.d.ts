@@ -191,6 +191,8 @@ declare namespace Api {
       symbol: string | null;
       /** 关联账单的证券名称 */
       name: string | null;
+      /** 交易时间 */
+      trade_time: string | null;
     }
 
     /** 账户汇总（对应 GroupAccOut，共 16 字段） */

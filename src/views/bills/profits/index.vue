@@ -72,7 +72,7 @@ function renderAmount(row: Api.Bills.Profit, key: keyof Api.Bills.Profit) {
 }
 
 const columns = [
-  { title: '账户', key: 'account', width: 100 },
+  { title: '交易时间', key: 'trade_time', width: 160 },
   { title: '代码', key: 'symbol', width: 100 },
   { title: '名称', key: 'name', width: 120 },
   { title: '多头持仓', key: 'p_long', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long') },
@@ -81,7 +81,9 @@ const columns = [
   { title: '空头成本', key: 'cost_t_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short') },
   { title: '平仓盈亏l', key: 'pl_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long') },
   { title: '平仓盈亏s', key: 'pl_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short') },
-  { title: '入金净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw') }
+  { title: '其他损益', key: 'pl_other', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_other') },
+  { title: '入金净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw') },
+  { title: '账户', key: 'account', width: 100 }
 ];
 
 onMounted(() => fetchData());
