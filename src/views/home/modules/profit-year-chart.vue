@@ -23,7 +23,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
     }
   },
   legend: {
-    data: ['平仓盈亏', '累计盈亏'],
+    data: ['当期盈亏', '累计盈亏'],
     top: '0'
   },
   grid: {
@@ -40,7 +40,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   yAxis: [
     {
       type: 'value',
-      name: '平仓盈亏'
+      name: '当期盈亏'
     },
     {
       type: 'value',
@@ -49,7 +49,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ],
   series: [
     {
-      name: '平仓盈亏',
+      name: '当期盈亏',
       type: 'bar',
       yAxisIndex: 0,
       // 柱状图渐变色：从 #5da8ff 到 #26deca

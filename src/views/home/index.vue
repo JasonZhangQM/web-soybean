@@ -18,7 +18,7 @@ const gap = computed(() => (appStore.isMobile ? 0 : 16));
     <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 s:24 m:14">
         <NCard :bordered="false" class="card-wrapper">
-          <LineChart />
+          <ProfitYearChart />
         </NCard>
       </NGi>
       <NGi span="24 s:24 m:10">
@@ -30,14 +30,14 @@ const gap = computed(() => (appStore.isMobile ? 0 : 16));
     <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24">
         <NCard :bordered="false" class="card-wrapper">
-          <BarChart />
+          <LineChart />
         </NCard>
       </NGi>
     </NGrid>
     <NGrid :x-gap="gap" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24">
         <NCard :bordered="false" class="card-wrapper">
-          <ProfitYearChart />
+          <BarChart />
         </NCard>
       </NGi>
     </NGrid>
