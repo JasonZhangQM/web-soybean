@@ -24,6 +24,7 @@ declare module "@elegant-router/types" {
     "404": "/404";
     "500": "/500";
     "bds": "/bds";
+    "bds_index-histories": "/bds/index-histories";
     "bds_symbol-infos": "/bds/symbol-infos";
     "bds_trade-dates": "/bds/trade-dates";
     "bills": "/bills";
@@ -109,6 +110,7 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
+    | "bds_index-histories"
     | "bds_symbol-infos"
     | "bds_trade-dates"
     | "bills_bills"

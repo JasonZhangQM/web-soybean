@@ -53,6 +53,30 @@ declare namespace Api {
       update_time: string;
     }
 
+    /** 指数历史行情 */
+    interface IndexHistory {
+      /** 主键 */
+      id: number;
+      /** 代码 */
+      symbol: string;
+      /** 交易日期（YYYY-MM-DD） */
+      trade_date: string;
+      /** 开盘价 */
+      open: number | null;
+      /** 最高价 */
+      high: number | null;
+      /** 最低价 */
+      low: number | null;
+      /** 收盘价 */
+      close: number | null;
+      /** 指数名称（从 Config.INDEX_CODE 查找，不存数据库） */
+      sec_name: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
     /** 同步结果（{status, message}） */
     interface SyncResult {
       /** 同步状态 */

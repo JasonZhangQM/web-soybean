@@ -55,3 +55,34 @@ export function syncSymbolInfo() {
     method: 'post'
   });
 }
+
+/** 指数历史行情查询参数 */
+interface IndexHistoryQueryParams {
+  /** 代码（多选精确匹配） */
+  symbol?: string[];
+  /** 开始日期（YYYY-MM-DD） */
+  start_date?: string;
+  /** 结束日期（YYYY-MM-DD） */
+  end_date?: string;
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 查询指数历史行情列表 */
+export function fetchIndexHistories(params?: IndexHistoryQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.IndexHistory>>({
+    url: '/api/v1/bds/index-histories',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步指数历史行情 */
+export function syncIndexHistory() {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/index-history',
+    method: 'post'
+  });
+}

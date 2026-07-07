@@ -170,6 +170,7 @@ const routeMap: RouteMap = {
   "404": "/404",
   "500": "/500",
   "bds": "/bds",
+  "bds_index-histories": "/bds/index-histories",
   "bds_symbol-infos": "/bds/symbol-infos",
   "bds_trade-dates": "/bds/trade-dates",
   "bills": "/bills",
