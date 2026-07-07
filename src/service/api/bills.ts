@@ -2,10 +2,10 @@ import { request } from '../request';
 
 /** 账单汇总查询参数 */
 interface GroupQueryParams {
-  /** 账户（精确） */
-  account?: string;
-  /** 类别（精确） */
-  category?: string;
+  /** 账户（多选精确匹配） */
+  account?: string[];
+  /** 类别（多选精确匹配） */
+  category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
   /** 每页条数 */
@@ -25,10 +25,10 @@ export function fetchGroups(params?: GroupQueryParams) {
 
 /** 交易收益查询参数 */
 interface BillQueryParams {
-  /** 账户（精确） */
-  account?: string;
-  /** 类别（精确） */
-  category?: string;
+  /** 账户（多选精确匹配） */
+  account?: string[];
+  /** 类别（多选精确匹配） */
+  category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
   /** 证券名称（模糊） */
@@ -50,10 +50,10 @@ export function fetchBills(params?: BillQueryParams) {
 
 /** 账单收益查询参数 */
 interface ProfitQueryParams {
-  /** 账户（精确） */
-  account?: string;
-  /** 类别（精确） */
-  category?: string;
+  /** 账户（多选精确匹配） */
+  account?: string[];
+  /** 类别（多选精确匹配） */
+  category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
   /** 证券名称（模糊） */
@@ -92,8 +92,8 @@ export function fetchGroupAccs(params?: GroupAccQueryParams) {
 
 /** 标的汇总查询参数 */
 interface GroupSymbolQueryParams {
-  /** 类别（精确） */
-  category?: string;
+  /** 类别（多选精确匹配） */
+  category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
   /** 每页条数 */
@@ -108,6 +108,30 @@ export function fetchGroupSymbols(params?: GroupSymbolQueryParams) {
     url: '/api/v1/bills/group-symbols',
     method: 'get',
     params
+  });
+}
+
+/** 查询标的汇总的类别选项列表（distinct 升序） - 兼容旧接口 */
+export function fetchGroupSymbolCategories() {
+  return request<{ categories: string[] }>({
+    url: '/api/v1/bills/group-symbols/categories',
+    method: 'get'
+  });
+}
+
+/** 查询交易类别列表（通用接口，从 Config.MAP_CATEGORY 获取） */
+export function fetchCategories() {
+  return request<{ categories: string[] }>({
+    url: '/api/v1/bills/categories',
+    method: 'get'
+  });
+}
+
+/** 查询账户列表（通用接口，从 Config.ACCOUNT_INFO 获取） */
+export function fetchAccounts() {
+  return request<{ accounts: string[] }>({
+    url: '/api/v1/bills/accounts',
+    method: 'get'
   });
 }
 

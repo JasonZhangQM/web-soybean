@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { NConfigProvider, darkTheme } from 'naive-ui';
 import type { WatermarkProps } from 'naive-ui';
 import { useAppStore } from './store/modules/app';
 import { useThemeStore } from './store/modules/theme';
+import { useBillsStore } from './store/modules/bills';
 import { naiveDateLocales, naiveLocales } from './locales/naive';
 
 defineOptions({
@@ -12,6 +13,7 @@ defineOptions({
 
 const appStore = useAppStore();
 const themeStore = useThemeStore();
+const billsStore = useBillsStore();
 
 const naiveDarkTheme = computed(() => (themeStore.darkMode ? darkTheme : undefined));
 
@@ -37,6 +39,13 @@ const watermarkProps = computed<WatermarkProps>(() => {
     rotate: -15,
     zIndex: 9999
   };
+});
+
+// 应用启动时初始化全局数据
+onMounted(() => {
+  // 加载交易类别列表与账户列表（全局缓存）
+  billsStore.loadCategories();
+  billsStore.loadAccounts();
 });
 </script>
 

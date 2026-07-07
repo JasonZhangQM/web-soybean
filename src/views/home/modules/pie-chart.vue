@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchGroupSymbols } from '@/service/api';
+import { fetchGroupAccs } from '@/service/api';
 
 defineOptions({
   name: 'PieChart'
@@ -23,8 +23,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca'],
-      name: '持仓类别分布',
+      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ff7875', '#91cc75', '#fac858', '#ee6666'],
+      name: '账户净值分布',
       type: 'pie',
       radius: ['45%', '75%'],
       avoidLabelOverlap: false,
@@ -51,20 +51,19 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 按 category 分组统计数量，渲染持仓类别分布饼图
+// 获取账户汇总数据，展示除去合计账户之外的所有账户的账户净值分布
 async function initData() {
-  const { data, error } = await fetchGroupSymbols({ limit: 1000 });
+  const { data, error } = await fetchGroupAccs({ limit: 1000 });
   // 接口失败或无数据时，保留空状态，不报错
   if (error || !data || !data.items || data.items.length === 0) return;
 
-  // 按 category 聚合计数
-  const categoryCount = new Map<string, number>();
-  data.items.forEach(item => {
-    const cat = item.category;
-    categoryCount.set(cat, (categoryCount.get(cat) ?? 0) + 1);
-  });
-
-  const pieData = Array.from(categoryCount.entries()).map(([name, value]) => ({ name, value }));
+  // 过滤掉合计账户，提取各账户的账户净值（acc_aset）
+  const pieData = data.items
+    .filter(item => item.account !== '合计')
+    .map(item => ({
+      name: item.account,
+      value: Number(item.acc_aset) || 0
+    }));
 
   updateOptions(opts => {
     opts.series[0].data = pieData;

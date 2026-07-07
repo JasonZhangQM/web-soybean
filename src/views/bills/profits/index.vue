@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchProfits } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
+import { useBillsStore } from '@/store/modules/bills';
 
 defineOptions({ name: 'BillsProfitsPage' });
+
+const billsStore = useBillsStore();
 
 const loading = ref(false);
 const tableData = ref<Api.Bills.Profit[]>([]);
@@ -19,8 +22,12 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 筛选参数：account/category 精确匹配，symbol/name 模糊匹配
-const searchParams = reactive<{ account?: string; category?: string; symbol?: string; name?: string }>({});
+// 筛选参数：account/category 多选精确匹配，symbol/name 模糊匹配
+const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string; name?: string }>({});
+
+// 类别/账户下拉选项（从全局 store 获取）
+const categoryOptions = computed(() => billsStore.getCategoryOptions());
+const accountOptions = computed(() => billsStore.getAccountOptions());
 
 async function fetchData() {
   loading.value = true;
@@ -86,7 +93,12 @@ const columns = [
   { title: '账户', key: 'account', width: 100 }
 ];
 
-onMounted(() => fetchData());
+onMounted(() => {
+  fetchData();
+  // 确保类别/账户列表已加载（全局 store 会自动去重）
+  billsStore.loadCategories();
+  billsStore.loadAccounts();
+});
 </script>
 
 <template>
@@ -94,10 +106,24 @@ onMounted(() => fetchData());
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left">
         <NFormItem label="账户">
-          <NInput v-model:value="searchParams.account" placeholder="精确匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.account"
+            :options="accountOptions"
+            multiple
+            clearable
+            placeholder="多选精确匹配"
+            style="width: 110px"
+          />
         </NFormItem>
         <NFormItem label="类别">
-          <NInput v-model:value="searchParams.category" placeholder="精确匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.category"
+            :options="categoryOptions"
+            multiple
+            clearable
+            placeholder="多选精确匹配"
+            style="width: 150px"
+          />
         </NFormItem>
         <NFormItem label="代码">
           <NInput v-model:value="searchParams.symbol" placeholder="模糊匹配" clearable />

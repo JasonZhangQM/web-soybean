@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchGroupSymbols, syncGroupSymbol } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { useBillsStore } from '@/store/modules/bills';
 
 defineOptions({ name: 'BillsGroupSymbolsPage' });
+
+const billsStore = useBillsStore();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -22,8 +25,11 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 筛选参数：category 精确匹配，symbol 模糊匹配
-const searchParams = reactive<{ category?: string; symbol?: string }>({});
+// 筛选参数：category 多选精确匹配，symbol 模糊匹配
+const searchParams = reactive<{ category?: string[]; symbol?: string }>({});
+
+// 类别下拉选项（从全局 store 获取）
+const categoryOptions = computed(() => billsStore.getCategoryOptions());
 
 async function fetchData() {
   loading.value = true;
@@ -95,7 +101,11 @@ const columns = [
   { title: '出入净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'diff_dw') }
 ];
 
-onMounted(() => fetchData());
+onMounted(() => {
+  fetchData();
+  // 确保类别列表已加载（全局 store 会自动去重）
+  billsStore.loadCategories();
+});
 </script>
 
 <template>
@@ -103,7 +113,14 @@ onMounted(() => fetchData());
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left">
         <NFormItem label="类别">
-          <NInput v-model:value="searchParams.category" placeholder="精确匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.category"
+            :options="categoryOptions"
+            multiple
+            clearable
+            placeholder="多选精确匹配"
+            style="width: 150px"
+          />
         </NFormItem>
         <NFormItem label="代码">
           <NInput v-model:value="searchParams.symbol" placeholder="模糊匹配" clearable />

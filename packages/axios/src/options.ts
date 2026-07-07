@@ -50,7 +50,9 @@ export function createAxiosConfig(config?: Partial<CreateAxiosDefaults>) {
     },
     validateStatus: isHttpSuccess,
     paramsSerializer: params => {
-      return stringify(params);
+      // arrayFormat: 'repeat' 将数组序列化为重复键（如 category=a&category=b），
+      // 兼容 FastAPI Query(List[str]) 的多值参数解析
+      return stringify(params, { arrayFormat: 'repeat' });
     }
   };
 
