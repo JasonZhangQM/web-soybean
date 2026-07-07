@@ -80,7 +80,7 @@ function renderAmount(row: Api.Bills.Profit, key: keyof Api.Bills.Profit) {
 
 const columns = [
   { title: '交易时间', key: 'trade_time', width: 160 },
-  { title: '代码', key: 'symbol', width: 100 },
+  { title: '代码', key: 'symbol', width: 120 },
   { title: '名称', key: 'name', width: 120 },
   { title: '多头持仓', key: 'p_long', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long') },
   { title: '空头持仓', key: 'p_short', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short') },

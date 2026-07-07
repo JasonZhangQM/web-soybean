@@ -83,7 +83,7 @@ function handlePageSizeChange(pageSize: number) {
 const columns = [
   // 交易时间截取前 19 位（去掉毫秒/时区部分）
   { title: '交易时间', key: 'trade_time', width: 160, render: (row: Api.Bills.Bill) => row.trade_time?.slice(0, 19) ?? '-' },
-  { title: '代码', key: 'symbol', width: 100 },
+  { title: '代码', key: 'symbol', width: 120 },
   { title: '名称', key: 'name', width: 120 },
   { title: '总分类', key: 'category', width: 80 },
   { title: '一级分类', key: 'category1', width: 80 },

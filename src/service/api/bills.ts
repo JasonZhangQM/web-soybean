@@ -75,6 +75,10 @@ export function fetchProfits(params?: ProfitQueryParams) {
 
 /** 账户汇总查询参数 */
 interface GroupAccQueryParams {
+  /** 账户（多选精确匹配） */
+  account?: string[];
+  /** 仅显示账户净值不为 0 的记录 */
+  acc_aset_only?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -96,6 +100,8 @@ interface GroupSymbolQueryParams {
   category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
+  /** 仅显示当前市值不为 0 的记录 */
+  value_only?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchGroupAccs, syncGroupAcc } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
+import { trimSearchParams } from '@/utils/common';
+import { useBillsStore } from '@/store/modules/bills';
 
 defineOptions({ name: 'BillsGroupAccsPage' });
+
+const billsStore = useBillsStore();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -11,7 +15,7 @@ const syncLoading = ref(false);
 const tableData = ref<Api.Bills.GroupAcc[]>([]);
 const total = ref(0);
 
-// 分页配置：使用 remote 模式，由后端返回数据（此页面无筛选参数）
+// 分页配置：使用 remote 模式，由后端返回数据
 const pagination = reactive({
   page: 1,
   pageSize: 10,
@@ -21,10 +25,19 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
+// 筛选参数：account 多选精确匹配，acc_aset_only 控制账户净值不为0
+const searchParams = reactive<{ account?: string[]; acc_aset_only?: boolean }>({ acc_aset_only: true });
+
+// 账户下拉选项（从全局 store 获取）
+const accountOptions = computed(() => billsStore.getAccountOptions());
+
 async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchGroupAccs({
+      ...searchParams,
+      // 仅在选中"不为0"时传递该参数
+      acc_aset_only: searchParams.acc_aset_only === true ? true : undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -36,6 +49,18 @@ async function fetchData() {
   } finally {
     loading.value = false;
   }
+}
+
+function handleSearch() {
+  trimSearchParams(searchParams);
+  pagination.page = 1;
+  fetchData();
+}
+
+function handleReset() {
+  searchParams.account = undefined;
+  searchParams.acc_aset_only = undefined;
+  fetchData();
 }
 
 function handlePageChange(page: number) {
@@ -75,20 +100,46 @@ const columns = [
   { title: '状态', key: 'status', width: 100, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'status') }
 ];
 
-onMounted(() => fetchData());
+onMounted(() => {
+  fetchData();
+  // 确保账户列表已加载（全局 store 会自动去重）
+  billsStore.loadAccounts();
+});
 </script>
 
 <template>
   <div class="p-16px">
+    <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
+      <NForm inline label-placement="left">
+        <NFormItem label="账户">
+          <NSelect
+            v-model:value="searchParams.account"
+            :options="accountOptions"
+            multiple
+            clearable
+            placeholder="多选精确匹配"
+            style="width: 110px"
+          />
+        </NFormItem>
+        <NFormItem label="账户净值">
+          <NRadioGroup v-model:value="searchParams.acc_aset_only">
+            <NRadio :value="undefined">全部</NRadio>
+            <NRadio :value="true">不为0</NRadio>
+          </NRadioGroup>
+        </NFormItem>
+        <NFormItem>
+          <NSpace>
+            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleReset">重置</NButton>
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              同步
+            </NButton>
+          </NSpace>
+        </NFormItem>
+      </NForm>
+    </NCard>
     <NCard :bordered="false" class="card-wrapper">
-      <NSpace class="mb-16px">
-        <NButton type="primary" :loading="syncLoading" @click="handleSync">
-          <template #icon>
-            <SvgIcon icon="mdi:sync" />
-          </template>
-          同步
-        </NButton>
-      </NSpace>
       <NDataTable
         :columns="columns"
         :data="tableData"
