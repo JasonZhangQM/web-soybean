@@ -11,11 +11,13 @@ interface SyncResultData {
 type FlatResponse<T> = { data: T | null; error: unknown };
 
 /**
- * 执行同步任务并提供完整前端反馈：
- * - 顶部进度条（NLoadingBar start/finish/error）
+ * 执行同步任务并提供前端反馈：
  * - 按钮 loading 状态（独立 syncLoading，与表格 loading 分离）
  * - 防止重复点击（syncLoading 为 true 时直接返回）
  * - 成功消息提示：将后端返回的步骤结果或 message 拼接到消息中展示
+ *
+ * 注意：不触发顶部进度条（NLoadingBar），仅保留按钮自身的 loading 动画。
+ * 页面顶部的进度条仅用于路由切换/页面刷新场景。
  *
  * @param syncFn 同步接口调用，返回 {data, error}
  * @param syncLoading loading 状态的 ref
@@ -30,24 +32,20 @@ export async function executeSync<T extends SyncResultData>(
   if (syncLoading.value) return;
 
   syncLoading.value = true;
-  window.$loadingBar?.start();
 
   try {
     const { data, error } = await syncFn();
 
     if (!error && data) {
-      window.$loadingBar?.finish();
       // 将后端返回信息拼接到消息中展示
       window.$message?.success(buildSyncSuccessText(data));
       await onSuccess?.();
     } else {
       // 后端返回业务错误（如 HTTP 500）
-      window.$loadingBar?.error();
       window.$message?.error('同步失败');
     }
   } catch {
     // 网络异常等未捕获错误
-    window.$loadingBar?.error();
     window.$message?.error('同步异常');
   } finally {
     syncLoading.value = false;

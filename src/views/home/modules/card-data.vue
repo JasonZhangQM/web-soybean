@@ -2,11 +2,15 @@
 import { computed, onMounted, ref } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
 import { useThemeStore } from '@/store/modules/theme';
-import { fetchGroupAccs } from '@/service/api';
+import { fetchGroupAccs, syncGroupAcc } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({
   name: 'CardData'
 });
+
+// 同步专用 loading：控制浮动盈亏卡片同步图标的动画
+const syncLoading = ref(false);
 
 interface CardData {
   key: string;
@@ -109,6 +113,11 @@ async function fetchTotals() {
   pflAllTotal.value = Number(totalRow.pfl_all);
 }
 
+// 触发账户汇总同步（与 bills/group-accs 页面的同步按钮调用相同接口）
+async function handleSync() {
+  await executeSync(syncGroupAcc, syncLoading, fetchTotals);
+}
+
 onMounted(fetchTotals);
 </script>
 
@@ -128,13 +137,25 @@ onMounted(fetchTotals);
     <NGrid cols="s:2 m:3 l:6" responsive="screen" :x-gap="16" :y-gap="16">
       <NGi v-for="item in cardData" :key="item.key">
         <GradientBg :gradient-color="getGradientColor(item.color)" class="flex-1">
-          <h3 class="text-16px">{{ item.title }}</h3>
+          <div class="flex items-center gap-6px">
+            <h3 class="text-16px">{{ item.title }}</h3>
+            <!-- 浮动盈亏卡片：标题后增加同步图标，点击触发账户汇总同步 -->
+            <!-- SvgIcon 组件 inheritAttrs:false，@click 需绑在外层元素上 -->
+            <span
+              v-if="item.key === 'pfTotal'"
+              :class="['inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity', syncLoading ? 'animate-spin' : '']"
+              @click="handleSync"
+            >
+              <SvgIcon icon="mdi:sync" class="text-16px" />
+            </span>
+          </div>
           <div class="flex justify-between pt-12px">
             <SvgIcon :icon="item.icon" class="text-32px" />
             <CountTo
               :prefix="item.unit"
               :start-value="1"
               :end-value="item.value"
+              :duration="300"
               class="text-30px text-white dark:text-dark"
             />
           </div>
