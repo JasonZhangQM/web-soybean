@@ -124,3 +124,18 @@ export function syncIndexConstituent(trade_date?: string) {
     params: trade_date ? { trade_date } : undefined
   });
 }
+
+/** 指数累计收益率查询参数 */
+export interface IndexCumReturnQueryParams {
+  /** 起始日期（YYYY-MM-DD），默认当前日期前30天 */
+  start_date?: string;
+}
+
+/** 获取指数累计收益率 */
+export function fetchIndexCumReturns(params?: IndexCumReturnQueryParams) {
+  return request<Api.Bds.IndexCumReturn>({
+    url: '/api/v1/bds/index-cum-returns',
+    method: 'get',
+    params
+  });
+}

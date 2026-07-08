@@ -107,6 +107,14 @@ declare namespace Api {
       offset: number;
     }
 
+    /** 指数累计收益率 */
+    interface IndexCumReturn {
+      /** 交易日列表（YYYY-MM-DD 格式，升序） */
+      trade_dates: string[];
+      /** 各指数累计收益率序列，key 为指数名称，value 为累计收益率列表（%），NaN 为 null */
+      series: Record<string, (number | null)[]>;
+    }
+
     /** 同步结果（{status, message}） */
     interface SyncResult {
       /** 同步状态 */
