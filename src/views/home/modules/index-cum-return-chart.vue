@@ -67,10 +67,23 @@ const { domRef, updateOptions } = useEcharts(() => ({
     boundaryGap: false,
     data: [] as string[]
   },
-  yAxis: {
-    type: 'value',
-    name: '累计收益率(%)'
-  },
+  yAxis: [
+    {
+      type: 'value',
+      name: '累计收益率(%)',
+      splitNumber: 5,
+      min: 0,
+      max: 0
+    },
+    {
+      type: 'value',
+      name: '最大回撤(%)',
+      max: 0,
+      min: 0,
+      splitNumber: 5,
+      splitLine: { show: false }
+    }
+  ],
   series: [] as never[]
 }));
 
@@ -82,19 +95,51 @@ async function initData() {
   if (error || !data || !data.trade_dates || data.trade_dates.length === 0) return;
 
   const seriesNames = Object.keys(data.series);
-  // 指数数量不固定，按索引循环取色动态生成折线
-  const chartSeries = seriesNames.map((name, idx) => ({
+  // 累计收益率折线（实线），使用左 Y 轴，按索引循环取色
+  const cumSeries = seriesNames.map((name, idx) => ({
     color: colors[idx % colors.length],
     name,
     type: 'line',
     smooth: true,
+    yAxisIndex: 0,
     data: data.series[name]
   }));
+  // 最大回撤折线（仅面积填充），使用右 Y 轴（0在顶部，向下延伸形成倒山峰），与累计收益率同色
+  const drawdownSeries = seriesNames.map((name, idx) => ({
+    color: colors[idx % colors.length],
+    name: `${name}-回撤`,
+    type: 'line',
+    smooth: true,
+    yAxisIndex: 1,
+    lineStyle: { opacity: 0 },
+    symbol: 'none',
+    areaStyle: { opacity: 0.2 },
+    data: data.max_drawdown[name]
+  }));
+
+  const chartSeries = [...cumSeries, ...drawdownSeries];
+  // legend 包含累计收益率名称与回撤名称
+  const allNames = [...seriesNames, ...seriesNames.map(n => `${n}-回撤`)];
 
   updateOptions(opts => {
-    opts.legend.data = seriesNames;
+    opts.legend.data = allNames;
     opts.xAxis.data = data.trade_dates;
     opts.series = chartSeries as never;
+
+    // 动态计算左轴（累计收益率）范围，右轴（最大回撤）对称取负，保证刻度跨度一致
+    const allCumReturns = seriesNames.flatMap(n => data.series[n] ?? []);
+    const cumMax = Math.max(0, ...allCumReturns.filter((v): v is number => v !== null));
+    const cumMin = Math.min(0, ...allCumReturns.filter((v): v is number => v !== null));
+    // 左轴最小值向下取整到10的倍数，最大值向上取整到10的倍数
+    const leftMin = Math.floor(cumMin / 10) * 10;
+    const leftMax = Math.ceil(cumMax / 10) * 10;
+    // 右轴0在顶部，min为左轴范围的负值，保证跨度对称
+    const rightMin = -(leftMax - leftMin);
+
+    opts.yAxis[0].min = leftMin;
+    opts.yAxis[0].max = leftMax;
+    opts.yAxis[1].min = rightMin;
+    // yAxis[1].max 已在初始化时设为 0
 
     return opts;
   });

@@ -113,6 +113,8 @@ declare namespace Api {
       trade_dates: string[];
       /** 各指数累计收益率序列，key 为指数名称，value 为累计收益率列表（%），NaN 为 null */
       series: Record<string, (number | null)[]>;
+      /** 各指数每日最大回撤序列，key 为指数名称，value 为最大回撤列表（%，≤0），NaN 为 null */
+      max_drawdown: Record<string, (number | null)[]>;
     }
 
     /** 同步结果（{status, message}） */
