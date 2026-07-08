@@ -5,6 +5,7 @@ import type { WatermarkProps } from 'naive-ui';
 import { useAppStore } from './store/modules/app';
 import { useThemeStore } from './store/modules/theme';
 import { useBillsStore } from './store/modules/bills';
+import { useBdsStore } from './store/modules/bds';
 import { naiveDateLocales, naiveLocales } from './locales/naive';
 
 defineOptions({
@@ -14,6 +15,7 @@ defineOptions({
 const appStore = useAppStore();
 const themeStore = useThemeStore();
 const billsStore = useBillsStore();
+const bdsStore = useBdsStore();
 
 const naiveDarkTheme = computed(() => (themeStore.darkMode ? darkTheme : undefined));
 
@@ -46,6 +48,8 @@ onMounted(() => {
   // 加载交易类别列表与账户列表（全局缓存）
   billsStore.loadCategories();
   billsStore.loadAccounts();
+  // 加载指数代码列表（全局缓存）
+  bdsStore.loadIndexCodes();
 });
 </script>
 

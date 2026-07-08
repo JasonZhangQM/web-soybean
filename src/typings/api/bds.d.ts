@@ -1,6 +1,14 @@
 declare namespace Api {
   /** 基础数据模块 */
   namespace Bds {
+    /** 指数代码项（用于下拉选项） */
+    interface IndexCodeItem {
+      /** 指数代码（如 SHSE.000001） */
+      code: string;
+      /** 指数名称（如 上证指数） */
+      sec_name: string;
+    }
+
     /** 交易日历 */
     interface TradeDate {
       /** 主键 */
@@ -97,10 +105,8 @@ declare namespace Api {
       index_code?: string[];
       /** 成分股代码（模糊匹配） */
       symbol?: string;
-      /** 开始日期（YYYY-MM-DD） */
-      start_date?: string;
-      /** 结束日期（YYYY-MM-DD） */
-      end_date?: string;
+      /** 交易日期（YYYY-MM-DD，精确匹配） */
+      trade_date?: string;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */

@@ -4,5 +4,6 @@ export enum SetupStoreId {
   Auth = 'auth-store',
   Route = 'route-store',
   Tab = 'tab-store',
-  Bills = 'bills-store'
+  Bills = 'bills-store',
+  Bds = 'bds-store'
 }

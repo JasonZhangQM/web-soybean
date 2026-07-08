@@ -3,8 +3,13 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchIndexHistories, syncIndexHistory } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { useBdsStore } from '@/store/modules/bds';
 
 defineOptions({ name: 'IndexHistoriesPage' });
+
+const bdsStore = useBdsStore();
+// 指数代码下拉选项（来自全局 store 缓存，由后端 Config.INDEX_CODE 字典提供）
+const symbolOptions = bdsStore.getIndexCodeOptions();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -28,17 +33,6 @@ const searchParams = reactive<{
   start_date?: string;
   end_date?: string;
 }>({});
-
-// 指数代码下拉选项（与后端 Config.INDEX_CODE 字典保持一致）
-const symbolOptions = [
-  { label: '上证指数', value: 'SHSE.000001' },
-  { label: '深证300', value: 'SHSE.000300' },
-  { label: '中证A500', value: 'SHSE.000510' },
-  { label: '中证500', value: 'SHSE.000905' },
-  { label: '中证1000', value: 'SHSE.000852' },
-  { label: '科创50', value: 'SHSE.000688' },
-  { label: '创业板指', value: 'SZSE.399006' }
-];
 
 // 拉取指数历史行情列表
 async function fetchData() {

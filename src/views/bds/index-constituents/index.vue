@@ -3,8 +3,13 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchIndexConstituents, syncIndexConstituent } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { useBdsStore } from '@/store/modules/bds';
 
 defineOptions({ name: 'IndexConstituentsPage' });
+
+const bdsStore = useBdsStore();
+// 指数代码下拉选项（来自全局 store 缓存，由后端 Config.INDEX_CODE 字典提供）
+const indexCodeOptions = bdsStore.getIndexCodeOptions();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -22,29 +27,16 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：index_code 多选精确匹配，symbol 模糊匹配，start_date/end_date 日期范围
+// 搜索参数：index_code 多选精确匹配，symbol 模糊匹配，trade_date 交易日期精确匹配
 const queryForm = reactive<{
   index_code: string[];
   symbol: string | null;
-  start_date: string | null;
-  end_date: string | null;
+  trade_date: string | null;
 }>({
   index_code: [],
   symbol: null,
-  start_date: null,
-  end_date: null
+  trade_date: null
 });
-
-// 指数代码下拉选项（与后端 Config.INDEX_CODE 字典保持一致）
-const indexCodeOptions = [
-  { label: '上证指数', value: 'SHSE.000001' },
-  { label: '深证300', value: 'SHSE.000300' },
-  { label: '中证A500', value: 'SHSE.000510' },
-  { label: '中证500', value: 'SHSE.000905' },
-  { label: '中证1000', value: 'SHSE.000852' },
-  { label: '科创50', value: 'SHSE.000688' },
-  { label: '创业板指', value: 'SZSE.399006' }
-];
 
 // 同步日期：可选，指定同步的交易日，为 null 时获取最新交易日数据
 const syncDate = ref<string | null>(null);
@@ -56,8 +48,7 @@ async function fetchData() {
     const { data, error } = await fetchIndexConstituents({
       index_code: queryForm.index_code.length ? queryForm.index_code : undefined,
       symbol: queryForm.symbol || undefined,
-      start_date: queryForm.start_date || undefined,
-      end_date: queryForm.end_date || undefined,
+      trade_date: queryForm.trade_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -81,8 +72,7 @@ function handleSearch() {
 function handleReset() {
   queryForm.index_code = [];
   queryForm.symbol = null;
-  queryForm.start_date = null;
-  queryForm.end_date = null;
+  queryForm.trade_date = null;
   fetchData();
 }
 
@@ -141,18 +131,9 @@ onMounted(() => fetchData());
             style="width: 150px"
           />
         </NFormItem>
-        <NFormItem label="开始日期">
+        <NFormItem label="交易日期">
           <NDatePicker
-            v-model:formatted-value="queryForm.start_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            clearable
-            style="width: 150px"
-          />
-        </NFormItem>
-        <NFormItem label="结束日期">
-          <NDatePicker
-            v-model:formatted-value="queryForm.end_date"
+            v-model:formatted-value="queryForm.trade_date"
             type="date"
             value-format="yyyy-MM-dd"
             clearable

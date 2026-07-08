@@ -1,5 +1,13 @@
 import { request } from '../request';
 
+/** 获取指数代码列表（用于下拉选项，数据源为后端 Config.INDEX_CODE 字典） */
+export function fetchIndexCodes() {
+  return request<{ index_codes: Api.Bds.IndexCodeItem[] }>({
+    url: '/api/v1/bds/index-codes',
+    method: 'get'
+  });
+}
+
 /** 交易日历查询参数 */
 interface TradeDateQueryParams {
   /** 开始日期（YYYY-MM-DD） */
@@ -97,10 +105,8 @@ export interface IndexConstituentQueryParams {
   index_code?: string[];
   /** 成分股代码（模糊匹配） */
   symbol?: string;
-  /** 开始日期（YYYY-MM-DD） */
-  start_date?: string;
-  /** 结束日期（YYYY-MM-DD） */
-  end_date?: string;
+  /** 交易日期（YYYY-MM-DD，精确匹配） */
+  trade_date?: string;
   /** 每页条数 */
   limit: number;
   /** 偏移量 */
