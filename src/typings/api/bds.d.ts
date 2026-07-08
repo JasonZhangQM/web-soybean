@@ -77,6 +77,36 @@ declare namespace Api {
       update_time: string;
     }
 
+    /** 指数成分股 */
+    interface IndexConstituent {
+      /** 指数代码 */
+      index_code: string;
+      /** 成分股代码 */
+      symbol: string;
+      /** 权重 */
+      weight: number | null;
+      /** 交易日期（YYYY-MM-DD） */
+      trade_date: string;
+      /** 指数名称 */
+      sec_name: string | null;
+    }
+
+    /** 指数成分股查询参数 */
+    interface IndexConstituentQueryParams {
+      /** 指数代码（多选精确匹配） */
+      index_code?: string[];
+      /** 成分股代码（模糊匹配） */
+      symbol?: string;
+      /** 开始日期（YYYY-MM-DD） */
+      start_date?: string;
+      /** 结束日期（YYYY-MM-DD） */
+      end_date?: string;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
     /** 同步结果（{status, message}） */
     interface SyncResult {
       /** 同步状态 */

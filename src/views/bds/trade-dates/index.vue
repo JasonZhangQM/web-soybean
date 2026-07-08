@@ -86,7 +86,7 @@ onMounted(() => fetchData());
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left">
+      <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
         <NFormItem label="开始日期">
           <NDatePicker
             v-model:formatted-value="searchParams.start_date"

@@ -236,6 +236,7 @@ const local: App.I18n.Schema = {
     'bds_trade-dates': 'Trade Dates',
     'bds_symbol-infos': 'Symbol Infos',
     'bds_index-histories': 'Index Quote',
+    'bds_index-constituents': 'Index Constituents',
     'bills_group': 'Bill Group',
     'bills_bills': 'Bills',
     'bills_profits': 'Profits',

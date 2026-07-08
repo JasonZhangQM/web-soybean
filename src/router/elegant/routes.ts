@@ -53,6 +53,16 @@ export const generatedRoutes = [
     },
     children: [
       {
+        name: 'bds_index-constituents',
+        path: '/bds/index-constituents',
+        component: 'view.bds_index-constituents',
+        meta: {
+          title: 'bds_index-constituents',
+          i18nKey: 'route.bds_index-constituents',
+          constant: true
+        }
+      },
+      {
         name: 'bds_index-histories',
         path: '/bds/index-histories',
         component: 'view.bds_index-histories',

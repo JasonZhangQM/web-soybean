@@ -232,6 +232,7 @@ const local: App.I18n.Schema = {
     'bds_trade-dates': '交易日历',
     'bds_symbol-infos': '证券信息',
     'bds_index-histories': '指数行情',
+    'bds_index-constituents': '指数成分',
     'bills_group': '账单汇总',
     'bills_bills': '交易明细',
     'bills_profits': '账单收益',

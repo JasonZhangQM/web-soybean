@@ -104,7 +104,7 @@ onMounted(() => fetchData());
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left">
+      <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
         <NFormItem label="真实合约">
           <NInput v-model:value="searchParams.symbol" placeholder="请输入真实合约" clearable />
         </NFormItem>

@@ -95,7 +95,7 @@ onMounted(() => fetchData());
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left">
+      <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
         <NFormItem label="代码">
           <NInput v-model:value="searchParams.symbol" placeholder="请输入代码" clearable />
         </NFormItem>

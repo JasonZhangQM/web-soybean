@@ -90,3 +90,37 @@ export function syncIndexHistory() {
     method: 'post'
   });
 }
+
+/** 指数成分股查询参数 */
+export interface IndexConstituentQueryParams {
+  /** 指数代码（多选精确匹配） */
+  index_code?: string[];
+  /** 成分股代码（模糊匹配） */
+  symbol?: string;
+  /** 开始日期（YYYY-MM-DD） */
+  start_date?: string;
+  /** 结束日期（YYYY-MM-DD） */
+  end_date?: string;
+  /** 每页条数 */
+  limit: number;
+  /** 偏移量 */
+  offset: number;
+}
+
+/** 查询指数成分股列表 */
+export function fetchIndexConstituents(params: IndexConstituentQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.IndexConstituent>>({
+    url: '/api/v1/bds/index-constituents',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步指数成分股（可指定交易日，未指定则获取最新交易日数据） */
+export function syncIndexConstituent(trade_date?: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/index-constituent',
+    method: 'post',
+    params: trade_date ? { trade_date } : undefined
+  });
+}
