@@ -2,6 +2,10 @@ import { request } from '../request';
 
 /** 交易日历查询参数 */
 interface TradeDateQueryParams {
+  /** 开始日期（YYYY-MM-DD） */
+  start_date?: string;
+  /** 结束日期（YYYY-MM-DD） */
+  end_date?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

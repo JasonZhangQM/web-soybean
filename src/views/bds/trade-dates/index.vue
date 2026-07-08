@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchTradeDates, syncTradeDate } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
+import { trimSearchParams } from '@/utils/common';
 
 defineOptions({ name: 'TradeDatesPage' });
 
@@ -21,11 +22,15 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
+// 搜索参数：start_date/end_date 交易日期范围筛选
+const searchParams = reactive<{ start_date?: string; end_date?: string }>({});
+
 // 拉取交易日历列表
 async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchTradeDates({
+      ...searchParams,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -39,6 +44,19 @@ async function fetchData() {
   }
 }
 
+function handleSearch() {
+  trimSearchParams(searchParams);
+  pagination.page = 1;
+  fetchData();
+}
+
+// 重置搜索条件并刷新
+function handleReset() {
+  searchParams.start_date = undefined;
+  searchParams.end_date = undefined;
+  fetchData();
+}
+
 function handlePageChange(page: number) {
   pagination.page = page;
   fetchData();
@@ -50,14 +68,14 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 触发后端同步交易日历（executeSync 内置进度条/防重复/结果通知）
+// 触发后端同步交易日历（executeSync 内置防重复/结果通知）
 async function handleSync() {
   await executeSync(syncTradeDate, syncLoading, fetchData);
 }
 
 const columns = [
   { title: 'ID', key: 'id', width: 80 },
-  { title: '交易日', key: 'trade_date' },
+  { title: '交易日', key: 'trade_date', width: 120 },
   { title: '创建时间', key: 'create_time' },
   { title: '更新时间', key: 'update_time' }
 ];
@@ -67,13 +85,39 @@ onMounted(() => fetchData());
 
 <template>
   <div class="p-16px">
+    <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
+      <NForm inline label-placement="left">
+        <NFormItem label="开始日期">
+          <NDatePicker
+            v-model:formatted-value="searchParams.start_date"
+            type="date"
+            value-format="yyyy-MM-dd"
+            clearable
+            style="width: 150px"
+          />
+        </NFormItem>
+        <NFormItem label="结束日期">
+          <NDatePicker
+            v-model:formatted-value="searchParams.end_date"
+            type="date"
+            value-format="yyyy-MM-dd"
+            clearable
+            style="width: 150px"
+          />
+        </NFormItem>
+        <NFormItem>
+          <NSpace>
+            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleReset">重置</NButton>
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              同步
+            </NButton>
+          </NSpace>
+        </NFormItem>
+      </NForm>
+    </NCard>
     <NCard :bordered="false" class="card-wrapper">
-      <NSpace class="mb-16px">
-        <NButton type="primary" :loading="syncLoading" @click="handleSync">
-          <template #icon><SvgIcon icon="mdi:sync" /></template>
-          同步
-        </NButton>
-      </NSpace>
       <NDataTable
         :columns="columns"
         :data="tableData"

@@ -68,9 +68,9 @@ function buildSyncSuccessText(data: SyncResultData): string {
     return `同步成功：${detail}`;
   }
 
-  // bds index-history 风格：有 updated_count 字段，展示更新的指数数量
+  // bds 风格：有 updated_count 字段，展示更新的记录条数
   if (typeof data.updated_count === 'number') {
-    return `同步成功：更新${data.updated_count}个指数`;
+    return `同步成功：更新${data.updated_count}条`;
   }
 
   // bds/irs 风格：有 message 字符串
