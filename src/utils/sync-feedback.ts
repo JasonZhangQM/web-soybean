@@ -5,6 +5,8 @@ interface SyncResultData {
   status?: string;
   message?: string;
   steps?: Array<{ step: string; result: unknown }>;
+  /** 成功更新的记录/代码数量（bds index-history 同步时返回） */
+  updated_count?: number;
 }
 
 /** createFlatRequest 返回的形状 */
@@ -55,6 +57,7 @@ export async function executeSync<T extends SyncResultData>(
 /**
  * 构建同步成功消息文本：
  * - bills 接口返回 steps 数组：拼接为「步骤名:结果」分号连接
+ * - bds index-history 接口返回 updated_count：展示更新的指数数量
  * - bds/irs 接口返回 message 字符串：直接追加
  * - 都没有：仅返回「同步成功」
  */
@@ -63,6 +66,11 @@ function buildSyncSuccessText(data: SyncResultData): string {
   if (data.steps?.length) {
     const detail = data.steps.map(s => `${s.step}:${formatStepResult(s.result)}`).join('; ');
     return `同步成功：${detail}`;
+  }
+
+  // bds index-history 风格：有 updated_count 字段，展示更新的指数数量
+  if (typeof data.updated_count === 'number') {
+    return `同步成功：更新${data.updated_count}个指数`;
   }
 
   // bds/irs 风格：有 message 字符串

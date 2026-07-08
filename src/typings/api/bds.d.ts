@@ -83,6 +83,8 @@ declare namespace Api {
       status: string;
       /** 同步消息 */
       message: string;
+      /** 成功更新的指数代码数量（index-history 同步时返回） */
+      updated_count?: number;
     }
   }
 }
