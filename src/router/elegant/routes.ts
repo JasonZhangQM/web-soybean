@@ -53,24 +53,45 @@ export const generatedRoutes = [
     },
     children: [
       {
-        name: 'bds_fund-balances',
-        path: '/bds/fund-balances',
-        component: 'view.bds_fund-balances',
+        name: 'bds_fund-data',
+        path: '/bds/fund-data',
         meta: {
-          title: 'bds_fund-balances',
-          i18nKey: 'route.bds_fund-balances',
+          title: 'bds_fund-data',
+          i18nKey: 'route.bds_fund-data',
           constant: true
-        }
-      },
-      {
-        name: 'bds_fund-incomes',
-        path: '/bds/fund-incomes',
-        component: 'view.bds_fund-incomes',
-        meta: {
-          title: 'bds_fund-incomes',
-          i18nKey: 'route.bds_fund-incomes',
-          constant: true
-        }
+        },
+        children: [
+          {
+            name: 'bds_fund-data_fund-balances',
+            path: '/bds/fund-data/fund-balances',
+            component: 'view.bds_fund-data_fund-balances',
+            meta: {
+              title: 'bds_fund-data_fund-balances',
+              i18nKey: 'route.bds_fund-data_fund-balances',
+              constant: true
+            }
+          },
+          {
+            name: 'bds_fund-data_fund-cashflows',
+            path: '/bds/fund-data/fund-cashflows',
+            component: 'view.bds_fund-data_fund-cashflows',
+            meta: {
+              title: 'bds_fund-data_fund-cashflows',
+              i18nKey: 'route.bds_fund-data_fund-cashflows',
+              constant: true
+            }
+          },
+          {
+            name: 'bds_fund-data_fund-incomes',
+            path: '/bds/fund-data/fund-incomes',
+            component: 'view.bds_fund-data_fund-incomes',
+            meta: {
+              title: 'bds_fund-data_fund-incomes',
+              i18nKey: 'route.bds_fund-data_fund-incomes',
+              constant: true
+            }
+          }
+        ]
       },
       {
         name: 'bds_index-constituents',
@@ -226,84 +247,117 @@ export const generatedRoutes = [
     },
     children: [
       {
-        name: 'irs_monitor-discounts',
-        path: '/irs/monitor-discounts',
-        component: 'view.irs_monitor-discounts',
+        name: 'irs_discount',
+        path: '/irs/discount',
         meta: {
-          title: 'irs_monitor-discounts',
-          i18nKey: 'route.irs_monitor-discounts',
+          title: 'irs_discount',
+          i18nKey: 'route.irs_discount',
           constant: true
-        }
+        },
+        children: [
+          {
+            name: 'irs_discount_monitor-discounts',
+            path: '/irs/discount/monitor-discounts',
+            component: 'view.irs_discount_monitor-discounts',
+            meta: {
+              title: 'irs_discount_monitor-discounts',
+              i18nKey: 'route.irs_discount_monitor-discounts',
+              constant: true
+            }
+          },
+          {
+            name: 'irs_discount_symbol-discounts',
+            path: '/irs/discount/symbol-discounts',
+            component: 'view.irs_discount_symbol-discounts',
+            meta: {
+              title: 'irs_discount_symbol-discounts',
+              i18nKey: 'route.irs_discount_symbol-discounts',
+              constant: true
+            }
+          }
+        ]
       },
       {
-        name: 'irs_monitor-option-ts',
-        path: '/irs/monitor-option-ts',
-        component: 'view.irs_monitor-option-ts',
+        name: 'irs_option',
+        path: '/irs/option',
         meta: {
-          title: 'irs_monitor-option-ts',
-          i18nKey: 'route.irs_monitor-option-ts',
+          title: 'irs_option',
+          i18nKey: 'route.irs_option',
           constant: true
-        }
+        },
+        children: [
+          {
+            name: 'irs_option_monitor-option-ts',
+            path: '/irs/option/monitor-option-ts',
+            component: 'view.irs_option_monitor-option-ts',
+            meta: {
+              title: 'irs_option_monitor-option-ts',
+              i18nKey: 'route.irs_option_monitor-option-ts',
+              constant: true
+            }
+          },
+          {
+            name: 'irs_option_monitor-options',
+            path: '/irs/option/monitor-options',
+            component: 'view.irs_option_monitor-options',
+            meta: {
+              title: 'irs_option_monitor-options',
+              i18nKey: 'route.irs_option_monitor-options',
+              constant: true
+            }
+          },
+          {
+            name: 'irs_option_symbol-options',
+            path: '/irs/option/symbol-options',
+            component: 'view.irs_option_symbol-options',
+            meta: {
+              title: 'irs_option_symbol-options',
+              i18nKey: 'route.irs_option_symbol-options',
+              constant: true
+            }
+          }
+        ]
       },
       {
-        name: 'irs_monitor-options',
-        path: '/irs/monitor-options',
-        component: 'view.irs_monitor-options',
+        name: 'irs_value',
+        path: '/irs/value',
         meta: {
-          title: 'irs_monitor-options',
-          i18nKey: 'route.irs_monitor-options',
+          title: 'irs_value',
+          i18nKey: 'route.irs_value',
           constant: true
-        }
-      },
-      {
-        name: 'irs_symbol-discounts',
-        path: '/irs/symbol-discounts',
-        component: 'view.irs_symbol-discounts',
-        meta: {
-          title: 'irs_symbol-discounts',
-          i18nKey: 'route.irs_symbol-discounts',
-          constant: true
-        }
-      },
-      {
-        name: 'irs_symbol-kpis',
-        path: '/irs/symbol-kpis',
-        component: 'view.irs_symbol-kpis',
-        meta: {
-          title: 'irs_symbol-kpis',
-          i18nKey: 'route.irs_symbol-kpis',
-          constant: true
-        }
-      },
-      {
-        name: 'irs_symbol-options',
-        path: '/irs/symbol-options',
-        component: 'view.irs_symbol-options',
-        meta: {
-          title: 'irs_symbol-options',
-          i18nKey: 'route.irs_symbol-options',
-          constant: true
-        }
-      },
-      {
-        name: 'irs_symbol-values',
-        path: '/irs/symbol-values',
-        component: 'view.irs_symbol-values',
-        meta: {
-          title: 'irs_symbol-values',
-          i18nKey: 'route.irs_symbol-values',
-          constant: true
-        }
-      },
-      {
-        name: 'irs_value-monitor',
-        path: '/irs/value-monitor',
-        component: 'view.irs_value-monitor',
-        meta: {
-          title: 'irs_value-monitor',
-          i18nKey: 'route.irs_value-monitor',
-          constant: true
-        }
+        },
+        children: [
+          {
+            name: 'irs_value_symbol-kpis',
+            path: '/irs/value/symbol-kpis',
+            component: 'view.irs_value_symbol-kpis',
+            meta: {
+              title: 'irs_value_symbol-kpis',
+              i18nKey: 'route.irs_value_symbol-kpis',
+              constant: true
+            }
+          },
+          {
+            name: 'irs_value_symbol-values',
+            path: '/irs/value/symbol-values',
+            component: 'view.irs_value_symbol-values',
+            meta: {
+              title: 'irs_value_symbol-values',
+              i18nKey: 'route.irs_value_symbol-values',
+              constant: true
+            }
+          },
+          {
+            name: 'irs_value_value-monitor',
+            path: '/irs/value/value-monitor',
+            component: 'view.irs_value_value-monitor',
+            meta: {
+              title: 'irs_value_value-monitor',
+              i18nKey: 'route.irs_value_value-monitor',
+              constant: true
+            }
+          }
+        ]
       }
     ]
   },

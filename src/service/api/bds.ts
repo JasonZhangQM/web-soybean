@@ -189,3 +189,21 @@ export function syncFundIncome(symbol: string) {
     params: { symbol }
   });
 }
+
+/** 查询现金流量表列表 */
+export function fetchFundCashflows(params: Api.Bds.FundCashflowQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.FundCashflow>>({
+    url: '/api/v1/bds/fund-cashflows',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步现金流量表数据（单个股票代码，精确匹配） */
+export function syncFundCashflow(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/fund-cashflow',
+    method: 'post',
+    params: { symbol }
+  });
+}

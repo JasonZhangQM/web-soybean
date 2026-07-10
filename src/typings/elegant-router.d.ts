@@ -17,15 +17,14 @@ declare module "@elegant-router/types" {
   export type RouteMap = {
     "root": "/";
     "not-found": "/:pathMatch(.*)*";
-    "irs_discount": "/irs/discount";
-    "irs_option": "/irs/option";
-    "irs_value": "/irs/value";
     "403": "/403";
     "404": "/404";
     "500": "/500";
     "bds": "/bds";
-    "bds_fund-balances": "/bds/fund-balances";
-    "bds_fund-incomes": "/bds/fund-incomes";
+    "bds_fund-data": "/bds/fund-data";
+    "bds_fund-data_fund-balances": "/bds/fund-data/fund-balances";
+    "bds_fund-data_fund-cashflows": "/bds/fund-data/fund-cashflows";
+    "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes";
     "bds_index-constituents": "/bds/index-constituents";
     "bds_index-histories": "/bds/index-histories";
     "bds_symbol-infos": "/bds/symbol-infos";
@@ -40,14 +39,17 @@ declare module "@elegant-router/types" {
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
-    "irs_monitor-discounts": "/irs/monitor-discounts";
-    "irs_monitor-option-ts": "/irs/monitor-option-ts";
-    "irs_monitor-options": "/irs/monitor-options";
-    "irs_symbol-discounts": "/irs/symbol-discounts";
-    "irs_symbol-kpis": "/irs/symbol-kpis";
-    "irs_symbol-options": "/irs/symbol-options";
-    "irs_symbol-values": "/irs/symbol-values";
-    "irs_value-monitor": "/irs/value-monitor";
+    "irs_discount": "/irs/discount";
+    "irs_discount_monitor-discounts": "/irs/discount/monitor-discounts";
+    "irs_discount_symbol-discounts": "/irs/discount/symbol-discounts";
+    "irs_option": "/irs/option";
+    "irs_option_monitor-option-ts": "/irs/option/monitor-option-ts";
+    "irs_option_monitor-options": "/irs/option/monitor-options";
+    "irs_option_symbol-options": "/irs/option/symbol-options";
+    "irs_value": "/irs/value";
+    "irs_value_symbol-kpis": "/irs/value/symbol-kpis";
+    "irs_value_symbol-values": "/irs/value/symbol-values";
+    "irs_value_value-monitor": "/irs/value/value-monitor";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
   };
 
@@ -68,9 +70,6 @@ declare module "@elegant-router/types" {
     RouteKey,
     | "root"
     | "not-found"
-    | "irs_discount"
-    | "irs_option"
-    | "irs_value"
   >;
 
   /**
@@ -113,8 +112,9 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
-    | "bds_fund-balances"
-    | "bds_fund-incomes"
+    | "bds_fund-data_fund-balances"
+    | "bds_fund-data_fund-cashflows"
+    | "bds_fund-data_fund-incomes"
     | "bds_index-constituents"
     | "bds_index-histories"
     | "bds_symbol-infos"
@@ -126,14 +126,14 @@ declare module "@elegant-router/types" {
     | "bills_profit-years"
     | "bills_profits"
     | "home"
-    | "irs_monitor-discounts"
-    | "irs_monitor-option-ts"
-    | "irs_monitor-options"
-    | "irs_symbol-discounts"
-    | "irs_symbol-kpis"
-    | "irs_symbol-options"
-    | "irs_symbol-values"
-    | "irs_value-monitor"
+    | "irs_discount_monitor-discounts"
+    | "irs_discount_symbol-discounts"
+    | "irs_option_monitor-option-ts"
+    | "irs_option_monitor-options"
+    | "irs_option_symbol-options"
+    | "irs_value_symbol-kpis"
+    | "irs_value_symbol-values"
+    | "irs_value_value-monitor"
   >;
 
   /**
@@ -143,9 +143,6 @@ declare module "@elegant-router/types" {
     CustomRouteKey,
     | "root"
     | "not-found"
-    | "irs_discount"
-    | "irs_option"
-    | "irs_value"
   >;
 
   /**

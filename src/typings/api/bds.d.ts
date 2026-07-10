@@ -239,7 +239,7 @@ declare namespace Api {
       exp_fin: string | null;
       /** 投资收益 */
       inc_inv: string | null;
-      /** 公允价值变动收益 */
+      /** 公允价值变动 */
       inc_fv_chg: string | null;
       /** 营业利润 */
       oper_prof: string | null;
@@ -269,6 +269,80 @@ declare namespace Api {
 
     /** 利润表查询参数 */
     interface FundIncomeQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string;
+      /** 报表类型 */
+      rpt_type?: number;
+      /** 报告日期起始日 */
+      start_date?: string;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 现金流量表 */
+    interface FundCashflow {
+      /** 主键 */
+      id: number;
+      /** 股票代码 */
+      symbol: string;
+      /** 发布日期 */
+      pub_date: string | null;
+      /** 报告日期 */
+      rpt_date: string | null;
+      /** 报表类型 */
+      rpt_type: number | null;
+      /** 数据类型 */
+      data_type: number | null;
+      /** 销售商品、提供劳务收到的现金 */
+      cash_rcv_sale: string | null;
+      /** 经营活动现金流入小计 */
+      cf_in_oper: string | null;
+      /** 购买商品、接受劳务支付的现金 */
+      cash_pur_gds_svc: string | null;
+      /** 支付给职工以及为职工支付的现金 */
+      cash_pay_emp: string | null;
+      /** 支付的各项税费 */
+      cash_pay_tax: string | null;
+      /** 经营活动现金流出小计 */
+      cf_out_oper: string | null;
+      /** 经营活动产生的现金流量净额 */
+      net_cf_oper: string | null;
+      /** 收回投资收到的现金 */
+      cash_rcv_sale_inv: string | null;
+      /** 投资活动现金流入小计 */
+      cf_in_inv: string | null;
+      /** 购建固定资产、无形资产和其他长期资产支付的现金 */
+      pur_fix_intg_ast: string | null;
+      /** 投资活动产生的现金流量净额 */
+      net_cf_inv: string | null;
+      /** 取得借款收到的现金 */
+      brw_rcv: string | null;
+      /** 筹资活动现金流入小计 */
+      cf_in_fin: string | null;
+      /** 偿还债务支付的现金 */
+      cash_rpay_brw: string | null;
+      /** 筹资活动产生的现金流量净额 */
+      net_cf_fin: string | null;
+      /** 净利润 */
+      net_prof: string | null;
+      /** 汇率变动对现金及现金等价物的影响 */
+      efct_er_chg_cash: string | null;
+      /** 现金及现金等价物净增加额 */
+      net_incr_cash_eq: string | null;
+      /** 期初现金及现金等价物余额 */
+      cash_cash_eq_bgn: string | null;
+      /** 期末现金及现金等价物余额 */
+      cash_cash_eq_end: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 现金流量表查询参数 */
+    interface FundCashflowQueryParams {
       /** 股票代码（模糊匹配） */
       symbol?: string;
       /** 报表类型 */
