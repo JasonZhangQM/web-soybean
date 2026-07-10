@@ -299,12 +299,8 @@ declare namespace Api {
       update_time: string;
       /** 真实合约代码 */
       symbol: string | null;
-      /** 连续合约代码 */
-      symbol_con: string | null;
       /** 是否主力 */
       is_main: boolean | null;
-      /** 合约类别 */
-      symbol_type: string | null;
       /** 标的代码 */
       symbol_ud: string | null;
       /** 到期日（YYYY-MM-DD） */

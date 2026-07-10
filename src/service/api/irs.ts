@@ -138,7 +138,7 @@ interface SymbolDiscountQueryParams {
   symbol_type?: string;
   /** 是否主力 */
   is_main?: boolean;
-  /** 真实合约代码 */
+  /** 真实合约代码（模糊匹配） */
   symbol?: string;
   /** 每页条数 */
   limit?: number;
@@ -157,13 +157,13 @@ export function fetchSymbolDiscounts(params?: SymbolDiscountQueryParams) {
 
 /** 贴水监测查询参数 */
 interface MonitorDiscountQueryParams {
-  /** 真实合约代码 */
+  /** 真实合约代码（模糊匹配） */
   symbol?: string;
-  /** 连续合约代码 */
+  /** 连续合约代码（模糊匹配） */
   symbol_con?: string;
-  /** 合约类别 */
+  /** 合约类别（精确匹配） */
   symbol_type?: string;
-  /** 是否主力 */
+  /** 是否主力（精确匹配） */
   is_main?: boolean;
   /** 每页条数 */
   limit?: number;

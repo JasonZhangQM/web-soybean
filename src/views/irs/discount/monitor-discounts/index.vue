@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchMonitorDiscounts } from '@/service/api';
+import { fetchMonitorDiscounts, syncIrs } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 
 defineOptions({ name: 'IrsMonitorDiscountsPage' });
 
 const loading = ref(false);
+// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Irs.MonitorDiscount[]>([]);
 const total = ref(0);
 
@@ -77,6 +80,11 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
+// 触发贴水监测同步（调用 discount_yield_em_orm 获取实时行情并计算贴水）
+async function handleSync() {
+  await executeSync(() => syncIrs('monitor-discount'), syncLoading, fetchData);
+}
+
 // 数值字段统一保留两位小数，空值显示 '-'
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 // 日期截取前 10 位
@@ -84,8 +92,6 @@ const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 
 const columns = [
   { title: '真实合约', key: 'symbol', width: 120 },
-  { title: '连续合约', key: 'symbol_con', width: 120 },
-  { title: '合约类别', key: 'symbol_type', width: 80 },
   { title: '主力', key: 'is_main', width: 60, render: (row: Api.Irs.MonitorDiscount) => (row.is_main ? '是' : '否') },
   { title: '标的代码', key: 'symbol_ud', width: 100 },
   { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.MonitorDiscount) => fmtDate(row.delisted_date) },
@@ -121,6 +127,10 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              同步
+            </NButton>
           </NSpace>
         </NFormItem>
       </NForm>
