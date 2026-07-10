@@ -4,10 +4,13 @@ import { fetchBills, batchImportBills } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { executeSync } from '@/utils/sync-feedback';
 import { useBillsStore } from '@/store/modules/bills';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'BillsListPage' });
 
 const billsStore = useBillsStore();
+// 代码远程搜索（NSelect remote，防抖 300ms）
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 const loading = ref(false);
 // 导入专用 loading：与表格 loading 分离，避免导入过程中表格闪烁
@@ -25,8 +28,8 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 筛选参数：account/category 多选精确匹配，symbol/name 模糊匹配
-const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string; name?: string }>({});
+// 筛选参数：account/category 多选精确匹配，symbol 远程搜索选中代码，name 模糊匹配
+const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string | null; name?: string }>({});
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -37,6 +40,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchBills({
       ...searchParams,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      symbol: searchParams.symbol || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -59,8 +64,9 @@ function handleSearch() {
 function handleReset() {
   searchParams.account = undefined;
   searchParams.category = undefined;
-  searchParams.symbol = undefined;
+  searchParams.symbol = null;
   searchParams.name = undefined;
+  clearSymbolOptions();
   fetchData();
 }
 
@@ -131,7 +137,17 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem label="代码">
-          <NInput v-model:value="searchParams.symbol" placeholder="模糊匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.symbol"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
+            clearable
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @search="handleSymbolSearch"
+          />
         </NFormItem>
         <NFormItem label="名称">
           <NInput v-model:value="searchParams.name" placeholder="模糊匹配" clearable />

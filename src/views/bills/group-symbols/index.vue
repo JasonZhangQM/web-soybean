@@ -4,10 +4,13 @@ import { fetchGroupSymbols, syncGroupSymbol } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'BillsGroupSymbolsPage' });
 
 const billsStore = useBillsStore();
+// 代码远程搜索（NSelect remote，防抖 300ms）
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -25,8 +28,8 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 筛选参数：category 多选精确匹配，symbol 模糊匹配，value_only 控制当前市值不为0
-const searchParams = reactive<{ category?: string[]; symbol?: string; value_only?: boolean }>({});
+// 筛选参数：category 多选精确匹配，symbol 远程搜索选中代码，value_only 控制当前市值不为0
+const searchParams = reactive<{ category?: string[]; symbol?: string | null; value_only?: boolean }>({});
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -36,6 +39,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroupSymbols({
       ...searchParams,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
       value_only: searchParams.value_only === true ? true : undefined,
       limit: pagination.pageSize,
@@ -59,8 +64,9 @@ function handleSearch() {
 
 function handleReset() {
   searchParams.category = undefined;
-  searchParams.symbol = undefined;
+  searchParams.symbol = null;
   searchParams.value_only = undefined;
+  clearSymbolOptions();
   fetchData();
 }
 
@@ -126,7 +132,17 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem label="代码">
-          <NInput v-model:value="searchParams.symbol" placeholder="模糊匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.symbol"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
+            clearable
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @search="handleSymbolSearch"
+          />
         </NFormItem>
         <NFormItem label="当前市值">
           <NRadioGroup v-model:value="searchParams.value_only">

@@ -4,12 +4,15 @@ import { fetchIndexConstituents, syncIndexConstituent } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBdsStore } from '@/store/modules/bds';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'IndexConstituentsPage' });
 
 const bdsStore = useBdsStore();
 // 指数代码下拉选项（来自全局 store 缓存，由后端 Config.INDEX_CODE 字典提供）
 const indexCodeOptions = bdsStore.getIndexCodeOptions();
+// 成分股代码远程搜索（NSelect remote，防抖 300ms）
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -27,7 +30,7 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：index_code 多选精确匹配，symbol 模糊匹配，trade_date 交易日期精确匹配
+// 搜索参数：index_code 多选精确匹配，symbol 远程搜索选中代码，trade_date 交易日期精确匹配
 const queryForm = reactive<{
   index_code: string[];
   symbol: string | null;
@@ -73,6 +76,7 @@ function handleReset() {
   queryForm.index_code = [];
   queryForm.symbol = null;
   queryForm.trade_date = null;
+  clearSymbolOptions();
   fetchData();
 }
 
@@ -124,11 +128,16 @@ onMounted(() => fetchData());
           />
         </NFormItem>
         <NFormItem label="成分股代码">
-          <NInput
+          <NSelect
             v-model:value="queryForm.symbol"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
             clearable
-            placeholder="模糊匹配"
-            style="width: 150px"
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @search="handleSymbolSearch"
           />
         </NFormItem>
         <NFormItem label="交易日期">

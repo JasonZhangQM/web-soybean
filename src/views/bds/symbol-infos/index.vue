@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchSymbolInfos, syncSymbolInfo } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { useBdsStore } from '@/store/modules/bds';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'SymbolInfosPage' });
+
+const bdsStore = useBdsStore();
+// 代码远程搜索（NSelect remote，防抖 300ms）
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+// 行业下拉选项（来自全局 store 缓存，由后端 DISTINCT 去重提供）
+const industryOptions = computed(() => bdsStore.getIndustryOptions());
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -22,12 +30,11 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：symbol/name 模糊，industry 精确
-const searchParams = reactive({
-  symbol: '',
-  name: '',
-  industry: ''
-});
+// 搜索参数：symbol 远程搜索选中代码，industry 下拉精确匹配
+const searchParams = reactive<{
+  symbol?: string | null;
+  industry?: string | null;
+}>({});
 
 // 拉取证券信息列表
 async function fetchData() {
@@ -35,6 +42,9 @@ async function fetchData() {
   try {
     const { data, error } = await fetchSymbolInfos({
       ...searchParams,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      symbol: searchParams.symbol || undefined,
+      industry: searchParams.industry || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -56,9 +66,9 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  searchParams.symbol = '';
-  searchParams.name = '';
-  searchParams.industry = '';
+  searchParams.symbol = null;
+  searchParams.industry = null;
+  clearSymbolOptions();
   fetchData();
 }
 
@@ -108,13 +118,27 @@ onMounted(() => fetchData());
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
         <NFormItem label="代码">
-          <NInput v-model:value="searchParams.symbol" placeholder="代码模糊匹配" clearable />
-        </NFormItem>
-        <NFormItem label="名称">
-          <NInput v-model:value="searchParams.name" placeholder="名称模糊匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.symbol"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
+            clearable
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @search="handleSymbolSearch"
+          />
         </NFormItem>
         <NFormItem label="行业">
-          <NInput v-model:value="searchParams.industry" placeholder="行业精确匹配" clearable />
+          <NSelect
+            v-model:value="searchParams.industry"
+            :options="industryOptions"
+            filterable
+            clearable
+            placeholder="行业精确匹配"
+            style="width: 150px"
+          />
         </NFormItem>
         <NFormItem>
           <NSpace>

@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchFundBalances, syncFundBalance } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'FundBalancesPage' });
 
@@ -22,12 +23,11 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，start_date/end_date 报告日期范围
+// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，start_date 报告日期起始日
 const searchParams = reactive<{
   symbol?: string | null;
   rpt_type?: number | null;
   start_date?: string;
-  end_date?: string;
 }>({});
 
 // rpt_type 下拉选项
@@ -37,6 +37,10 @@ const rptTypeOptions = [
   { label: '前三季报', value: 9 },
   { label: '年报', value: 12 }
 ];
+
+// 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+const { symbolOptions: syncSymbolOptions, symbolLoading: syncSymbolLoading, handleSymbolSearch: handleSyncSearch } = useSymbolSearch();
 
 // 同步用单个股票代码（精确匹配）
 const syncSymbol = ref<string | null>(null);
@@ -50,7 +54,6 @@ async function fetchData() {
       // rpt_type 为 null 时传 undefined，避免向后端发送 null
       rpt_type: searchParams.rpt_type ?? undefined,
       start_date: searchParams.start_date,
-      end_date: searchParams.end_date,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -75,7 +78,7 @@ function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
   searchParams.start_date = undefined;
-  searchParams.end_date = undefined;
+  clearSymbolOptions();
   fetchData();
 }
 
@@ -93,7 +96,7 @@ function handlePageSizeChange(pageSize: number) {
 // 触发后端同步资产负债表（单个股票代码精确匹配）
 async function handleSync() {
   if (!syncSymbol.value) {
-    window.$message?.warning('请输入股票代码');
+    window.$message?.warning('请选择股票代码');
     return;
   }
   const symbol = syncSymbol.value;
@@ -152,11 +155,16 @@ onMounted(() => fetchData());
       <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
       <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
         <NFormItem label="股票代码">
-          <NInput
+          <NSelect
             v-model:value="searchParams.symbol"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
             clearable
-            placeholder="模糊匹配"
-            style="width: 150px"
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @search="handleSymbolSearch"
           />
         </NFormItem>
         <NFormItem label="报表类型">
@@ -177,24 +185,20 @@ onMounted(() => fetchData());
             style="width: 150px"
           />
         </NFormItem>
-        <NFormItem label="报告结束日">
-          <NDatePicker
-            v-model:formatted-value="searchParams.end_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            clearable
-            style="width: 150px"
-          />
-        </NFormItem>
         <NFormItem>
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NInput
+            <NSelect
               v-model:value="syncSymbol"
+              :options="syncSymbolOptions"
+              :loading="syncSymbolLoading"
+              filterable
+              remote
               clearable
-              placeholder="同步代码(精确)"
-              style="width: 150px"
+              placeholder="输入代码或名称搜索"
+              style="width: 200px"
+              @search="handleSyncSearch"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>

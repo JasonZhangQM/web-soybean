@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { SetupStoreId } from '@/enum';
-import { fetchIndexCodes } from '@/service/api/bds';
+import { fetchIndexCodes, fetchSymbolIndustries } from '@/service/api/bds';
 
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   // 指数代码列表（全局缓存，首次加载时获取）
@@ -32,11 +32,44 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     return indexCodeList.value.map(item => ({ label: item.sec_name, value: item.code }));
   }
 
+  // 行业列表（全局缓存，后端 DISTINCT 去重，首次加载时获取）
+  const industryList = ref<string[]>([]);
+  const industriesLoaded = ref(false);
+  const industriesLoading = ref(false);
+
+  /** 加载去重后的行业列表 */
+  async function loadIndustries(force = false) {
+    if (industriesLoaded.value && !force) return;
+    if (industriesLoading.value) return;
+    industriesLoading.value = true;
+    try {
+      const { data, error } = await fetchSymbolIndustries();
+      if (!error && data && Array.isArray(data.industries)) {
+        industryList.value = data.industries;
+        industriesLoaded.value = true;
+      }
+    } catch (err) {
+      console.error('[bds-store] 加载行业列表失败:', err);
+    } finally {
+      industriesLoading.value = false;
+    }
+  }
+
+  /** 获取行业下拉选项（label=行业名称，value=行业名称） */
+  function getIndustryOptions() {
+    return industryList.value.map(i => ({ label: i, value: i }));
+  }
+
   return {
     indexCodeList,
     indexCodesLoaded,
     indexCodesLoading,
     loadIndexCodes,
-    getIndexCodeOptions
+    getIndexCodeOptions,
+    industryList,
+    industriesLoaded,
+    industriesLoading,
+    loadIndustries,
+    getIndustryOptions
   };
 });

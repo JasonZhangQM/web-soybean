@@ -201,8 +201,6 @@ declare namespace Api {
       rpt_type?: number;
       /** 报告日期起始日 */
       start_date?: string;
-      /** 报告日期结束日 */
-      end_date?: string;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */

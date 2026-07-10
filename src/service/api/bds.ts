@@ -8,6 +8,14 @@ export function fetchIndexCodes() {
   });
 }
 
+/** 获取去重后的行业列表（数据源为 bds_symbol_info 表 industry 字段 DISTINCT） */
+export function fetchSymbolIndustries() {
+  return request<{ industries: string[] }>({
+    url: '/api/v1/bds/symbol-industries',
+    method: 'get'
+  });
+}
+
 /** 交易日历查询参数 */
 interface TradeDateQueryParams {
   /** 开始日期（YYYY-MM-DD） */
@@ -33,10 +41,10 @@ export function fetchTradeDates(params?: TradeDateQueryParams) {
 interface SymbolInfoQueryParams {
   /** 代码模糊匹配 */
   symbol?: string;
-  /** 名称模糊匹配 */
-  name?: string;
   /** 行业精确匹配 */
   industry?: string;
+  /** 代码或名称任一模糊匹配（OR，用于远程搜索） */
+  keyword?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

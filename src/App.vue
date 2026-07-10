@@ -48,8 +48,9 @@ onMounted(() => {
   // 加载交易类别列表与账户列表（全局缓存）
   billsStore.loadCategories();
   billsStore.loadAccounts();
-  // 加载指数代码列表（全局缓存）
+  // 加载指数代码列表与行业列表（全局缓存）
   bdsStore.loadIndexCodes();
+  bdsStore.loadIndustries();
 });
 </script>
 
