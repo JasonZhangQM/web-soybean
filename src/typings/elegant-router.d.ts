@@ -22,11 +22,14 @@ declare module "@elegant-router/types" {
     "500": "/500";
     "bds": "/bds";
     "bds_fund-data": "/bds/fund-data";
+    "bds_fund-data_finance-derivs": "/bds/fund-data/finance-derivs";
     "bds_fund-data_fund-balances": "/bds/fund-data/fund-balances";
     "bds_fund-data_fund-cashflows": "/bds/fund-data/fund-cashflows";
     "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes";
     "bds_index-constituents": "/bds/index-constituents";
-    "bds_index-histories": "/bds/index-histories";
+    "bds_market-data": "/bds/market-data";
+    "bds_market-data_daily-valuations": "/bds/market-data/daily-valuations";
+    "bds_market-data_index-histories": "/bds/market-data/index-histories";
     "bds_symbol-infos": "/bds/symbol-infos";
     "bds_trade-dates": "/bds/trade-dates";
     "bills": "/bills";
@@ -112,11 +115,13 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
+    | "bds_fund-data_finance-derivs"
     | "bds_fund-data_fund-balances"
     | "bds_fund-data_fund-cashflows"
     | "bds_fund-data_fund-incomes"
     | "bds_index-constituents"
-    | "bds_index-histories"
+    | "bds_market-data_daily-valuations"
+    | "bds_market-data_index-histories"
     | "bds_symbol-infos"
     | "bds_trade-dates"
     | "bills_bills"

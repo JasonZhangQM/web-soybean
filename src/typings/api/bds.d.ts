@@ -354,5 +354,135 @@ declare namespace Api {
       /** 偏移量 */
       offset: number;
     }
+
+    /** 财务指标 */
+    interface FinanceDeriv {
+      /** 股票代码 */
+      symbol: string;
+      /** 发布日期 */
+      pub_date: string;
+      /** 报告日期 */
+      rpt_date: string;
+      /** 报表类型 */
+      rpt_type: number;
+      /** 数据类型 */
+      data_type: number;
+      /** 净资产收益率ROE(摊薄) */
+      roe: number | null;
+      /** 净资产收益率ROE(加权) */
+      roe_weight: number | null;
+      /** 净资产收益率ROE(平均) */
+      roe_avg: number | null;
+      /** 总资产报酬率ROA */
+      roa: number | null;
+      /** 投入资本回报率ROIC */
+      roic: number | null;
+      /** 销售毛利率 */
+      sale_gpm: number | null;
+      /** 销售净利率 */
+      sale_npm: number | null;
+      /** EBITDA/营业总收入 */
+      ebitda_toi: number | null;
+      /** 息税前利润/营业总收入 */
+      ebit_toi: number | null;
+      /** 资产负债率 */
+      ast_liab_rate: number | null;
+      /** 流动比率 */
+      curr_rate: number | null;
+      /** 速动比率 */
+      quick_rate: number | null;
+      /** 产权比率 */
+      liab_eqy_rate: number | null;
+      /** 总资产周转率 */
+      ttl_ast_turnover_rate: number | null;
+      /** 应收账款周转天数(含应收票据) */
+      acct_rcv_turnover_days: number | null;
+      /** 存货周转天数 */
+      inv_turnover_days: number | null;
+      /** 归属母公司股东的净利润同比增长率 */
+      net_prof_pcom_yoy: number | null;
+      /** 营业总收入同比增长率 */
+      ttl_inc_oper_yoy: number | null;
+      /** 净利润同比增长率 */
+      net_prof_yoy: number | null;
+      /** 总资产同比增长率 */
+      ttl_asset_yoy: number | null;
+    }
+
+    /** 财务指标查询参数 */
+    interface FinanceDerivQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string | null;
+      /** 报表类型 */
+      rpt_type?: number | null;
+      /** 报告日期起始日 */
+      start_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 估值指标 */
+    interface DailyValuation {
+      /** 股票代码 */
+      symbol: string;
+      /** 交易日期 */
+      trade_date: string;
+      /** 市盈率(TTM) */
+      pe_ttm: number | null;
+      /** 市盈率(最新年报LYR) */
+      pe_lyr: number | null;
+      /** 市盈率(最新报告期MRQ) */
+      pe_mrq: number | null;
+      /** 市盈率(TTM)扣除非经常性损益 */
+      pe_ttm_cut: number | null;
+      /** 市盈率(最新年报LYR)扣除非经常性损益 */
+      pe_lyr_cut: number | null;
+      /** 市盈率(最新报告期MRQ)扣除非经常性损益 */
+      pe_mrq_cut: number | null;
+      /** 市净率(最新年报LYR) */
+      pb_lyr: number | null;
+      /** 市净率(最新报告期MRQ) */
+      pb_mrq: number | null;
+      /** 市现率(经营现金流,TTM) */
+      pcf_ttm_oper: number | null;
+      /** 市现率(现金净流量,TTM) */
+      pcf_ttm_ncf: number | null;
+      /** 市现率(经营现金流,最新年报LYR) */
+      pcf_lyr_oper: number | null;
+      /** 市现率(现金净流量,最新年报LYR) */
+      pcf_lyr_ncf: number | null;
+      /** 市销率(TTM) */
+      ps_ttm: number | null;
+      /** 市销率(最新年报LYR) */
+      ps_lyr: number | null;
+      /** 市销率(最新报告期MRQ) */
+      ps_mrq: number | null;
+      /** 历史PEG值(当年年报增长率) */
+      peg_lyr: number | null;
+      /** 历史PEG值(当年1季*4较上年年报增长率) */
+      peg_1q: number | null;
+      /** 历史PEG值(当年3季*4/3较上年年报增长率) */
+      peg_3q: number | null;
+      /** 股息率(滚动12月TTM) */
+      dy_ttm: number | null;
+      /** 股息率(上一财年LFY) */
+      dy_lfy: number | null;
+    }
+
+    /** 估值指标查询参数 */
+    interface DailyValuationQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string | null;
+      /** 交易日期起始日 */
+      start_date?: string | null;
+      /** 交易日期结束日 */
+      end_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
   }
 }

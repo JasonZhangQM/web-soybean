@@ -207,3 +207,39 @@ export function syncFundCashflow(symbol: string) {
     params: { symbol }
   });
 }
+
+/** 查询财务指标列表 */
+export function fetchFinanceDerivs(params: Api.Bds.FinanceDerivQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.FinanceDeriv>>({
+    url: '/api/v1/bds/finance-derivs',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步财务指标数据（单个股票代码，精确匹配） */
+export function syncFinanceDeriv(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/finance-deriv',
+    method: 'post',
+    params: { symbol }
+  });
+}
+
+/** 查询估值指标列表 */
+export function fetchDailyValuations(params: Api.Bds.DailyValuationQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.DailyValuation>>({
+    url: '/api/v1/bds/daily-valuations',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步估值指标数据（单个股票代码，精确匹配） */
+export function syncDailyValuation(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/daily-valuation',
+    method: 'post',
+    params: { symbol }
+  });
+}

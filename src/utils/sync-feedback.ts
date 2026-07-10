@@ -39,9 +39,21 @@ export async function executeSync<T extends SyncResultData>(
     const { data, error } = await syncFn();
 
     if (!error && data) {
-      // 将后端返回信息拼接到消息中展示
-      window.$message?.success(buildSyncSuccessText(data));
-      await onSuccess?.();
+      // 根据后端返回的 status 选择消息级别：
+      // - success：同步成功，刷新表格
+      // - no_data：无数据可导入（如 gm 终端未启动），仅提示不刷新
+      // - error：同步失败，仅提示不刷新
+      // - 其他/缺省：按成功处理
+      const status = data.status || 'success';
+      const text = buildSyncText(data);
+      if (status === 'error') {
+        window.$message?.error(text);
+      } else if (status === 'no_data') {
+        window.$message?.warning(text);
+      } else {
+        window.$message?.success(text);
+        await onSuccess?.();
+      }
     } else {
       // 后端返回业务错误（如 HTTP 500）
       window.$message?.error('同步失败');
@@ -55,13 +67,13 @@ export async function executeSync<T extends SyncResultData>(
 }
 
 /**
- * 构建同步成功消息文本：
+ * 构建同步消息文本（不限成功场景）：
  * - bills 接口返回 steps 数组：拼接为「步骤名:结果」分号连接
  * - bds index-history 接口返回 updated_count：展示更新的指数数量
  * - bds/irs 接口返回 message 字符串：直接追加
  * - 都没有：仅返回「同步成功」
  */
-function buildSyncSuccessText(data: SyncResultData): string {
+function buildSyncText(data: SyncResultData): string {
   // bills 风格：有 steps 数组，拼接每步结果
   if (data.steps?.length) {
     const detail = data.steps.map(s => `${s.step}:${formatStepResult(s.result)}`).join('; ');
@@ -73,11 +85,11 @@ function buildSyncSuccessText(data: SyncResultData): string {
     return `同步成功：更新${data.updated_count}条`;
   }
 
-  // bds/irs 风格：有 message 字符串
+  // bds/irs 风格：有 message 字符串，直接返回（message 已含完整描述，
+  // 如"同步完成：SHSE.600900，更新 65 条"或"无数据可导入：..."）
   if (data.message) {
-    return `同步成功：${data.message}`;
+    return data.message;
   }
-
   return '同步成功';
 }
 

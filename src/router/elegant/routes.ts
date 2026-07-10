@@ -62,6 +62,16 @@ export const generatedRoutes = [
         },
         children: [
           {
+            name: 'bds_fund-data_finance-derivs',
+            path: '/bds/fund-data/finance-derivs',
+            component: 'view.bds_fund-data_finance-derivs',
+            meta: {
+              title: 'bds_fund-data_finance-derivs',
+              i18nKey: 'route.bds_fund-data_finance-derivs',
+              constant: true
+            }
+          },
+          {
             name: 'bds_fund-data_fund-balances',
             path: '/bds/fund-data/fund-balances',
             component: 'view.bds_fund-data_fund-balances',
@@ -104,14 +114,35 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'bds_index-histories',
-        path: '/bds/index-histories',
-        component: 'view.bds_index-histories',
+        name: 'bds_market-data',
+        path: '/bds/market-data',
         meta: {
-          title: 'bds_index-histories',
-          i18nKey: 'route.bds_index-histories',
+          title: 'bds_market-data',
+          i18nKey: 'route.bds_market-data',
           constant: true
-        }
+        },
+        children: [
+          {
+            name: 'bds_market-data_daily-valuations',
+            path: '/bds/market-data/daily-valuations',
+            component: 'view.bds_market-data_daily-valuations',
+            meta: {
+              title: 'bds_market-data_daily-valuations',
+              i18nKey: 'route.bds_market-data_daily-valuations',
+              constant: true
+            }
+          },
+          {
+            name: 'bds_market-data_index-histories',
+            path: '/bds/market-data/index-histories',
+            component: 'view.bds_market-data_index-histories',
+            meta: {
+              title: 'bds_market-data_index-histories',
+              i18nKey: 'route.bds_market-data_index-histories',
+              constant: true
+            }
+          }
+        ]
       },
       {
         name: 'bds_symbol-infos',
