@@ -25,6 +25,7 @@ declare module "@elegant-router/types" {
     "500": "/500";
     "bds": "/bds";
     "bds_fund-balances": "/bds/fund-balances";
+    "bds_fund-incomes": "/bds/fund-incomes";
     "bds_index-constituents": "/bds/index-constituents";
     "bds_index-histories": "/bds/index-histories";
     "bds_symbol-infos": "/bds/symbol-infos";
@@ -113,6 +114,7 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "bds_fund-balances"
+    | "bds_fund-incomes"
     | "bds_index-constituents"
     | "bds_index-histories"
     | "bds_symbol-infos"

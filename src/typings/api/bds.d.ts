@@ -206,5 +206,79 @@ declare namespace Api {
       /** 偏移量 */
       offset: number;
     }
+
+    /** 利润表 */
+    interface FundIncome {
+      /** 主键 */
+      id: number;
+      /** 股票代码 */
+      symbol: string;
+      /** 发布日期 */
+      pub_date: string | null;
+      /** 报告日期 */
+      rpt_date: string | null;
+      /** 报表类型 */
+      rpt_type: number | null;
+      /** 数据类型 */
+      data_type: number | null;
+      /** 营业总收入 */
+      ttl_inc_oper: string | null;
+      /** 营业收入 */
+      inc_oper: string | null;
+      /** 营业总成本 */
+      ttl_cost_oper: string | null;
+      /** 营业成本 */
+      cost_oper: string | null;
+      /** 销售费用 */
+      exp_sell: string | null;
+      /** 管理费用 */
+      exp_adm: string | null;
+      /** 研发费用 */
+      exp_rd: string | null;
+      /** 财务费用 */
+      exp_fin: string | null;
+      /** 投资收益 */
+      inc_inv: string | null;
+      /** 公允价值变动收益 */
+      inc_fv_chg: string | null;
+      /** 营业利润 */
+      oper_prof: string | null;
+      /** 利润总额 */
+      ttl_prof: string | null;
+      /** 所得税费用 */
+      inc_tax: string | null;
+      /** 净利润 */
+      net_prof: string | null;
+      /** 归母净利润 */
+      net_prof_pcom: string | null;
+      /** 基本每股收益 */
+      eps_base: string | null;
+      /** 稀释每股收益 */
+      eps_dil: string | null;
+      /** 营业外收入 */
+      inc_noper: string | null;
+      /** 营业外支出 */
+      exp_noper: string | null;
+      /** 综合收益总额 */
+      ttl_comp_inc: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 利润表查询参数 */
+    interface FundIncomeQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string;
+      /** 报表类型 */
+      rpt_type?: number;
+      /** 报告日期起始日 */
+      start_date?: string;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
   }
 }

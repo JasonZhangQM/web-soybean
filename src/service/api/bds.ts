@@ -171,3 +171,21 @@ export function syncFundBalance(symbol: string) {
     params: { symbol }
   });
 }
+
+/** 查询利润表列表 */
+export function fetchFundIncomes(params: Api.Bds.FundIncomeQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.FundIncome>>({
+    url: '/api/v1/bds/fund-incomes',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步利润表数据（单个股票代码，精确匹配） */
+export function syncFundIncome(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/fund-income',
+    method: 'post',
+    params: { symbol }
+  });
+}

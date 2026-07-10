@@ -63,6 +63,16 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'bds_fund-incomes',
+        path: '/bds/fund-incomes',
+        component: 'view.bds_fund-incomes',
+        meta: {
+          title: 'bds_fund-incomes',
+          i18nKey: 'route.bds_fund-incomes',
+          constant: true
+        }
+      },
+      {
         name: 'bds_index-constituents',
         path: '/bds/index-constituents',
         component: 'view.bds_index-constituents',

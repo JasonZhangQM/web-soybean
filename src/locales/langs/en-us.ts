@@ -238,6 +238,7 @@ const local: App.I18n.Schema = {
     'bds_index-histories': 'Index Quote',
     'bds_index-constituents': 'Index Constituents',
     'bds_fund-balances': 'Balance Sheet',
+    'bds_fund-incomes': 'Income Statement',
     'bills_group': 'Bill Group',
     'bills_bills': 'Bills',
     'bills_profits': 'Profits',
