@@ -24,7 +24,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   series: [
     {
       color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ff7875', '#91cc75', '#fac858', '#ee6666'],
-      name: '账户净值分布',
+      name: '累计盈亏分布',
       type: 'pie',
       radius: ['45%', '75%'],
       avoidLabelOverlap: false,
@@ -51,18 +51,18 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 获取账户汇总数据，展示除去合计账户之外的所有账户的账户净值分布
+// 获取账户汇总数据，展示除去合计账户之外的所有账户的累计盈亏分布
 async function initData() {
   const { data, error } = await fetchGroupAccs({ limit: 1000 });
   // 接口失败或无数据时，保留空状态，不报错
   if (error || !data || !data.items || data.items.length === 0) return;
 
-  // 过滤掉合计账户，提取各账户的账户净值（acc_aset）
+  // 过滤掉合计账户，提取各账户的累计盈亏（pl_all）
   const pieData = data.items
     .filter(item => item.account !== '合计')
     .map(item => ({
       name: item.account,
-      value: Number(item.acc_aset) || 0
+      value: Number(item.pl_all) || 0
     }));
 
   updateOptions(opts => {
