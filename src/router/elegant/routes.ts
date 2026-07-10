@@ -53,6 +53,16 @@ export const generatedRoutes = [
     },
     children: [
       {
+        name: 'bds_fund-balances',
+        path: '/bds/fund-balances',
+        component: 'view.bds_fund-balances',
+        meta: {
+          title: 'bds_fund-balances',
+          i18nKey: 'route.bds_fund-balances',
+          constant: true
+        }
+      },
+      {
         name: 'bds_index-constituents',
         path: '/bds/index-constituents',
         component: 'view.bds_index-constituents',

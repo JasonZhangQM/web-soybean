@@ -132,5 +132,81 @@ declare namespace Api {
       /** 成功更新的指数代码数量（index-history 同步时返回） */
       updated_count?: number;
     }
+
+    /** 资产负债表 */
+    interface FundBalance {
+      /** 主键 */
+      id: number;
+      /** 股票代码 */
+      symbol: string;
+      /** 发布日期 */
+      pub_date: string | null;
+      /** 报告日期 */
+      rpt_date: string | null;
+      /** 报表类型 */
+      rpt_type: number | null;
+      /** 数据类型 */
+      data_type: number | null;
+      /** 货币资金 */
+      mny_cptl: string | null;
+      /** 应收账款 */
+      acct_rcv: string | null;
+      /** 存货 */
+      invt: string | null;
+      /** 流动资产合计 */
+      ttl_cur_ast: string | null;
+      /** 固定资产 */
+      fix_ast: string | null;
+      /** 长期股权投资 */
+      lt_eqy_inv: string | null;
+      /** 无形资产 */
+      intg_ast: string | null;
+      /** 商誉 */
+      gw: string | null;
+      /** 非流动资产合计 */
+      ttl_ncur_ast: string | null;
+      /** 资产总计 */
+      ttl_ast: string | null;
+      /** 短期借款 */
+      sht_ln: string | null;
+      /** 应付账款 */
+      acct_pay: string | null;
+      /** 流动负债合计 */
+      ttl_cur_liab: string | null;
+      /** 长期借款 */
+      lt_ln: string | null;
+      /** 非流动负债合计 */
+      ttl_ncur_liab: string | null;
+      /** 负债合计 */
+      ttl_liab: string | null;
+      /** 资本公积 */
+      cptl_rsv: string | null;
+      /** 未分配利润 */
+      ret_prof: string | null;
+      /** 归母股东权益合计 */
+      ttl_eqy_pcom: string | null;
+      /** 股东权益合计 */
+      ttl_eqy: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 资产负债表查询参数 */
+    interface FundBalanceQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string;
+      /** 报表类型 */
+      rpt_type?: number;
+      /** 报告日期起始日 */
+      start_date?: string;
+      /** 报告日期结束日 */
+      end_date?: string;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
   }
 }

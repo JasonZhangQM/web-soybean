@@ -145,3 +145,21 @@ export function fetchIndexCumReturns(params?: IndexCumReturnQueryParams) {
     params
   });
 }
+
+/** 查询资产负债表列表 */
+export function fetchFundBalances(params: Api.Bds.FundBalanceQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.FundBalance>>({
+    url: '/api/v1/bds/fund-balances',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步资产负债表数据（单个股票代码，精确匹配） */
+export function syncFundBalance(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/fund-balance',
+    method: 'post',
+    params: { symbol }
+  });
+}
