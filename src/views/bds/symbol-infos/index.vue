@@ -84,7 +84,6 @@ function fmtNum(val: unknown) {
 }
 
 const columns = [
-  { title: 'ID', key: 'id', width: 80 },
   { title: '代码', key: 'symbol', width: 100 },
   { title: '名称', key: 'name', width: 120 },
   { title: '所属行业', key: 'industry', width: 100 },
@@ -95,7 +94,10 @@ const columns = [
   { title: 'PB', key: 'pb', width: 80, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.pb) },
   { title: '股息(TTM%)', key: 'dy_ttm', width: 120, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.dy_ttm) },
   { title: 'ROE(%)', key: 'roe', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.roe) },
-  { title: '创建时间', key: 'create_time', width: 180 }
+  { title: '总收入(%)', key: 'yoy_in', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.yoy_in) },
+  { title: '净利润(%)', key: 'yoy_np', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.yoy_np) },
+  { title: '毛利率(%)', key: 'gpm', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.gpm) },
+  { title: '负债率(%)', key: 'dar', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.dar) }
 ];
 
 onMounted(() => fetchData());
