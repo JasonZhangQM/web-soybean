@@ -58,6 +58,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_fund-data',
           i18nKey: 'route.bds_fund-data',
+          order: 1,
           constant: true
         },
         children: [
@@ -110,6 +111,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_index-constituents',
           i18nKey: 'route.bds_index-constituents',
+          order: 3,
           constant: true
         }
       },
@@ -119,6 +121,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_market-data',
           i18nKey: 'route.bds_market-data',
+          order: 2,
           constant: true
         },
         children: [
@@ -151,6 +154,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_symbol-infos',
           i18nKey: 'route.bds_symbol-infos',
+          order: 4,
           constant: true
         }
       },
@@ -161,6 +165,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_trade-dates',
           i18nKey: 'route.bds_trade-dates',
+          order: 5,
           constant: true
         }
       }

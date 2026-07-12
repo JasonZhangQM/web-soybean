@@ -49,11 +49,29 @@ const { domRef, updateOptions } = useEcharts(() => ({
       label: {
         backgroundColor: '#6a7985'
       }
+    },
+    // 自定义 tooltip：每个指数一行，累计收益率后括号内显示回撤
+    formatter: (params: any) => {
+      // 第一行：x 轴日期
+      let html = params[0].axisValue;
+      // 仅处理累计收益率 series（名称不以 -回撤 结尾），回撤数据从对应 series 中查找
+      const cumParams = params.filter((p: any) => !p.seriesName.endsWith('-回撤'));
+      cumParams.forEach((p: any) => {
+        // 查找同名的回撤 series
+        const ddParam = params.find((dp: any) => dp.seriesName === `${p.seriesName}-回撤`);
+        const cumVal = p.value != null ? Number(p.value).toFixed(2) : '-';
+        const ddVal = ddParam && ddParam.value != null ? Number(ddParam.value).toFixed(2) : '-';
+        html += `<br/>${p.marker}${p.seriesName}: ${cumVal} (${ddVal})`;
+      });
+      return html;
     }
   },
   legend: {
     data: [] as string[],
-    top: '0'
+    top: '0',
+    // 靠右放置，避免与左侧日期选择器重叠
+    right: '4%',
+    left: 'auto'
   },
   grid: {
     left: '3%',
@@ -119,7 +137,8 @@ async function initData() {
 
   const chartSeries = [...cumSeries, ...drawdownSeries];
   // legend 包含累计收益率名称与回撤名称
-  const allNames = [...seriesNames, ...seriesNames.map(n => `${n}-回撤`)];
+  // const allNames = [...seriesNames, ...seriesNames.map(n => `${n}-回撤`)];
+  const allNames = [...seriesNames];
 
   updateOptions(opts => {
     opts.legend.data = allNames;
@@ -180,21 +199,25 @@ init();
 
 <template>
   <NCard :bordered="false" class="card-wrapper">
-    <!-- 左上角日期选择器：留空使用后端默认 30 天 -->
-    <div class="mb-8px flex items-center">
-      <span class="mr-8px text-14px text-color-2">起始日期</span>
-      <NDatePicker
-        v-model:formatted-value="startDate"
-        type="date"
-        value-format="yyyy-MM-dd"
-        clearable
-        placeholder="默认近30天"
-        :shortcuts="dateShortcuts"
-        :style="{ width: '150px' }"
-        @update:formatted-value="handleDateChange"
-      />
+    <!-- 外层 relative 包裹：日期选择器绝对定位与 legend 同行，左边对齐累计收益率区域 -->
+    <div class="relative h-480px overflow-hidden">
+      <!-- 日期选择器：绝对定位左上角，z-10 确保在 echarts canvas 之上 -->
+      <div class="absolute top-0 flex items-center z-10" style="left: 3%">
+        <span class="mr-8px text-14px text-color-2">起始日期</span>
+        <NDatePicker
+          v-model:formatted-value="startDate"
+          type="date"
+          value-format="yyyy-MM-dd"
+          clearable
+          placeholder="默认近30天"
+          :shortcuts="dateShortcuts"
+          :style="{ width: '150px' }"
+          @update:formatted-value="handleDateChange"
+        />
+      </div>
+      <!-- echarts 容器：单独 div，避免被 echarts 清空 innerHTML 时覆盖日期选择器 -->
+      <div ref="domRef" class="h-480px"></div>
     </div>
-    <div ref="domRef" class="h-480px overflow-hidden"></div>
   </NCard>
 </template>
 
