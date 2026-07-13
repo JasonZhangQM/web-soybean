@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchIndexConstituents, syncIndexConstituent } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { dateShortcuts } from '@/utils/date-shortcuts';
 import { useBdsStore } from '@/store/modules/bds';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
@@ -145,6 +146,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="queryForm.trade_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />
@@ -157,6 +159,7 @@ onMounted(() => fetchData());
               v-model:formatted-value="syncDate"
               type="date"
               value-format="yyyy-MM-dd"
+              :shortcuts="dateShortcuts"
               clearable
               placeholder="同步日期(可选)"
               style="width: 150px"

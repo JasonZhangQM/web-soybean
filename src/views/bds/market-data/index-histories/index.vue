@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchIndexHistories, syncIndexHistory } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { dateShortcuts } from '@/utils/date-shortcuts';
 import { useBdsStore } from '@/store/modules/bds';
 
 defineOptions({ name: 'IndexHistoriesPage' });
@@ -120,6 +121,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="searchParams.start_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />
@@ -129,6 +131,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="searchParams.end_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />

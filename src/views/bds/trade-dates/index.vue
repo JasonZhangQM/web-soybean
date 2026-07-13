@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchTradeDates, syncTradeDate } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { dateShortcuts } from '@/utils/date-shortcuts';
 
 defineOptions({ name: 'TradeDatesPage' });
 
@@ -92,6 +93,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="searchParams.start_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />
@@ -101,6 +103,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="searchParams.end_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />

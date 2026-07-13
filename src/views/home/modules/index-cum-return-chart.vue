@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
 import { fetchIndexCumReturns } from '@/service/api';
+import { dateShortcuts } from '@/utils/date-shortcuts';
 
 defineOptions({
   name: 'IndexCumReturnChart'
@@ -12,31 +13,6 @@ const appStore = useAppStore();
 
 // 起始日期（留空则使用后端默认 30 天）
 const startDate = ref<string | null>(null);
-
-// 日期快捷选项：返回起始日时间戳
-const dateShortcuts: Record<string, () => number> = {
-  今年: () => new Date(new Date().getFullYear(), 0, 1).getTime(),
-  近一年: () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    return d.getTime();
-  },
-  近3年: () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 3);
-    return d.getTime();
-  },
-  近5年: () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 5);
-    return d.getTime();
-  },
-  近10年: () => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 10);
-    return d.getTime();
-  }
-};
 
 // 多色配色，按指数数量循环取色
 const colors = ['#5da8ff', '#26deca', '#fedc69', '#ff7d85', '#a78bfa', '#34d399', '#fbbf24'];

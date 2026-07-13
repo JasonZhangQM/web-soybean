@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchFundIncomes, syncFundIncome } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { dateShortcuts } from '@/utils/date-shortcuts';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'FundIncomesPage' });
@@ -186,6 +187,7 @@ onMounted(() => fetchData());
             v-model:formatted-value="searchParams.start_date"
             type="date"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
           />
