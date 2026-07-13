@@ -243,3 +243,45 @@ export function syncDailyValuation(symbol: string) {
     params: { symbol }
   });
 }
+
+/** 查询经济指标分页列表 */
+export function fetchEconomicIndicators(params: Api.Bds.EconomicIndicatorQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.EconomicIndicator>>({
+    url: '/api/v1/bds/economic-indicators',
+    method: 'get',
+    params
+  });
+}
+
+/** 获取各经济指标最新值 */
+export function fetchEconomicIndicatorsLatest() {
+  return request<Api.Bds.EconomicIndicator[]>({
+    url: '/api/v1/bds/economic-indicators/latest',
+    method: 'get'
+  });
+}
+
+/** 获取经济指标代码列表（用于下拉选项） */
+export function fetchEconomicIndicatorCodes() {
+  return request<Api.Bds.EconomicIndicatorCode[]>({
+    url: '/api/v1/bds/economic-indicator-codes',
+    method: 'get'
+  });
+}
+
+/** 同步单个经济指标（按指标代码精确匹配） */
+export function syncEconomicIndicator(indicator_code: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/economic-indicator',
+    method: 'post',
+    params: { indicator_code }
+  });
+}
+
+/** 同步全部经济指标 */
+export function syncAllEconomicIndicators() {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/economic-indicators-all',
+    method: 'post'
+  });
+}

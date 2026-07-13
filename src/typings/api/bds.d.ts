@@ -484,5 +484,65 @@ declare namespace Api {
       /** 偏移量 */
       offset: number;
     }
+
+    /** 经济指标数据 */
+    interface EconomicIndicator {
+      /** 主键 */
+      id: number;
+      /** 指标代码 */
+      indicator_code: string;
+      /** 指标名称 */
+      indicator_name: string;
+      /** 类别 */
+      category: string;
+      /** 报告日期 */
+      report_date: string;
+      /** 发布日期 */
+      pub_date: string | null;
+      /** 数值 */
+      value: number;
+      /** 前值 */
+      value_prev: number | null;
+      /** 预期值 */
+      value_expected: number | null;
+      /** 单位 */
+      unit: string | null;
+      /** 频率 */
+      frequency: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 经济指标查询参数 */
+    interface EconomicIndicatorQueryParams {
+      /** 指标代码（精确匹配） */
+      indicator_code?: string | null;
+      /** 类别（多选精确匹配） */
+      category?: string[] | null;
+      /** 报告日期起始日 */
+      start_date?: string | null;
+      /** 报告日期结束日 */
+      end_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 经济指标代码 */
+    interface EconomicIndicatorCode {
+      /** 指标代码 */
+      indicator_code: string;
+      /** 指标名称 */
+      indicator_name: string;
+      /** 类别 */
+      category: string;
+      /** 单位 */
+      unit: string | null;
+      /** 频率 */
+      frequency: string | null;
+    }
   }
 }

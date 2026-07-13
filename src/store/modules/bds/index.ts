@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { SetupStoreId } from '@/enum';
-import { fetchIndexCodes, fetchSymbolIndustries } from '@/service/api/bds';
+import { fetchEconomicIndicatorCodes, fetchIndexCodes, fetchSymbolIndustries } from '@/service/api/bds';
 
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   // 指数代码列表（全局缓存，首次加载时获取）
@@ -60,6 +60,34 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     return industryList.value.map(i => ({ label: i, value: i }));
   }
 
+  // 经济指标代码列表（全局缓存，首次加载时获取）
+  const indicatorCodeList = ref<Api.Bds.EconomicIndicatorCode[]>([]);
+  const indicatorCodesLoaded = ref(false);
+  const indicatorCodesLoading = ref(false);
+
+  /** 加载经济指标代码列表 */
+  async function loadIndicatorCodes(force = false) {
+    if (indicatorCodesLoaded.value && !force) return;
+    if (indicatorCodesLoading.value) return;
+    indicatorCodesLoading.value = true;
+    try {
+      const { data, error } = await fetchEconomicIndicatorCodes();
+      if (!error && data && Array.isArray(data)) {
+        indicatorCodeList.value = data;
+        indicatorCodesLoaded.value = true;
+      }
+    } catch (err) {
+      console.error('[bds-store] 加载经济指标代码失败:', err);
+    } finally {
+      indicatorCodesLoading.value = false;
+    }
+  }
+
+  /** 获取经济指标代码下拉选项（label=指标名称，value=指标代码） */
+  function getIndicatorCodeOptions() {
+    return indicatorCodeList.value.map(item => ({ label: item.indicator_name, value: item.indicator_code }));
+  }
+
   return {
     indexCodeList,
     indexCodesLoaded,
@@ -70,6 +98,11 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     industriesLoaded,
     industriesLoading,
     loadIndustries,
-    getIndustryOptions
+    getIndustryOptions,
+    indicatorCodeList,
+    indicatorCodesLoaded,
+    indicatorCodesLoading,
+    loadIndicatorCodes,
+    getIndicatorCodeOptions
   };
 });

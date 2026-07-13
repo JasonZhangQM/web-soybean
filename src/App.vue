@@ -51,6 +51,8 @@ onMounted(() => {
   // 加载指数代码列表与行业列表（全局缓存）
   bdsStore.loadIndexCodes();
   bdsStore.loadIndustries();
+  // 加载经济指标代码列表（全局缓存）
+  bdsStore.loadIndicatorCodes();
 });
 </script>
 

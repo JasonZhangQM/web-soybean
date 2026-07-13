@@ -58,7 +58,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_fund-data',
           i18nKey: 'route.bds_fund-data',
-          order: 1,
+          order: 2,
           constant: true
         },
         children: [
@@ -111,9 +111,45 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_index-constituents',
           i18nKey: 'route.bds_index-constituents',
-          order: 3,
+          order: 4,
           constant: true
         }
+      },
+      {
+        name: 'bds_macro-research',
+        path: '/bds/macro-research',
+        component: 'layout.base',
+        meta: {
+          title: 'bds_macro-research',
+          i18nKey: 'route.bds_macro-research',
+          icon: 'mdi:chart-trending-up',
+          order: 0,
+          constant: true
+        },
+        children: [
+          {
+            name: 'bds_macro-research_economic-indicators',
+            path: '/bds/macro-research/economic-indicators',
+            component: 'view.bds_macro-research_economic-indicators',
+            meta: {
+              title: 'bds_macro-research_economic-indicators',
+              i18nKey: 'route.bds_macro-research_economic-indicators',
+              order: 2,
+              constant: true
+            }
+          },
+          {
+            name: 'bds_macro-research_economic-report',
+            path: '/bds/macro-research/economic-report',
+            component: 'view.bds_macro-research_economic-report',
+            meta: {
+              title: 'bds_macro-research_economic-report',
+              i18nKey: 'route.bds_macro-research_economic-report',
+              order: 1,
+              constant: true
+            }
+          }
+        ]
       },
       {
         name: 'bds_market-data',
@@ -121,7 +157,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_market-data',
           i18nKey: 'route.bds_market-data',
-          order: 2,
+          order: 3,
           constant: true
         },
         children: [
@@ -154,7 +190,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_symbol-infos',
           i18nKey: 'route.bds_symbol-infos',
-          order: 4,
+          order: 5,
           constant: true
         }
       },
@@ -165,7 +201,7 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_trade-dates',
           i18nKey: 'route.bds_trade-dates',
-          order: 5,
+          order: 6,
           constant: true
         }
       }
