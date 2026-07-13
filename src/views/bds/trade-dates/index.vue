@@ -24,14 +24,15 @@ const pagination = reactive({
 });
 
 // 搜索参数：start_date/end_date 交易日期范围筛选
-const searchParams = reactive<{ start_date?: string; end_date?: string }>({});
+const searchParams = reactive<{ start_date?: string | null; end_date?: string | null }>({});
 
 // 拉取交易日历列表
 async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchTradeDates({
-      ...searchParams,
+      start_date: searchParams.start_date || undefined,
+      end_date: searchParams.end_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -53,8 +54,8 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  searchParams.start_date = undefined;
-  searchParams.end_date = undefined;
+  searchParams.start_date = null;
+  searchParams.end_date = null;
   fetchData();
 }
 

@@ -27,8 +27,8 @@ const pagination = reactive({
 // 搜索参数：symbol 模糊匹配，start_date/end_date 交易日期范围
 const searchParams = reactive<{
   symbol?: string | null;
-  start_date?: string;
-  end_date?: string;
+  start_date?: string | null;
+  end_date?: string | null;
 }>({});
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
@@ -44,8 +44,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchDailyValuations({
       symbol: searchParams.symbol || undefined,
-      start_date: searchParams.start_date,
-      end_date: searchParams.end_date,
+      start_date: searchParams.start_date || undefined,
+      end_date: searchParams.end_date || undefined,
       // 后端使用 limit/offset 分页，offset 由 page 转换
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -69,8 +69,8 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.symbol = null;
-  searchParams.start_date = undefined;
-  searchParams.end_date = undefined;
+  searchParams.start_date = null;
+  searchParams.end_date = null;
   clearSymbolOptions();
   fetchData();
 }

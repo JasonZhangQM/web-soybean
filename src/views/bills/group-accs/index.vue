@@ -36,6 +36,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroupAccs({
       ...searchParams,
+      // 空数组转为 undefined，避免向后端发送空列表
+      account: searchParams.account?.length ? searchParams.account : undefined,
       // 仅在选中"不为0"时传递该参数
       acc_aset_only: searchParams.acc_aset_only === true ? true : undefined,
       limit: pagination.pageSize,
@@ -58,8 +60,8 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = undefined;
-  searchParams.acc_aset_only = undefined;
+  searchParams.account = [];
+  searchParams.acc_aset_only = false;
   fetchData();
 }
 
@@ -123,7 +125,7 @@ onMounted(() => {
         </NFormItem>
         <NFormItem label="账户净值">
           <NRadioGroup v-model:value="searchParams.acc_aset_only">
-            <NRadio :value="undefined">全部</NRadio>
+            <NRadio :value="false">全部</NRadio>
             <NRadio :value="true">不为0</NRadio>
           </NRadioGroup>
         </NFormItem>

@@ -39,6 +39,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroupSymbols({
       ...searchParams,
+      // 空数组转为 undefined，避免向后端发送空列表
+      category: searchParams.category?.length ? searchParams.category : undefined,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
@@ -63,9 +65,9 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.category = undefined;
+  searchParams.category = [];
   searchParams.symbol = null;
-  searchParams.value_only = undefined;
+  searchParams.value_only = false;
   clearSymbolOptions();
   fetchData();
 }
@@ -146,7 +148,7 @@ onMounted(() => {
         </NFormItem>
         <NFormItem label="当前市值">
           <NRadioGroup v-model:value="searchParams.value_only">
-            <NRadio :value="undefined">全部</NRadio>
+            <NRadio :value="false">全部</NRadio>
             <NRadio :value="true">不为0</NRadio>
           </NRadioGroup>
         </NFormItem>

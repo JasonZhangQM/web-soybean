@@ -31,8 +31,8 @@ const pagination = reactive({
 // 搜索参数：symbol 多选精确匹配，start_date/end_date 日期范围
 const searchParams = reactive<{
   symbol?: string[];
-  start_date?: string;
-  end_date?: string;
+  start_date?: string | null;
+  end_date?: string | null;
 }>({});
 
 // 拉取指数历史行情列表
@@ -40,7 +40,9 @@ async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchIndexHistories({
-      ...searchParams,
+      symbol: searchParams.symbol,
+      start_date: searchParams.start_date || undefined,
+      end_date: searchParams.end_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -63,8 +65,8 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.symbol = undefined;
-  searchParams.start_date = undefined;
-  searchParams.end_date = undefined;
+  searchParams.start_date = null;
+  searchParams.end_date = null;
   fetchData();
 }
 

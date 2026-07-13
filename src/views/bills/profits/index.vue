@@ -70,9 +70,9 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = undefined;
-  searchParams.category = undefined;
-  searchParams.symbol = undefined;
+  searchParams.account = [];
+  searchParams.category = [];
+  searchParams.symbol = '';
   clearSymbolOptions();
   fetchData();
 }

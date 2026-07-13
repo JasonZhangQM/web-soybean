@@ -30,7 +30,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   series: [
     {
       color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca'],
-      // name: '累计平仓盈亏分布',
+      name: '累计平仓盈亏分布',
       type: 'pie',
       radius: ['45%', '75%'],
       avoidLabelOverlap: false,

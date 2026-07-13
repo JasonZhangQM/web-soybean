@@ -28,7 +28,7 @@ const pagination = reactive({
 const searchParams = reactive<{
   symbol?: string | null;
   rpt_type?: number | null;
-  start_date?: string;
+  start_date?: string | null;
 }>({});
 
 // rpt_type 下拉选项
@@ -54,7 +54,7 @@ async function fetchData() {
       symbol: searchParams.symbol || undefined,
       // rpt_type 为 null 时传 undefined，避免向后端发送 null
       rpt_type: searchParams.rpt_type ?? undefined,
-      start_date: searchParams.start_date,
+      start_date: searchParams.start_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -78,7 +78,7 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
-  searchParams.start_date = undefined;
+  searchParams.start_date = null;
   clearSymbolOptions();
   fetchData();
 }
