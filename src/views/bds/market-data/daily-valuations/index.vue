@@ -24,11 +24,10 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：symbol 模糊匹配，start_date/end_date 交易日期范围
+// 搜索参数：symbol 模糊匹配，start_date 交易日期起始日
 const searchParams = reactive<{
   symbol?: string | null;
   start_date?: string | null;
-  end_date?: string | null;
 }>({});
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
@@ -45,7 +44,6 @@ async function fetchData() {
     const { data, error } = await fetchDailyValuations({
       symbol: searchParams.symbol || undefined,
       start_date: searchParams.start_date || undefined,
-      end_date: searchParams.end_date || undefined,
       // 后端使用 limit/offset 分页，offset 由 page 转换
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -70,7 +68,6 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.start_date = null;
-  searchParams.end_date = null;
   clearSymbolOptions();
   fetchData();
 }
@@ -169,16 +166,6 @@ onMounted(() => fetchData());
         <NFormItem label="交易起始日">
           <NDatePicker
             v-model:formatted-value="searchParams.start_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
-            clearable
-            style="width: 150px"
-          />
-        </NFormItem>
-        <NFormItem label="交易结束日">
-          <NDatePicker
-            v-model:formatted-value="searchParams.end_date"
             type="date"
             value-format="yyyy-MM-dd"
             :shortcuts="dateShortcuts"

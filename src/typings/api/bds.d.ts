@@ -477,8 +477,6 @@ declare namespace Api {
       symbol?: string | null;
       /** 交易日期起始日 */
       start_date?: string | null;
-      /** 交易日期结束日 */
-      end_date?: string | null;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */

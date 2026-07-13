@@ -28,11 +28,10 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：symbol 多选精确匹配，start_date/end_date 日期范围
+// 搜索参数：symbol 多选精确匹配，start_date 开始日期
 const searchParams = reactive<{
   symbol?: string[];
   start_date?: string | null;
-  end_date?: string | null;
 }>({});
 
 // 拉取指数历史行情列表
@@ -42,7 +41,6 @@ async function fetchData() {
     const { data, error } = await fetchIndexHistories({
       symbol: searchParams.symbol,
       start_date: searchParams.start_date || undefined,
-      end_date: searchParams.end_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -66,7 +64,6 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = undefined;
   searchParams.start_date = null;
-  searchParams.end_date = null;
   fetchData();
 }
 
@@ -118,19 +115,9 @@ onMounted(() => fetchData());
             style="width: 150px"
           />
         </NFormItem>
-        <NFormItem label="开始日期">
+        <NFormItem label="交易起始日">
           <NDatePicker
             v-model:formatted-value="searchParams.start_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
-            clearable
-            style="width: 150px"
-          />
-        </NFormItem>
-        <NFormItem label="结束日期">
-          <NDatePicker
-            v-model:formatted-value="searchParams.end_date"
             type="date"
             value-format="yyyy-MM-dd"
             :shortcuts="dateShortcuts"
