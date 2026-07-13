@@ -11,6 +11,12 @@ defineOptions({
 const appStore = useAppStore();
 
 const { domRef, updateOptions } = useEcharts(() => ({
+  title: {
+    text: '累计平仓盈亏(按类别)',
+    left: 'center',
+    top: '2%',
+    textStyle: { fontSize: 14, fontWeight: 'normal' }
+  },
   tooltip: {
     trigger: 'item'
   },
@@ -23,8 +29,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ff7875', '#91cc75', '#fac858', '#ee6666'],
-      name: '平仓盈亏分布',
+      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca'],
+      // name: '累计平仓盈亏分布',
       type: 'pie',
       radius: ['45%', '75%'],
       avoidLabelOverlap: false,
@@ -100,9 +106,7 @@ init();
 </script>
 
 <template>
-  <NCard :bordered="false" class="card-wrapper">
-    <div ref="domRef" class="h-360px overflow-hidden"></div>
-  </NCard>
+  <div ref="domRef" class="h-360px overflow-hidden"></div>
 </template>
 
 <style scoped></style>

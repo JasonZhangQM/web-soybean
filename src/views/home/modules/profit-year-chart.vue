@@ -10,7 +10,7 @@ defineOptions({
 
 const appStore = useAppStore();
 
-// 双 Y 轴混合图：柱状=平仓盈亏（左轴），折线=累计盈亏（右轴）
+// 双 Y 轴混合图：柱状=平仓盈亏（左轴），折线=累计平仓盈亏（右轴）
 // 两者量级差距大（累计值随年份递增），独立轴避免柱状被压扁
 const { domRef, updateOptions } = useEcharts(() => ({
   tooltip: {
@@ -23,7 +23,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
     }
   },
   legend: {
-    data: ['当期盈亏', '累计盈亏'],
+    data: ['当期平仓盈亏', '累计平仓盈亏'],
     top: '0'
   },
   grid: {
@@ -40,16 +40,16 @@ const { domRef, updateOptions } = useEcharts(() => ({
   yAxis: [
     {
       type: 'value',
-      name: '当期盈亏'
+      name: '当期平仓盈亏'
     },
     {
       type: 'value',
-      name: '累计盈亏'
+      name: '累计平仓盈亏'
     }
   ],
   series: [
     {
-      name: '当期盈亏',
+      name: '当期平仓盈亏',
       type: 'bar',
       yAxisIndex: 0,
       // 柱状图渐变色：从 #5da8ff 到 #26deca
@@ -69,7 +69,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
       data: [] as number[]
     },
     {
-      name: '累计盈亏',
+      name: '累计平仓盈亏',
       type: 'line',
       yAxisIndex: 1,
       smooth: true,
@@ -84,7 +84,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 拉取全部年度收益，按年份升序渲染（折线累计盈亏从左到右递增更直观）
+// 拉取全部年度收益，按年份升序渲染（折线累计平仓盈亏从左到右递增更直观）
 async function initData() {
   const { data, error } = await fetchProfitYears({ limit: 1000 });
   // 接口失败或无数据时，保留空状态，不报错
