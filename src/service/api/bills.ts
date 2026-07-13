@@ -154,26 +154,10 @@ export function fetchProfitYears(params?: ProfitYearQueryParams) {
   });
 }
 
-/** 同步账单汇总 */
+/** 同步实时估值 + 标的汇总 + 账户汇总 */
 export function syncGroup() {
   return request<Api.Bills.SyncResult>({
     url: '/api/v1/bills/sync/group',
-    method: 'post'
-  });
-}
-
-/** 同步标的汇总 */
-export function syncGroupSymbol() {
-  return request<Api.Bills.SyncResult>({
-    url: '/api/v1/bills/sync/group-symbol',
-    method: 'post'
-  });
-}
-
-/** 同步账户汇总 */
-export function syncGroupAcc() {
-  return request<Api.Bills.SyncResult>({
-    url: '/api/v1/bills/sync/group-acc',
     method: 'post'
   });
 }

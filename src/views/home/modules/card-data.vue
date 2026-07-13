@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
 import { useThemeStore } from '@/store/modules/theme';
-import { fetchGroupAccs, syncGroupAcc } from '@/service/api';
+import { fetchGroupAccs, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({
@@ -115,7 +115,7 @@ async function fetchTotals() {
 
 // 触发账户汇总同步（与 bills/group-accs 页面的同步按钮调用相同接口）
 async function handleSync() {
-  await executeSync(syncGroupAcc, syncLoading, fetchTotals);
+  await executeSync(syncGroup, syncLoading, fetchTotals);
 }
 
 onMounted(fetchTotals);

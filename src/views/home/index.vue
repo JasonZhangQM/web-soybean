@@ -4,6 +4,7 @@ import { useAppStore } from '@/store/modules/app';
 import CardData from './modules/card-data.vue';
 import LineChart from './modules/line-chart.vue';
 import PieChart from './modules/pie-chart.vue';
+import PieCategoryChart from './modules/pie-category-chart.vue';
 import BarChart from './modules/bar-chart.vue';
 import IndexCumReturnChart from './modules/index-cum-return-chart.vue';
 import ProfitYearChart from './modules/profit-year-chart.vue';
@@ -22,9 +23,14 @@ const gap = computed(() => (appStore.isMobile ? 0 : 16));
           <ProfitYearChart />
         </NCard>
       </NGi>
-      <NGi span="24 s:24 m:10">
+      <NGi span="24 s:24 m:5">
         <NCard :bordered="false" class="card-wrapper h-full">
           <PieChart />
+        </NCard>
+      </NGi>
+      <NGi span="24 s:24 m:5">
+        <NCard :bordered="false" class="card-wrapper h-full">
+          <PieCategoryChart />
         </NCard>
       </NGi>
     </NGrid>

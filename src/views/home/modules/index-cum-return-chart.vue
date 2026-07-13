@@ -2,7 +2,8 @@
 import { ref, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchIndexCumReturns } from '@/service/api';
+import { fetchIndexCumReturns, syncIndexHistory } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 
 defineOptions({
@@ -140,6 +141,14 @@ async function initData() {
   });
 }
 
+// 同步专用 loading：控制同步图标旋转动画
+const syncLoading = ref(false);
+
+// 触发指数历史行情同步（与 bds/market-data/index-histories 页面同步按钮调用相同接口）
+async function handleSync() {
+  await executeSync(syncIndexHistory, syncLoading, initData);
+}
+
 // 语言切换时刷新（指数名称为固定中文，此处保持原刷新逻辑）
 function updateLocale() {
   updateOptions((opts, factory) => {
@@ -190,6 +199,13 @@ init();
           :style="{ width: '150px' }"
           @update:formatted-value="handleDateChange"
         />
+        <!-- 同步按钮：参照浮动盈亏卡片样式，SvgIcon inheritAttrs:false 故 @click 绑在外层 span -->
+        <span
+          :class="['inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity ml-8px', syncLoading ? 'animate-spin' : '']"
+          @click="handleSync"
+        >
+          <SvgIcon icon="mdi:sync" class="text-16px" />
+        </span>
       </div>
       <!-- echarts 容器：单独 div，避免被 echarts 清空 innerHTML 时覆盖日期选择器 -->
       <div ref="domRef" class="h-480px"></div>

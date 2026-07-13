@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchGroupAccs, syncGroupAcc } from '@/service/api';
+import { fetchGroupAccs, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
@@ -75,7 +75,7 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 async function handleSync() {
-  await executeSync(syncGroupAcc, syncLoading, fetchData);
+  await executeSync(syncGroup, syncLoading, fetchData);
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
