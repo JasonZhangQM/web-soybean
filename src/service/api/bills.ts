@@ -31,8 +31,6 @@ interface BillQueryParams {
   category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
-  /** 证券名称（模糊） */
-  name?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -56,8 +54,6 @@ interface ProfitQueryParams {
   category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
-  /** 证券名称（模糊） */
-  name?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
