@@ -29,7 +29,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
   },
   series: [
     {
-      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca'],
+      color: ['#5da8ff', '#8e9dff', '#fedc69', '#26deca', '#ff7875', '#91cc75', '#fac858', '#ee6666'],
       name: '累计平仓盈亏分布',
       type: 'pie',
       radius: ['45%', '75%'],

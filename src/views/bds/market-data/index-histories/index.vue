@@ -62,7 +62,7 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  searchParams.symbol = undefined;
+  searchParams.symbol = [];
   searchParams.start_date = null;
   fetchData();
 }

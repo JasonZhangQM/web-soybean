@@ -116,6 +116,8 @@ const columns = [
   { title: '市值', key: 'value_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'value_total') },
   { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pf_total') },
   { title: '平仓盈亏', key: 'pl_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_total') },
+  { title: '其他损益', key: 'pl_t_other', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_other') },
+  { title: '融资利息', key: 'pl_t_br', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_br') },
   { title: '盈亏合计', key: 'pfl_all', width: 100, render: (row: Api.Bills.Group) => renderRate(row, 'pfl_all') },
   { title: '交易次数', key: 'count', width: 80 }
 ];
