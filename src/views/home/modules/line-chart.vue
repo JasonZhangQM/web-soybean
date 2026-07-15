@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
+import { useBillsStore } from '@/store/modules/bills';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchGroupAccs } from '@/service/api';
 
 defineOptions({
   name: 'LineChart'
 });
 
 const appStore = useAppStore();
+const billsStore = useBillsStore();
 
 const { domRef, updateOptions } = useEcharts(() => ({
   tooltip: {
@@ -102,25 +103,28 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 拉取全部账户汇总，渲染各账户的总盈亏与总浮盈对比折线
-async function initData() {
-  const { data, error } = await fetchGroupAccs({ limit: 1000 });
-  // 接口失败或无数据时，保留空状态，不报错
-  if (error || !data || !data.items || data.items.length === 0) return;
-
-  const accounts = data.items.map(item => item.account);
+// 从 store 共享数据渲染：各账户的总盈亏与总浮盈对比折线
+function renderChart(items: Api.Bills.GroupAcc[]) {
+  if (!items || items.length === 0) return;
+  const accounts = items.map(item => item.account);
   // pl_all / pf_total 可能为 null，用 Number() 转换：null → 0
-  const plAll = data.items.map(item => Number(item.pl_all));
-  const pfTotal = data.items.map(item => Number(item.pf_total));
+  const plAll = items.map(item => Number(item.pl_all));
+  const pfTotal = items.map(item => Number(item.pf_total));
 
   updateOptions(opts => {
     opts.xAxis.data = accounts;
     opts.series[0].data = plAll;
     opts.series[1].data = pfTotal;
-
     return opts;
   });
 }
+
+// watch store 数据：首次加载及同步后强制刷新时自动更新
+watch(
+  () => billsStore.homeGroupAccs,
+  items => renderChart(items),
+  { immediate: true }
+);
 
 // 语言切换时刷新中文名称（名称为固定中文，此处保持原刷新逻辑）
 function updateLocale() {
@@ -135,19 +139,12 @@ function updateLocale() {
   });
 }
 
-async function init() {
-  await initData();
-}
-
 watch(
   () => appStore.locale,
   () => {
     updateLocale();
   }
 );
-
-// init
-init();
 </script>
 
 <template>

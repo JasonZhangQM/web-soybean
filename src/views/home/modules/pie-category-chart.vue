@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
+import { useBillsStore } from '@/store/modules/bills';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchGroupSymbols } from '@/service/api';
 
 defineOptions({
   name: 'PieCategoryChart'
 });
 
 const appStore = useAppStore();
+const billsStore = useBillsStore();
 
 const { domRef, updateOptions } = useEcharts(() => ({
   title: {
@@ -57,15 +58,12 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 获取标的汇总数据，按交易分类汇总平仓盈亏（pl_all），过滤掉平仓盈亏为 0 的分类
-async function initData() {
-  const { data, error } = await fetchGroupSymbols({ limit: 1000 });
-  // 接口失败或无数据时，保留空状态，不报错
-  if (error || !data || !data.items || data.items.length === 0) return;
-
+// 从 store 共享数据渲染：按交易分类汇总平仓盈亏（pl_all），过滤为 0 的分类
+function renderChart(items: Api.Bills.GroupSymbol[]) {
+  if (!items || items.length === 0) return;
   // 按交易分类分组，对平仓盈亏（pl_all）求和
   const categoryMap = new Map<string, number>();
-  data.items.forEach(item => {
+  items.forEach(item => {
     const plAll = Number(item.pl_all) || 0;
     categoryMap.set(item.category, (categoryMap.get(item.category) || 0) + plAll);
   });
@@ -81,6 +79,13 @@ async function initData() {
   });
 }
 
+// watch store 数据：首次加载及同步后强制刷新时自动更新
+watch(
+  () => billsStore.homeGroupSymbols,
+  items => renderChart(items),
+  { immediate: true }
+);
+
 // 语言切换时刷新（名称为固定中文，此处保持原刷新逻辑）
 function updateLocale() {
   updateOptions((opts, factory) => {
@@ -90,19 +95,12 @@ function updateLocale() {
   });
 }
 
-async function init() {
-  await initData();
-}
-
 watch(
   () => appStore.locale,
   () => {
     updateLocale();
   }
 );
-
-// init
-init();
 </script>
 
 <template>

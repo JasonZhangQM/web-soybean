@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { createReusableTemplate } from '@vueuse/core';
 import { useThemeStore } from '@/store/modules/theme';
-import { fetchGroupAccs, syncGroup } from '@/service/api';
+import { useBillsStore } from '@/store/modules/bills';
+import { syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({
@@ -11,6 +12,8 @@ defineOptions({
 
 // 同步专用 loading：控制浮动盈亏卡片同步图标的动画
 const syncLoading = ref(false);
+
+const billsStore = useBillsStore();
 
 interface CardData {
   key: string;
@@ -24,7 +27,7 @@ interface CardData {
   icon: string;
 }
 
-// 各卡片对应的金额，初始为 0，接口返回后更新
+// 各卡片对应的金额，初始为 0，store 数据变化后更新
 const cashAccTotal = ref<number>(0);
 const valueTotalSum = ref<number>(0);
 const accAsetTotal = ref<number>(0);
@@ -97,12 +100,10 @@ function getGradientColor(color: CardData['color']) {
   return `linear-gradient(to bottom right, ${color.start}, ${color.end})`;
 }
 
-// 拉取账户汇总，取 account='合计' 的汇总记录填充 4 个卡片
-async function fetchTotals() {
-  const { data, error } = await fetchGroupAccs({ limit: 1000 });
-  if (error || !data || !data.items) return;
+// 从 store 共享数据中提取合计行填充卡片，避免各组件独立调接口
+function updateTotals(items: Api.Bills.GroupAcc[]) {
   // 后端 upsert_group_acc_sql 在按账户分组后追加了 account='合计' 的汇总行
-  const totalRow = data.items.find(item => item.account === '合计');
+  const totalRow = items.find(item => item.account === '合计');
   if (!totalRow) return;
   // 各字段可能为 null，用 Number() 转换：null → 0
   cashAccTotal.value = Number(totalRow.cash_acc);
@@ -113,12 +114,20 @@ async function fetchTotals() {
   pflAllTotal.value = Number(totalRow.pfl_all);
 }
 
-// 触发账户汇总同步（与 bills/group-accs 页面的同步按钮调用相同接口）
-async function handleSync() {
-  await executeSync(syncGroup, syncLoading, fetchTotals);
-}
+// watch store 数据：首次加载及同步后强制刷新时自动更新
+watch(
+  () => billsStore.homeGroupAccs,
+  items => {
+    if (items && items.length > 0) updateTotals(items);
+  },
+  { immediate: true }
+);
 
-onMounted(fetchTotals);
+// 触发账户汇总同步（与 bills/group-accs 页面的同步按钮调用相同接口）
+// 同步后强制刷新 store，pie-acc-chart / line-chart 通过 watch 联动更新
+async function handleSync() {
+  await executeSync(syncGroup, syncLoading, () => billsStore.loadHomeGroupAccs(true));
+}
 </script>
 
 <template>

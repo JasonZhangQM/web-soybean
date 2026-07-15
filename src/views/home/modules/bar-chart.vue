@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
+import { useBillsStore } from '@/store/modules/bills';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchGroupSymbols } from '@/service/api';
 
 defineOptions({
   name: 'BarChart'
 });
 
 const appStore = useAppStore();
+const billsStore = useBillsStore();
 
 const { domRef, updateOptions } = useEcharts(() => ({
   tooltip: {
@@ -62,14 +63,11 @@ const { domRef, updateOptions } = useEcharts(() => ({
   ]
 }));
 
-// 拉取全部标的汇总，按总浮盈降序取前 10 渲染柱状图
-async function initData() {
-  const { data, error } = await fetchGroupSymbols({ limit: 1000 });
-  // 接口失败或无数据时，保留空状态，不报错
-  if (error || !data || !data.items || data.items.length === 0) return;
-
+// 从 store 共享数据渲染：按总浮盈降序取前 10
+function renderChart(items: Api.Bills.GroupSymbol[]) {
+  if (!items || items.length === 0) return;
   // 按 pf_total 降序排序，取前 10；pf_total 可能为 null，用 Number() 转换：null → 0
-  const sorted = [...data.items]
+  const sorted = [...items]
     .sort((a, b) => Number(b.pf_total) - Number(a.pf_total))
     .slice(0, 10);
 
@@ -79,10 +77,16 @@ async function initData() {
   updateOptions(opts => {
     opts.xAxis.data = symbols;
     opts.series[0].data = pfTotals;
-
     return opts;
   });
 }
+
+// watch store 数据：首次加载及同步后强制刷新时自动更新
+watch(
+  () => billsStore.homeGroupSymbols,
+  items => renderChart(items),
+  { immediate: true }
+);
 
 // 语言切换时刷新中文名称（名称为固定中文，此处保持原刷新逻辑）
 function updateLocale() {
@@ -96,19 +100,12 @@ function updateLocale() {
   });
 }
 
-async function init() {
-  await initData();
-}
-
 watch(
   () => appStore.locale,
   () => {
     updateLocale();
   }
 );
-
-// init
-init();
 </script>
 
 <template>
