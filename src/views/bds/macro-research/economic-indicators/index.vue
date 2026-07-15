@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
-import { fetchEconomicIndicators, syncEconomicIndicator } from '@/service/api/bds';
+import { fetchEconomicIndicators, syncEconomicIndicator, syncEconomicIndicatorWscn } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
@@ -12,6 +12,8 @@ const bdsStore = useBdsStore();
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncLoading = ref(false);
+// wscn 同步 loading
+const wscnSyncLoading = ref(false);
 const tableData = ref<Api.Bds.EconomicIndicator[]>([]);
 const total = ref(0);
 
@@ -43,7 +45,9 @@ const categoryOptions = [
   { label: '增长', value: '增长' },
   { label: '制造业', value: '制造业' },
   { label: '消费', value: '消费' },
-  { label: '收益率', value: '收益率' }
+  { label: '收益率', value: '收益率' },
+  { label: '投资', value: '投资' },
+  { label: '货币', value: '货币' }
 ];
 
 // 国别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
@@ -60,6 +64,12 @@ const syncIndicatorCode = ref<string | null>(null);
 function fmtNum(val: number | string | null): string {
   if (val === null || val === undefined) return '--';
   return Number(val).toFixed(2);
+}
+
+// 整数格式化：重要性等整数字段，空值显示 --
+function fmtInt(val: number | null): string {
+  if (val === null || val === undefined) return '--';
+  return String(val);
 }
 
 // 拉取经济指标列表
@@ -127,6 +137,15 @@ async function handleSync() {
   );
 }
 
+// 触发 wscn 日历数据源同步（补充 forecast/importance/revised/pub_date）
+async function handleWscnSync() {
+  await executeSync(
+    () => syncEconomicIndicatorWscn(),
+    wscnSyncLoading,
+    fetchData
+  );
+}
+
 // 列标题与后端 ORM comment 保持一致
 const columns = [
   { title: '指标代码', key: 'indicator_code', width: 180, fixed: 'left' as const },
@@ -138,6 +157,10 @@ const columns = [
   { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value) },
   { title: '前值', key: 'value_prev', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_prev) },
   { title: '预期值', key: 'value_expected', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_expected) },
+  { title: '重要性', key: 'importance', width: 80, render: (row: Api.Bds.EconomicIndicator) => fmtInt(row.importance) },
+  { title: '修正值', key: 'revised', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.revised) },
+  { title: '标题', key: 'title', width: 200, ellipsis: { tooltip: true } },
+  { title: '前瞻', key: 'foresight', width: 200, ellipsis: { tooltip: true } },
   { title: '单位', key: 'unit', width: 60 },
   { title: '频率', key: 'frequency', width: 80 }
 ];
@@ -204,7 +227,7 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <!-- 同步区域：选择指标后点击同步按钮触发后端同步 -->
+        <!-- 同步区域：选择指标后点击同步按钮触发后端 FRED 同步 -->
         <NFormItem label="同步指标">
           <NSpace>
             <NSelect
@@ -221,6 +244,13 @@ onMounted(() => {
             </NButton>
           </NSpace>
         </NFormItem>
+        <!-- wscn 同步：华尔街见闻日历数据源，补充 forecast/importance/revised/pub_date -->
+        <NFormItem label="wscn同步">
+          <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            wscn同步
+          </NButton>
+        </NFormItem>
       </NForm>
     </NCard>
     <NCard :bordered="false" class="card-wrapper">
@@ -230,7 +260,7 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
-        :scroll-x="1280"
+        :scroll-x="1860"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

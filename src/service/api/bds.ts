@@ -283,3 +283,15 @@ export function syncAllEconomicIndicators() {
     method: 'post'
   });
 }
+
+/** 通过华尔街见闻日历接口同步经济指标（补充 forecast/importance/revised/pub_date）
+ *  全量同步（如首次或 DB 清空后）需从 2015 至今按月分批拉取，耗时较长，
+ *  单独设置 10 分钟超时，覆盖全局 10s 默认值
+ */
+export function syncEconomicIndicatorWscn() {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/economic-indicator-wscn',
+    method: 'post',
+    timeout: 10 * 60 * 1000
+  });
+}

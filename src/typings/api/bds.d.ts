@@ -505,6 +505,14 @@ declare namespace Api {
       value_prev: number | null;
       /** 预期值 */
       value_expected: number | null;
+      /** 重要性 */
+      importance: number | null;
+      /** 修正值 */
+      revised: number | null;
+      /** 标题 */
+      title: string | null;
+      /** 前瞻 */
+      foresight: string | null;
       /** 单位 */
       unit: string | null;
       /** 频率 */
