@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
 import { fetchEconomicIndicators, syncEconomicIndicator } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
@@ -25,10 +25,11 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：indicator_code 精确匹配，category 多选精确匹配
+// 搜索参数：indicator_code 精确匹配，category/country 多选精确匹配
 const searchParams = reactive<{
   indicator_code?: string | null;
   category?: string[] | null;
+  country?: string[] | null;
 }>({});
 
 // 日期范围（YYYY-MM-DD 格式字符串元组）
@@ -44,6 +45,12 @@ const categoryOptions = [
   { label: '消费', value: '消费' },
   { label: '收益率', value: '收益率' }
 ];
+
+// 国别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
+const countryOptions = computed(() => {
+  const countries = bdsStore.indicatorCodeList.map(item => item.country);
+  return [...new Set(countries)].map(c => ({ label: c, value: c }));
+});
 
 // 同步用单个指标代码（精确匹配）
 const syncIndicatorCode = ref<string | null>(null);
@@ -61,8 +68,9 @@ async function fetchData() {
   try {
     const { data, error } = await fetchEconomicIndicators({
       indicator_code: searchParams.indicator_code || undefined,
-      // category 为空数组时传 undefined，避免向后端发送空数组
+      // category/country 为空数组时传 undefined，避免向后端发送空数组
       category: searchParams.category?.length ? searchParams.category : undefined,
+      country: searchParams.country?.length ? searchParams.country : undefined,
       start_date: dateRange.value?.[0] || undefined,
       end_date: dateRange.value?.[1] || undefined,
       limit: pagination.pageSize,
@@ -88,6 +96,7 @@ function handleSearch() {
 function handleReset() {
   searchParams.indicator_code = null;
   searchParams.category = null;
+  searchParams.country = null;
   dateRange.value = null;
   pagination.page = 1;
   fetchData();
@@ -123,6 +132,7 @@ const columns = [
   { title: '指标代码', key: 'indicator_code', width: 180, fixed: 'left' as const },
   { title: '指标名称', key: 'indicator_name', width: 150 },
   { title: '类别', key: 'category', width: 80 },
+  { title: '国别', key: 'country', width: 80 },
   { title: '报告日期', key: 'report_date', width: 120 },
   { title: '发布日期', key: 'pub_date', width: 120 },
   { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value) },
@@ -163,6 +173,17 @@ onMounted(() => {
             multiple
             clearable
             placeholder="选择类别"
+            style="width: 200px"
+          />
+        </NFormItem>
+        <!-- 国别：NSelect 多选，选项从 indicatorCodeList 动态提取去重 -->
+        <NFormItem label="国别">
+          <NSelect
+            v-model:value="searchParams.country"
+            :options="countryOptions"
+            multiple
+            clearable
+            placeholder="选择国别"
             style="width: 200px"
           />
         </NFormItem>
@@ -209,7 +230,7 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
-        :scroll-x="1200"
+        :scroll-x="1280"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

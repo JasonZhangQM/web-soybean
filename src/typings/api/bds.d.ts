@@ -493,6 +493,8 @@ declare namespace Api {
       indicator_name: string;
       /** 类别 */
       category: string;
+      /** 国别 */
+      country: string;
       /** 报告日期 */
       report_date: string;
       /** 发布日期 */
@@ -519,6 +521,8 @@ declare namespace Api {
       indicator_code?: string | null;
       /** 类别（多选精确匹配） */
       category?: string[] | null;
+      /** 国别（多选精确匹配） */
+      country?: string[] | null;
       /** 报告日期起始日 */
       start_date?: string | null;
       /** 报告日期结束日 */
@@ -537,6 +541,8 @@ declare namespace Api {
       indicator_name: string;
       /** 类别 */
       category: string;
+      /** 国别 */
+      country: string;
       /** 单位 */
       unit: string | null;
       /** 频率 */
