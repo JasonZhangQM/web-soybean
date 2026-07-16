@@ -25,6 +25,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "bds_fund-data_fund-cashflows": () => import("@/views/bds/fund-data/fund-cashflows/index.vue"),
   "bds_fund-data_fund-incomes": () => import("@/views/bds/fund-data/fund-incomes/index.vue"),
   "bds_index-constituents": () => import("@/views/bds/index-constituents/index.vue"),
+  "bds_macro-research_economic-dashboard": () => import("@/views/bds/macro-research/economic-dashboard/index.vue"),
   "bds_macro-research_economic-indicators": () => import("@/views/bds/macro-research/economic-indicators/index.vue"),
   "bds_macro-research_economic-report": () => import("@/views/bds/macro-research/economic-report/index.vue"),
   "bds_market-data_daily-valuations": () => import("@/views/bds/market-data/daily-valuations/index.vue"),

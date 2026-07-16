@@ -174,6 +174,7 @@ const routeMap: RouteMap = {
   "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes",
   "bds_index-constituents": "/bds/index-constituents",
   "bds_macro-research": "/bds/macro-research",
+  "bds_macro-research_economic-dashboard": "/bds/macro-research/economic-dashboard",
   "bds_macro-research_economic-indicators": "/bds/macro-research/economic-indicators",
   "bds_macro-research_economic-report": "/bds/macro-research/economic-report",
   "bds_market-data": "/bds/market-data",

@@ -243,6 +243,7 @@ const local: App.I18n.Schema = {
     'bds_macro-research': '宏观研究',
     'bds_macro-research_economic-report': '经济指标报告',
     'bds_macro-research_economic-indicators': '经济指标数据',
+    'bds_macro-research_economic-dashboard': '中国宏观看板',
     'bills_group': '账单汇总',
     'bills_bills': '交易明细',
     'bills_profits': '账单收益',
