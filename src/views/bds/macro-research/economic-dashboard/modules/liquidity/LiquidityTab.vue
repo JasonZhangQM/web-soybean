@@ -154,7 +154,7 @@ const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM')
           <LprChart :data-map="dataMap" />
         </div>
       </NGi>
-      <NGi span="24">
+      <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">流动性综合视图</div>
           <div class="chart-box__sub">社融、M2、新增贷款综合对比，全面评估宏观流动性环境</div>

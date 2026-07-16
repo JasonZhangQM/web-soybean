@@ -48,20 +48,22 @@ function buildOption() {
       trigger: 'axis',
       appendToBody: true,
       // tooltip 展示原始值：PMI 原始值 + 上证原始收盘价
+      // 不引用 buildOption 内部局部变量：PMI 直接取 p.value，上证从 p.data.raw 取
       formatter: (params: any) => {
         if (!params || !params.length) return '';
-        const idx = params[0].dataIndex;
         const date = params[0].axisValue;
         let html = `<div style="font-weight:600;margin-bottom:2px">${date}</div>`;
         params.forEach((p: any) => {
-          let raw = '--';
+          let display = '--';
           if (p.seriesName === PMI_NAME) {
-            raw = pmiValues[idx] != null ? pmiValues[idx].toFixed(2) : '--';
+            // PMI 数据为普通数字数组，直接用 p.value
+            display = p.value != null ? Number(p.value).toFixed(2) : '--';
           } else if (p.seriesName === STOCK_NAME) {
-            const v = stockValues[idx];
-            raw = v != null ? v.toFixed(2) : '--';
+            // 上证图形显示标准化值，tooltip 显示 raw（原始收盘价）
+            const raw = p.data?.raw;
+            display = raw != null ? Number(raw).toFixed(2) : '--';
           }
-          html += `<div>${p.marker}${p.seriesName}：${raw}</div>`;
+          html += `<div>${p.marker}${p.seriesName}：${display}</div>`;
         });
         return html;
       }
@@ -122,7 +124,9 @@ function buildOption() {
         smooth: true,
         color: '#dc2626',
         yAxisIndex: 1,
-        data: stockNorm
+        // data 用对象格式：value 为标准化值，raw 为原始收盘价，供 tooltip 读取
+        // 上证原始值可能为 null，对应数据点保持 null 以断开连线
+        data: stockNorm.map((v, i) => (v == null ? null : { value: v, raw: stockValues[i] }))
       }
     ]
   } as any;

@@ -49,20 +49,22 @@ function buildOption() {
       trigger: 'axis',
       appendToBody: true,
       // tooltip 展示原始值，便于读取真实数值（图形为标准化值）
+      // 不引用 buildOption 内部局部变量，原始值从 p.data.raw 取，避免 updateOptions 合并时丢失闭包
       formatter: (params: any) => {
         if (!params || !params.length) return '';
-        const idx = params[0].dataIndex;
         const date = params[0].axisValue;
         let html = `<div style="font-weight:600;margin-bottom:2px">${date}</div>`;
         params.forEach((p: any) => {
-          let raw = '--';
-          if (p.seriesName === SF_NAME) {
-            raw = sfValues[idx] != null ? `${sfValues[idx].toFixed(2)} 万亿元` : '--';
-          } else if (p.seriesName === STOCK_NAME) {
-            const v = stockValues[idx];
-            raw = v != null ? v.toFixed(2) : '--';
+          const raw = p.data?.raw;
+          let display = '--';
+          if (raw != null) {
+            if (p.seriesName === SF_NAME) {
+              display = `${Number(raw).toFixed(2)} 万亿元`;
+            } else {
+              display = Number(raw).toFixed(2);
+            }
           }
-          html += `<div>${p.marker}${p.seriesName}：${raw}</div>`;
+          html += `<div>${p.marker}${p.seriesName}：${display}</div>`;
         });
         return html;
       }
@@ -92,14 +94,16 @@ function buildOption() {
         type: 'line',
         smooth: true,
         color: '#dc2626',
-        data: sfNorm
+        // data 用对象格式：value 为标准化值，raw 为原始值（万亿元），供 tooltip 读取
+        data: sfNorm.map((v, i) => ({ value: v, raw: sfValues[i] }))
       },
       {
         name: STOCK_NAME,
         type: 'line',
         smooth: true,
         color: '#2563eb',
-        data: stockNorm
+        // 上证原始值可能为 null，对应数据点保持 null 以断开连线
+        data: stockNorm.map((v, i) => (v == null ? null : { value: v, raw: stockValues[i] }))
       }
     ]
   } as any;
