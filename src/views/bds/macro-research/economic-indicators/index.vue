@@ -20,7 +20,7 @@ const total = ref(0);
 // 分页配置（remote 模式）
 const pagination = reactive({
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   showSizePicker: true,
   pageSizes: [10, 20, 50, 100],
   itemCount: 0,
@@ -37,18 +37,11 @@ const searchParams = reactive<{
 // 日期范围（YYYY-MM-DD 格式字符串元组）
 const dateRange = ref<[string, string] | null>(null);
 
-// 类别下拉选项（固定列表）
-const categoryOptions = [
-  { label: '利率', value: '利率' },
-  { label: '通胀', value: '通胀' },
-  { label: '就业', value: '就业' },
-  { label: '增长', value: '增长' },
-  { label: '制造业', value: '制造业' },
-  { label: '消费', value: '消费' },
-  { label: '收益率', value: '收益率' },
-  { label: '投资', value: '投资' },
-  { label: '货币', value: '货币' }
-];
+// 类别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
+const categoryOptions = computed(() => {
+  const categories = bdsStore.indicatorCodeList.map(item => item.category);
+  return [...new Set(categories)].sort().map(c => ({ label: c, value: c }));
+});
 
 // 国别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
 const countryOptions = computed(() => {
@@ -148,8 +141,7 @@ async function handleWscnSync() {
 
 // 列标题与后端 ORM comment 保持一致
 const columns = [
-  { title: '指标代码', key: 'indicator_code', width: 180, fixed: 'left' as const },
-  { title: '指标名称', key: 'indicator_name', width: 150 },
+  { title: '指标名称', key: 'indicator_name', width: 150, fixed: 'left' as const },
   { title: '类别', key: 'category', width: 80 },
   { title: '国别', key: 'country', width: 80 },
   { title: '报告日期', key: 'report_date', width: 120 },
