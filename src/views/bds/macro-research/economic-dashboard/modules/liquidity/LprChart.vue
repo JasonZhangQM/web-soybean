@@ -33,6 +33,12 @@ function buildOption() {
     return dates.map(d => (map.has(d) ? (map.get(d) as number) : null));
   };
 
+  // 根据实际数据范围计算 Y 轴 min/max，留少量边距避免折线贴边
+  const allValues = [...buildValues(lpr1y), ...buildValues(lpr5y)].filter((v): v is number => v != null);
+  const dataMin = allValues.length ? Math.min(...allValues) : 0;
+  const dataMax = allValues.length ? Math.max(...allValues) : 1;
+  const padding = (dataMax - dataMin) * 0.15 || 0.5;
+
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
     legend: { bottom: 0, data: ['1Y LPR', '5Y LPR'] },
@@ -47,6 +53,8 @@ function buildOption() {
     yAxis: {
       type: 'value',
       name: '%',
+      min: Math.floor((dataMin - padding) * 10) / 10,
+      max: Math.ceil((dataMax + padding) * 10) / 10,
       nameTextStyle: { color: axisColor },
       axisLabel: { color: axisColor },
       axisLine: { lineStyle: { color: axisColor } },

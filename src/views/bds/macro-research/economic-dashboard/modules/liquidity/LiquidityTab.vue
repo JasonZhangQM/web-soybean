@@ -2,9 +2,7 @@
 import { computed } from 'vue';
 import MetricCard from '../MetricCard.vue';
 import SfChart from './SfChart.vue';
-import LoanChart from './LoanChart.vue';
 import M1M2Chart from './M1M2Chart.vue';
-import MoneySupplyChart from './MoneySupplyChart.vue';
 import LprChart from './LprChart.vue';
 import LiquidityComboChart from './LiquidityComboChart.vue';
 import { getLatest, getSeries, calcM1M2 } from '../utils';
@@ -23,7 +21,6 @@ const sfLatest = computed(() => getLatest(props.dataMap, 'CN_SOCIAL_FINANCING_CU
 const loanLatest = computed(() => getLatest(props.dataMap, 'CN_NEW_RMB_LOANS_CUM'));
 const m1Latest = computed(() => getLatest(props.dataMap, 'CN_M1_YOY'));
 const m2Latest = computed(() => getLatest(props.dataMap, 'CN_M2_YOY'));
-const m0Latest = computed(() => getLatest(props.dataMap, 'CN_M0_YOY'));
 const lpr1yLatest = computed(() => getLatest(props.dataMap, 'CN_LPR_1Y'));
 
 // ===== M1-M2 剪刀差（M1 同比 - M2 同比）=====
@@ -49,8 +46,6 @@ const m1m2Color = computed(() => {
 });
 
 // ===== 图表数据 =====
-const sfData = computed(() => getSeries(props.dataMap, 'CN_SOCIAL_FINANCING_CUM'));
-const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM'));
 </script>
 
 <template>
@@ -61,7 +56,7 @@ const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM')
         <MetricCard
           label="社融增量"
           :value="sfLatest?.value ?? null"
-          unit="万亿元"
+          unit="亿元"
           :date="sfLatest?.report_date"
         />
       </NGi>
@@ -69,7 +64,7 @@ const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM')
         <MetricCard
           label="新增贷款"
           :value="loanLatest?.value ?? null"
-          unit="万亿元"
+          unit="亿元"
           :date="loanLatest?.report_date"
         />
       </NGi>
@@ -101,14 +96,6 @@ const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM')
       </NGi>
       <NGi span="12 s:12 m:8 l:4">
         <MetricCard
-          label="M0 同比"
-          :value="m0Latest?.value ?? null"
-          unit="%"
-          :date="m0Latest?.report_date"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
           label="1Y LPR"
           :value="lpr1yLatest?.value ?? null"
           unit="%"
@@ -121,37 +108,23 @@ const loanData = computed(() => getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM')
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12">
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">社融增量</div>
-          <div class="chart-box__sub">社融是宽信用的核心指标，社融扩张利好 A 股估值提升</div>
-          <SfChart :data="sfData" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">新增人民币贷款</div>
-          <div class="chart-box__sub">新增贷款反映银行信用投放力度，是流动性的重要来源</div>
-          <LoanChart :data="loanData" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">M1-M2 剪刀差</div>
-          <div class="chart-box__sub">M1 增速 &gt; M2 表示资金活化利好股市，反之资金沉淀利空</div>
-          <M1M2Chart :data="m1m2Series" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">M0/M1/M2 货币供应</div>
-          <div class="chart-box__sub">货币供应增速反映央行政策取向，M2 增速与 A 股估值正相关</div>
-          <MoneySupplyChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
           <div class="chart-box__title">LPR 1Y vs 5Y</div>
           <div class="chart-box__sub">1Y LPR 影响企业融资成本，5Y LPR 影响房贷与地产，降息利好 A 股</div>
           <LprChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <NGi span="24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">M1/M2 货币供应与剪刀差</div>
+          <div class="chart-box__sub">M1、M2 同比与 M1-M2 剪刀差；剪刀差 &gt; 0 资金活化利好股市，&lt; 0 资金沉淀利空</div>
+          <M1M2Chart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <NGi span="24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">社融增量与新增贷款</div>
+          <div class="chart-box__sub">社融是宽信心的核心指标，新增贷款反映银行信用投放力度，两者扩张均利好 A 股估值提升</div>
+          <SfChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">

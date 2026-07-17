@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchEconomicIndicators, fetchIndexHistories, syncEconomicIndicatorWscn } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
+import { forwardFill } from './modules/utils';
 import { useThemeStore } from '@/store/modules/theme';
 import OverviewTab from './modules/overview/OverviewTab.vue';
 import EarningsTab from './modules/earnings/EarningsTab.vue';
@@ -36,7 +37,7 @@ const DASHBOARD_INDICATORS = {
   // 盈利基本面
   earnings: ['CN_GDP_YOY', 'CN_INDUSTRIAL_VALUE_ADDED_YOY', 'CN_INDUSTRIAL_PROFIT_YOY', 'CN_CPI_YOY', 'CN_PPI_YOY'],
   // 流动性与信用
-  liquidity: ['CN_SOCIAL_FINANCING_CUM', 'CN_NEW_RMB_LOANS_CUM', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_M0_YOY', 'CN_LPR_1Y', 'CN_LPR_5Y'],
+  liquidity: ['CN_SOCIAL_FINANCING_CUM', 'CN_NEW_RMB_LOANS_CUM', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_LPR_1Y', 'CN_LPR_5Y'],
   // 景气预期
   sentiment: ['CN_OFFICIAL_MFG_PMI', 'CN_RATINGDOG_MFG_PMI', 'CN_OFFICIAL_NON_MFG_PMI', 'CN_RATINGDOG_SVC_PMI'],
   // 外贸与外部
@@ -121,7 +122,8 @@ async function fetchAllData() {
     const map = new Map<string, Api.Bds.EconomicIndicator[]>();
     macroResults.forEach(r => {
       if (r.status === 'fulfilled') {
-        map.set(r.value.code, r.value.list);
+        // 对时序数据做前向填充：value 为空的时点用前一个非空值补充
+        map.set(r.value.code, forwardFill(r.value.list));
       }
     });
     dataMap.value = map;

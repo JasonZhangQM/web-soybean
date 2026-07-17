@@ -72,6 +72,23 @@ export function normalize(arr: number[]): number[] {
 }
 
 /**
+ * 前向填充：对升序时序数组中 value 为 null 的记录，用前一个非 null 的 value 补充
+ * 不修改原对象，返回新数组。首项若为 null 且前面无非 null 值则保持 null。
+ * 用于经济指标未发布（value=None）的时点补值，避免图表出现 0 或断点。
+ */
+export function forwardFill(list: Api.Bds.EconomicIndicator[]): Api.Bds.EconomicIndicator[] {
+  let lastValid: string | number | null = null;
+  return list.map(item => {
+    if (item.value != null && item.value !== '') {
+      lastValid = item.value;
+      return item;
+    }
+    // 当前 value 为空，用前一个非空值填充（创建新对象避免污染原数据）
+    return { ...item, value: lastValid };
+  });
+}
+
+/**
  * 从 Map 中取某指标最新一条记录（数组已按 report_date 升序，最后一项为最新）
  */
 export function getLatest(
