@@ -251,60 +251,40 @@ declare namespace Api {
       underlying_name: string | null;
     }
 
-    /** 贴水配置（对应 SymbolDiscountOut，共 9 字段） */
-    interface SymbolDiscount {
-      /** 连续合约代码 */
+    /** 贴水监测（对应 DiscountMonitorOut，共 16 字段，合并配置与监测） */
+    interface DiscountMonitor {
+      /** 主键 */
+      id: number;
+      /** 连续合约 */
       symbol_con: string;
-      /** 真实合约代码 */
+      /** 真实合约 */
       symbol: string | null;
-      /** 是否主力 */
+      /** 主力 */
       is_main: boolean;
-      /** 合约类别（自动解析） */
+      /** 合约类别 */
       symbol_type: string | null;
       /** 标的代码 */
       symbol_ud: string | null;
-      /** 到期日（YYYY-MM-DD） */
+      /** 到期日 */
       delisted_date: string | null;
-      /** 主键 */
-      id: number;
-      /** 创建时间 */
-      create_time: string;
-      /** 更新时间 */
-      update_time: string;
-    }
-
-    /** 贴水监测（对应 MonitorDiscountOut，共 17 字段，含贴水配置扁平化字段） */
-    interface MonitorDiscount {
-      /** 关联贴水配置ID */
-      symbol_real_id: number;
-      /** 剩余天数（自动计算） */
+      /** 剩余天数 */
       days_left: number | null;
-      /** 累计持仓 */
+      /** 持仓量 */
       position: number | null;
       /** 合约现价 */
-      price: number;
+      price: number | null;
       /** 基础现价 */
-      price_ud: number;
-      /** 贴水值（自动计算） */
+      price_ud: number | null;
+      /** 贴水 */
       discount: number | null;
       /** 贴水率(%) */
       ratio: number | null;
-      /** 年化贴水率(%) */
+      /** 贴水率(%Y) */
       ratio_y: number | null;
-      /** 主键 */
-      id: number;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
       update_time: string;
-      /** 真实合约代码 */
-      symbol: string | null;
-      /** 是否主力 */
-      is_main: boolean | null;
-      /** 标的代码 */
-      symbol_ud: string | null;
-      /** 到期日（YYYY-MM-DD） */
-      delisted_date: string | null;
     }
 
     /** 同步结果（{status, message}） */

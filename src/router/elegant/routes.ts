@@ -127,6 +127,17 @@ export const generatedRoutes = [
         },
         children: [
           {
+            name: 'bds_macro-research_economic-dashboard',
+            path: '/bds/macro-research/economic-dashboard',
+            component: 'view.bds_macro-research_economic-dashboard',
+            meta: {
+              title: 'bds_macro-research_economic-dashboard',
+              i18nKey: 'route.bds_macro-research_economic-dashboard',
+              order: 3,
+              constant: true
+            }
+          },
+          {
             name: 'bds_macro-research_economic-indicators',
             path: '/bds/macro-research/economic-indicators',
             component: 'view.bds_macro-research_economic-indicators',
@@ -145,17 +156,6 @@ export const generatedRoutes = [
               title: 'bds_macro-research_economic-report',
               i18nKey: 'route.bds_macro-research_economic-report',
               order: 2,
-              constant: true
-            }
-          },
-          {
-            name: 'bds_macro-research_economic-dashboard',
-            path: '/bds/macro-research/economic-dashboard',
-            component: 'view.bds_macro-research_economic-dashboard',
-            meta: {
-              title: 'bds_macro-research_economic-dashboard',
-              i18nKey: 'route.bds_macro-research_economic-dashboard',
-              order: 3,
               constant: true
             }
           }
@@ -344,16 +344,6 @@ export const generatedRoutes = [
             meta: {
               title: 'irs_discount_monitor-discounts',
               i18nKey: 'route.irs_discount_monitor-discounts',
-              constant: true
-            }
-          },
-          {
-            name: 'irs_discount_symbol-discounts',
-            path: '/irs/discount/symbol-discounts',
-            component: 'view.irs_discount_symbol-discounts',
-            meta: {
-              title: 'irs_discount_symbol-discounts',
-              i18nKey: 'route.irs_discount_symbol-discounts',
               constant: true
             }
           }

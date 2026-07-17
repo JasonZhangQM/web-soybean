@@ -252,7 +252,6 @@ const local: App.I18n.Schema = {
     'bills_profit-years': '年度收益',
     'irs_discount': '贴水',
     'irs_discount_monitor-discounts': '贴水监测',
-    'irs_discount_symbol-discounts': '贴水配置',
     'irs_option': '期权',
     'irs_option_monitor-option-ts': '期权T型报价',
     'irs_option_monitor-options': '期权监测',

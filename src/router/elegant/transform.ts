@@ -194,7 +194,6 @@ const routeMap: RouteMap = {
   "irs": "/irs",
   "irs_discount": "/irs/discount",
   "irs_discount_monitor-discounts": "/irs/discount/monitor-discounts",
-  "irs_discount_symbol-discounts": "/irs/discount/symbol-discounts",
   "irs_option": "/irs/option",
   "irs_option_monitor-option-ts": "/irs/option/monitor-option-ts",
   "irs_option_monitor-options": "/irs/option/monitor-options",

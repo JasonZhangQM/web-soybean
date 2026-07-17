@@ -48,7 +48,6 @@ declare module "@elegant-router/types" {
     "irs": "/irs";
     "irs_discount": "/irs/discount";
     "irs_discount_monitor-discounts": "/irs/discount/monitor-discounts";
-    "irs_discount_symbol-discounts": "/irs/discount/symbol-discounts";
     "irs_option": "/irs/option";
     "irs_option_monitor-option-ts": "/irs/option/monitor-option-ts";
     "irs_option_monitor-options": "/irs/option/monitor-options";
@@ -139,7 +138,6 @@ declare module "@elegant-router/types" {
     | "bills_profits"
     | "home"
     | "irs_discount_monitor-discounts"
-    | "irs_discount_symbol-discounts"
     | "irs_option_monitor-option-ts"
     | "irs_option_monitor-options"
     | "irs_option_symbol-options"

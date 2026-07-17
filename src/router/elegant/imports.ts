@@ -40,7 +40,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   bills_profits: () => import("@/views/bills/profits/index.vue"),
   home: () => import("@/views/home/index.vue"),
   "irs_discount_monitor-discounts": () => import("@/views/irs/discount/monitor-discounts/index.vue"),
-  "irs_discount_symbol-discounts": () => import("@/views/irs/discount/symbol-discounts/index.vue"),
   "irs_option_monitor-option-ts": () => import("@/views/irs/option/monitor-option-ts/index.vue"),
   "irs_option_monitor-options": () => import("@/views/irs/option/monitor-options/index.vue"),
   "irs_option_symbol-options": () => import("@/views/irs/option/symbol-options/index.vue"),

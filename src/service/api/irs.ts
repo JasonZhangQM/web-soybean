@@ -132,29 +132,6 @@ export function fetchMonitorOptionTs(params?: MonitorOptionTQueryParams) {
   });
 }
 
-/** 贴水配置查询参数 */
-interface SymbolDiscountQueryParams {
-  /** 合约类别 */
-  symbol_type?: string;
-  /** 是否主力 */
-  is_main?: boolean;
-  /** 真实合约代码（模糊匹配） */
-  symbol?: string;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询贴水配置列表 */
-export function fetchSymbolDiscounts(params?: SymbolDiscountQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.SymbolDiscount>>({
-    url: '/api/v1/irs/symbol-discounts',
-    method: 'get',
-    params
-  });
-}
-
 /** 贴水监测查询参数 */
 interface MonitorDiscountQueryParams {
   /** 真实合约代码（模糊匹配） */
@@ -173,7 +150,7 @@ interface MonitorDiscountQueryParams {
 
 /** 查询贴水监测列表 */
 export function fetchMonitorDiscounts(params?: MonitorDiscountQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.MonitorDiscount>>({
+  return request<Api.Common.PageResponse<Api.Irs.DiscountMonitor>>({
     url: '/api/v1/irs/monitor-discounts',
     method: 'get',
     params
