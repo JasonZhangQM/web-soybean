@@ -491,6 +491,8 @@ declare namespace Api {
       indicator_code: string;
       /** 指标名称 */
       indicator_name: string;
+      /** 指标简称 */
+      indicator_short_name: string | null;
       /** 类别 */
       category: string;
       /** 国别 */
@@ -547,6 +549,8 @@ declare namespace Api {
       indicator_code: string;
       /** 指标名称 */
       indicator_name: string;
+      /** 指标简称 */
+      indicator_short_name: string;
       /** 类别 */
       category: string;
       /** 国别 */

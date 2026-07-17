@@ -83,9 +83,9 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     }
   }
 
-  /** 获取经济指标代码下拉选项（label=指标名称，value=指标代码） */
+  /** 获取经济指标代码下拉选项（label=指标简称兜底全称，value=指标代码） */
   function getIndicatorCodeOptions() {
-    return indicatorCodeList.value.map(item => ({ label: item.indicator_name, value: item.indicator_code }));
+    return indicatorCodeList.value.map(item => ({ label: item.indicator_short_name || item.indicator_name, value: item.indicator_code }));
   }
 
   return {

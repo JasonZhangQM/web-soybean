@@ -141,18 +141,18 @@ async function handleWscnSync() {
 
 // 列标题与后端 ORM comment 保持一致
 const columns = [
-  { title: '指标名称', key: 'indicator_name', width: 150, fixed: 'left' as const },
+  { title: '指标', key: 'indicator_short_name', width: 160, fixed: 'left' as const },
   { title: '类别', key: 'category', width: 80 },
-  { title: '国别', key: 'country', width: 80 },
-  { title: '报告日期', key: 'report_date', width: 120 },
-  { title: '发布日期', key: 'pub_date', width: 120 },
+  { title: '国别', key: 'country', width: 60 },
+  { title: '报告日期', key: 'report_date', width: 100 },
+  { title: '发布日期', key: 'pub_date', width: 100 },
   { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value) },
   { title: '前值', key: 'value_prev', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_prev) },
   { title: '预期值', key: 'value_expected', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_expected) },
-  { title: '重要性', key: 'importance', width: 80, render: (row: Api.Bds.EconomicIndicator) => fmtInt(row.importance) },
+  { title: '重要性', key: 'importance', width: 60, render: (row: Api.Bds.EconomicIndicator) => fmtInt(row.importance) },
   { title: '修正值', key: 'revised', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.revised) },
   { title: '标题', key: 'title', width: 200, ellipsis: { tooltip: true } },
-  { title: '前瞻', key: 'foresight', width: 200, ellipsis: { tooltip: true } },
+  { title: '前瞻', key: 'foresight', width: 160, ellipsis: { tooltip: true } },
   { title: '单位', key: 'unit', width: 60 },
   { title: '频率', key: 'frequency', width: 80 }
 ];
@@ -169,8 +169,8 @@ onMounted(() => {
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
       <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
-        <!-- 指标代码：NSelect 下拉选择，选项从 bdsStore 动态拉取 -->
-        <NFormItem label="指标代码">
+        <!-- 指标：NSelect 下拉选择，选项从 bdsStore 动态拉取（显示简称） -->
+        <NFormItem label="指标">
           <NSelect
             v-model:value="searchParams.indicator_code"
             :options="bdsStore.getIndicatorCodeOptions()"
@@ -252,7 +252,7 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
-        :scroll-x="1860"
+        :scroll-x="1780"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
