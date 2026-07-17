@@ -338,12 +338,12 @@ export const generatedRoutes = [
         },
         children: [
           {
-            name: 'irs_discount_monitor-discounts',
-            path: '/irs/discount/monitor-discounts',
-            component: 'view.irs_discount_monitor-discounts',
+            name: 'irs_discount_discounts-monitor',
+            path: '/irs/discount/discounts-monitor',
+            component: 'view.irs_discount_discounts-monitor',
             meta: {
-              title: 'irs_discount_monitor-discounts',
-              i18nKey: 'route.irs_discount_monitor-discounts',
+              title: 'irs_discount_discounts-monitor',
+              i18nKey: 'route.irs_discount_discounts-monitor',
               constant: true
             }
           }

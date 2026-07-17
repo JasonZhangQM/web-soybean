@@ -193,7 +193,7 @@ const routeMap: RouteMap = {
   "iframe-page": "/iframe-page/:url",
   "irs": "/irs",
   "irs_discount": "/irs/discount",
-  "irs_discount_monitor-discounts": "/irs/discount/monitor-discounts",
+  "irs_discount_discounts-monitor": "/irs/discount/discounts-monitor",
   "irs_option": "/irs/option",
   "irs_option_monitor-option-ts": "/irs/option/monitor-option-ts",
   "irs_option_monitor-options": "/irs/option/monitor-options",

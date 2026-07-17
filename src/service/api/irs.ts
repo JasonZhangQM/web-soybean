@@ -151,7 +151,7 @@ interface MonitorDiscountQueryParams {
 /** 查询贴水监测列表 */
 export function fetchMonitorDiscounts(params?: MonitorDiscountQueryParams) {
   return request<Api.Common.PageResponse<Api.Irs.DiscountMonitor>>({
-    url: '/api/v1/irs/monitor-discounts',
+    url: '/api/v1/irs/discounts-monitor',
     method: 'get',
     params
   });
