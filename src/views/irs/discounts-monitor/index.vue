@@ -37,7 +37,7 @@ const isMainOptions = [
 ];
 // 合约类别下拉选项（从后端 Config 动态拉取）
 const symbolTypeOptions = ref<{ label: string; value: string }[]>([]);
-// 连续合约名称下拉选项（从后端 Config 动态拉取）
+// 连续周期下拉选项（从后端 Config 动态拉取）
 const conNameOptions = ref<{ label: string; value: string }[]>([]);
 
 // 拉取贴水监测列表
@@ -64,7 +64,7 @@ async function fetchData() {
   }
 }
 
-// 拉取下拉选项（合约类别 + 连续合约名称，从 Config 取数）
+// 拉取下拉选项（合约类别 + 连续周期，从 Config 取数）
 async function fetchOptions() {
   const { data, error } = await fetchDiscountOptions();
   if (!error && data) {
@@ -115,11 +115,10 @@ const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 
 const columns = [
+  { title: '合约类别', key: 'symbol_type', width: 80 },
+  { title: '连续周期', key: 'con_name', width: 100 },
   { title: '真实合约', key: 'symbol', width: 120 },
   { title: '主力', key: 'is_main', width: 60, render: (row: Api.Irs.DiscountMonitor) => (row.is_main ? '是' : '否') },
-  { title: '连续合约', key: 'symbol_con', width: 120 },
-  { title: '连续合约名称', key: 'con_name', width: 100 },
-  { title: '合约类别', key: 'symbol_type', width: 80 },
   { title: '标的代码', key: 'symbol_ud', width: 100 },
   { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.DiscountMonitor) => fmtDate(row.delisted_date) },
   { title: '剩余天数', key: 'days_left', width: 80 },
@@ -151,7 +150,7 @@ onMounted(() => {
             style="width: 150px"
           />
         </NFormItem>
-        <NFormItem label="连续合约名称">
+        <NFormItem label="连续周期">
           <NSelect
             v-model:value="searchParams.con_name"
             :options="conNameOptions"
