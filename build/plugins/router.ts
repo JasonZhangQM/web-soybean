@@ -9,13 +9,13 @@ export function setupElegantRouter() {
       blank: 'src/layouts/blank-layout/index.vue'
     },
     // 注册 irs 多级菜单的父路由名，elegant-router 会自动生成对应的 RouteMap 类型和 routeMap 条目
-    // irs_discount → /irs/discount, irs_option → /irs/option, irs_value → /irs/value
+    // irs_option → /irs/option, irs_value → /irs/value
     customRoutes: {
       map: {
         root: '/',
         'not-found': '/:pathMatch(.*)*'
       },
-      names: ['irs_discount', 'irs_option', 'irs_value']
+      names: ['irs_option', 'irs_value']
     },
     routePathTransformer(routeName, routePath) {
       const key = routeName as RouteKey;

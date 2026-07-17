@@ -46,8 +46,7 @@ declare module "@elegant-router/types" {
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
-    "irs_discount": "/irs/discount";
-    "irs_discount_discounts-monitor": "/irs/discount/discounts-monitor";
+    "irs_discounts-monitor": "/irs/discounts-monitor";
     "irs_option": "/irs/option";
     "irs_option_monitor-option-ts": "/irs/option/monitor-option-ts";
     "irs_option_monitor-options": "/irs/option/monitor-options";
@@ -137,7 +136,7 @@ declare module "@elegant-router/types" {
     | "bills_profit-years"
     | "bills_profits"
     | "home"
-    | "irs_discount_discounts-monitor"
+    | "irs_discounts-monitor"
     | "irs_option_monitor-option-ts"
     | "irs_option_monitor-options"
     | "irs_option_symbol-options"

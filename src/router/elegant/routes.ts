@@ -329,25 +329,15 @@ export const generatedRoutes = [
     },
     children: [
       {
-        name: 'irs_discount',
-        path: '/irs/discount',
+        name: 'irs_discounts-monitor',
+        path: '/irs/discounts-monitor',
+        component: 'view.irs_discounts-monitor',
         meta: {
-          title: 'irs_discount',
-          i18nKey: 'route.irs_discount',
+          title: 'irs_discounts-monitor',
+          i18nKey: 'route.irs_discounts-monitor',
+          order: 3,
           constant: true
-        },
-        children: [
-          {
-            name: 'irs_discount_discounts-monitor',
-            path: '/irs/discount/discounts-monitor',
-            component: 'view.irs_discount_discounts-monitor',
-            meta: {
-              title: 'irs_discount_discounts-monitor',
-              i18nKey: 'route.irs_discount_discounts-monitor',
-              constant: true
-            }
-          }
-        ]
+        }
       },
       {
         name: 'irs_option',
@@ -355,6 +345,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_option',
           i18nKey: 'route.irs_option',
+          order: 1,
           constant: true
         },
         children: [
@@ -396,6 +387,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_value',
           i18nKey: 'route.irs_value',
+          order: 2,
           constant: true
         },
         children: [
