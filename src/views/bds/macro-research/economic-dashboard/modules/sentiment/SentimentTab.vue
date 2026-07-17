@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import MetricCard from '../MetricCard.vue';
-import MfgPmiChart from './MfgPmiChart.vue';
-import SvcPmiChart from './SvcPmiChart.vue';
 import AllPmiChart from './AllPmiChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'SentimentTab' });
 
-/** 景气预期 Tab：4 张 PMI 指标卡片 + 3 张折线对比图 */
+/** 景气预期 Tab：4 张 PMI 指标卡片 + 1 张全景对比图 */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
   loading?: boolean;
@@ -77,26 +75,12 @@ const ratingdogSvcZone = computed(() => pmiZone(ratingdogSvcLatest.value?.value)
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：图表网格（2 列，最后一张跨双列） -->
+    <!-- 第 2 行：四大 PMI 全景图（跨双列） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12">
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">官方 vs 财新制造业 PMI</div>
-          <div class="chart-box__sub">PMI &gt; 50 制造业扩张利好周期股，&lt; 50 收缩需警惕</div>
-          <MfgPmiChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">官方非制造业 vs 财新服务业 PMI</div>
-          <div class="chart-box__sub">服务业 PMI 反映消费与服务业景气，影响消费板块</div>
-          <SvcPmiChart :data-map="dataMap" />
-        </div>
-      </NGi>
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">四大 PMI 全景</div>
-          <div class="chart-box__sub">制造业+服务业 PMI 综合对比，全面评估经济景气预期</div>
+          <div class="chart-box__sub">官方/财新制造业 PMI、官方非制造业/财新服务业 PMI 综合对比，PMI &gt; 50 扩张，&lt; 50 收缩</div>
           <AllPmiChart :data-map="dataMap" />
         </div>
       </NGi>

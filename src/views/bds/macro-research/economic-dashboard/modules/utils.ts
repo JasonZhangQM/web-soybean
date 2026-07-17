@@ -77,10 +77,13 @@ export function normalize(arr: number[]): number[] {
  * 用于经济指标未发布（value=None）的时点补值，避免图表出现 0 或断点。
  */
 export function forwardFill(list: Api.Bds.EconomicIndicator[]): Api.Bds.EconomicIndicator[] {
-  let lastValid: string | number | null = null;
+  // value 类型定义为 number，但后端 nullable + Pydantic v2 将 Decimal 序列化为 string，
+  // 运行时可能为 null/''/number/string，故用 any 兜底以通过类型检查
+  let lastValid: any = null;
   return list.map(item => {
-    if (item.value != null && item.value !== '') {
-      lastValid = item.value;
+    const v: any = item.value;
+    if (v != null && v !== '') {
+      lastValid = v;
       return item;
     }
     // 当前 value 为空，用前一个非空值填充（创建新对象避免污染原数据）

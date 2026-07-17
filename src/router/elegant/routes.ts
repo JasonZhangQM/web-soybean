@@ -122,22 +122,10 @@ export const generatedRoutes = [
         meta: {
           title: 'bds_macro-research',
           i18nKey: 'route.bds_macro-research',
-          icon: 'mdi:chart-trending-up',
           order: 0,
           constant: true
         },
         children: [
-          {
-            name: 'bds_macro-research_economic-dashboard',
-            path: '/bds/macro-research/economic-dashboard',
-            component: 'view.bds_macro-research_economic-dashboard',
-            meta: {
-              title: 'bds_macro-research_economic-dashboard',
-              i18nKey: 'route.bds_macro-research_economic-dashboard',
-              order: 3,
-              constant: true
-            }
-          },
           {
             name: 'bds_macro-research_economic-indicators',
             path: '/bds/macro-research/economic-indicators',
@@ -145,7 +133,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_economic-indicators',
               i18nKey: 'route.bds_macro-research_economic-indicators',
-              order: 2,
+              order: 1,
               constant: true
             }
           },
@@ -156,7 +144,18 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_economic-report',
               i18nKey: 'route.bds_macro-research_economic-report',
-              order: 1,
+              order: 2,
+              constant: true
+            }
+          },
+          {
+            name: 'bds_macro-research_economic-dashboard',
+            path: '/bds/macro-research/economic-dashboard',
+            component: 'view.bds_macro-research_economic-dashboard',
+            meta: {
+              title: 'bds_macro-research_economic-dashboard',
+              i18nKey: 'route.bds_macro-research_economic-dashboard',
+              order: 3,
               constant: true
             }
           }

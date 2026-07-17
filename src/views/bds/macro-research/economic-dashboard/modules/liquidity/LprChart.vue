@@ -94,5 +94,5 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div ref="domRef" class="h-320px w-full"></div>
 </template>

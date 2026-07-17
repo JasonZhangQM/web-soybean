@@ -38,6 +38,21 @@ function buildOption() {
     return dates.map(d => (map.has(d) ? (map.get(d) as number) : null));
   };
 
+  // 以 50 荣枯线为中轴，根据数据偏离 50 的最大幅度上下对称扩展
+  // PMI 数据通常在 40-60 区间，对称刻度便于直观对比扩张/收缩强度
+  const allValues = [officialMfg, ratingdogMfg, officialNonMfg, ratingdogSvc]
+    .flatMap(arr => arr.map(x => Number(x.value)))
+    .filter((v): v is number => v != null && !Number.isNaN(v));
+  const dataMaxDev = allValues.length
+    ? Math.max(...allValues.map(v => Math.abs(v - 50)))
+    : 10;
+  // 偏离幅度向上取整到 5 的倍数 + 2 单位 padding，确保 50 居中
+  const halfRange = Math.ceil((dataMaxDev + 2) / 5) * 5;
+  const yMin = 50 - halfRange;
+  const yMax = 50 + halfRange;
+  // 自定义刻度：从 yMin 到 yMax 步长 5，确保 50 一定出现在刻度上
+  const yInterval = 5;
+
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
     legend: { bottom: 0, data: ['官方制造业', '财新制造业', '官方非制造业', '财新服务业'] },
@@ -52,8 +67,15 @@ function buildOption() {
     yAxis: {
       type: 'value',
       name: 'PMI',
+      min: yMin,
+      max: yMax,
+      interval: yInterval,
       nameTextStyle: { color: axisColor },
-      axisLabel: { color: axisColor },
+      axisLabel: {
+        color: axisColor,
+        // 50 荣枯线刻度文字加粗显示
+        formatter: (value: number) => (value === 50 ? '50' : `${value}`)
+      },
       axisLine: { lineStyle: { color: axisColor } },
       splitLine: { lineStyle: { color: splitColor } }
     },
@@ -64,14 +86,16 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#2563eb', width: 2 },
+        // 制造业统一虚线，与非制造业实线区分
+        lineStyle: { color: '#2563eb', width: 2, type: 'dashed' },
         itemStyle: { color: '#2563eb' },
         connectNulls: true,
-        // 50 荣枯线：虚线灰色，>=50 扩张 / <50 收缩
+        // 50 荣枯线：加粗实线，>=50 扩张 / <50 收缩
         markLine: {
           silent: true,
           symbol: 'none',
-          lineStyle: { type: 'dashed', color: '#6b7280' },
+          label: { show: false },
+          lineStyle: { type: 'solid', color: '#374151', width: 2 },
           data: [{ yAxis: 50 }]
         },
         data: buildValues(officialMfg)
@@ -82,7 +106,8 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#d97706', width: 2 },
+        // 制造业统一虚线，与非制造业实线区分
+        lineStyle: { color: '#d97706', width: 2, type: 'dashed' },
         itemStyle: { color: '#d97706' },
         connectNulls: true,
         data: buildValues(ratingdogMfg)

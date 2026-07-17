@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import MetricCard from '../MetricCard.vue';
-import ExportChart from './ExportChart.vue';
-import ImportChart from './ImportChart.vue';
+import TradeChart from './TradeChart.vue';
 import TradeBalanceChart from './TradeBalanceChart.vue';
 import FxReserveChart from './FxReserveChart.vue';
 import { getLatest, getSeries, calcTradeBalance } from '../utils';
 
 defineOptions({ name: 'ExternalTab' });
 
-/** 外贸与外部 Tab：4 张指标卡片 + 4 张图表 */
+/** 外贸与外部 Tab：4 张指标卡片 + 3 张图表 */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
   loading?: boolean;
@@ -94,20 +93,13 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：4 张图表（2 列） -->
+    <!-- 第 2 行：3 张图表（2 列） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12">
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">出口同比走势</div>
-          <div class="chart-box__sub">出口增速反映外需强度，利好出口导向型企业和航运板块</div>
-          <ExportChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">进口同比走势</div>
-          <div class="chart-box__sub">进口增速反映内需和大宗商品需求，与周期股相关</div>
-          <ImportChart :data-map="dataMap" />
+          <div class="chart-box__title">进出口同比走势</div>
+          <div class="chart-box__sub">出口增速反映外需强度（利好出口导向型企业），进口增速反映内需与大宗商品需求（与周期股相关）</div>
+          <TradeChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">

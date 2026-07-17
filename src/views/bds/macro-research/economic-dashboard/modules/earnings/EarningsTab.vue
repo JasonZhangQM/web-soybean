@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import MetricCard from '../MetricCard.vue';
-import GdpChart from './GdpChart.vue';
 import IvaChart from './IvaChart.vue';
-import ProfitChart from './ProfitChart.vue';
 import ScissorsChart from './ScissorsChart.vue';
-import EarningsAllChart from './EarningsAllChart.vue';
 import { getLatest, getSeries, calcScissors } from '../utils';
 
 defineOptions({ name: 'EarningsTab' });
@@ -24,6 +21,8 @@ const props = withDefaults(defineProps<Props>(), {
 const gdpLatest = computed(() => getLatest(props.dataMap, 'CN_GDP_YOY'));
 const ivaLatest = computed(() => getLatest(props.dataMap, 'CN_INDUSTRIAL_VALUE_ADDED_YOY'));
 const profitLatest = computed(() => getLatest(props.dataMap, 'CN_INDUSTRIAL_PROFIT_YOY'));
+const cpiLatest = computed(() => getLatest(props.dataMap, 'CN_CPI_YOY'));
+const ppiLatest = computed(() => getLatest(props.dataMap, 'CN_PPI_YOY'));
 
 // ===== CPI-PPI 剪刀差 =====
 const cpiSeries = computed(() => getSeries(props.dataMap, 'CN_CPI_YOY'));
@@ -35,10 +34,6 @@ const scissorsLatest = computed(() => {
 });
 
 // ===== 各图表时序数据 =====
-const gdpSeries = computed(() => getSeries(props.dataMap, 'CN_GDP_YOY'));
-const ivaSeries = computed(() => getSeries(props.dataMap, 'CN_INDUSTRIAL_VALUE_ADDED_YOY'));
-const profitSeries = computed(() => getSeries(props.dataMap, 'CN_INDUSTRIAL_PROFIT_YOY'));
-
 // 同比变化：value - value_prev（value_prev 为 null 时返回 null）
 function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
   if (!item || item.value_prev == null) return null;
@@ -72,9 +67,9 @@ const scissorsColor = computed(() => {
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：4 张指标卡片 -->
-    <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 s:12 m:8 l:6">
+    <!-- 第 1 行：6 张指标卡片（大屏单行排列，参考流动性与信用页面） -->
+    <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="GDP 同比"
           :value="gdpLatest?.value ?? null"
@@ -83,7 +78,35 @@ const scissorsColor = computed(() => {
           :change="computeChange(gdpLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:6">
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="CPI 同比"
+          :value="cpiLatest?.value ?? null"
+          unit="%"
+          :date="cpiLatest?.report_date"
+          :change="computeChange(cpiLatest)"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="PPI 同比"
+          :value="ppiLatest?.value ?? null"
+          unit="%"
+          :date="ppiLatest?.report_date"
+          :change="computeChange(ppiLatest)"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="CPI-PPI 剪刀差"
+          :value="scissorsLatest?.value ?? null"
+          unit="%"
+          :date="scissorsLatest?.report_date"
+          :desc="scissorsDesc"
+          :color="scissorsColor"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="工业增加值"
           :value="ivaLatest?.value ?? null"
@@ -92,7 +115,7 @@ const scissorsColor = computed(() => {
           :change="computeChange(ivaLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:6">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="工业利润"
           :value="profitLatest?.value ?? null"
@@ -103,53 +126,22 @@ const scissorsColor = computed(() => {
           :color="profitColor"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:6">
-        <MetricCard
-          label="CPI-PPI 剪刀差"
-          :value="scissorsLatest?.value ?? null"
-          unit="%"
-          :date="scissorsLatest?.report_date"
-          :desc="scissorsDesc"
-          :color="scissorsColor"
-        />
-      </NGi>
     </NGrid>
 
-    <!-- 第 2 行：5 张图表（2 列布局，最后一张跨双列） -->
-    <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mt-16px">
+    <!-- 第 2 行：2 张图表（2 列布局） -->
+    <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">GDP 同比走势</div>
-          <div class="chart-box__sub">GDP 增速反映宏观经济整体景气，是 A 股盈利的根基</div>
-          <GdpChart :data="gdpSeries" />
+          <div class="chart-box__title">GDP、CPI/PPI 同比与剪刀差</div>
+          <div class="chart-box__sub">GDP 增速为盈利根基；CPI、PPI 同比与 CPI-PPI 剪刀差，剪刀差 &gt; 0 下游受益，&lt; 0 上游受益</div>
+          <ScissorsChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">工业增加值同比</div>
-          <div class="chart-box__sub">工业增加值增速反映企业生产活跃度，领先于工业企业利润</div>
-          <IvaChart :data="ivaSeries" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">工业企业利润同比</div>
-          <div class="chart-box__sub">工业企业利润直接决定 A 股盈利增速，与 EPS 强相关</div>
-          <ProfitChart :data="profitSeries" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">CPI-PPI 剪刀差</div>
-          <div class="chart-box__sub">剪刀差决定利润在上下游间的分配方向，&gt;0 下游受益，&lt;0 上游受益</div>
-          <ScissorsChart :data="scissorsSeries" />
-        </div>
-      </NGi>
-      <NGi span="24">
-        <div class="chart-box">
-          <div class="chart-box__title">盈利基本面全景</div>
-          <div class="chart-box__sub">GDP、工业增加值、工业利润叠加对比，综合判断 A 股盈利趋势</div>
-          <EarningsAllChart :data-map="dataMap" />
+          <div class="chart-box__title">工业增加值、工业利润与 PPI 同比</div>
+          <div class="chart-box__sub">工业增加值增速反映生产活跃度，工业利润直接决定 A 股盈利增速，PPI 反映工业品出厂价格对利润的传导</div>
+          <IvaChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>
