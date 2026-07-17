@@ -4,7 +4,6 @@ import { useBdsStore } from '@/store/modules/bds';
 import { fetchEconomicIndicators, syncEconomicIndicator, syncEconomicIndicatorWscn } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
-import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 
 defineOptions({ name: 'EconomicIndicatorsPage' });
 
@@ -33,9 +32,6 @@ const searchParams = reactive<{
   category?: string[] | null;
   country?: string[] | null;
 }>({});
-
-// 日期范围（YYYY-MM-DD 格式字符串元组）
-const dateRange = ref<[string, string] | null>(null);
 
 // 类别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
 const categoryOptions = computed(() => {
@@ -74,8 +70,6 @@ async function fetchData() {
       // category/country 为空数组时传 undefined，避免向后端发送空数组
       category: searchParams.category?.length ? searchParams.category : undefined,
       country: searchParams.country?.length ? searchParams.country : undefined,
-      start_date: dateRange.value?.[0] || undefined,
-      end_date: dateRange.value?.[1] || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -100,7 +94,6 @@ function handleReset() {
   searchParams.indicator_code = null;
   searchParams.category = null;
   searchParams.country = null;
-  dateRange.value = null;
   pagination.page = 1;
   fetchData();
 }
@@ -188,7 +181,7 @@ onMounted(() => {
             multiple
             clearable
             placeholder="选择类别"
-            style="width: 200px"
+            style="width: 140px"
           />
         </NFormItem>
         <!-- 国别：NSelect 多选，选项从 indicatorCodeList 动态提取去重 -->
@@ -199,18 +192,7 @@ onMounted(() => {
             multiple
             clearable
             placeholder="选择国别"
-            style="width: 200px"
-          />
-        </NFormItem>
-        <!-- 日期范围：包含今年/近一月/近一季/近一年/近三年/近五年/近十年快捷选项 -->
-        <NFormItem label="日期范围">
-          <NDatePicker
-            v-model:formatted-value="dateRange"
-            type="daterange"
-            value-format="yyyy-MM-dd"
-            :shortcuts="dateRangeShortcuts"
-            clearable
-            style="width: 320px"
+            style="width: 140px"
           />
         </NFormItem>
         <NFormItem>
@@ -237,7 +219,7 @@ onMounted(() => {
           </NSpace>
         </NFormItem>
         <!-- wscn 同步：华尔街见闻日历数据源，补充 forecast/importance/revised/pub_date -->
-        <NFormItem label="wscn同步">
+        <NFormItem>
           <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             wscn同步
