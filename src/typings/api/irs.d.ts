@@ -263,6 +263,8 @@ declare namespace Api {
       is_main: boolean;
       /** 合约类别 */
       symbol_type: string | null;
+      /** 连续合约名称 */
+      con_name: string | null;
       /** 标的代码 */
       symbol_ud: string | null;
       /** 到期日 */

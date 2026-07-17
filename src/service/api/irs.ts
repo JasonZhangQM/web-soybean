@@ -134,12 +134,10 @@ export function fetchMonitorOptionTs(params?: MonitorOptionTQueryParams) {
 
 /** 贴水监测查询参数 */
 interface MonitorDiscountQueryParams {
-  /** 真实合约代码（模糊匹配） */
-  symbol?: string;
-  /** 连续合约代码（模糊匹配） */
-  symbol_con?: string;
   /** 合约类别（精确匹配） */
   symbol_type?: string;
+  /** 连续合约名称（精确匹配） */
+  con_name?: string;
   /** 是否主力（精确匹配） */
   is_main?: boolean;
   /** 每页条数 */
@@ -154,6 +152,22 @@ export function fetchMonitorDiscounts(params?: MonitorDiscountQueryParams) {
     url: '/api/v1/irs/discounts-monitor',
     method: 'get',
     params
+  });
+}
+
+/** 贴水监测下拉选项（合约类别 + 连续合约名称） */
+interface DiscountOptionsResponse {
+  /** 合约类别列表 */
+  symbol_types: string[];
+  /** 连续合约名称列表 */
+  con_names: string[];
+}
+
+/** 获取贴水监测下拉选项（从 Config 配置取数，无数据库查询） */
+export function fetchDiscountOptions() {
+  return request<DiscountOptionsResponse>({
+    url: '/api/v1/irs/discount-options',
+    method: 'get'
   });
 }
 
