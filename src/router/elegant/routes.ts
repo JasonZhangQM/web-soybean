@@ -158,6 +158,17 @@ export const generatedRoutes = [
               order: 2,
               constant: true
             }
+          },
+          {
+            name: 'bds_macro-research_us-economic-dashboard',
+            path: '/bds/macro-research/us-economic-dashboard',
+            component: 'view.bds_macro-research_us-economic-dashboard',
+            meta: {
+              title: 'bds_macro-research_us-economic-dashboard',
+              i18nKey: 'route.bds_macro-research_us-economic-dashboard',
+              order: 4,
+              constant: true
+            }
           }
         ]
       },
