@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
+import { useThemeStore } from '@/store/modules/theme';
 import { useEcharts } from '@/hooks/common/echarts';
 import { fetchIndexCumReturns, syncIndexHistory } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
@@ -11,12 +12,38 @@ defineOptions({
 });
 
 const appStore = useAppStore();
+const themeStore = useThemeStore();
 
 // 起始日期（留空则使用后端默认 30 天）
 const startDate = ref<string | null>(null);
 
 // 多色配色，按指数数量循环取色
 const colors = ['#5da8ff', '#26deca', '#fedc69', '#ff7d85', '#a78bfa', '#34d399', '#fbbf24'];
+
+// 最新数据行：每个指数的最新累计收益率 / 最大回撤（取最后一个非 null 值）
+interface LatestRow {
+  name: string;
+  color: string;
+  cumReturn: number | null;
+  drawdown: number | null;
+  date: string;
+}
+const latestRows = ref<LatestRow[]>([]);
+
+// 表格容器样式：根据暗色模式切换半透明背景与文字色
+const tableStyle = computed(() => {
+  const dark = themeStore.darkMode;
+  return {
+    background: dark ? 'rgba(31, 41, 55, 0.3)' : 'rgba(255, 255, 255, 0.3)',
+    color: dark ? '#e5e7eb' : '#1f2937',
+    borderColor: dark ? 'rgba(75, 85, 99, 0.5)' : 'rgba(209, 213, 219, 0.7)'
+  };
+});
+
+// 数值格式化：null/undefined 显示 '-'，否则保留 2 位小数
+function fmt(v: number | null | undefined): string {
+  return v == null || !Number.isFinite(v) ? '-' : v.toFixed(2);
+}
 
 const { domRef, updateOptions } = useEcharts(() => ({
   tooltip: {
@@ -139,6 +166,39 @@ async function initData() {
 
     return opts;
   });
+
+  // 计算每个指数的最新累计收益率 / 最大回撤（取最后一个非 null 值及对应日期）
+  // 表格固定显示在图表左下方，便于快速查看最新状态
+  const lastIdx = data.trade_dates.length - 1;
+  const rows: LatestRow[] = seriesNames.map((name, idx) => {
+    const cumArr = data.series[name] ?? [];
+    const ddArr = data.max_drawdown[name] ?? [];
+    // 从末尾向前查找最后一个非 null 值
+    let cumVal: number | null = null;
+    let cumDate = '';
+    for (let i = cumArr.length - 1; i >= 0; i--) {
+      if (cumArr[i] != null && Number.isFinite(cumArr[i] as number)) {
+        cumVal = cumArr[i] as number;
+        cumDate = data.trade_dates[i] ?? '';
+        break;
+      }
+    }
+    let ddVal: number | null = null;
+    for (let i = ddArr.length - 1; i >= 0; i--) {
+      if (ddArr[i] != null && Number.isFinite(ddArr[i] as number)) {
+        ddVal = ddArr[i] as number;
+        break;
+      }
+    }
+    return {
+      name,
+      color: colors[idx % colors.length],
+      cumReturn: cumVal,
+      drawdown: ddVal,
+      date: cumDate || (lastIdx >= 0 ? data.trade_dates[lastIdx] : '')
+    };
+  });
+  latestRows.value = rows;
 }
 
 // 同步专用 loading：控制同步图标旋转动画
@@ -209,8 +269,100 @@ init();
       </div>
       <!-- echarts 容器：单独 div，避免被 echarts 清空 innerHTML 时覆盖日期选择器 -->
       <div ref="domRef" class="h-480px"></div>
+      <!-- 最新数据表格：绝对定位左下方，半透明背景，pointer-events:none 不遮挡 echarts 交互 -->
+      <div
+        v-if="latestRows.length"
+        class="latest-table"
+        :style="tableStyle"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th class="th-name">指数</th>
+              <th class="th-num">累计收益率(%)</th>
+              <th class="th-num">最大回撤(%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in latestRows" :key="row.name">
+              <td class="td-name">
+                <span class="color-dot" :style="{ background: row.color }"></span>
+                <span>{{ row.name }}</span>
+              </td>
+              <td class="td-num">{{ fmt(row.cumReturn) }}</td>
+              <td class="td-num">{{ fmt(row.drawdown) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="latestRows[0]?.date" class="latest-date">截至 {{ latestRows[0].date }}</div>
+      </div>
     </div>
   </NCard>
 </template>
 
-<style scoped></style>
+<style scoped>
+.latest-table {
+  position: absolute;
+  /* 原左下方位置稍向右、向上偏移，避开 X/Y 轴刻度标签 */
+  bottom: 40px;
+  left: 80px;
+  z-index: 10;
+  padding: 6px 10px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  /* 不遮挡 echarts 鼠标事件 */
+  pointer-events: none;
+  max-width: 60%;
+}
+
+.latest-table table {
+  border-collapse: collapse;
+}
+
+.latest-table th {
+  font-weight: 600;
+  padding: 2px 8px 2px 0;
+  text-align: right;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.latest-table .th-name {
+  text-align: left;
+}
+
+.latest-table td {
+  padding: 2px 8px 2px 0;
+  white-space: nowrap;
+}
+
+.latest-table .td-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: left;
+}
+
+.latest-table .td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.latest-table .color-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.latest-table .latest-date {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.7;
+  text-align: right;
+}
+</style>
