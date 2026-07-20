@@ -245,6 +245,7 @@ const local: App.I18n.Schema = {
     'bds_macro-research_economic-indicators': '经济数据',
     'bds_macro-research_economic-dashboard': '中国看板',
     'bds_macro-research_us-economic-dashboard': '美股看板',
+    'bds_macro-research_gold-reserves': '黄金储备',
     'bills_group': '账单汇总',
     'bills_bills': '交易明细',
     'bills_profits': '账单收益',

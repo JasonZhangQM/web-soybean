@@ -1,7 +1,12 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import { SetupStoreId } from '@/enum';
-import { fetchEconomicIndicatorCodes, fetchIndexCodes, fetchSymbolIndustries } from '@/service/api/bds';
+import {
+  fetchEconomicIndicatorCodes,
+  fetchGoldReserveCountries,
+  fetchIndexCodes,
+  fetchSymbolIndustries
+} from '@/service/api/bds';
 
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   // 指数代码列表（全局缓存，首次加载时获取）
@@ -88,6 +93,23 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     return indicatorCodeList.value.map(item => ({ label: item.indicator_short_name || item.indicator_name, value: item.indicator_code }));
   }
 
+  // 黄金储备国家列表（全局缓存，后端 Config.GOLD_RESERVE_COUNTRIES 字典，首次加载时获取）
+  const goldReserveCountryList = ref<Api.Bds.GoldReserveCountry[]>([]);
+
+  /** 加载黄金储备国家列表 */
+  async function loadGoldReserveCountries(force = false) {
+    if (goldReserveCountryList.value.length > 0 && !force) return;
+    const { data, error } = await fetchGoldReserveCountries();
+    if (!error) {
+      goldReserveCountryList.value = data.countries;
+    }
+  }
+
+  /** 获取黄金储备国家下拉选项（label=国家名称，value=国家代码） */
+  function getGoldReserveCountryOptions() {
+    return goldReserveCountryList.value.map(item => ({ label: item.country_name, value: item.country_code }));
+  }
+
   return {
     indexCodeList,
     indexCodesLoaded,
@@ -103,6 +125,9 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     indicatorCodesLoaded,
     indicatorCodesLoading,
     loadIndicatorCodes,
-    getIndicatorCodeOptions
+    getIndicatorCodeOptions,
+    goldReserveCountryList,
+    loadGoldReserveCountries,
+    getGoldReserveCountryOptions
   };
 });

@@ -295,3 +295,38 @@ export function syncEconomicIndicatorWscn() {
     timeout: 10 * 60 * 1000
   });
 }
+
+/** 查询黄金储备国家列表（用于下拉选项，数据源为后端 Config.GOLD_RESERVE_COUNTRIES 字典） */
+export function fetchGoldReserveCountries() {
+  return request<{ countries: Api.Bds.GoldReserveCountry[] }>({
+    url: '/api/v1/bds/gold-reserve-countries',
+    method: 'get'
+  });
+}
+
+/** 查询黄金储备分页列表 */
+export function fetchGoldReserves(params: Api.Bds.GoldReserveQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.GoldReserve>>({
+    url: '/api/v1/bds/gold-reserves',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步单个国家黄金储备（按国家代码精确匹配） */
+export function syncGoldReserve(country_code: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/gold-reserve',
+    method: 'post',
+    params: { country_code }
+  });
+}
+
+/** 全量同步所有国家黄金储备（20 国 ×30s 超时上限，单独设置 5 分钟超时） */
+export function syncAllGoldReserves() {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/gold-reserves-all',
+    method: 'post',
+    timeout: 5 * 60 * 1000
+  });
+}

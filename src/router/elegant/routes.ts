@@ -160,6 +160,17 @@ export const generatedRoutes = [
             }
           },
           {
+            name: 'bds_macro-research_gold-reserves',
+            path: '/bds/macro-research/gold-reserves',
+            component: 'view.bds_macro-research_gold-reserves',
+            meta: {
+              title: 'bds_macro-research_gold-reserves',
+              i18nKey: 'route.bds_macro-research_gold-reserves',
+              order: 5,
+              constant: true
+            }
+          },
+          {
             name: 'bds_macro-research_us-economic-dashboard',
             path: '/bds/macro-research/us-economic-dashboard',
             component: 'view.bds_macro-research_us-economic-dashboard',

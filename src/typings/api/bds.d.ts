@@ -566,5 +566,51 @@ declare namespace Api {
       /** 频率 */
       frequency: string | null;
     }
+
+    /** 黄金储备数据 */
+    interface GoldReserve {
+      /** 主键 */
+      id: number;
+      /** 国家代码 */
+      country_code: string;
+      /** 国家名称 */
+      country_name: string;
+      /** 报告日期 */
+      rpt_date: string;
+      /** 黄金储备(USD) */
+      gold_holdings_usd: number | null;
+      /** 单位 */
+      unit: string | null;
+      /** 频率 */
+      frequency: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 黄金储备查询参数 */
+    interface GoldReserveQueryParams {
+      /** 国家代码（多选精确匹配） */
+      country_code?: string[] | null;
+      /** 开始日期 YYYY-MM-DD */
+      start_date?: string | null;
+      /** 结束日期 YYYY-MM-DD */
+      end_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 黄金储备国家 */
+    interface GoldReserveCountry {
+      /** 国家代码 */
+      country_code: string;
+      /** 国家名称 */
+      country_name: string;
+      /** IMF ISO2 代码 */
+      imf_code: string;
+    }
   }
 }
