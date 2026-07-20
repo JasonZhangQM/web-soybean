@@ -5,7 +5,8 @@ import {
   fetchEconomicIndicatorCodes,
   fetchGoldReserveCountries,
   fetchIndexCodes,
-  fetchSymbolIndustries
+  fetchSymbolIndustries,
+  fetchYieldIndicatorCodes
 } from '@/service/api/bds';
 
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
@@ -110,6 +111,34 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     return goldReserveCountryList.value.map(item => ({ label: item.country_name, value: item.country_code }));
   }
 
+  // 美债收益率指标代码列表（全局缓存，后端 Config.YIELD_INDICATORS 字典，首次加载时获取）
+  const yieldIndicatorCodeList = ref<Api.Bds.YieldIndicatorCode[]>([]);
+  const yieldIndicatorCodesLoaded = ref(false);
+  const yieldIndicatorCodesLoading = ref(false);
+
+  /** 加载美债收益率指标代码列表 */
+  async function loadYieldIndicatorCodes(force = false) {
+    if (yieldIndicatorCodesLoaded.value && !force) return;
+    if (yieldIndicatorCodesLoading.value) return;
+    yieldIndicatorCodesLoading.value = true;
+    try {
+      const { data, error } = await fetchYieldIndicatorCodes();
+      if (!error && data && Array.isArray(data)) {
+        yieldIndicatorCodeList.value = data;
+        yieldIndicatorCodesLoaded.value = true;
+      }
+    } catch (err) {
+      console.error('[bds-store] 加载美债收益率指标代码失败:', err);
+    } finally {
+      yieldIndicatorCodesLoading.value = false;
+    }
+  }
+
+  /** 获取美债收益率指标代码下拉选项（label=指标简称，value=指标代码） */
+  function getYieldIndicatorCodeOptions() {
+    return yieldIndicatorCodeList.value.map(item => ({ label: item.indicator_short_name, value: item.indicator_code }));
+  }
+
   return {
     indexCodeList,
     indexCodesLoaded,
@@ -128,6 +157,11 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     getIndicatorCodeOptions,
     goldReserveCountryList,
     loadGoldReserveCountries,
-    getGoldReserveCountryOptions
+    getGoldReserveCountryOptions,
+    yieldIndicatorCodeList,
+    yieldIndicatorCodesLoaded,
+    yieldIndicatorCodesLoading,
+    loadYieldIndicatorCodes,
+    getYieldIndicatorCodeOptions
   };
 });

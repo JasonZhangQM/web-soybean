@@ -51,9 +51,7 @@ const DASHBOARD_INDICATORS = {
   // GDP与增长 (2)
   growth: ['GDP_QOQ', 'GOVERNMENT_BUDGET'],
   // 货币政策 (2)
-  policy: ['FED_FUNDS_RATE', 'FED_FUNDS_RATE_UPPER'],
-  // 收益率 (3)
-  yields: ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_2Y10Y']
+  policy: ['FED_FUNDS_RATE', 'FED_FUNDS_RATE_UPPER']
 } as const;
 
 // 扁平化全部所需指标代码（去重）
@@ -219,8 +217,9 @@ onMounted(() => {
         <NTabPane name="policy" tab="货币政策 (2)">
           <PolicyTab v-if="shouldRender('policy')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="yields" tab="收益率 (3)">
-          <YieldsTab v-if="shouldRender('yields')" :data-map="dataMap" :loading="loading" />
+        <!-- 美债收益：数据源为独立 YieldIndicator 表，由 YieldsTab 内部获取，复用父组件日期范围与刷新机制 -->
+        <NTabPane name="yields" tab="美债收益">
+          <YieldsTab v-if="shouldRender('yields')" :date-range="dateRange" />
         </NTabPane>
       </NTabs>
     </NCard>

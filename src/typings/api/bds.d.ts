@@ -612,5 +612,67 @@ declare namespace Api {
       /** IMF ISO2 代码 */
       imf_code: string;
     }
+
+    /** 美债收益率指标数据（对应 bds_yield_indicator 表，数据源 FRED API series/observations） */
+    interface YieldIndicator {
+      /** 主键 */
+      id: number;
+      /** 指标代码 */
+      indicator_code: string;
+      /** 指标名称 */
+      indicator_name: string;
+      /** 指标简称 */
+      indicator_short_name: string;
+      /** 类别 */
+      category: string;
+      /** 国别 */
+      country: string;
+      /** 报告日期（YYYY-MM-DD，对应 FRED date 字段） */
+      report_date: string;
+      /** 数值（对应 FRED value 字段，"." 转 null） */
+      value: number | null;
+      /** FRED 实时数据范围起点（YYYY-MM-DD） */
+      realtime_start: string;
+      /** FRED 实时数据范围终点（YYYY-MM-DD） */
+      realtime_end: string;
+      /** 单位 */
+      unit: string;
+      /** 频率 */
+      frequency: string;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 美债收益率指标查询参数 */
+    interface YieldIndicatorQueryParams {
+      /** 指标代码（多选 IN 精确匹配） */
+      indicator_code?: string[] | null;
+      /** 报告日期起始日（YYYY-MM-DD） */
+      start_date?: string | null;
+      /** 报告日期结束日（YYYY-MM-DD） */
+      end_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 美债收益率指标代码（用于下拉选项，数据源为后端 Config.YIELD_INDICATORS 字典） */
+    interface YieldIndicatorCode {
+      /** 指标代码 */
+      indicator_code: string;
+      /** 指标名称 */
+      indicator_name: string;
+      /** 指标简称 */
+      indicator_short_name: string;
+      /** 类别 */
+      category: string;
+      /** 单位 */
+      unit: string;
+      /** 频率 */
+      frequency: string;
+    }
   }
 }

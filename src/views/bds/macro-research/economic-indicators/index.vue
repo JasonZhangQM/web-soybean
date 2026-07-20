@@ -45,6 +45,9 @@ const countryOptions = computed(() => {
   return [...new Set(countries)].map(c => ({ label: c, value: c }));
 });
 
+// 指标代码下拉选项：computed 包装保证 store 异步加载后下拉框响应式更新
+const indicatorOptions = computed(() => bdsStore.getIndicatorCodeOptions());
+
 // 同步用单个指标代码（精确匹配）
 const syncIndicatorCode = ref<string | null>(null);
 
@@ -162,14 +165,14 @@ onMounted(() => {
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
       <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
-        <!-- 指标：NSelect 下拉选择，选项从 bdsStore 动态拉取（显示简称） -->
+        <!-- 指标：NSelect filterable 本地搜索，选项从 bdsStore 动态拉取（显示简称） -->
         <NFormItem label="指标">
           <NSelect
             v-model:value="searchParams.indicator_code"
-            :options="bdsStore.getIndicatorCodeOptions()"
+            :options="indicatorOptions"
             filterable
             clearable
-            placeholder="选择指标"
+            placeholder="输入指标名称搜索"
             style="width: 200px"
           />
         </NFormItem>
@@ -206,10 +209,10 @@ onMounted(() => {
           <NSpace>
             <NSelect
               v-model:value="syncIndicatorCode"
-              :options="bdsStore.getIndicatorCodeOptions()"
+              :options="indicatorOptions"
               filterable
               clearable
-              placeholder="选择指标"
+              placeholder="输入指标名称搜索"
               style="width: 200px"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">

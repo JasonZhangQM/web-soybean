@@ -30,6 +30,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "bds_macro-research_economic-report": () => import("@/views/bds/macro-research/economic-report/index.vue"),
   "bds_macro-research_gold-reserves": () => import("@/views/bds/macro-research/gold-reserves/index.vue"),
   "bds_macro-research_us-economic-dashboard": () => import("@/views/bds/macro-research/us-economic-dashboard/index.vue"),
+  "bds_macro-research_us-yield-indicators": () => import("@/views/bds/macro-research/us-yield-indicators/index.vue"),
   "bds_market-data_daily-valuations": () => import("@/views/bds/market-data/daily-valuations/index.vue"),
   "bds_market-data_index-histories": () => import("@/views/bds/market-data/index-histories/index.vue"),
   "bds_symbol-infos": () => import("@/views/bds/symbol-infos/index.vue"),

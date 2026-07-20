@@ -133,7 +133,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_economic-dashboard',
               i18nKey: 'route.bds_macro-research_economic-dashboard',
-              order: 3,
+              order: 5,
               constant: true
             }
           },
@@ -155,7 +155,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_economic-report',
               i18nKey: 'route.bds_macro-research_economic-report',
-              order: 2,
+              order: 4,
               constant: true
             }
           },
@@ -166,7 +166,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_gold-reserves',
               i18nKey: 'route.bds_macro-research_gold-reserves',
-              order: 5,
+              order: 3,
               constant: true
             }
           },
@@ -177,7 +177,18 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_macro-research_us-economic-dashboard',
               i18nKey: 'route.bds_macro-research_us-economic-dashboard',
-              order: 4,
+              order: 6,
+              constant: true
+            }
+          },
+          {
+            name: 'bds_macro-research_us-yield-indicators',
+            path: '/bds/macro-research/us-yield-indicators',
+            component: 'view.bds_macro-research_us-yield-indicators',
+            meta: {
+              title: 'bds_macro-research_us-yield-indicators',
+              i18nKey: 'route.bds_macro-research_us-yield-indicators',
+              order: 2,
               constant: true
             }
           }

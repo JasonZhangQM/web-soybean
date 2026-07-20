@@ -4,12 +4,14 @@ import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from './utils';
 
-defineOptions({ name: 'YieldsSpreadChart' });
+defineOptions({ name: 'YieldTipsChart' });
 
 /**
- * 2Y-10Y 利差柱状图
- * 正负着色：value ≥ 0 蓝（#3b82f670），value < 0 红（#dc262670）
- * 含 0 荣枯线 markLine（虚线灰色 #9ca3af），label 显示「倒挂线 0」
+ * 10年期名义收益率（YIELD_10Y）vs 10年期 TIPS（YIELD_TIPS_10Y）双折线对比
+ * 单 Y 轴（单位均为 %）：名义蓝 #2563eb、TIPS 橙 #ea580c
+ *
+ * 用途：观察盈亏平衡通胀率（= 名义收益率 - TIPS 收益率）
+ * 两线差距 = 市场对未来 10 年平均通胀率的预期
  *
  * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
@@ -30,25 +32,33 @@ function getThemeColors() {
   };
 }
 
-// 构建 ECharts 配置：单柱状图，按 value 正负着色，含 0 荣枯线
+// 构建 ECharts 配置：双折线，以 10Y 名义日期为主轴按 report_date 对齐 TIPS
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
-  // 过滤掉 value 为 null 的数据点，保持图表连续
-  const arr = getSeries(props.dataMap, 'YIELD_SPREAD_2Y10Y').filter(x => x.value != null);
-  const dates = arr.map(x => x.report_date.slice(0, 10));
-  const values = arr.map(x => Number(x.value));
+  // 各指标分别过滤 null，保证数据干净
+  const y10Arr = getSeries(props.dataMap, 'YIELD_10Y').filter(x => x.value != null);
+  const tipsArr = getSeries(props.dataMap, 'YIELD_TIPS_10Y').filter(x => x.value != null);
+
+  // 以 10Y 名义日期为主轴，按 report_date 对齐 TIPS（缺失填 null）
+  const tipsMap = new Map(tipsArr.map(x => [x.report_date, Number(x.value)]));
+  const dates = y10Arr.map(x => x.report_date.slice(0, 10));
+  const y10Values = y10Arr.map(x => Number(x.value));
+  const tipsValues = y10Arr.map(x => {
+    const v = tipsMap.get(x.report_date);
+    return v == null ? null : v;
+  });
 
   return {
     tooltip: {
       trigger: 'axis',
       appendToBody: true,
-      // 利差单位为 %，保留 2 位小数并加后缀
+      // 收益率单位为 %，保留 2 位小数并加后缀
       valueFormatter: (value: number) => (value == null ? '--' : `${Number(value).toFixed(2)} %`)
     },
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['2Y-10Y利差']
+      data: ['10年期名义收益率', '10年期TIPS']
     },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -67,22 +77,26 @@ function buildOption() {
     },
     series: [
       {
-        name: '2Y-10Y利差',
-        type: 'bar',
-        // daily 频率数据柱体较窄
-        barMaxWidth: 12,
-        // 正负值不同颜色：≥0 蓝（正常），<0 红（倒挂）
-        itemStyle: {
-          color: (params: { value: number }) => (Number(params.value) >= 0 ? '#3b82f670' : '#dc262670')
-        },
-        data: values,
-        // 0 荣枯线（虚线灰色），label 显示「倒挂线 0」
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          lineStyle: { color: '#9ca3af', type: 'dashed', width: 1 },
-          data: [{ yAxis: 0, label: { formatter: '倒挂线 0', color: muted, fontSize: 10 } }]
-        }
+        name: '10年期名义收益率',
+        type: 'line',
+        data: y10Values,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#2563eb', width: 2 },
+        itemStyle: { color: '#2563eb' },
+        connectNulls: true
+      },
+      {
+        name: '10年期TIPS',
+        type: 'line',
+        data: tipsValues,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#ea580c', width: 2 },
+        itemStyle: { color: '#ea580c' },
+        connectNulls: true
       }
     ]
   } as any;

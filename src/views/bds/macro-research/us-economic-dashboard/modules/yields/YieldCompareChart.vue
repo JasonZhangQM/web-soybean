@@ -2,16 +2,18 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries } from './utils';
 
 defineOptions({ name: 'YieldsCompareChart' });
 
 /**
  * 2年期 vs 10年期美债收益率双折线
  * 2Y 蓝（#2563eb）+ 10Y 红（#dc2626），以 10Y 日期为主轴对齐 2Y（按 report_date 精确匹配）
+ *
+ * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
+  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 
@@ -30,8 +32,9 @@ function getThemeColors() {
 // 构建 ECharts 配置：双折线，以 10Y 日期为主轴按 report_date 对齐 2Y
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
-  const y10Arr = getSeries(props.dataMap, 'YIELD_10Y');
-  const y2Arr = getSeries(props.dataMap, 'YIELD_2Y');
+  // 各指标分别过滤 null，保证数据干净
+  const y10Arr = getSeries(props.dataMap, 'YIELD_10Y').filter(x => x.value != null);
+  const y2Arr = getSeries(props.dataMap, 'YIELD_2Y').filter(x => x.value != null);
 
   // 以 10Y 日期为主轴，按 report_date 对齐 2Y（缺失填 null）
   const y2Map = new Map(y2Arr.map(x => [x.report_date, Number(x.value)]));

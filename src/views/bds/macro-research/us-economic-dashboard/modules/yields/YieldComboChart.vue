@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries } from './utils';
 
 defineOptions({ name: 'YieldsComboChart' });
 
@@ -11,9 +11,11 @@ defineOptions({ name: 'YieldsComboChart' });
  * 左轴：2Y 折线（蓝 #2563eb）+ 10Y 折线（红 #dc2626）
  * 右轴：2Y-10Y 利差柱状（按正负着色：≥0 蓝 #3b82f670、<0 红 #dc262670）
  * 以 10Y 日期为主轴对齐 2Y 与利差（按 report_date 精确匹配）
+ *
+ * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
+  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 
@@ -32,9 +34,10 @@ function getThemeColors() {
 // 构建 ECharts 配置：左轴双折线 + 右轴柱状（按正负着色）
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
-  const y10Arr = getSeries(props.dataMap, 'YIELD_10Y');
-  const y2Arr = getSeries(props.dataMap, 'YIELD_2Y');
-  const spreadArr = getSeries(props.dataMap, 'YIELD_SPREAD_2Y10Y');
+  // 各指标分别过滤 null，保证数据干净
+  const y10Arr = getSeries(props.dataMap, 'YIELD_10Y').filter(x => x.value != null);
+  const y2Arr = getSeries(props.dataMap, 'YIELD_2Y').filter(x => x.value != null);
+  const spreadArr = getSeries(props.dataMap, 'YIELD_SPREAD_2Y10Y').filter(x => x.value != null);
 
   // 以 10Y 日期为主轴，按 report_date 对齐 2Y 与利差（缺失填 null）
   const y2Map = new Map(y2Arr.map(x => [x.report_date, Number(x.value)]));
