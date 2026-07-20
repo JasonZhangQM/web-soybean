@@ -77,6 +77,12 @@ declare namespace Api {
       low: number | null;
       /** 收盘价 */
       close: number | null;
+      /** 成交额 */
+      amount: number | null;
+      /** 成交量 */
+      volume: number | null;
+      /** 持仓量 */
+      position: number | null;
       /** 指数名称（从 Config.INDEX_CODE 查找，不存数据库） */
       sec_name: string | null;
       /** 创建时间 */

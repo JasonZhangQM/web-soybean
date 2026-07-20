@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { fetchIndexHistories, syncIndexHistory } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
@@ -9,8 +9,10 @@ import { useBdsStore } from '@/store/modules/bds';
 defineOptions({ name: 'IndexHistoriesPage' });
 
 const bdsStore = useBdsStore();
-// 指数代码下拉选项（来自全局 store 缓存，由后端 Config.INDEX_CODE 字典提供）
-const symbolOptions = bdsStore.getIndexCodeOptions();
+// 指数代码下拉选项：computed 包裹保证 store 数据异步加载完成后响应式更新
+const symbolOptions = computed(() => bdsStore.getIndexCodeOptions());
+// 首次进入页面时主动触发加载（App.vue 已加载但可能尚未完成）
+bdsStore.loadIndexCodes();
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -95,7 +97,10 @@ const columns = [
   { title: '开盘价', key: 'open', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.open) },
   { title: '最高价', key: 'high', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.high) },
   { title: '最低价', key: 'low', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.low) },
-  { title: '收盘价', key: 'close', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.close) }
+  { title: '收盘价', key: 'close', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.close) },
+  { title: '成交额', key: 'amount', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount) },
+  { title: '成交量', key: 'volume', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume) },
+  { title: '持仓量', key: 'position', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.position) }
 ];
 
 onMounted(() => fetchData());
