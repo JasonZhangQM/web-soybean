@@ -535,10 +535,10 @@ declare namespace Api {
     interface EconomicIndicatorQueryParams {
       /** 指标代码（精确匹配） */
       indicator_code?: string | null;
-      /** 类别（多选精确匹配） */
-      category?: string[] | null;
-      /** 国别（多选精确匹配） */
-      country?: string[] | null;
+      /** 类别（精确匹配） */
+      category?: string | null;
+      /** 国别（精确匹配） */
+      country?: string | null;
       /** 报告日期起始日 */
       start_date?: string | null;
       /** 报告日期结束日 */
@@ -631,10 +631,6 @@ declare namespace Api {
       report_date: string;
       /** 数值（对应 FRED value 字段，"." 转 null） */
       value: number | null;
-      /** FRED 实时数据范围起点（YYYY-MM-DD） */
-      realtime_start: string;
-      /** FRED 实时数据范围终点（YYYY-MM-DD） */
-      realtime_end: string;
       /** 单位 */
       unit: string;
       /** 频率 */

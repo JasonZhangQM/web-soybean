@@ -26,11 +26,11 @@ const pagination = reactive({
   prefix: () => `共 ${total.value} 条`
 });
 
-// 搜索参数：indicator_code 精确匹配，category/country 多选精确匹配
+// 搜索参数：indicator_code/category/country 均为单值精确匹配
 const searchParams = reactive<{
   indicator_code?: string | null;
-  category?: string[] | null;
-  country?: string[] | null;
+  category?: string | null;
+  country?: string | null;
 }>({});
 
 // 类别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
@@ -70,9 +70,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchEconomicIndicators({
       indicator_code: searchParams.indicator_code || undefined,
-      // category/country 为空数组时传 undefined，避免向后端发送空数组
-      category: searchParams.category?.length ? searchParams.category : undefined,
-      country: searchParams.country?.length ? searchParams.country : undefined,
+      category: searchParams.category || undefined,
+      country: searchParams.country || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -176,23 +175,23 @@ onMounted(() => {
             style="width: 200px"
           />
         </NFormItem>
-        <!-- 类别：NSelect 多选 -->
+        <!-- 类别：NSelect 单选精确匹配，filterable 支持输入过滤 -->
         <NFormItem label="类别">
           <NSelect
             v-model:value="searchParams.category"
             :options="categoryOptions"
-            multiple
+            filterable
             clearable
             placeholder="选择类别"
             style="width: 140px"
           />
         </NFormItem>
-        <!-- 国别：NSelect 多选，选项从 indicatorCodeList 动态提取去重 -->
+        <!-- 国别：NSelect 单选精确匹配，filterable 支持输入过滤 -->
         <NFormItem label="国别">
           <NSelect
             v-model:value="searchParams.country"
             :options="countryOptions"
-            multiple
+            filterable
             clearable
             placeholder="选择国别"
             style="width: 140px"

@@ -18,9 +18,9 @@ const total = ref(0);
 // 分页配置（remote 模式）
 const pagination = reactive({
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   showSizePicker: true,
-  pageSizes: [20, 50, 100, 200],
+  pageSizes: [10, 20, 50, 100],
   itemCount: 0,
   prefix: () => `共 ${total.value} 条`
 });
