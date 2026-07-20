@@ -127,6 +127,8 @@ declare namespace Api {
       series: Record<string, (number | null)[]>;
       /** 各指数每日最大回撤序列，key 为指数名称，value 为最大回撤列表（%，≤0），NaN 为 null */
       max_drawdown: Record<string, (number | null)[]>;
+      /** 实时行情数据源标识（'gm' / 'yfinance' / 'mixed' / null） */
+      realtime_source?: string | null;
     }
 
     /** 同步结果（{status, message}） */
