@@ -137,7 +137,7 @@ async function handleWscnSync() {
 // 列标题与后端 ORM comment 保持一致
 const columns = [
   { title: '指标', key: 'indicator_short_name', width: 160, fixed: 'left' as const },
-  { title: '类别', key: 'category', width: 80 },
+  { title: '类别', key: 'category', width: 120 },
   { title: '国别', key: 'country', width: 60 },
   { title: '报告日期', key: 'report_date', width: 100 },
   { title: '发布日期', key: 'pub_date', width: 100 },
