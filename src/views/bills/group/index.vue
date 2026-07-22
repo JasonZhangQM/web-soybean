@@ -111,9 +111,9 @@ function renderRate(row: Api.Bills.Group, key: string) {
 }
 
 const columns = [
-  { title: '账户', key: 'account', width: 120 },
+  { title: '账户', key: 'account', width: 80 },
   { title: '交易分类', key: 'category', width: 80 },
-  { title: '代码', key: 'symbol', width: 120 },
+  { title: '代码', key: 'symbol', width: 160 },
   { title: '持仓', key: 'p_total', width: 100, render: (row: Api.Bills.Group) => renderAmount(row, 'p_total') },
   { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'cost_total') },
   { title: '市值', key: 'value_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'value_total') },
