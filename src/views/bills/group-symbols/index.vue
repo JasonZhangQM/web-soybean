@@ -29,7 +29,7 @@ const pagination = reactive({
 });
 
 // 筛选参数：category 多选精确匹配，symbol 远程搜索选中代码，value_only 控制当前市值不为0
-const searchParams = reactive<{ category?: string[]; symbol?: string | null; value_only?: boolean }>({});
+const searchParams = reactive<{ category?: string[]; symbol?: string | null; value_only?: boolean }>({ value_only: true });
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());

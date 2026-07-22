@@ -40,7 +40,7 @@ const pagination = reactive({
 });
 
 // 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
-const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string; value_only?: boolean }>({ value_only: false });
+const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string; value_only?: boolean }>({ value_only: true });
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
