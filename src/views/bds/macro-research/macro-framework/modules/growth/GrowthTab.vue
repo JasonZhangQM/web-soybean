@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
 import GrowthChart from './GrowthChart.vue';
 import InvestChart from './InvestChart.vue';
+import InvestRealChart from './InvestRealChart.vue';
 import { getLatest } from '../../../economic-dashboard/modules/utils';
 
 defineOptions({ name: 'GrowthTab' });
@@ -101,20 +102,27 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：2 张图表（2 列布局） -->
+    <!-- 第 2 行：3 张图表（3 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 m:12">
+      <NGi span="24 m:8">
         <div class="chart-box">
-          <div class="chart-box__title">GDP、工业增加值与工业利润同比</div>
-          <div class="chart-box__sub">GDP 增速为盈利根基，工业增加值反映生产活跃度，工业利润直接决定 A 股盈利增速</div>
+          <div class="chart-box__title">GDP、工业增加值、城镇固投与社零同比</div>
+          <div class="chart-box__sub">GDP 增速为盈利根基，工业增加值反映生产活跃度，城镇固投衡量整体投资强度，社零反映消费意愿</div>
           <GrowthChart :data-map="dataMap" />
         </div>
       </NGi>
-      <NGi span="24 m:12">
+      <NGi span="24 m:8">
         <div class="chart-box">
-          <div class="chart-box__title">社零、房地产投资与城镇固投同比</div>
-          <div class="chart-box__sub">社零反映消费意愿，地产投资影响产业链上下游，固投衡量整体投资强度</div>
+          <div class="chart-box__title">工业增加值与工业利润同比</div>
+          <div class="chart-box__sub">工业增加值反映生产活跃度，工业利润直接决定 A 股盈利增速</div>
           <InvestChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <NGi span="24 m:8">
+        <div class="chart-box">
+          <div class="chart-box__title">城镇固投与房地产投资同比</div>
+          <div class="chart-box__sub">城镇固投衡量整体投资强度，地产投资影响产业链上下游</div>
+          <InvestRealChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

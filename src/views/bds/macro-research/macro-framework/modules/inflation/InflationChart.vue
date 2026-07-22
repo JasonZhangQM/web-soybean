@@ -94,10 +94,24 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        // 剪刀差加粗，突出上下游博弈信号
-        lineStyle: { color: '#ea580c', width: 3 },
+        // 剪刀差用虚线，突出上下游博弈信号
+        lineStyle: { color: '#ea580c', width: 2, type: 'dashed' },
         itemStyle: { color: '#ea580c' },
         connectNulls: true,
+        // 浅橙渐变填充：顶部 25% 透明度到底部接近透明
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(234, 88, 12, 0.25)' },
+              { offset: 1, color: 'rgba(234, 88, 12, 0.02)' }
+            ]
+          }
+        },
         // y=0 参考线：虚线灰色，区分上下游受益
         markLine: {
           silent: true,
