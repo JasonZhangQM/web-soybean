@@ -8,6 +8,8 @@ interface GroupQueryParams {
   category?: string[];
   /** 证券代码（模糊） */
   symbol?: string;
+  /** 仅返回当前市值不为 0 的记录 */
+  value_only?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
