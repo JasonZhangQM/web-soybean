@@ -57,16 +57,24 @@ const changeText = computed(() => {
 
 <template>
   <div class="metric-card">
+    <!-- 第一行：标题居中 -->
     <div class="metric-card__label">{{ label }}</div>
-    <div class="metric-card__value">
-      <span class="metric-card__num" :style="color ? { color } : {}">{{ formattedValue }}</span>
-      <span v-if="unit" class="metric-card__unit">{{ unit }}</span>
+    <!-- 第二行：数据分两列（左：数值+单位+变化；右：desc+date） -->
+    <div class="metric-card__body">
+      <div class="metric-card__col metric-card__col--left">
+        <div class="metric-card__value">
+          <span class="metric-card__num" :style="color ? { color } : {}">{{ formattedValue }}</span>
+          <span v-if="unit" class="metric-card__unit">{{ unit }}</span>
+        </div>
+        <div v-if="changeInfo && change" class="metric-card__change" :style="{ color: changeInfo.color }">
+          {{ changeText }}
+        </div>
+      </div>
+      <div class="metric-card__col metric-card__col--right">
+        <div v-if="desc" class="metric-card__desc">{{ desc }}</div>
+        <div v-if="date" class="metric-card__date">{{ date }}</div>
+      </div>
     </div>
-    <div v-if="changeInfo && change" class="metric-card__change" :style="{ color: changeInfo.color }">
-      {{ changeText }}
-    </div>
-    <div v-if="desc" class="metric-card__desc">{{ desc }}</div>
-    <div v-if="date" class="metric-card__date">{{ date }}</div>
   </div>
 </template>
 
@@ -75,54 +83,76 @@ const changeText = computed(() => {
   background: var(--bg2, #fff);
   border: 1px solid var(--rule, #d1d5db);
   border-radius: 6px;
-  padding: 0.85rem 1rem;
-  text-align: center;
+  padding: 0.6rem 0.85rem;
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .metric-card__label {
   font-size: 0.78rem;
   color: var(--muted, #6b7280);
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.metric-card__body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.metric-card__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* 左列：数值/单位/变化，左对齐 */
+.metric-card__col--left {
+  align-items: flex-start;
+}
+
+/* 右列：desc/date，右对齐 */
+.metric-card__col--right {
+  align-items: flex-end;
+  text-align: right;
+}
+
 .metric-card__value {
   display: flex;
   align-items: baseline;
-  justify-content: center;
   gap: 0.2rem;
 }
 
 .metric-card__num {
-  font-size: 1.45rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--accent, #1e3a5f);
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .metric-card__unit {
-  font-size: 0.75rem;
-  color: var(--muted, #6b7280);
-}
-
-.metric-card__change {
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.metric-card__desc {
   font-size: 0.72rem;
   color: var(--muted, #6b7280);
 }
 
-.metric-card__date {
+.metric-card__change {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.metric-card__desc {
   font-size: 0.7rem;
+  color: var(--muted, #6b7280);
+}
+
+.metric-card__date {
+  font-size: 0.68rem;
   color: var(--muted, #6b7280);
 }
 </style>

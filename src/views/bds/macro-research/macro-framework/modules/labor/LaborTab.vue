@@ -55,6 +55,7 @@ const pendingItems = [
           label="城镇调查失业率"
           :value="unemploymentLatest?.value ?? null"
           unit="%"
+          desc="劳动力市场闲置程度"
           :change="unemploymentChange"
           timing="滞后"
           :date="unemploymentLatest?.report_date"
@@ -67,7 +68,6 @@ const pendingItems = [
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">城镇调查失业率走势</div>
-          <div class="chart-box__sub">失业率反映劳动力市场闲置程度</div>
           <UnemploymentChart :data="unemploymentData" />
         </div>
       </NGi>
@@ -90,12 +90,6 @@ const pendingItems = [
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

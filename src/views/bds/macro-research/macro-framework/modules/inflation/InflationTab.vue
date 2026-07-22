@@ -59,6 +59,7 @@ const scissorsColor = computed(() => {
           label="CPI 同比"
           :value="cpiLatest?.value ?? null"
           unit="%"
+          desc="下游消费价格"
           timing="滞后"
           :date="cpiLatest?.report_date"
           :change="computeChange(cpiLatest)"
@@ -69,6 +70,7 @@ const scissorsColor = computed(() => {
           label="PPI 同比"
           :value="ppiLatest?.value ?? null"
           unit="%"
+          desc="上游工业品价格"
           timing="先行"
           :date="ppiLatest?.report_date"
           :change="computeChange(ppiLatest)"
@@ -92,7 +94,6 @@ const scissorsColor = computed(() => {
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">CPI、PPI 同比与 CPI-PPI 剪刀差</div>
-          <div class="chart-box__sub">CPI 反映下游消费价格，PPI 反映上游工业品出厂价格；剪刀差 &gt; 0 下游受益，&lt; 0 上游受益</div>
           <InflationChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -112,12 +113,6 @@ const scissorsColor = computed(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

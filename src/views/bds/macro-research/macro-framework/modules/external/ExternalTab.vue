@@ -62,6 +62,7 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
           label="出口同比(美元)"
           :value="exportUsdLatest?.value ?? null"
           unit="%"
+          desc="反映外需强度"
           :date="exportUsdLatest?.report_date"
           timing="一致"
         />
@@ -71,6 +72,7 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
           label="进口同比(美元)"
           :value="importUsdLatest?.value ?? null"
           unit="%"
+          desc="反映内需"
           :date="importUsdLatest?.report_date"
           timing="一致"
         />
@@ -91,6 +93,7 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
           label="外汇储备"
           :value="fxReserveValue"
           unit="万亿美元"
+          desc="稳定支撑人民币汇率"
           :date="fxReserveLatest?.report_date"
           timing="一致"
         />
@@ -102,21 +105,18 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">进出口同比走势</div>
-          <div class="chart-box__sub">出口增速反映外需强度，进口增速反映内需</div>
           <TradeChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">贸易顺差</div>
-          <div class="chart-box__sub">贸易顺差扩大利好外汇储备和人民币汇率</div>
           <TradeBalanceChart :data="tradeBalanceSeries" />
         </div>
       </NGi>
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">外汇储备</div>
-          <div class="chart-box__sub">外汇储备稳定支撑人民币汇率</div>
           <FxReserveChart :data="fxReserveSeries" />
         </div>
       </NGi>
@@ -136,12 +136,6 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

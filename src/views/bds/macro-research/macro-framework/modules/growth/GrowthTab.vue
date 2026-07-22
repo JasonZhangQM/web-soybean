@@ -45,6 +45,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="GDP 同比"
           :value="gdpLatest?.value ?? null"
           unit="%"
+          desc="盈利根基"
           timing="一致"
           :date="gdpLatest?.report_date"
           :change="computeChange(gdpLatest)"
@@ -55,6 +56,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="工业增加值"
           :value="ivaLatest?.value ?? null"
           unit="%"
+          desc="生产活跃度"
           timing="一致"
           :date="ivaLatest?.report_date"
           :change="computeChange(ivaLatest)"
@@ -65,6 +67,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="工业利润"
           :value="profitLatest?.value ?? null"
           unit="%"
+          desc="决定A股盈利增速"
           timing="滞后"
           :date="profitLatest?.report_date"
           :change="computeChange(profitLatest)"
@@ -75,6 +78,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="社零同比"
           :value="retailLatest?.value ?? null"
           unit="%"
+          desc="消费意愿"
           timing="一致"
           :date="retailLatest?.report_date"
           :change="computeChange(retailLatest)"
@@ -85,6 +89,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="房地产投资"
           :value="realEstateLatest?.value ?? null"
           unit="%"
+          desc="影响产业链上下游"
           timing="一致"
           :date="realEstateLatest?.report_date"
           :change="computeChange(realEstateLatest)"
@@ -95,6 +100,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           label="城镇固投"
           :value="urbanInvestLatest?.value ?? null"
           unit="%"
+          desc="整体投资强度"
           timing="一致"
           :date="urbanInvestLatest?.report_date"
           :change="computeChange(urbanInvestLatest)"
@@ -107,21 +113,18 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
       <NGi span="24 m:8">
         <div class="chart-box">
           <div class="chart-box__title">GDP、工业增加值、城镇固投与社零同比</div>
-          <div class="chart-box__sub">GDP 增速为盈利根基，工业增加值反映生产活跃度，城镇固投衡量整体投资强度，社零反映消费意愿</div>
           <GrowthChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:8">
         <div class="chart-box">
           <div class="chart-box__title">工业增加值与工业利润同比</div>
-          <div class="chart-box__sub">工业增加值反映生产活跃度，工业利润直接决定 A 股盈利增速</div>
           <InvestChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:8">
         <div class="chart-box">
           <div class="chart-box__title">城镇固投与房地产投资同比</div>
-          <div class="chart-box__sub">城镇固投衡量整体投资强度，地产投资影响产业链上下游</div>
           <InvestRealChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -141,12 +144,6 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

@@ -101,6 +101,7 @@ const m1m2Color = computed(() => {
           label="1Y LPR"
           :value="lpr1yLatest?.value ?? null"
           unit="%"
+          desc="影响企业融资成本"
           :date="lpr1yLatest?.report_date"
           timing="先行"
         />
@@ -112,14 +113,12 @@ const m1m2Color = computed(() => {
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">流动性综合视图</div>
-          <div class="chart-box__sub">社融、新增贷款（左轴亿元）与M1、M2、M1-M2剪刀差（右轴%）综合对比</div>
           <LiquidityComboChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">LPR 1Y vs 5Y</div>
-          <div class="chart-box__sub">1Y影响企业融资成本，5Y影响房贷与地产</div>
           <LprChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -139,12 +138,6 @@ const m1m2Color = computed(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>
