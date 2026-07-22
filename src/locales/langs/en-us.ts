@@ -251,6 +251,7 @@ const local: App.I18n.Schema = {
     'bds_macro-research_gold-reserves': 'Gold Reserves',
     'bds_macro-research_economic-report': 'US Dashboard',
     'bds_macro-research_economic-indicators': 'Economic Data',
+    'bds_macro-research_macro-framework': 'Macro Framework',
     'bills_group': 'Bill Group',
     'bills_bills': 'Bills',
     'bills_profits': 'Profits',
