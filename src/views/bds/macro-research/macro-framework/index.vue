@@ -7,7 +7,6 @@ import { forwardFill } from '../economic-dashboard/modules/utils';
 import ClockCard from './modules/ClockCard.vue';
 import GrowthTab from './modules/growth/GrowthTab.vue';
 import InflationTab from './modules/inflation/InflationTab.vue';
-import LaborTab from './modules/labor/LaborTab.vue';
 import FinancialTab from './modules/financial/FinancialTab.vue';
 import PolicyTab from './modules/policy/PolicyTab.vue';
 import ExternalTab from './modules/external/ExternalTab.vue';
@@ -35,15 +34,13 @@ const dateRange = ref<[string, string] | null>(null);
 const DASHBOARD_INDICATORS = {
   // 维度一：经济增长（7个指标）
   growth: ['CN_GDP_YOY', 'CN_INDUSTRIAL_VALUE_ADDED_YOY', 'CN_INDUSTRIAL_PROFIT_YOY', 'CN_RETAIL_SALES_YOY', 'CN_REAL_ESTATE_INVEST', 'CN_URBAN_FIXED_ASSET_INVEST_YOY', 'CN_URBAN_UNEMPLOYMENT'],
-  // 维度二：通货膨胀（2个指标，剪刀差由CPI-PPI计算）
+  // 维度二：通胀与就业（CPI/PPI + 失业率；失业率与growth共享，已在growth拉取）
   inflation: ['CN_CPI_YOY', 'CN_PPI_YOY'],
-  // 维度三：劳动力市场（失业率，与growth共享）
-  labor: ['CN_URBAN_UNEMPLOYMENT'],
-  // 维度四：金融条件（无数据，纯框架说明）
+  // 维度三：金融条件（无数据，纯框架说明）
   financial: [],
-  // 维度五：政策环境（6个指标，含LPR 1Y/5Y）
+  // 维度四：政策环境（6个指标，含LPR 1Y/5Y）
   policy: ['CN_SOCIAL_FINANCING_CUM', 'CN_NEW_RMB_LOANS_CUM', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_LPR_1Y', 'CN_LPR_5Y'],
-  // 维度六：外部环境（5个指标，含CNY口径供TradeChart使用）
+  // 维度五：外部环境（5个指标，含CNY口径供TradeChart使用）
   external: ['CN_EXPORT_YOY_USD', 'CN_IMPORT_YOY_USD', 'CN_EXPORT_YOY_CNY', 'CN_IMPORT_YOY_CNY', 'CN_FX_RESERVES']
 } as const;
 
@@ -180,8 +177,15 @@ onMounted(() => {
       </NForm>
     </NCard>
 
-    <!-- 2. 周期定位卡片（美林投资时钟） -->
-    <ClockCard :data-map="dataMap" class="mb-16px" />
+    <!-- 2. 周期定位 + 结构性底座（同一行，1:2 布局，窄屏堆叠） -->
+    <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mb-16px">
+      <NGi span="24 m:8">
+        <ClockCard :data-map="dataMap" />
+      </NGi>
+      <NGi span="24 m:16">
+        <StructuralPanel />
+      </NGi>
+    </NGrid>
 
     <!-- 3. 六维周期 Tab -->
     <NCard :bordered="false" class="card-wrapper mb-16px">
@@ -189,19 +193,16 @@ onMounted(() => {
         <NTabPane name="growth" tab="① 增长">
           <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="inflation" tab="② 通胀">
+        <NTabPane name="inflation" tab="② 通胀与就业">
           <InflationTab v-if="shouldRender('inflation')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="labor" tab="③ 劳动力">
-          <LaborTab v-if="shouldRender('labor')" :data-map="dataMap" :loading="loading" />
-        </NTabPane>
-        <NTabPane name="financial" tab="④ 金融条件">
+        <NTabPane name="financial" tab="③ 金融条件">
           <FinancialTab v-if="shouldRender('financial')" :loading="loading" />
         </NTabPane>
-        <NTabPane name="policy" tab="⑤ 政策">
+        <NTabPane name="policy" tab="④ 政策">
           <PolicyTab v-if="shouldRender('policy')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="external" tab="⑥ 外部">
+        <NTabPane name="external" tab="⑤ 外部">
           <ExternalTab v-if="shouldRender('external')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
         <NTabPane name="expectation" tab="预期与信心">
@@ -209,8 +210,5 @@ onMounted(() => {
         </NTabPane>
       </NTabs>
     </NCard>
-
-    <!-- 4. 底部：结构性底座 -->
-    <StructuralPanel />
   </div>
 </template>

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
+import InfoCard from '../InfoCard.vue';
 import InflationChart from './InflationChart.vue';
+import UnemploymentChart from '../labor/UnemploymentChart.vue';
 import { getLatest, getSeries, calcScissors } from '../../../economic-dashboard/modules/utils';
 
 defineOptions({ name: 'InflationTab' });
 
 /**
- * 维度二：通货膨胀
- * 3 张时序属性指标卡片（CPI/PPI/剪刀差）+ 1 张同比与剪刀差走势图
+ * 维度二：通胀与就业
+ * 第 1 行：4 张指标卡片（CPI / PPI / 剪刀差 / 城镇调查失业率）
+ * 第 2 行：通胀走势图 + 失业率走势图（两列并排）
+ * 第 3 行：劳动力市场待补充指标说明
  */
 interface Props {
   /** 指标数据 Map（indicator_code -> 升序时序数组） */
@@ -31,6 +35,20 @@ const scissorsLatest = computed(() => {
   return arr.length ? arr[arr.length - 1] : null;
 });
 
+// ===== 城镇调查失业率 =====
+const UNEMPLOYMENT_CODE = 'CN_URBAN_UNEMPLOYMENT';
+const unemploymentLatest = computed(() => getLatest(props.dataMap, UNEMPLOYMENT_CODE));
+const unemploymentData = computed(() => getSeries(props.dataMap, UNEMPLOYMENT_CODE));
+// 环比变化 = 当前值 - 上一期值
+const unemploymentChange = computed<number | null>(() => {
+  const list = unemploymentData.value;
+  if (!list || list.length < 2) return null;
+  const cur = Number(list[list.length - 1].value);
+  const prev = Number(list[list.length - 2].value);
+  if (!Number.isFinite(cur) || !Number.isFinite(prev)) return null;
+  return +(cur - prev).toFixed(2);
+});
+
 // 同比变化：value - value_prev（value_prev 为 null 时返回 null）
 function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
   if (!item || item.value_prev == null) return null;
@@ -48,13 +66,21 @@ const scissorsColor = computed(() => {
   if (v == null) return undefined;
   return Number(v) > 0 ? '#dc2626' : '#16a34a';
 });
+
+// 劳动力市场待补充指标说明
+const pendingItems = [
+  { name: '城镇新增就业', desc: '反映企业用工意愿，比GDP更早转折' },
+  { name: '平均工资增速', desc: '工资-价格螺旋是通胀的独立驱动力' },
+  { name: '劳动参与率', desc: '结构性变量，受人口、教育、退休政策影响' },
+  { name: '求人倍率', desc: '岗位空缺/求职人数，反映结构性错配' }
+];
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：3 张指标卡片（单行排列） -->
+    <!-- 第 1 行：4 张指标卡片（CPI / PPI / 剪刀差 / 失业率） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:8 l:8">
+      <NGi span="12 s:12 m:8 l:6">
         <FwMetricCard
           label="CPI 同比"
           :value="cpiLatest?.value ?? null"
@@ -65,7 +91,7 @@ const scissorsColor = computed(() => {
           :change="computeChange(cpiLatest)"
         />
       </NGi>
-      <NGi span="12 s:12 m:8 l:8">
+      <NGi span="12 s:12 m:8 l:6">
         <FwMetricCard
           label="PPI 同比"
           :value="ppiLatest?.value ?? null"
@@ -76,7 +102,7 @@ const scissorsColor = computed(() => {
           :change="computeChange(ppiLatest)"
         />
       </NGi>
-      <NGi span="12 s:12 m:8 l:8">
+      <NGi span="12 s:12 m:8 l:6">
         <FwMetricCard
           label="CPI-PPI 剪刀差"
           :value="scissorsLatest?.value ?? null"
@@ -87,17 +113,42 @@ const scissorsColor = computed(() => {
           :color="scissorsColor"
         />
       </NGi>
+      <NGi span="12 s:12 m:8 l:6">
+        <FwMetricCard
+          label="城镇调查失业率"
+          :value="unemploymentLatest?.value ?? null"
+          unit="%"
+          desc="劳动力市场闲置程度"
+          :change="unemploymentChange"
+          timing="滞后"
+          :date="unemploymentLatest?.report_date"
+        />
+      </NGi>
     </NGrid>
 
-    <!-- 第 2 行：1 张图表（跨全宽） -->
-    <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24">
+    <!-- 第 2 行：通胀走势图 + 失业率走势图（两列并排） -->
+    <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mb-16px">
+      <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">CPI、PPI 同比与 CPI-PPI 剪刀差</div>
           <InflationChart :data-map="dataMap" />
         </div>
       </NGi>
+      <NGi span="24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">城镇调查失业率走势</div>
+          <UnemploymentChart :data="unemploymentData" />
+        </div>
+      </NGi>
     </NGrid>
+
+    <!-- 第 3 行：劳动力市场待补充指标说明（跨全宽，两列） -->
+    <InfoCard
+      title="劳动力市场待补充指标"
+      badge="数据待补充"
+      :items="pendingItems"
+      :columns="2"
+    />
   </NSpin>
 </template>
 

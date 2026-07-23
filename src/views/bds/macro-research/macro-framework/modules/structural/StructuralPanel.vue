@@ -44,5 +44,6 @@ const items: InfoItem[] = [
     badge="慢变量 · 十年尺度"
     subtitle="决定所有周期波动的基准线——'趋势本身在哪里'"
     :items="items"
+    :columns="2"
   />
 </template>

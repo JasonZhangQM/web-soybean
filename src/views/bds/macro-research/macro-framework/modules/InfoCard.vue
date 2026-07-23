@@ -24,11 +24,14 @@ interface Props {
   badge?: string;
   /** 副标题，为空不显示 */
   subtitle?: string;
+  /** 条目列表展示列数，默认 1 列；窄屏（<640px）始终回退为 1 列 */
+  columns?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   badge: '',
-  subtitle: ''
+  subtitle: '',
+  columns: 1
 });
 
 // 是否有条目可展示
@@ -45,7 +48,11 @@ const hasItems = computed(() => Array.isArray(props.items) && props.items.length
     <!-- 副标题 -->
     <div v-if="subtitle" class="info-card__subtitle">{{ subtitle }}</div>
     <!-- 条目列表 -->
-    <div v-if="hasItems" class="info-card__list">
+    <div
+      v-if="hasItems"
+      class="info-card__list"
+      :style="{ '--info-card-cols': columns }"
+    >
       <div v-for="(item, idx) in items" :key="idx" class="info-card__item">
         <span class="info-card__name">{{ item.name }}</span>
         <span class="info-card__desc">{{ item.desc }}</span>
@@ -79,10 +86,17 @@ const hasItems = computed(() => Array.isArray(props.items) && props.items.length
   margin-bottom: 12px;
 }
 
-/* 条目列表 */
+/* 条目列表：通过 --info-card-cols 控制列数，默认 1 列；窄屏回退 1 列 */
 .info-card__list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(var(--info-card-cols, 1), 1fr);
+  column-gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .info-card__list {
+    grid-template-columns: 1fr;
+  }
 }
 
 .info-card__item {
