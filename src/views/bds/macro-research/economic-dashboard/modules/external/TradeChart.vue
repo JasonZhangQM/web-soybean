@@ -8,7 +8,7 @@ defineOptions({ name: 'ExternalTradeChart' });
 
 /**
  * 进出口同比走势合并图：
- * 出口-美元计（红）、出口-人民币计（蓝）、进口-美元计（绿）、进口-人民币计（橙）
+ * 出口统一红色、进口统一绿色；美元计实线、人民币计虚线
  * 共用单轴(%)，无填充，y=0 参考线区分正负增长
  */
 interface Props {
@@ -67,6 +67,7 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
+        // 出口统一红色，美元计实线
         lineStyle: { color: '#dc2626', width: 2 },
         itemStyle: { color: '#dc2626' },
         connectNulls: true,
@@ -85,8 +86,9 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#2563eb', width: 2 },
-        itemStyle: { color: '#2563eb' },
+        // 出口统一红色，人民币计虚线
+        lineStyle: { color: '#dc2626', width: 2, type: 'dashed' },
+        itemStyle: { color: '#dc2626' },
         connectNulls: true,
         data: buildValues(expCny)
       },
@@ -96,8 +98,8 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        // 进口采用虚线，与出口实线区分
-        lineStyle: { color: '#16a34a', width: 2, type: 'dashed' },
+        // 进口统一绿色，美元计实线
+        lineStyle: { color: '#16a34a', width: 2 },
         itemStyle: { color: '#16a34a' },
         connectNulls: true,
         data: buildValues(impUsd)
@@ -108,9 +110,9 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        // 进口采用虚线，与出口实线区分
-        lineStyle: { color: '#d97706', width: 2, type: 'dashed' },
-        itemStyle: { color: '#d97706' },
+        // 进口统一绿色，人民币计虚线
+        lineStyle: { color: '#16a34a', width: 2, type: 'dashed' },
+        itemStyle: { color: '#16a34a' },
         connectNulls: true,
         data: buildValues(impCny)
       }
