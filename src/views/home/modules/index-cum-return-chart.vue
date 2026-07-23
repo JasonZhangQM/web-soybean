@@ -14,8 +14,13 @@ defineOptions({
 const appStore = useAppStore();
 const themeStore = useThemeStore();
 
-// 起始日期（留空则使用后端默认 30 天）
-const startDate = ref<string | null>(null);
+// 起始日期：默认展示最近十年数据
+function getDefaultStartDate(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 10);
+  return d.toISOString().slice(0, 10);
+}
+const startDate = ref<string | null>(getDefaultStartDate());
 
 // 多色配色，按指数数量循环取色
 const colors = ['#5da8ff', '#26deca', '#fedc69', '#ff7d85', '#a78bfa', '#34d399', '#fbbf24'];
@@ -254,7 +259,7 @@ init();
           type="date"
           value-format="yyyy-MM-dd"
           clearable
-          placeholder="默认近30天"
+          placeholder="默认近10年"
           :shortcuts="dateShortcuts"
           :style="{ width: '150px' }"
           @update:formatted-value="handleDateChange"
@@ -303,8 +308,8 @@ init();
 <style scoped>
 .latest-table {
   position: absolute;
-  /* 原左下方位置稍向右、向上偏移，避开 X/Y 轴刻度标签 */
-  bottom: 40px;
+  /* 与右轴 0 值水平对齐（图表顶部 15% + 顶部内边距，避开 Y 轴名称） */
+  top: 75px;
   left: 80px;
   z-index: 10;
   padding: 6px 10px;
