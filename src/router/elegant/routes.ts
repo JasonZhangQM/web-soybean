@@ -127,6 +127,17 @@ export const generatedRoutes = [
         },
         children: [
           {
+            name: 'bds_macro-research_daily-indicators',
+            path: '/bds/macro-research/daily-indicators',
+            component: 'view.bds_macro-research_daily-indicators',
+            meta: {
+              title: 'bds_macro-research_daily-indicators',
+              i18nKey: 'route.bds_macro-research_daily-indicators',
+              order: 2,
+              constant: true
+            }
+          },
+          {
             name: 'bds_macro-research_economic-dashboard',
             path: '/bds/macro-research/economic-dashboard',
             component: 'view.bds_macro-research_economic-dashboard',
@@ -189,17 +200,6 @@ export const generatedRoutes = [
               title: 'bds_macro-research_us-economic-dashboard',
               i18nKey: 'route.bds_macro-research_us-economic-dashboard',
               order: 6,
-              constant: true
-            }
-          },
-          {
-            name: 'bds_macro-research_us-yield-indicators',
-            path: '/bds/macro-research/us-yield-indicators',
-            component: 'view.bds_macro-research_us-yield-indicators',
-            meta: {
-              title: 'bds_macro-research_us-yield-indicators',
-              i18nKey: 'route.bds_macro-research_us-yield-indicators',
-              order: 2,
               constant: true
             }
           }

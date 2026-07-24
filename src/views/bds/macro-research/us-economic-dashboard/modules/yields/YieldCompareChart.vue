@@ -10,10 +10,10 @@ defineOptions({ name: 'YieldsCompareChart' });
  * 2年期 vs 10年期美债收益率双折线
  * 2Y 蓝（#2563eb）+ 10Y 红（#dc2626），以 10Y 日期为主轴对齐 2Y（按 report_date 精确匹配）
  *
- * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
+ * 适配 Api.Bds.DailyIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
+  dataMap: Map<string, Api.Bds.DailyIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 

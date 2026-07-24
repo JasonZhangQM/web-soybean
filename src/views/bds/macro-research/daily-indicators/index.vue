@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
-import { fetchYieldIndicators, syncYieldIndicator, syncAllYieldIndicators } from '@/service/api/bds';
+import { fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 
-defineOptions({ name: 'UsYieldIndicatorsPage' });
+defineOptions({ name: 'UsDailyIndicatorsPage' });
 
 const bdsStore = useBdsStore();
 const loading = ref(false);
@@ -12,7 +12,7 @@ const loading = ref(false);
 const syncLoading = ref(false);
 // 全量同步 loading：与单指标同步分离，避免按钮间互相影响
 const allSyncLoading = ref(false);
-const tableData = ref<Api.Bds.YieldIndicator[]>([]);
+const tableData = ref<Api.Bds.DailyIndicator[]>([]);
 const total = ref(0);
 
 // 分页配置（remote 模式）
@@ -31,7 +31,7 @@ const searchParams = reactive<{
 }>({});
 
 // 指标代码下拉选项：computed 包装保证 store 异步加载后更新
-const indicatorOptions = computed(() => bdsStore.getYieldIndicatorCodeOptions());
+const indicatorOptions = computed(() => bdsStore.getDailyIndicatorCodeOptions());
 
 // 同步用单指标代码（精确匹配）
 const syncIndicatorCode = ref<string | null>(null);
@@ -48,7 +48,7 @@ function fmtNum(val: number | string | null): string {
 async function fetchData() {
   loading.value = true;
   try {
-    const { data, error } = await fetchYieldIndicators({
+    const { data, error } = await fetchDailyIndicators({
       // 单选精确匹配：包装为单元素数组适配后端多选 IN 接口
       indicator_code: searchParams.indicator_code ? [searchParams.indicator_code] : undefined,
       limit: pagination.pageSize,
@@ -95,7 +95,7 @@ async function handleSync() {
   }
   const code = syncIndicatorCode.value;
   await executeSync(
-    () => syncYieldIndicator(code),
+    () => syncDailyIndicator(code),
     syncLoading,
     fetchData
   );
@@ -104,7 +104,7 @@ async function handleSync() {
 // 全量同步所有 4 个美债收益率指标
 async function handleAllSync() {
   await executeSync(
-    () => syncAllYieldIndicators(),
+    () => syncAllDailyIndicators(),
     allSyncLoading,
     fetchData
   );
@@ -116,7 +116,7 @@ const columns = [
   { title: '类别', key: 'category', width: 80 },
   { title: '国别', key: 'country', width: 60 },
   { title: '报告日期', key: 'report_date', width: 110 },
-  { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.YieldIndicator) => fmtNum(row.value) },
+  { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.DailyIndicator) => fmtNum(row.value) },
   { title: '单位', key: 'unit', width: 60 },
   { title: '频率', key: 'frequency', width: 80 }
 ];
@@ -124,7 +124,7 @@ const columns = [
 onMounted(() => {
   fetchData();
   // 加载美债收益率指标代码列表，供筛选与同步下拉使用
-  bdsStore.loadYieldIndicatorCodes();
+  bdsStore.loadDailyIndicatorCodes();
 });
 </script>
 

@@ -615,8 +615,8 @@ declare namespace Api {
       imf_code: string;
     }
 
-    /** 美债收益率指标数据（对应 bds_yield_indicator 表，数据源 FRED API series/observations） */
-    interface YieldIndicator {
+    /** 日频指标数据（对应 bds_daily_indicator 表，数据源 FRED API series/observations） */
+    interface DailyIndicator {
       /** 主键 */
       id: number;
       /** 指标代码 */
@@ -644,7 +644,7 @@ declare namespace Api {
     }
 
     /** 美债收益率指标查询参数 */
-    interface YieldIndicatorQueryParams {
+    interface DailyIndicatorQueryParams {
       /** 指标代码（多选 IN 精确匹配） */
       indicator_code?: string[] | null;
       /** 报告日期起始日（YYYY-MM-DD） */
@@ -658,7 +658,7 @@ declare namespace Api {
     }
 
     /** 美债收益率指标代码（用于下拉选项，数据源为后端 Config.YIELD_INDICATORS 字典） */
-    interface YieldIndicatorCode {
+    interface DailyIndicatorCode {
       /** 指标代码 */
       indicator_code: string;
       /** 指标名称 */

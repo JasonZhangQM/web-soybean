@@ -9,13 +9,13 @@ defineOptions({ name: 'YieldsComboChart' });
 /**
  * 跨双列综合视图（双轴）
  * 左轴：2Y 折线（蓝 #2563eb）+ 10Y 折线（红 #dc2626）
- * 右轴：2Y-10Y 利差柱状（按正负着色：≥0 蓝 #3b82f670、<0 红 #dc262670）
+ * 右轴：10Y-2Y 利差柱状（按正负着色：≥0 蓝 #3b82f670、<0 红 #dc262670）
  * 以 10Y 日期为主轴对齐 2Y 与利差（按 report_date 精确匹配）
  *
- * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
+ * 适配 Api.Bds.DailyIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
+  dataMap: Map<string, Api.Bds.DailyIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 
@@ -37,7 +37,7 @@ function buildOption() {
   // 各指标分别过滤 null，保证数据干净
   const y10Arr = getSeries(props.dataMap, 'YIELD_10Y').filter(x => x.value != null);
   const y2Arr = getSeries(props.dataMap, 'YIELD_2Y').filter(x => x.value != null);
-  const spreadArr = getSeries(props.dataMap, 'YIELD_SPREAD_2Y10Y').filter(x => x.value != null);
+  const spreadArr = getSeries(props.dataMap, 'YIELD_SPREAD_10Y2Y').filter(x => x.value != null);
 
   // 以 10Y 日期为主轴，按 report_date 对齐 2Y 与利差（缺失填 null）
   const y2Map = new Map(y2Arr.map(x => [x.report_date, Number(x.value)]));
@@ -63,7 +63,7 @@ function buildOption() {
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['2年期收益率', '10年期收益率', '2Y-10Y利差']
+      data: ['2年期收益率', '10年期收益率', '10Y-2Y利差']
     },
     grid: { left: 60, right: 60, top: 30, bottom: 40 },
     xAxis: {
@@ -119,7 +119,7 @@ function buildOption() {
         connectNulls: true
       },
       {
-        name: '2Y-10Y利差',
+        name: '10Y-2Y利差',
         type: 'bar',
         yAxisIndex: 1,
         // daily 频率数据柱体较窄

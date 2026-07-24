@@ -7,14 +7,14 @@ import { getSeries } from './utils';
 defineOptions({ name: 'YieldsSpreadChart' });
 
 /**
- * 2Y-10Y 利差柱状图
+ * 10Y-2Y 利差柱状图
  * 正负着色：value ≥ 0 蓝（#3b82f670），value < 0 红（#dc262670）
  * 含 0 荣枯线 markLine（虚线灰色 #9ca3af），label 显示「倒挂线 0」
  *
- * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
+ * 适配 Api.Bds.DailyIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
+  dataMap: Map<string, Api.Bds.DailyIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 
@@ -34,7 +34,7 @@ function getThemeColors() {
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
   // 过滤掉 value 为 null 的数据点，保持图表连续
-  const arr = getSeries(props.dataMap, 'YIELD_SPREAD_2Y10Y').filter(x => x.value != null);
+  const arr = getSeries(props.dataMap, 'YIELD_SPREAD_10Y2Y').filter(x => x.value != null);
   const dates = arr.map(x => x.report_date.slice(0, 10));
   const values = arr.map(x => Number(x.value));
 
@@ -48,7 +48,7 @@ function buildOption() {
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['2Y-10Y利差']
+      data: ['10Y-2Y利差']
     },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -67,7 +67,7 @@ function buildOption() {
     },
     series: [
       {
-        name: '2Y-10Y利差',
+        name: '10Y-2Y利差',
         type: 'bar',
         // daily 频率数据柱体较窄
         barMaxWidth: 12,

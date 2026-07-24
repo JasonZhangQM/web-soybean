@@ -13,10 +13,10 @@ defineOptions({ name: 'YieldTipsChart' });
  * 用途：观察盈亏平衡通胀率（= 名义收益率 - TIPS 收益率）
  * 两线差距 = 市场对未来 10 年平均通胀率的预期
  *
- * 适配 Api.Bds.YieldIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
+ * 适配 Api.Bds.DailyIndicator（value: number | null）：构建阶段过滤 value 为 null 的数据点
  */
 interface Props {
-  dataMap: Map<string, Api.Bds.YieldIndicator[]>;
+  dataMap: Map<string, Api.Bds.DailyIndicator[]>;
 }
 const props = withDefaults(defineProps<Props>(), {});
 

@@ -26,7 +26,7 @@ const CORE_INDICATORS = [
   'ISM_MFG_PMI',
   'CONSUMER_CONFIDENCE',
   'RETAIL_SALES_MOM',
-  'YIELD_SPREAD_2Y10Y'
+  'YIELD_SPREAD_10Y2Y'
 ];
 
 // 指标代码下拉选项（从 store 动态获取）
@@ -72,7 +72,7 @@ const sources = [
   { id: 18, title: '雪球, "美国制造业真的复苏了吗？库存和韩国出口给出线索". ISM制造业PMI重回54.00，与54.50服务业PMI形成双轮驱动，新订单回升、低客户库存构成补库驱动力。', url: 'https://xueqiu.com/1105680996/394434132' },
   { id: 19, title: 'CollinsEOW, "Consumer Confidence Index: How It Affects Stocks". 消费者信心指数高于100表示乐观，低于100表示悲观，影响可选消费板块。', url: 'https://collinseow.com/consumer-confidence-index/' },
   { id: 20, title: 'Lying-Awake, "Retail Sales Reports: How Consumer Spending Moves the Stock Market". 标普500可选消费板块与零售销售超预期幅度存在0.78相关性。', url: 'https://lying-awake.net/retail-sales-reports-how-consumer-spending-moves-the-stock-market' },
-  { id: 21, title: 'AInvest, "Yield Curve Warning: Is a Recession Looming?". 美联储分析显示2Y-10Y利差转负后，美国经济平均12-18个月内出现衰退。', url: 'https://www.ainvest.com/news/yield-curve-warning-recession-looming-2507/' },
+  { id: 21, title: 'AInvest, "Yield Curve Warning: Is a Recession Looming?". 美联储分析显示10Y-2Y利差转负后，美国经济平均12-18个月内出现衰退。', url: 'https://www.ainvest.com/news/yield-curve-warning-recession-looming-2507/' },
   { id: 22, title: 'MarketMinute, "The Unsettling Normalization: Yield Curve\'s Un-Inversion Signals Potential Storm Ahead". 2025年4月收益率曲线解除倒挂，属于"牛陡"——短期利率下降快于长期利率，预示衰退风险。', url: 'https://www.marketminute.com/article/marketminute-2025-9-16-the-unsettling-normalization-yield-curves-un-inversion-signals-potential-storm-ahead' },
   { id: 23, title: 'MarketMinute, "The Great Normalization: How the Steepening Yield Curve Reshaped the Growth-Value War in 2025". 收益率曲线回归正斜率，结束了美国历史上最长的倒挂期，改变了成长股与价值股的相对表现。', url: 'https://wyow.marketminute.com/article/marketminute-2025-12-23-the-great-normalization-how-the-steepening-yield-curve-reshaped-the-growth-value-war-in-2025' }
 ];
@@ -314,12 +314,12 @@ onMounted(() => {
 
       <!-- ===== 八、收益率曲线 ===== -->
       <section>
-        <h2>八、收益率曲线（2Y-10Y利差）</h2>
+        <h2>八、收益率曲线（10Y-2Y利差）</h2>
         <h3>指标定义</h3>
         <p>收益率曲线衡量不同期限美国国债收益率之间的关系，最受关注的是2年期与10年期国债利差（10Y-2Y Spread）。正常状态下，长期收益率高于短期收益率（正利差）；当短期收益率高于长期收益率时（负利差），曲线"倒挂"，被视为衰退预警信号。<sup>[21]</sup></p>
         <h3>影响逻辑</h3>
         <h4>1. 衰退预测的"金标准"</h4>
-        <p>美联储分析显示，自1969年以来，2Y-10Y利差转负后，美国经济在平均12-18个月内均出现衰退。<sup>[21]</sup> 2022-2025年的倒挂是美国历史上持续时间最长的一次，于2025年4月前后结束倒挂。<sup>[22]</sup></p>
+        <p>美联储分析显示，自1969年以来，10Y-2Y利差转负后，美国经济在平均12-18个月内均出现衰退。<sup>[21]</sup> 2022-2025年的倒挂是美国历史上持续时间最长的一次，于2025年4月前后结束倒挂。<sup>[22]</sup></p>
         <h4>2. "解除倒挂"的危险信号</h4>
         <p>收益率曲线从倒挂回归正常有两种方式：<strong>"熊陡"</strong>（长期利率上升快于短期）和<strong>"牛陡"</strong>（短期利率下降快于长期）。2025年的解除倒挂属于"牛陡"——市场预期美联储将大幅降息以应对经济放缓，这本身是衰退担忧的体现。<sup>[22]</sup> 历史上，解除倒挂后往往伴随经济衰退的到来，而非风险的解除。</p>
         <h4>3. 板块轮动信号</h4>
@@ -413,7 +413,7 @@ onMounted(() => {
               <tr><td><strong>第一梯队</strong></td><td>非农就业</td><td>同步</td><td>新增人数、失业率、平均时薪</td><td>月度</td></tr>
               <tr><td><strong>第二梯队</strong></td><td>ISM PMI</td><td>领先</td><td>新订单、物价支付分项</td><td>月度</td></tr>
               <tr><td><strong>第二梯队</strong></td><td>零售销售</td><td>同步</td><td>控制组数据，环比趋势</td><td>月度</td></tr>
-              <tr><td><strong>第二梯队</strong></td><td>收益率曲线</td><td>领先</td><td>2Y-10Y利差方向和变化速度</td><td>每日</td></tr>
+              <tr><td><strong>第二梯队</strong></td><td>收益率曲线</td><td>领先</td><td>10Y-2Y利差方向和变化速度</td><td>每日</td></tr>
               <tr><td><strong>第三梯队</strong></td><td>GDP</td><td>滞后</td><td>趋势确认，GDPNow实时预测</td><td>季度</td></tr>
               <tr><td><strong>第三梯队</strong></td><td>消费者信心</td><td>领先</td><td>与硬数据的交叉验证</td><td>月度</td></tr>
             </tbody>

@@ -247,7 +247,7 @@ const local: App.I18n.Schema = {
     'bds_macro-research': 'Macro Research',
     'bds_macro-research_economic-dashboard': 'CN Dashboard',
     'bds_macro-research_us-economic-dashboard': 'US Dashboard',
-    'bds_macro-research_us-yield-indicators': 'US Yields',
+    'bds_macro-research_daily-indicators': 'Daily Indicators',
     'bds_macro-research_gold-reserves': 'Gold Reserves',
     'bds_macro-research_economic-report': 'US Dashboard',
     'bds_macro-research_economic-indicators': 'Economic Data',

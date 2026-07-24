@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
-import { fetchYieldIndicators, syncYieldIndicator, syncAllYieldIndicators } from '@/service/api/bds';
+import { fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 // 跨目录复用中国看板 MetricCard：从 yields/ → modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../economic-dashboard/modules/MetricCard.vue';
@@ -27,26 +27,26 @@ const syncLoading = ref(false);
 const allSyncLoading = ref(false);
 
 // 数据容器：收益率指标数据 Map（indicator_code -> 升序时序数组）
-const dataMap = ref<Map<string, Api.Bds.YieldIndicator[]>>(new Map());
+const dataMap = ref<Map<string, Api.Bds.DailyIndicator[]>>(new Map());
 
 // 同步用单指标代码（精确匹配）
 const syncIndicatorCode = ref<string | null>(null);
 
 // 收益率看板所需的全部 4 个指标代码
-const DASHBOARD_CODES = ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_2Y10Y', 'YIELD_TIPS_10Y'] as const;
+const DASHBOARD_CODES = ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_10Y2Y', 'YIELD_TIPS_10Y'] as const;
 
 // 指标代码下拉选项：computed 包装保证 store 异步加载后更新
-const indicatorOptions = computed(() => bdsStore.getYieldIndicatorCodeOptions());
+const indicatorOptions = computed(() => bdsStore.getDailyIndicatorCodeOptions());
 
 // ===== 各指标最新值（用于顶部卡片） =====
 const y2Latest = computed(() => getLatest(dataMap.value, 'YIELD_2Y'));
 const y10Latest = computed(() => getLatest(dataMap.value, 'YIELD_10Y'));
-const spreadLatest = computed(() => getLatest(dataMap.value, 'YIELD_SPREAD_2Y10Y'));
+const spreadLatest = computed(() => getLatest(dataMap.value, 'YIELD_SPREAD_10Y2Y'));
 const tipsLatest = computed(() => getLatest(dataMap.value, 'YIELD_TIPS_10Y'));
 
 /**
  * 环比变化：当前 value - 前一条非 null 记录的 value
- * YieldIndicator 无 value_prev 字段，从 dataMap 中取前一条记录计算
+ * DailyIndicator 无 value_prev 字段，从 dataMap 中取前一条记录计算
  * 仅适用于日频收益率指标（2Y/10Y）
  */
 function computeChangeFromPrev(code: string): number | null {
@@ -77,7 +77,7 @@ function computeChangeFromPrev(code: string): number | null {
 const spreadStatus = computed(() => {
   if (!spreadLatest.value || spreadLatest.value.value == null) return null;
   const v = Number(spreadLatest.value.value);
-  // 收益率曲线倒挂：2Y > 10Y，即 2Y-10Y 利差 < 0
+  // 收益率曲线倒挂：2Y > 10Y，即 10Y-2Y 利差 < 0
   if (v < 0) return { desc: '倒挂', color: '#dc2626' };
   return { desc: '正常', color: '#16a34a' };
 });
@@ -92,7 +92,7 @@ async function fetchAllData() {
   loading.value = true;
   try {
     const [start_date, end_date] = props.dateRange || [];
-    const { data, error } = await fetchYieldIndicators({
+    const { data, error } = await fetchDailyIndicators({
       indicator_code: [...DASHBOARD_CODES],
       start_date: start_date || undefined,
       end_date: end_date || undefined,
@@ -104,7 +104,7 @@ async function fetchAllData() {
       return;
     }
     // 按 indicator_code 分组
-    const map = new Map<string, Api.Bds.YieldIndicator[]>();
+    const map = new Map<string, Api.Bds.DailyIndicator[]>();
     DASHBOARD_CODES.forEach(code => map.set(code, []));
     data.items.forEach(item => {
       const list = map.get(item.indicator_code);
@@ -126,7 +126,7 @@ function handleSync() {
   }
   const code = syncIndicatorCode.value;
   executeSync(
-    () => syncYieldIndicator(code),
+    () => syncDailyIndicator(code),
     syncLoading,
     fetchAllData
   );
@@ -135,7 +135,7 @@ function handleSync() {
 /** 全量同步所有 4 个收益率指标 */
 function handleAllSync() {
   executeSync(
-    () => syncAllYieldIndicators(),
+    () => syncAllDailyIndicators(),
     allSyncLoading,
     fetchAllData
   );
@@ -146,7 +146,7 @@ function handleAllSync() {
 onMounted(() => {
   fetchAllData();
   // 加载收益率指标代码列表，供同步下拉使用
-  bdsStore.loadYieldIndicatorCodes();
+  bdsStore.loadDailyIndicatorCodes();
 });
 </script>
 
@@ -175,7 +175,7 @@ onMounted(() => {
     </div>
 
     <NSpin :show="loading">
-      <!-- 第 1 行：4 张指标卡片（2Y / 10Y / 2Y-10Y利差 / 10Y TIPS） -->
+      <!-- 第 1 行：4 张指标卡片（2Y / 10Y / 10Y-2Y利差 / 10Y TIPS） -->
       <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
         <NGi span="6 s:12 m:6 l:6">
           <MetricCard
@@ -197,7 +197,7 @@ onMounted(() => {
         </NGi>
         <NGi span="6 s:12 m:6 l:6">
           <MetricCard
-            label="2Y-10Y利差"
+            label="10Y-2Y利差"
             :value="spreadLatest?.value ?? null"
             unit="%"
             :date="spreadLatest?.report_date"
@@ -226,15 +226,15 @@ onMounted(() => {
         </NGi>
         <NGi span="24 s:24 m:12">
           <div class="chart-box">
-            <div class="chart-box__title">2Y-10Y 利差</div>
-            <div class="chart-box__sub">2Y-10Y 利差柱状图，正值蓝柱、负值红柱，含 0 倒挂线（虚线灰色）</div>
+            <div class="chart-box__title">10Y-2Y 利差</div>
+            <div class="chart-box__sub">10Y-2Y 利差柱状图，正值蓝柱、负值红柱，含 0 倒挂线（虚线灰色）</div>
             <SpreadChart :data-map="dataMap" />
           </div>
         </NGi>
         <NGi span="24">
           <div class="chart-box">
-            <div class="chart-box__title">2Y + 10Y 收益率 vs 2Y-10Y 利差</div>
-            <div class="chart-box__sub">双轴综合视图：左轴 2Y/10Y 收益率折线，右轴 2Y-10Y 利差柱状（按正负着色）</div>
+            <div class="chart-box__title">2Y + 10Y 收益率 vs 10Y-2Y 利差</div>
+            <div class="chart-box__sub">双轴综合视图：左轴 2Y/10Y 收益率折线，右轴 10Y-2Y 利差柱状（按正负着色）</div>
             <YieldComboChart :data-map="dataMap" />
           </div>
         </NGi>

@@ -217,7 +217,7 @@ onMounted(() => {
         <NTabPane name="policy" tab="货币政策 (2)">
           <PolicyTab v-if="shouldRender('policy')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <!-- 美债收益：数据源为独立 YieldIndicator 表，由 YieldsTab 内部获取，复用父组件日期范围与刷新机制 -->
+        <!-- 美债收益：数据源为独立 DailyIndicator 表，由 YieldsTab 内部获取，复用父组件日期范围与刷新机制 -->
         <NTabPane name="yields" tab="美债收益">
           <YieldsTab v-if="shouldRender('yields')" :date-range="dateRange" />
         </NTabPane>
