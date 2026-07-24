@@ -2,13 +2,12 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import type { DerivedItem } from '../utils';
 
 defineOptions({ name: 'ExternalTradeBalanceChart' });
 
-/** 贸易顺差（出口同比 - 进口同比）折线：紫色加粗 + 浅紫渐变填充 + y=0 参考线 */
+/** 贸易顺差（数据库 CN_TRADE_BALANCE_USD）折线：紫色加粗 + 浅紫渐变填充 + y=0 参考线 */
 interface Props {
-  data: DerivedItem[];
+  data: Api.Bds.EconomicIndicator[];
 }
 const props = withDefaults(defineProps<Props>(), {});
 
@@ -35,7 +34,7 @@ function buildOption() {
     },
     yAxis: {
       type: 'value',
-      name: '%',
+      name: '亿美元',
       nameTextStyle: { color: axisColor },
       axisLabel: { color: axisColor },
       axisLine: { lineStyle: { color: axisColor } },

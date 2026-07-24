@@ -2,9 +2,8 @@
 import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
 import TradeChart from '../../../economic-dashboard/modules/external/TradeChart.vue';
-import TradeBalanceChart from '../../../economic-dashboard/modules/external/TradeBalanceChart.vue';
 import FxReserveChart from '../../../economic-dashboard/modules/external/FxReserveChart.vue';
-import { getLatest, getSeries, calcTradeBalance } from '../../../economic-dashboard/modules/utils';
+import { getLatest, getSeries } from '../../../economic-dashboard/modules/utils';
 
 defineOptions({ name: 'ExternalTab' });
 
@@ -20,27 +19,8 @@ const exportUsdLatest = computed(() => getLatest(props.dataMap, 'CN_EXPORT_YOY_U
 const importUsdLatest = computed(() => getLatest(props.dataMap, 'CN_IMPORT_YOY_USD'));
 const fxReserveLatest = computed(() => getLatest(props.dataMap, 'CN_FX_RESERVES'));
 
-// ===== 贸易顺差（出口同比 - 进口同比）=====
-const tradeBalanceSeries = computed(() => {
-  const exp = getSeries(props.dataMap, 'CN_EXPORT_YOY_USD');
-  const imp = getSeries(props.dataMap, 'CN_IMPORT_YOY_USD');
-  return calcTradeBalance(exp, imp);
-});
-const tradeBalanceLatest = computed(() => {
-  const arr = tradeBalanceSeries.value;
-  return arr.length ? arr[arr.length - 1] : null;
-});
-// 顺差 > 0：扩张（红）；< 0：收窄（绿）
-const tradeBalanceDesc = computed(() => {
-  const v = tradeBalanceLatest.value?.value;
-  if (v == null) return '';
-  return v > 0 ? '顺差扩张' : '顺差收窄';
-});
-const tradeBalanceColor = computed(() => {
-  const v = tradeBalanceLatest.value?.value;
-  if (v == null) return undefined;
-  return v > 0 ? '#dc2626' : '#16a34a';
-});
+// ===== 贸易顺差（数据库 CN_TRADE_BALANCE_USD，单位亿美元）=====
+const tradeBalanceLatest = computed(() => getLatest(props.dataMap, 'CN_TRADE_BALANCE_USD'));
 
 // ===== 外汇储备：原值单位为亿美元，÷10000 转万亿美元 =====
 const fxReserveValue = computed(() => {
@@ -81,9 +61,7 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
         <FwMetricCard
           label="贸易顺差"
           :value="tradeBalanceLatest?.value ?? null"
-          unit="%"
-          :desc="tradeBalanceDesc"
-          :color="tradeBalanceColor"
+          unit="亿美元"
           :date="tradeBalanceLatest?.report_date"
           timing="一致"
         />
@@ -100,18 +78,12 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：3 张图表（2 列） -->
+    <!-- 第 2 行：2 张图表（2 列） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12">
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">进出口同比走势</div>
+          <div class="chart-box__title">进出口走势与贸易顺差</div>
           <TradeChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">贸易顺差</div>
-          <TradeBalanceChart :data="tradeBalanceSeries" />
         </div>
       </NGi>
       <NGi span="24 m:12">

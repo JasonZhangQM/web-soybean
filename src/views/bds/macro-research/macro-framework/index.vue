@@ -40,8 +40,8 @@ const DASHBOARD_INDICATORS = {
   financial: [],
   // 维度四：政策环境（6个指标，含LPR 1Y/5Y）
   policy: ['CN_SOCIAL_FINANCING_CUM', 'CN_NEW_RMB_LOANS_CUM', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_LPR_1Y', 'CN_LPR_5Y'],
-  // 维度五：外部环境（5个指标，含CNY口径供TradeChart使用）
-  external: ['CN_EXPORT_YOY_USD', 'CN_IMPORT_YOY_USD', 'CN_EXPORT_YOY_CNY', 'CN_IMPORT_YOY_CNY', 'CN_FX_RESERVES']
+  // 维度六：外部环境（4个指标，贸易顺差从数据库直接获取）
+  external: ['CN_EXPORT_YOY_USD', 'CN_IMPORT_YOY_USD', 'CN_TRADE_BALANCE_USD', 'CN_FX_RESERVES']
 } as const;
 
 // 扁平化全部所需指标代码（去重）
