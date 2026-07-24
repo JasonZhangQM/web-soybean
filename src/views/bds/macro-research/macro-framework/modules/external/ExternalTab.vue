@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
-import TradeChart from '../../../economic-dashboard/modules/external/TradeChart.vue';
-import FxReserveChart from '../../../economic-dashboard/modules/external/FxReserveChart.vue';
-import { getLatest, getSeries } from '../../../economic-dashboard/modules/utils';
+import FxReserveChart from '../../../_shared/FxReserveChart.vue';
+import { getLatest, getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'ExternalTab' });
 
-/** 维度六：外部环境 Tab —— 4 张指标卡片 + 3 张图表（进出口走势、贸易顺差、外汇储备） */
+/** 维度六：外部环境 Tab —— 4 张指标卡片 + 1 张外汇储备图表
+ *  注：进出口走势与贸易顺差图表已移至 ① 增长 Tab
+ */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
   loading?: boolean;
@@ -78,15 +79,9 @@ const fxReserveSeries = computed(() => getSeries(props.dataMap, 'CN_FX_RESERVES'
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：2 张图表（2 列） -->
+    <!-- 第 2 行：外汇储备图表（全宽） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12">
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">进出口走势与贸易顺差</div>
-          <TradeChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
+      <NGi span="24 m:24">
         <div class="chart-box">
           <div class="chart-box__title">外汇储备</div>
           <FxReserveChart :data="fxReserveSeries" />

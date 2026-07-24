@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
-import LiquidityComboChart from '../../../economic-dashboard/modules/liquidity/LiquidityComboChart.vue';
-import LprChart from '../../../economic-dashboard/modules/liquidity/LprChart.vue';
-import { getLatest, getSeries, calcM1M2 } from '../../../economic-dashboard/modules/utils';
+import LiquidityComboChart from '../../../_shared/LiquidityComboChart.vue';
+import LprChart from '../../../_shared/LprChart.vue';
+import { getLatest, getSeries, calcM1M2 } from '../../../_shared/utils';
 
 defineOptions({ name: 'PolicyTab' });
 

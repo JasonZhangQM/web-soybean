@@ -4,7 +4,7 @@ import { useBdsStore } from '@/store/modules/bds';
 import { fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 // 跨目录复用中国看板 MetricCard：从 yields/ → modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
-import MetricCard from '../../../economic-dashboard/modules/MetricCard.vue';
+import MetricCard from '../../../_shared/MetricCard.vue';
 import { getLatest } from './utils';
 import YieldCompareChart from './YieldCompareChart.vue';
 import SpreadChart from './SpreadChart.vue';

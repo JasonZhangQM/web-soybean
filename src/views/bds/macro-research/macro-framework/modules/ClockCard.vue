@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { getLatest } from '../../economic-dashboard/modules/utils';
+import { getLatest } from '../../_shared/utils';
 
 defineOptions({ name: 'ClockCard' });
 

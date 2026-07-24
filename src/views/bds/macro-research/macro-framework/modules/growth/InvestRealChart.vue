@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../../../economic-dashboard/modules/utils';
+import { getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'GrowthInvestRealChart' });
 

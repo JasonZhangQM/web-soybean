@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 // 跨目录复用中国看板的 MetricCard 组件
 // 注：inflation/ 目录下需向上 3 级到达 macro-research/，再进入 economic-dashboard/modules/
-import MetricCard from '../../../economic-dashboard/modules/MetricCard.vue';
+import MetricCard from '../../../_shared/MetricCard.vue';
 import CpiChart from './CpiChart.vue';
 import PceYoYChart from './PceYoYChart.vue';
 import PceMomChart from './PceMomChart.vue';

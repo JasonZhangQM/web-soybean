@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../../../economic-dashboard/modules/utils';
+import { getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'GrowthGrowthChart' });
 
@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
 
-/** 构建 ECharts 配置：四系列共用日期并集，缺失日期填 null */
+/** 构建 ECharts 配置：五系列共用日期并集，缺失日期填 null */
 function buildOption() {
   const dark = themeStore.darkMode;
   // 亮色 #6b7280 / 暗色 #9ca3af
@@ -29,10 +29,11 @@ function buildOption() {
   const ivaArr = getSeries(props.dataMap, 'CN_INDUSTRIAL_VALUE_ADDED_YOY');
   const urbanInvestArr = getSeries(props.dataMap, 'CN_URBAN_FIXED_ASSET_INVEST_YOY');
   const retailArr = getSeries(props.dataMap, 'CN_RETAIL_SALES_YOY');
+  const exportUsdArr = getSeries(props.dataMap, 'CN_EXPORT_YOY_USD');
 
-  // 收集四系列所有日期并去重排序
+  // 收集五系列所有日期并去重排序
   const dateSet = new Set<string>();
-  [...gdpArr, ...ivaArr, ...urbanInvestArr, ...retailArr].forEach(x => dateSet.add(x.report_date));
+  [...gdpArr, ...ivaArr, ...urbanInvestArr, ...retailArr, ...exportUsdArr].forEach(x => dateSet.add(x.report_date));
   const dates = Array.from(dateSet).sort();
 
   // 按日期构建值映射，缺失日期为 null
@@ -101,6 +102,17 @@ function buildOption() {
         itemStyle: { color: '#9333ea' },
         connectNulls: true,
         data: buildValues(retailArr)
+      },
+      {
+        name: '出口同比(美元)',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#ea580c', width: 2 },
+        itemStyle: { color: '#ea580c' },
+        connectNulls: true,
+        data: buildValues(exportUsdArr)
       }
     ]
   } as any;

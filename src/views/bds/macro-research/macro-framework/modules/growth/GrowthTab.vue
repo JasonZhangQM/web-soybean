@@ -4,7 +4,8 @@ import FwMetricCard from '../FwMetricCard.vue';
 import GrowthChart from './GrowthChart.vue';
 import InvestChart from './InvestChart.vue';
 import InvestRealChart from './InvestRealChart.vue';
-import { getLatest } from '../../../economic-dashboard/modules/utils';
+import TradeChart from '../../../_shared/TradeChart.vue';
+import { getLatest } from '../../../_shared/utils';
 
 defineOptions({ name: 'GrowthTab' });
 
@@ -108,24 +109,34 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：3 张图表（3 列布局） -->
+    <!-- 第 2 行：2 张图表（2 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 m:8">
+      <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">GDP、工业增加值、城镇固投与社零同比</div>
           <GrowthChart :data-map="dataMap" />
         </div>
       </NGi>
-      <NGi span="24 m:8">
+      <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">工业增加值与工业利润同比</div>
           <InvestChart :data-map="dataMap" />
         </div>
       </NGi>
-      <NGi span="24 m:8">
+    </NGrid>
+
+    <!-- 第 3 行：2 张图表（2 列布局） -->
+    <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mt-16px">
+      <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">城镇固投与房地产投资同比</div>
           <InvestRealChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <NGi span="24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">进出口走势与贸易顺差</div>
+          <TradeChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

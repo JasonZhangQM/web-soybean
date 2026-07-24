@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 // 跨目录复用中国看板的 OvCard 组件，避免代码重复
-import OvCard from '../../../economic-dashboard/modules/overview/OvCard.vue';
+import OvCard from '../../../_shared/OvCard.vue';
 import InflationTrendChart from './InflationTrendChart.vue';
 import EmploymentCoreChart from './EmploymentCoreChart.vue';
 import MfgPmiChart from './MfgPmiChart.vue';

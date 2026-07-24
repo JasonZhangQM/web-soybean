@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue';
 import { fetchEconomicIndicators, syncEconomicIndicatorWscn } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
-import { forwardFill } from '../economic-dashboard/modules/utils';
+import { forwardFill } from '../_shared/utils';
 import ClockCard from './modules/ClockCard.vue';
 import GrowthTab from './modules/growth/GrowthTab.vue';
 import InflationTab from './modules/inflation/InflationTab.vue';

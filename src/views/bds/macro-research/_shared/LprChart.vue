@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries } from './utils';
 
 defineOptions({ name: 'LiquidityLprChart' });
 

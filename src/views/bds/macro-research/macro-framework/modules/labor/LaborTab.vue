@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import FwMetricCard from '../FwMetricCard.vue';
 import InfoCard from '../InfoCard.vue';
 import UnemploymentChart from './UnemploymentChart.vue';
-import { getLatest, getSeries } from '../../../economic-dashboard/modules/utils';
+import { getLatest, getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'LaborTab' });
 

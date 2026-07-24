@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 // 跨目录复用中国看板的 MetricCard 组件
 // 注：manufacturing/ 目录下需向上 3 级到达 macro-research/，再进入 economic-dashboard/modules/
-import MetricCard from '../../../economic-dashboard/modules/MetricCard.vue';
+import MetricCard from '../../../_shared/MetricCard.vue';
 import MfgPmiCompareChart from './MfgPmiCompareChart.vue';
 import SvcPmiCompareChart from './SvcPmiCompareChart.vue';
 import AllPmiChart from './AllPmiChart.vue';

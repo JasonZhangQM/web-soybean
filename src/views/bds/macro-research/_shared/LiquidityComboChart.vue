@@ -2,15 +2,14 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries, calcM1M2 } from './utils';
 
-defineOptions({ name: 'ExternalTradeChart' });
+defineOptions({ name: 'LiquidityComboChart' });
 
-/**
- * 进出口走势与贸易顺差合并图（双轴）：
- * 左轴折线(%)：出口红色、进口绿色
- * 右轴柱状(亿美元)：贸易顺差紫色，y=0 参考线区分正负
- */
+/** 流动性综合视图（双轴）
+ *  左轴（亿元）：社融增量柱状 红 + 新增贷款柱状 蓝（重叠半透明）
+ *  右轴（%）：M1 同比折线 蓝、M2 同比折线 红、M1-M2 剪刀差紫色面积 + y=0 参考线
+ *  xAxis 为所有系列日期并集 */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
 }
@@ -18,19 +17,22 @@ const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
 
-/** 构建 ECharts 配置：三系列日期并集对齐，缺失日期填 null */
+/** 构建 ECharts 配置：双轴混合图，日期并集对齐 */
 function buildOption() {
   const dark = themeStore.darkMode;
   const axisColor = dark ? '#9ca3af' : '#6b7280';
   const splitColor = dark ? '#374151' : '#d1d5db';
 
-  const expUsd = getSeries(props.dataMap, 'CN_EXPORT_YOY_USD');
-  const impUsd = getSeries(props.dataMap, 'CN_IMPORT_YOY_USD');
-  const tradeBalance = getSeries(props.dataMap, 'CN_TRADE_BALANCE_USD');
+  const sf = getSeries(props.dataMap, 'CN_SOCIAL_FINANCING_CUM');
+  const loan = getSeries(props.dataMap, 'CN_NEW_RMB_LOANS_CUM');
+  const m1 = getSeries(props.dataMap, 'CN_M1_YOY');
+  const m2 = getSeries(props.dataMap, 'CN_M2_YOY');
+  // 剪刀差按 M1、M2 日期计算后对齐到 dates
+  const scissors = calcM1M2(m1, m2);
 
-  // 收集三系列所有日期并去重排序
+  // 收集所有系列日期并去重排序
   const dateSet = new Set<string>();
-  [expUsd, impUsd, tradeBalance].forEach(arr => arr.forEach(x => dateSet.add(x.report_date)));
+  [...sf, ...loan, ...m1, ...m2].forEach(x => dateSet.add(x.report_date));
   const dates = Array.from(dateSet).sort();
 
   // 按日期构建值映射，缺失日期为 null
@@ -38,11 +40,14 @@ function buildOption() {
     const map = new Map(arr.map(x => [x.report_date, Number(x.value)]));
     return dates.map(d => (map.has(d) ? (map.get(d) as number) : null));
   };
+  // 剪刀差按其自身日期对齐到 dates
+  const scissorsMap = new Map(scissors.map(x => [x.report_date, x.value]));
+  const scissorsValues = dates.map(d => (scissorsMap.has(d) ? (scissorsMap.get(d) as number) : null));
 
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
-    legend: { bottom: 0, data: ['出口-美元计', '进口-美元计', '贸易顺差'] },
-    grid: { left: 50, right: 60, top: 30, bottom: 40 },
+    legend: { bottom: 0, data: ['社融增量', '新增贷款', 'M1 同比', 'M2 同比', 'M1-M2 剪刀差'] },
+    grid: { left: 60, right: 60, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
       data: dates,
@@ -50,20 +55,18 @@ function buildOption() {
       axisLine: { lineStyle: { color: axisColor } },
       splitLine: { show: false }
     },
-    // 左轴：进出口同比(%)
     yAxis: [
       {
         type: 'value',
-        name: '%',
+        name: '亿元',
         nameTextStyle: { color: axisColor },
         axisLabel: { color: axisColor },
         axisLine: { lineStyle: { color: axisColor } },
         splitLine: { lineStyle: { color: splitColor } }
       },
-      // 右轴：贸易顺差(亿美元)
       {
         type: 'value',
-        name: '亿美元',
+        name: '%',
         nameTextStyle: { color: axisColor },
         axisLabel: { color: axisColor },
         axisLine: { lineStyle: { color: axisColor } },
@@ -71,44 +74,60 @@ function buildOption() {
       }
     ],
     series: [
+      // 左轴：社融增量柱状（红半透明）
       {
-        name: '出口-美元计',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 5,
+        name: '社融增量',
+        type: 'bar',
         yAxisIndex: 0,
-        // 出口红色实线
-        lineStyle: { color: '#dc2626', width: 2 },
-        itemStyle: { color: '#dc2626' },
-        connectNulls: true,
-        data: buildValues(expUsd)
+        itemStyle: { color: 'rgba(220, 38, 38, 0.65)' },
+        barGap: '-100%',
+        data: buildValues(sf)
       },
+      // 左轴：新增贷款柱状（蓝半透明，与社融重叠）
       {
-        name: '进口-美元计',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 5,
+        name: '新增贷款',
+        type: 'bar',
         yAxisIndex: 0,
-        // 进口绿色实线
-        lineStyle: { color: '#16a34a', width: 2 },
-        itemStyle: { color: '#16a34a' },
-        connectNulls: true,
-        data: buildValues(impUsd)
+        itemStyle: { color: 'rgba(37, 99, 235, 0.65)' },
+        barGap: '-100%',
+        data: buildValues(loan)
       },
+      // 右轴：M1 同比折线（蓝）
       {
-        name: '贸易顺差',
+        name: 'M1 同比',
         type: 'line',
         yAxisIndex: 1,
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        // 紫色虚线
-        lineStyle: { color: '#7c3aed', width: 2, type: 'dashed' },
-        itemStyle: { color: '#7c3aed' },
+        lineStyle: { color: '#2563eb', width: 2 },
+        itemStyle: { color: '#2563eb' },
         connectNulls: true,
-        // 浅紫渐变填充
+        data: buildValues(m1)
+      },
+      // 右轴：M2 同比折线（红）
+      {
+        name: 'M2 同比',
+        type: 'line',
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#dc2626', width: 2 },
+        itemStyle: { color: '#dc2626' },
+        connectNulls: true,
+        data: buildValues(m2)
+      },
+      // 右轴：M1-M2 剪刀差（紫 + 面积 + y=0 参考线）
+      {
+        name: 'M1-M2 剪刀差',
+        type: 'line',
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#7c3aed', width: 3 },
+        itemStyle: { color: '#7c3aed' },
         areaStyle: {
           color: {
             type: 'linear',
@@ -122,14 +141,14 @@ function buildOption() {
             ]
           }
         },
-        // y=0 参考线：虚线灰色，区分顺差正负
+        // y=0 参考线：虚线灰色，用于区分资金活化 / 沉淀
         markLine: {
           silent: true,
           symbol: 'none',
           lineStyle: { type: 'dashed', color: '#9ca3af' },
           data: [{ yAxis: 0 }]
         },
-        data: buildValues(tradeBalance)
+        data: scissorsValues
       }
     ]
   } as any;
@@ -142,5 +161,5 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div ref="domRef" class="h-320px w-full"></div>
 </template>

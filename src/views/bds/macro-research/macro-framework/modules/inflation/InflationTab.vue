@@ -4,7 +4,7 @@ import FwMetricCard from '../FwMetricCard.vue';
 import InfoCard from '../InfoCard.vue';
 import InflationChart from './InflationChart.vue';
 import UnemploymentChart from '../labor/UnemploymentChart.vue';
-import { getLatest, getSeries, calcScissors } from '../../../economic-dashboard/modules/utils';
+import { getLatest, getSeries, calcScissors } from '../../../_shared/utils';
 
 defineOptions({ name: 'InflationTab' });
 

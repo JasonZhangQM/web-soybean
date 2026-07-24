@@ -2,14 +2,14 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries, calcScissors } from '../utils';
+import { getSeries } from './utils';
 
-defineOptions({ name: 'EarningsScissorsChart' });
+defineOptions({ name: 'ExternalTradeChart' });
 
 /**
- * GDP / CPI / PPI 同比与 CPI-PPI 剪刀差合并图：
- * GDP 同比（柱状，按值动态着色），CPI 同比（红折线），PPI 同比（蓝折线），
- * CPI-PPI 剪刀差（紫色面积 + y=0 参考线），共用单轴(%)
+ * 进出口走势与贸易顺差合并图（双轴）：
+ * 左轴折线(%)：出口红色、进口绿色
+ * 右轴柱状(亿美元)：贸易顺差紫色，y=0 参考线区分正负
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -18,20 +18,19 @@ const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
 
-/** 构建 ECharts 配置：四系列共用日期并集，缺失日期填 null */
+/** 构建 ECharts 配置：三系列日期并集对齐，缺失日期填 null */
 function buildOption() {
   const dark = themeStore.darkMode;
   const axisColor = dark ? '#9ca3af' : '#6b7280';
   const splitColor = dark ? '#374151' : '#d1d5db';
 
-  const gdpArr = getSeries(props.dataMap, 'CN_GDP_YOY');
-  const cpiArr = getSeries(props.dataMap, 'CN_CPI_YOY');
-  const ppiArr = getSeries(props.dataMap, 'CN_PPI_YOY');
-  const scissors = calcScissors(cpiArr, ppiArr);
+  const expUsd = getSeries(props.dataMap, 'CN_EXPORT_YOY_USD');
+  const impUsd = getSeries(props.dataMap, 'CN_IMPORT_YOY_USD');
+  const tradeBalance = getSeries(props.dataMap, 'CN_TRADE_BALANCE_USD');
 
-  // 收集所有日期并去重排序
+  // 收集三系列所有日期并去重排序
   const dateSet = new Set<string>();
-  [...gdpArr, ...cpiArr, ...ppiArr].forEach(x => dateSet.add(x.report_date));
+  [expUsd, impUsd, tradeBalance].forEach(arr => arr.forEach(x => dateSet.add(x.report_date)));
   const dates = Array.from(dateSet).sort();
 
   // 按日期构建值映射，缺失日期为 null
@@ -39,14 +38,11 @@ function buildOption() {
     const map = new Map(arr.map(x => [x.report_date, Number(x.value)]));
     return dates.map(d => (map.has(d) ? (map.get(d) as number) : null));
   };
-  // 剪刀差按其自身日期对齐到 dates
-  const scissorsMap = new Map(scissors.map(x => [x.report_date, x.value]));
-  const scissorsValues = dates.map(d => (scissorsMap.has(d) ? (scissorsMap.get(d) as number) : null));
 
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
-    legend: { bottom: 0, data: ['GDP 同比', 'CPI 同比', 'PPI 同比', 'CPI-PPI 剪刀差'] },
-    grid: { left: 50, right: 30, top: 30, bottom: 40 },
+    legend: { bottom: 0, data: ['出口同比(美元)', '进口同比(美元)', '贸易顺差'] },
+    grid: { left: 50, right: 60, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
       data: dates,
@@ -54,54 +50,65 @@ function buildOption() {
       axisLine: { lineStyle: { color: axisColor } },
       splitLine: { show: false }
     },
-    // 四系列共用单轴(%)
-    yAxis: {
-      type: 'value',
-      name: '%',
-      nameTextStyle: { color: axisColor },
-      axisLabel: { color: axisColor },
-      axisLine: { lineStyle: { color: axisColor } },
-      splitLine: { lineStyle: { color: splitColor } }
-    },
-    series: [
-      // GDP 同比：柱状图，固定琥珀色（与图例一致）
+    // 左轴：进出口同比(%)
+    yAxis: [
       {
-        name: 'GDP 同比',
-        type: 'bar',
-        barMaxWidth: 24,
-        itemStyle: { color: '#d97706' },
-        data: buildValues(gdpArr)
+        type: 'value',
+        name: '%',
+        nameTextStyle: { color: axisColor },
+        axisLabel: { color: axisColor },
+        axisLine: { lineStyle: { color: axisColor } },
+        splitLine: { lineStyle: { color: splitColor } }
       },
+      // 右轴：贸易顺差(亿美元)
       {
-        name: 'CPI 同比',
+        type: 'value',
+        name: '亿美元',
+        nameTextStyle: { color: axisColor },
+        axisLabel: { color: axisColor },
+        axisLine: { lineStyle: { color: axisColor } },
+        splitLine: { show: false }
+      }
+    ],
+    series: [
+      {
+        name: '出口同比(美元)',
         type: 'line',
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
+        yAxisIndex: 0,
+        // 出口红色实线
         lineStyle: { color: '#dc2626', width: 2 },
         itemStyle: { color: '#dc2626' },
         connectNulls: true,
-        data: buildValues(cpiArr)
+        data: buildValues(expUsd)
       },
       {
-        name: 'PPI 同比',
+        name: '进口同比(美元)',
         type: 'line',
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#2563eb', width: 2 },
-        itemStyle: { color: '#2563eb' },
+        yAxisIndex: 0,
+        // 进口绿色实线
+        lineStyle: { color: '#16a34a', width: 2 },
+        itemStyle: { color: '#16a34a' },
         connectNulls: true,
-        data: buildValues(ppiArr)
+        data: buildValues(impUsd)
       },
       {
-        name: 'CPI-PPI 剪刀差',
+        name: '贸易顺差',
         type: 'line',
+        yAxisIndex: 1,
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#7c3aed', width: 3 },
+        // 紫色虚线
+        lineStyle: { color: '#7c3aed', width: 2, type: 'dashed' },
         itemStyle: { color: '#7c3aed' },
+        connectNulls: true,
+        // 浅紫渐变填充
         areaStyle: {
           color: {
             type: 'linear',
@@ -115,14 +122,14 @@ function buildOption() {
             ]
           }
         },
-        // y=0 参考线：虚线灰色，用于区分上下游受益
+        // y=0 参考线：虚线灰色，区分顺差正负
         markLine: {
           silent: true,
           symbol: 'none',
           lineStyle: { type: 'dashed', color: '#9ca3af' },
           data: [{ yAxis: 0 }]
         },
-        data: scissorsValues
+        data: buildValues(tradeBalance)
       }
     ]
   } as any;

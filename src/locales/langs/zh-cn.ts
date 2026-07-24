@@ -243,7 +243,6 @@ const local: App.I18n.Schema = {
     'bds_macro-research': '宏观研究',
     'bds_macro-research_economic-report': '美国看板',
     'bds_macro-research_economic-indicators': '经济数据',
-    'bds_macro-research_economic-dashboard': '中国看板',
     'bds_macro-research_us-economic-dashboard': '美股看板',
     'bds_macro-research_daily-indicators': '日频数据',
     'bds_macro-research_gold-reserves': '黄金储备',

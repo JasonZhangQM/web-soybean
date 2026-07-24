@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 employment/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
-import MetricCard from '../../../economic-dashboard/modules/MetricCard.vue';
+import MetricCard from '../../../_shared/MetricCard.vue';
 import NfpAdpChart from './NfpAdpChart.vue';
 import UnemploymentChart from './UnemploymentChart.vue';
 import JoltsChart from './JoltsChart.vue';

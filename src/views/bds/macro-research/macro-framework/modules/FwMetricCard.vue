@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import MetricCard from '../../economic-dashboard/modules/MetricCard.vue';
+import MetricCard from '../../_shared/MetricCard.vue';
 
 defineOptions({ name: 'FwMetricCard' });
 
