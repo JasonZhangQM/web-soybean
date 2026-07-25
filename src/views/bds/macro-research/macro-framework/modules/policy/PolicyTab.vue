@@ -21,6 +21,18 @@ const m1Latest = computed(() => getLatest(props.dataMap, 'CN_M1_YOY'));
 const m2Latest = computed(() => getLatest(props.dataMap, 'CN_M2_YOY'));
 const lpr1yLatest = computed(() => getLatest(props.dataMap, 'CN_LPR_1Y'));
 
+// 社融增量、新增贷款：原值单位为亿元，÷10000 转万亿，保留整数
+const sfValue = computed(() => {
+  const latest = sfLatest.value;
+  if (!latest) return null;
+  return Math.round(Number(latest.value) / 10000);
+});
+const loanValue = computed(() => {
+  const latest = loanLatest.value;
+  if (!latest) return null;
+  return Math.round(Number(latest.value) / 10000);
+});
+
 // ===== M1-M2 剪刀差（M1 同比 - M2 同比）=====
 const m1m2Series = computed(() => {
   const m1 = getSeries(props.dataMap, 'CN_M1_YOY');
@@ -51,18 +63,18 @@ const m1m2Color = computed(() => {
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
       <NGi span="12 s:12 m:8 l:4">
         <FwMetricCard
-          label="社融增量"
-          :value="sfLatest?.value ?? null"
-          unit="亿元"
+          label="社融增量累计"
+          :value="sfValue"
+          unit="万亿"
           :date="sfLatest?.report_date"
           timing="先行"
         />
       </NGi>
       <NGi span="12 s:12 m:8 l:4">
         <FwMetricCard
-          label="新增贷款"
-          :value="loanLatest?.value ?? null"
-          unit="亿元"
+          label="新增贷款累计"
+          :value="loanValue"
+          unit="万亿"
           :date="loanLatest?.report_date"
           timing="先行"
         />

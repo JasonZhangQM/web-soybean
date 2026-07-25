@@ -46,7 +46,7 @@ function buildOption() {
 
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
-    legend: { bottom: 0, data: ['社融增量', '新增贷款', 'M1 同比', 'M2 同比', 'M1-M2 剪刀差'] },
+    legend: { bottom: 0, data: ['社融增量累计', '新增贷款累计', 'M1 同比', 'M2 同比', 'M1-M2 剪刀差'] },
     grid: { left: 60, right: 60, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
@@ -74,18 +74,18 @@ function buildOption() {
       }
     ],
     series: [
-      // 左轴：社融增量柱状（红半透明）
+      // 左轴：社融增量累计柱状（红半透明）
       {
-        name: '社融增量',
+        name: '社融增量累计',
         type: 'bar',
         yAxisIndex: 0,
         itemStyle: { color: 'rgba(220, 38, 38, 0.65)' },
         barGap: '-100%',
         data: buildValues(sf)
       },
-      // 左轴：新增贷款柱状（蓝半透明，与社融重叠）
+      // 左轴：新增贷款累计柱状（蓝半透明，与社融重叠）
       {
-        name: '新增贷款',
+        name: '新增贷款累计',
         type: 'bar',
         yAxisIndex: 0,
         itemStyle: { color: 'rgba(37, 99, 235, 0.65)' },
