@@ -40,8 +40,10 @@ const DASHBOARD_INDICATORS = {
   financial: [],
   // 维度四：政策环境（6个指标，含LPR 1Y/5Y）
   policy: ['CN_SOCIAL_FINANCING_CUM', 'CN_NEW_RMB_LOANS_CUM', 'CN_M1_YOY', 'CN_M2_YOY', 'CN_LPR_1Y', 'CN_LPR_5Y'],
-  // 维度六：外部环境（4个指标，贸易顺差从数据库直接获取）
-  external: ['CN_EXPORT_YOY_USD', 'CN_IMPORT_YOY_USD', 'CN_TRADE_BALANCE_USD', 'CN_FX_RESERVES']
+  // 维度六：外部环境（5个指标，贸易顺差从数据库直接获取）
+  external: ['CN_EXPORT_YOY_USD', 'CN_IMPORT_YOY_USD', 'CN_TRADE_BALANCE_USD', 'CN_FX_RESERVES', 'CN_SWIFT_CNY_SHARE'],
+  // 维度七：预期与信心（4个中国PMI指标：官方实线、财新虚线）
+  expectation: ['CN_OFFICIAL_MFG_PMI', 'CN_OFFICIAL_NON_MFG_PMI', 'CN_RATINGDOG_MFG_PMI', 'CN_RATINGDOG_SVC_PMI']
 } as const;
 
 // 扁平化全部所需指标代码（去重）
@@ -206,7 +208,7 @@ onMounted(() => {
           <ExternalTab v-if="shouldRender('external')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
         <NTabPane name="expectation" tab="预期与信心">
-          <ExpectationPanel v-if="shouldRender('expectation')" />
+          <ExpectationPanel v-if="shouldRender('expectation')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
       </NTabs>
     </NCard>

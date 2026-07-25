@@ -7,8 +7,8 @@ import { getSeries } from '../../../_shared/utils';
 defineOptions({ name: 'GrowthGrowthChart' });
 
 /**
- * 经济增长走势图：GDP 同比 / 工业增加值同比 / 城镇固投同比 / 社零同比
- * 四条折线共用单轴(%)，按 report_date 取并集对齐，缺失日期填 null
+ * 经济增长走势图：GDP 同比 / 工业增加值同比 / 城镇固投同比 / 社零同比 / 出口同比(美元)
+ * 五条折线共用单轴(%)，按 report_date 取并集对齐，缺失日期填 null
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -44,7 +44,7 @@ function buildOption() {
 
   return {
     tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
-    legend: { bottom: 0, data: ['GDP 同比', '工业增加值同比', '城镇固投同比', '社零同比'] },
+    legend: { bottom: 0, data: ['GDP 同比', '工业增加值同比', '城镇固投同比', '社零同比', '出口同比(美元)'] },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
@@ -53,7 +53,7 @@ function buildOption() {
       axisLine: { lineStyle: { color: axisColor } },
       splitLine: { show: false }
     },
-    // 四系列共用单轴(%)
+    // 五系列共用单轴(%)
     yAxis: {
       type: 'value',
       name: '%',
