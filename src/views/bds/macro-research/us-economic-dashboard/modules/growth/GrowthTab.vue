@@ -5,6 +5,11 @@ import MetricCard from '../../../_shared/MetricCard.vue';
 import GdpChart from './GdpChart.vue';
 import BudgetChart from './BudgetChart.vue';
 import GrowthComboChart from './GrowthComboChart.vue';
+// 跨目录复用原 consumption/ 目录下的图表组件（合并 Tab 后保留图表，避免重复实现）
+import RetailChart from '../consumption/RetailChart.vue';
+import DurableChart from '../consumption/DurableChart.vue';
+import HouseChart from '../consumption/HouseChart.vue';
+import ConsumptionComboChart from '../consumption/ConsumptionComboChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'GrowthTab' });
@@ -20,8 +25,14 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // ===== 各指标最新值（用于顶部卡片） =====
+// 原 GDP与增长 Tab
 const gdpLatest = computed(() => getLatest(props.dataMap, 'GDP_QOQ'));
 const budgetLatest = computed(() => getLatest(props.dataMap, 'GOVERNMENT_BUDGET'));
+// 原 消费与投资 Tab
+const retailLatest = computed(() => getLatest(props.dataMap, 'RETAIL_SALES_MOM'));
+const durableLatest = computed(() => getLatest(props.dataMap, 'DURABLE_GOODS_ORDERS_MOM'));
+const houseLatest = computed(() => getLatest(props.dataMap, 'EXISTING_HOME_SALES'));
+const confidenceLatest = computed(() => getLatest(props.dataMap, 'CONSUMER_CONFIDENCE'));
 
 // GDP 描述与颜色：≥2.0 高于潜在增速（红），<2.0 低于潜在增速（绿）
 // value 类型定义为 number，但后端 nullable + Pydantic v2 可能序列化为 null/''/string，用 any 兜底
@@ -47,13 +58,19 @@ const budgetMeta = computed<{ desc?: string; color?: string }>(() => {
     ? { desc: '赤字', color: '#16a34a' }
     : { desc: '盈余', color: '#dc2626' };
 });
+
+// 环比变化：value - value_prev（value_prev 为 null 时返回 null，MetricCard 自动隐藏）
+function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
+  if (!item || item.value_prev == null) return null;
+  return Number(item.value) - Number(item.value_prev);
+}
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：2 张指标卡片 -->
+    <!-- 第 1 行：6 张指标卡片（大屏单行排列，l 断点 6*4=24） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:8 l:6">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="GDP季环比"
           :value="gdpLatest?.value ?? null"
@@ -63,7 +80,7 @@ const budgetMeta = computed<{ desc?: string; color?: string }>(() => {
           :color="gdpMeta.color"
         />
       </NGi>
-      <NGi span="12 s:12 m:8 l:6">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="政府预算"
           :value="budgetLatest?.value ?? null"
@@ -73,10 +90,46 @@ const budgetMeta = computed<{ desc?: string; color?: string }>(() => {
           :color="budgetMeta.color"
         />
       </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="零售销售环比"
+          :value="retailLatest?.value ?? null"
+          unit="%"
+          :date="retailLatest?.report_date"
+          :change="computeChange(retailLatest)"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="耐用品订单环比"
+          :value="durableLatest?.value ?? null"
+          unit="%"
+          :date="durableLatest?.report_date"
+          :change="computeChange(durableLatest)"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="成屋销售年化"
+          :value="houseLatest?.value ?? null"
+          unit="万户"
+          :date="houseLatest?.report_date"
+          :change="computeChange(houseLatest)"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="消费者信心指数"
+          :value="confidenceLatest?.value ?? null"
+          :date="confidenceLatest?.report_date"
+          :change="computeChange(confidenceLatest)"
+        />
+      </NGi>
     </NGrid>
 
-    <!-- 第 2 行：前 2 张图表各占 1 列，第 3 张综合图表跨双列 -->
+    <!-- 第 2 行起：7 张图表，前 5 张半宽，后 2 张综合图跨双列 -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+      <!-- GDP 季环比 -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">GDP 季环比</div>
@@ -84,6 +137,7 @@ const budgetMeta = computed<{ desc?: string; color?: string }>(() => {
           <GdpChart :data-map="dataMap" />
         </div>
       </NGi>
+      <!-- 政府预算 -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">政府预算</div>
@@ -91,11 +145,44 @@ const budgetMeta = computed<{ desc?: string; color?: string }>(() => {
           <BudgetChart :data-map="dataMap" />
         </div>
       </NGi>
+      <!-- 零售销售环比 -->
+      <NGi span="24 s:24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">零售销售环比</div>
+          <div class="chart-box__sub">环比增速正负分别着色：≥0 蓝色，&lt;0 红色</div>
+          <RetailChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 耐用品订单环比 -->
+      <NGi span="24 s:24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">耐用品订单环比</div>
+          <div class="chart-box__sub">环比增速正负分别着色：≥0 紫色，&lt;0 红色</div>
+          <DurableChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 成屋销售年化 -->
+      <NGi span="24 s:24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">成屋销售年化</div>
+          <div class="chart-box__sub">折线 + 填充，反映房地产市场需求强度</div>
+          <HouseChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- GDP vs 零售销售 vs 耐用品订单（综合图，跨双列） -->
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">GDP vs 零售销售 vs 耐用品订单</div>
           <div class="chart-box__sub">GDP 季环比柱状（左轴）+ 零售销售/耐用品订单标准化折线（右轴 0-100），以 GDP 日期为主轴对齐</div>
           <GrowthComboChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 需求侧指标综合（综合图，跨双列） -->
+      <NGi span="24">
+        <div class="chart-box">
+          <div class="chart-box__title">需求侧指标综合</div>
+          <div class="chart-box__sub">零售销售、耐用品订单、成屋销售三大指标标准化后对比（0-100）</div>
+          <ConsumptionComboChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

@@ -3,12 +3,8 @@ import { computed } from 'vue';
 // 跨目录复用中国看板的 MetricCard 组件
 // 注：inflation/ 目录下需向上 3 级到达 macro-research/，再进入 economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
-import CpiChart from './CpiChart.vue';
-import PceYoYChart from './PceYoYChart.vue';
-import PceMomChart from './PceMomChart.vue';
-import PpiChart from './PpiChart.vue';
+import InflationYoYChart from './InflationYoYChart.vue';
 import MichiganChart from './MichiganChart.vue';
-import InflationAllChart from './InflationAllChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'InflationTab' });
@@ -25,13 +21,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 // ===== 各指标最新值（用于顶部卡片） =====
 const cpiYoYLatest = computed(() => getLatest(props.dataMap, 'CPI_YOY'));
-const cpiMomLatest = computed(() => getLatest(props.dataMap, 'CPI_MOM'));
 const coreCpiYoYLatest = computed(() => getLatest(props.dataMap, 'CORE_CPI_YOY'));
-const coreCpiMomLatest = computed(() => getLatest(props.dataMap, 'CORE_CPI_MOM'));
 const pceYoYLatest = computed(() => getLatest(props.dataMap, 'PCE_YOY'));
-const pceMomLatest = computed(() => getLatest(props.dataMap, 'PCE_MOM'));
 const corePceYoYLatest = computed(() => getLatest(props.dataMap, 'CORE_PCE_YOY'));
-const corePceMomLatest = computed(() => getLatest(props.dataMap, 'CORE_PCE_MOM'));
 const ppiYoYLatest = computed(() => getLatest(props.dataMap, 'PPI_YOY'));
 const michigan5YLatest = computed(() => getLatest(props.dataMap, 'MICHIGAN_5Y_INFLATION_EXPECTATION'));
 const michigan1YLatest = computed(() => getLatest(props.dataMap, 'MICHIGAN_1Y_INFLATION_EXPECTATION'));
@@ -52,9 +44,9 @@ const corePceDesc = computed(() => {
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：11 张指标卡片 -->
+    <!-- 第 1 行：7 张指标卡片（大屏单行排列，l 断点 7*3=21 ≤ 24） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="CPI同比"
           :value="cpiYoYLatest?.value ?? null"
@@ -63,16 +55,7 @@ const corePceDesc = computed(() => {
           :change="computeChange(cpiYoYLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
-        <MetricCard
-          label="CPI月率"
-          :value="cpiMomLatest?.value ?? null"
-          unit="%"
-          :date="cpiMomLatest?.report_date"
-          :change="computeChange(cpiMomLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="核心CPI同比"
           :value="coreCpiYoYLatest?.value ?? null"
@@ -81,16 +64,7 @@ const corePceDesc = computed(() => {
           :change="computeChange(coreCpiYoYLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
-        <MetricCard
-          label="核心CPI月率"
-          :value="coreCpiMomLatest?.value ?? null"
-          unit="%"
-          :date="coreCpiMomLatest?.report_date"
-          :change="computeChange(coreCpiMomLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="PCE同比"
           :value="pceYoYLatest?.value ?? null"
@@ -99,16 +73,7 @@ const corePceDesc = computed(() => {
           :change="computeChange(pceYoYLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
-        <MetricCard
-          label="PCE环比"
-          :value="pceMomLatest?.value ?? null"
-          unit="%"
-          :date="pceMomLatest?.report_date"
-          :change="computeChange(pceMomLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="核心PCE同比"
           :value="corePceYoYLatest?.value ?? null"
@@ -118,16 +83,7 @@ const corePceDesc = computed(() => {
           :desc="corePceDesc"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
-        <MetricCard
-          label="核心PCE环比"
-          :value="corePceMomLatest?.value ?? null"
-          unit="%"
-          :date="corePceMomLatest?.report_date"
-          :change="computeChange(corePceMomLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="PPI同比"
           :value="ppiYoYLatest?.value ?? null"
@@ -136,7 +92,7 @@ const corePceDesc = computed(() => {
           :change="computeChange(ppiYoYLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="密歇根5年通胀预期"
           :value="michigan5YLatest?.value ?? null"
@@ -145,7 +101,7 @@ const corePceDesc = computed(() => {
           :change="computeChange(michigan5YLatest)"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="24 s:12 m:8 l:3">
         <MetricCard
           label="密歇根1年通胀预期"
           :value="michigan1YLatest?.value ?? null"
@@ -156,48 +112,20 @@ const corePceDesc = computed(() => {
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：6 张图表（2 列布局，最后一张跨双列） -->
+    <!-- 第 2 行：2 张图表（2 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">CPI 同比 vs 核心CPI 同比</div>
-          <div class="chart-box__sub">CPI 含食品能源波动，核心 CPI 剔除食品能源更能反映底层通胀趋势</div>
-          <CpiChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">PCE 同比 vs 核心PCE 同比</div>
-          <div class="chart-box__sub">美联储首选通胀指标，2% 为长期政策目标，核心 PCE 剔除食品能源</div>
-          <PceYoYChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">PCE 环比 vs 核心PCE 环比</div>
-          <div class="chart-box__sub">环比反映短期通胀动能，核心 PCE 环比剔除食品能源后的月度变化</div>
-          <PceMomChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">PPI 同比</div>
-          <div class="chart-box__sub">生产者价格指数反映上游工业品出厂价格，是 CPI 的先行传导指标</div>
-          <PpiChart :data-map="dataMap" />
+          <div class="chart-box__title">通胀同比指标对比</div>
+          <div class="chart-box__sub">CPI / 核心 CPI / PCE / 核心 PCE / PPI 同比叠加；2% 为美联储长期通胀目标</div>
+          <InflationYoYChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">密歇根通胀预期（5年 vs 1年）</div>
-          <div class="chart-box__sub">消费者通胀预期调查，5 年预期锚定长期通胀可信度，1 年预期反映短期看法</div>
+          <div class="chart-box__sub">消费者通胀预期调查，5 年预期锚定长期通胀信度，1 年预期反映短期看法</div>
           <MichiganChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24">
-        <div class="chart-box">
-          <div class="chart-box__title">通胀指标全景对比</div>
-          <div class="chart-box__sub">CPI / 核心 CPI / PCE / 核心 PCE / PPI 同比叠加；PCE 环比与核心 PCE 环比乘 12 年化（虚线）</div>
-          <InflationAllChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

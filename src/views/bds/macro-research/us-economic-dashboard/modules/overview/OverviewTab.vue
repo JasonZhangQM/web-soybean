@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-// 跨目录复用中国看板的 OvCard 组件，避免代码重复
-import OvCard from '../../../_shared/OvCard.vue';
+// 跨目录复用 _shared/MetricCard，与其他 6 个 Tab 保持卡片形式一致
+import MetricCard from '../../../_shared/MetricCard.vue';
 import InflationTrendChart from './InflationTrendChart.vue';
 import EmploymentCoreChart from './EmploymentCoreChart.vue';
 import MfgPmiChart from './MfgPmiChart.vue';
@@ -12,7 +12,7 @@ defineOptions({ name: 'OverviewTab' });
 
 /**
  * 美国宏观看板 - 总览 Tab
- * 两行布局：3 张核心指标大卡片（通胀锚/就业健康度/增长动能） + 4 张图表（2×2）
+ * 两行布局：3 张核心指标卡片（通胀锚/就业健康度/增长动能） + 4 张图表（2×2）
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -21,7 +21,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), { loading: false });
 
-// ===== 第 1 行：3 张 OvCard 数据 =====
+// ===== 第 1 行：3 张 MetricCard 数据 =====
 
 // 卡片 1：核心PCE同比（通胀锚）
 const corePceLatest = computed(() => getLatest(props.dataMap, 'CORE_PCE_YOY'));
@@ -51,48 +51,48 @@ const gdpDesc = computed(() => {
   return Number(v) >= 2 ? '高于潜在增速' : '低于潜在增速';
 });
 
-// 格式化日期为 YYYY-MM
-function fmtDate(d?: string | null) {
-  if (!d) return '';
-  return d.slice(0, 7);
+/**
+ * 环比变化：value - value_prev（value_prev 为 null 时返回 null）
+ * 与其他 6 个 Tab 的 computeChange 实现一致
+ */
+function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
+  if (!item || item.value_prev == null) return null;
+  return Number(item.value) - Number(item.value_prev);
 }
 </script>
 
 <template>
   <div class="overview-tab">
     <NSpin :show="loading">
-      <!-- 第 1 行：3 张核心指标大卡片 -->
-      <NGrid cols="24" responsive="screen" item-responsive :x-gap="16" :y-gap="16" class="mb-16px">
-        <NGi span="24 s:12 m:12 l:8">
-          <OvCard
+      <!-- 第 1 行：3 张核心指标卡片（与其他 Tab 统一使用 MetricCard，栅格间距/日期格式/color 均对齐） -->
+      <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
+        <NGi span="24 s:12 m:8 l:8">
+          <MetricCard
             label="核心PCE同比"
-            sub="通胀锚"
             :value="corePceLatest?.value ?? null"
             unit="%"
-            color="#dc2626"
-            :date="fmtDate(corePceLatest?.report_date)"
+            :date="corePceLatest?.report_date"
+            :change="computeChange(corePceLatest)"
             :desc="corePceDesc"
           />
         </NGi>
-        <NGi span="24 s:12 m:12 l:8">
-          <OvCard
+        <NGi span="24 s:12 m:8 l:8">
+          <MetricCard
             label="失业率"
-            sub="就业健康度"
             :value="unempLatest?.value ?? null"
             unit="%"
-            color="#16a34a"
-            :date="fmtDate(unempLatest?.report_date)"
+            :date="unempLatest?.report_date"
+            :change="computeChange(unempLatest)"
             :desc="unempDesc"
           />
         </NGi>
-        <NGi span="24 s:12 m:12 l:8">
-          <OvCard
+        <NGi span="24 s:12 m:8 l:8">
+          <MetricCard
             label="GDP季环比"
-            sub="增长动能"
             :value="gdpLatest?.value ?? null"
             unit="%"
-            color="#2563eb"
-            :date="fmtDate(gdpLatest?.report_date)"
+            :date="gdpLatest?.report_date"
+            :change="computeChange(gdpLatest)"
             :desc="gdpDesc"
           />
         </NGi>

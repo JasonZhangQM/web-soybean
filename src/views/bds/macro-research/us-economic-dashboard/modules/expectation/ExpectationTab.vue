@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-// 跨目录复用中国看板的 MetricCard 组件
-// 注：manufacturing/ 目录下需向上 3 级到达 macro-research/，再进入 economic-dashboard/modules/
+// 跨目录复用中国看板 MetricCard：从 expectation/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
-import MfgPmiCompareChart from './MfgPmiCompareChart.vue';
-import SvcPmiCompareChart from './SvcPmiCompareChart.vue';
-import AllPmiChart from './AllPmiChart.vue';
+// 跨目录复用原 manufacturing/ 目录下的 PMI 对比图表（合并 Tab 后保留图表，避免重复实现）
+import MfgPmiCompareChart from '../manufacturing/MfgPmiCompareChart.vue';
+import SvcPmiCompareChart from '../manufacturing/SvcPmiCompareChart.vue';
+import AllPmiChart from '../manufacturing/AllPmiChart.vue';
+// 跨目录复用原 regional/ 目录下的联储指数图表
+import NyFedChart from '../regional/NyFedChart.vue';
+import RichmondFedChart from '../regional/RichmondFedChart.vue';
+import RegionalComboChart from '../regional/RegionalComboChart.vue';
 import { getLatest } from '../utils';
 
-defineOptions({ name: 'ManufacturingTab' });
+defineOptions({ name: 'ExpectationTab' });
 
-/** 制造业调查 Tab：4 张 PMI 指标卡片 + 3 张对比图 */
+/** 预期 Tab：合并原制造业调查（4 PMI）+ 地区联储（2 联储指数），共 6 张卡片 + 6 张图表 */
 interface Props {
   /** 指标数据 Map（indicator_code -> 升序时序数组） */
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -19,11 +23,15 @@ interface Props {
 }
 const props = withDefaults(defineProps<Props>(), { loading: false });
 
-// ===== 各 PMI 指标最新值（数组已按 report_date 升序，最后一项为最新）=====
+// ===== 各指标最新值（数组已按 report_date 升序，最后一项为最新）=====
+// 原 制造业调查 Tab（4 PMI）
 const ismMfgLatest = computed(() => getLatest(props.dataMap, 'ISM_MFG_PMI'));
 const spMfgLatest = computed(() => getLatest(props.dataMap, 'SP_GLOBAL_MFG_PMI'));
 const ismNonMfgLatest = computed(() => getLatest(props.dataMap, 'ISM_NON_MFG_PMI'));
 const spSvcLatest = computed(() => getLatest(props.dataMap, 'SP_GLOBAL_SVC_PMI'));
+// 原 地区联储 Tab（2 联储指数）
+const nyFedLatest = computed(() => getLatest(props.dataMap, 'NY_FED_MFG_INDEX'));
+const richmondFedLatest = computed(() => getLatest(props.dataMap, 'RICHMOND_FED_MFG_INDEX'));
 
 // 环比变化：value - value_prev（value_prev 为 null 时返回 null）
 function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
@@ -46,17 +54,37 @@ function pmiZone(value: number | string | null | undefined): {
   return num >= 50 ? { desc: '扩张', changeType: 'up' } : { desc: '收缩', changeType: 'down' };
 }
 
+/**
+ * 联储制造业指数区间判定：>=0 扩张（up 红），<0 收缩（down 绿）
+ * 与 PMI 50 荣枯线场景类似，但此处阈值为 0
+ * 命名为 fedZone 以与 pmiZone 区分
+ */
+function fedZone(value: number | string | null | undefined): {
+  desc: string;
+  changeType: 'up' | 'down' | undefined;
+} {
+  if (value == null || value === '') return { desc: '', changeType: undefined };
+  const num = Number(value);
+  if (!Number.isFinite(num)) return { desc: '', changeType: undefined };
+  return num >= 0 ? { desc: '扩张', changeType: 'up' } : { desc: '收缩', changeType: 'down' };
+}
+
+// PMI 卡片区间（阈值 50）
 const ismMfgZone = computed(() => pmiZone(ismMfgLatest.value?.value));
 const spMfgZone = computed(() => pmiZone(spMfgLatest.value?.value));
 const ismNonMfgZone = computed(() => pmiZone(ismNonMfgLatest.value?.value));
 const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
+// 联储卡片区间（阈值 0）
+const nyFedZone = computed(() => fedZone(nyFedLatest.value?.value));
+const richmondFedZone = computed(() => fedZone(richmondFedLatest.value?.value));
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：4 张 PMI 指标卡片 -->
+    <!-- 第 1 行：6 张指标卡片（大屏单行排列，l 断点 6*4=24） -->
+    <!-- 前 4 张为 PMI（阈值 50），后 2 张为联储指数（阈值 0） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="ISM制造业PMI"
           :value="ismMfgLatest?.value ?? null"
@@ -66,7 +94,7 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           :desc="ismMfgZone.desc"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="标普全球制造业PMI"
           :value="spMfgLatest?.value ?? null"
@@ -76,7 +104,7 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           :desc="spMfgZone.desc"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="ISM非制造业PMI"
           :value="ismNonMfgLatest?.value ?? null"
@@ -86,7 +114,7 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           :desc="ismNonMfgZone.desc"
         />
       </NGi>
-      <NGi span="24 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:8 l:4">
         <MetricCard
           label="标普全球服务业PMI"
           :value="spSvcLatest?.value ?? null"
@@ -96,10 +124,31 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           :desc="spSvcZone.desc"
         />
       </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="纽约联储制造业指数"
+          :value="nyFedLatest?.value ?? null"
+          :date="nyFedLatest?.report_date"
+          :change="computeChange(nyFedLatest)"
+          :change-type="nyFedZone.changeType"
+          :desc="nyFedZone.desc"
+        />
+      </NGi>
+      <NGi span="12 s:12 m:8 l:4">
+        <MetricCard
+          label="里士满联储制造业指数"
+          :value="richmondFedLatest?.value ?? null"
+          :date="richmondFedLatest?.report_date"
+          :change="computeChange(richmondFedLatest)"
+          :change-type="richmondFedZone.changeType"
+          :desc="richmondFedZone.desc"
+        />
+      </NGi>
     </NGrid>
 
-    <!-- 第 2 行：3 张图表（2 列布局，最后一张跨双列） -->
+    <!-- 第 2 行起：6 张图表，前 4 张半宽，后 2 张综合图跨双列 -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+      <!-- ISM 制造业 vs 标普全球制造业 PMI -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">ISM 制造业 vs 标普全球制造业 PMI</div>
@@ -107,6 +156,7 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           <MfgPmiCompareChart :data-map="dataMap" />
         </div>
       </NGi>
+      <!-- ISM 非制造业 vs 标普全球服务业 PMI -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">ISM 非制造业 vs 标普全球服务业 PMI</div>
@@ -114,11 +164,36 @@ const spSvcZone = computed(() => pmiZone(spSvcLatest.value?.value));
           <SvcPmiCompareChart :data-map="dataMap" />
         </div>
       </NGi>
+      <!-- 纽约联储制造业指数 -->
+      <NGi span="24 s:24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">纽约联储制造业指数</div>
+          <div class="chart-box__sub">纽约联储月度制造业景气调查，0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
+          <NyFedChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 里士满联储制造业指数 -->
+      <NGi span="24 s:24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">里士满联储制造业指数</div>
+          <div class="chart-box__sub">里士满联储月度制造业景气调查，0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
+          <RichmondFedChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 四大 PMI 全景对比（综合图，跨双列） -->
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">四大 PMI 全景对比</div>
           <div class="chart-box__sub">ISM 制造业 / ISM 非制造业 / 标普全球制造业 / 标普全球服务业 PMI 综合对比，50 荣枯线为分界</div>
           <AllPmiChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <!-- 地区联储 vs ISM 制造业综合对比（综合图，跨双列） -->
+      <NGi span="24">
+        <div class="chart-box">
+          <div class="chart-box__title">地区联储 vs ISM 制造业综合对比</div>
+          <div class="chart-box__sub">三指标 min-max 标准化至 0-100 后对比，以 ISM 制造业 PMI 日期为主轴对齐其他指标，50 中线为参考</div>
+          <RegionalComboChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

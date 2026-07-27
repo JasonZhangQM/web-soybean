@@ -4,11 +4,12 @@ import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
 
-defineOptions({ name: 'InflationPceYoYChart' });
+defineOptions({ name: 'InflationYoYChart' });
 
 /**
- * PCE 同比 vs 核心PCE 同比 双折线
- * PCE 同比（紫）+ 核心 PCE 同比（靛蓝），2% 目标线参考线
+ * 通胀同比指标合并图：CPI / 核心 CPI / PCE / 核心 PCE / PPI 同比五折线
+ * 合并自原 CpiChart + PceYoYChart + PpiChart 三个组件
+ * 保留 PCE 同比的 2% 通胀目标参考线
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -27,20 +28,54 @@ function getThemeColors() {
   };
 }
 
-// 构建 ECharts 配置：PCE 同比 + 核心 PCE 同比双折线，2% 目标线
+// 构建 ECharts 配置：五条同比折线 + 2% 目标线
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
+  const cpiArr = getSeries(props.dataMap, 'CPI_YOY');
+  const coreCpiArr = getSeries(props.dataMap, 'CORE_CPI_YOY');
   const pceArr = getSeries(props.dataMap, 'PCE_YOY');
   const corePceArr = getSeries(props.dataMap, 'CORE_PCE_YOY');
+  const ppiArr = getSeries(props.dataMap, 'PPI_YOY');
 
-  // 以 PCE 同比日期为主轴，按 report_date 对齐核心 PCE
+  // 以 CPI 同比日期为主轴（历史最长），按 report_date 对齐其余四项
+  const coreCpiMap = new Map(coreCpiArr.map(x => [x.report_date, Number(x.value)]));
+  const pceMap = new Map(pceArr.map(x => [x.report_date, Number(x.value)]));
   const corePceMap = new Map(corePceArr.map(x => [x.report_date, Number(x.value)]));
-  const dates = pceArr.map(x => x.report_date.slice(0, 7));
-  const pceValues = pceArr.map(x => Number(x.value));
-  const corePceValues = pceArr.map(x => {
+  const ppiMap = new Map(ppiArr.map(x => [x.report_date, Number(x.value)]));
+
+  const dates = cpiArr.map(x => x.report_date.slice(0, 7));
+  const cpiValues = cpiArr.map(x => Number(x.value));
+  const coreCpiValues = cpiArr.map(x => {
+    const v = coreCpiMap.get(x.report_date);
+    return v == null ? null : v;
+  });
+  const pceValues = cpiArr.map(x => {
+    const v = pceMap.get(x.report_date);
+    return v == null ? null : v;
+  });
+  const corePceValues = cpiArr.map(x => {
     const v = corePceMap.get(x.report_date);
     return v == null ? null : v;
   });
+  const ppiValues = cpiArr.map(x => {
+    const v = ppiMap.get(x.report_date);
+    return v == null ? null : v;
+  });
+
+  // 通用折线样式构造
+  function line(name: string, data: (number | null)[], color: string) {
+    return {
+      name,
+      type: 'line',
+      data,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 5,
+      connectNulls: true,
+      lineStyle: { color, width: 2 },
+      itemStyle: { color }
+    };
+  }
 
   return {
     tooltip: {
@@ -51,7 +86,7 @@ function buildOption() {
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['PCE同比', '核心PCE同比']
+      data: ['CPI同比', '核心CPI同比', 'PCE同比', '核心PCE同比', 'PPI同比']
     },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -69,17 +104,9 @@ function buildOption() {
       splitLine: { lineStyle: { color: rule, type: 'dashed' } }
     },
     series: [
+      // 第一条挂 2% 通胀目标参考线（沿用原 PceYoYChart 设计）
       {
-        name: 'PCE同比',
-        type: 'line',
-        data: pceValues,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 5,
-        connectNulls: true,
-        lineStyle: { color: '#7c3aed', width: 2 },
-        itemStyle: { color: '#7c3aed' },
-        // 2% 通胀目标线（虚线红色）
+        ...line('CPI同比', cpiValues, '#dc2626'),
         markLine: {
           silent: true,
           symbol: 'none',
@@ -87,17 +114,11 @@ function buildOption() {
           data: [{ yAxis: 2, label: { formatter: '2% 目标', color: '#dc2626', fontSize: 10 } }]
         }
       },
-      {
-        name: '核心PCE同比',
-        type: 'line',
-        data: corePceValues,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 5,
-        connectNulls: true,
-        lineStyle: { color: '#6366f1', width: 2 },
-        itemStyle: { color: '#6366f1' }
-      }
+      line('核心CPI同比', coreCpiValues, '#f59e0b'),
+      line('PCE同比', pceValues, '#7c3aed'),
+      line('核心PCE同比', corePceValues, '#6366f1'),
+      // PPI 用青色与核心 CPI 的橙色区分
+      line('PPI同比', ppiValues, '#0891b2')
     ]
   } as any;
 }

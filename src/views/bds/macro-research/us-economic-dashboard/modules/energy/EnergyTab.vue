@@ -32,9 +32,9 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：2 张指标卡片 -->
+    <!-- 第 1 行：2 张指标卡片（大屏单行排列，l 断点 2*12=24） -->
     <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:12 l:12">
         <MetricCard
           label="EIA原油库存变动"
           :value="crudeLatest?.value ?? null"
@@ -43,7 +43,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           :change="computeChange(crudeLatest)"
         />
       </NGi>
-      <NGi span="12 s:12 m:8 l:4">
+      <NGi span="12 s:12 m:12 l:12">
         <MetricCard
           label="EIA汽油库存变动"
           :value="gasolineLatest?.value ?? null"

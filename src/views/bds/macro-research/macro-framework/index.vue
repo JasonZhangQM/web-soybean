@@ -192,19 +192,19 @@ onMounted(() => {
     <!-- 3. 六维周期 Tab -->
     <NCard :bordered="false" class="card-wrapper mb-16px">
       <NTabs v-model:value="activeTab" type="line" animated @update:value="handleTabChange">
-        <NTabPane name="growth" tab="① 增长">
+        <NTabPane name="growth" tab="增长">
           <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="inflation" tab="② 通胀与就业">
+        <NTabPane name="inflation" tab="通胀与就业">
           <InflationTab v-if="shouldRender('inflation')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="financial" tab="③ 金融条件">
+        <NTabPane name="financial" tab="金融条件">
           <FinancialTab v-if="shouldRender('financial')" :loading="loading" />
         </NTabPane>
-        <NTabPane name="policy" tab="④ 政策">
+        <NTabPane name="policy" tab="政策">
           <PolicyTab v-if="shouldRender('policy')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="external" tab="⑤ 外部">
+        <NTabPane name="external" tab="外部">
           <ExternalTab v-if="shouldRender('external')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
         <NTabPane name="expectation" tab="预期与信心">
