@@ -6,7 +6,6 @@ import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { forwardFill } from './modules/utils';
 import { useThemeStore } from '@/store/modules/theme';
 import { useBdsStore } from '@/store/modules/bds';
-import OverviewTab from './modules/overview/OverviewTab.vue';
 import InflationTab from './modules/inflation/InflationTab.vue';
 import EmploymentTab from './modules/employment/EmploymentTab.vue';
 import ExpectationTab from './modules/expectation/ExpectationTab.vue';
@@ -34,8 +33,8 @@ const yieldAllSyncLoading = ref(false);
 // 收益率单指标同步选中的代码（精确匹配）
 const yieldSyncCode = ref<string | null>(null);
 
-// Tab 当前激活项（默认 overview）
-const activeTab = ref('overview');
+// Tab 当前激活项（默认 growth，增长 tab 已移至首位）
+const activeTab = ref('growth');
 
 // 已渲染 Tab 集合：切换 Tab 首次渲染，刷新/同步/日期变更后清空强制重渲染
 const renderedTabs = ref<Set<string>>(new Set());
@@ -215,7 +214,7 @@ onMounted(() => {
   bdsStore.loadDailyIndicatorCodes();
   // 并发拉取经济指标与收益率数据
   Promise.all([fetchAllData(), fetchAllYieldsData()]).then(() => {
-    renderedTabs.value.add('overview');
+    renderedTabs.value.add('growth');
   });
 });
 </script>
@@ -275,8 +274,8 @@ onMounted(() => {
     <!-- Tab 区 -->
     <NCard :bordered="false" class="card-wrapper">
       <NTabs v-model:value="activeTab" type="line" animated @update:value="handleTabChange">
-        <NTabPane name="overview" tab="总览">
-          <OverviewTab v-if="shouldRender('overview')" :data-map="dataMap" :loading="loading" />
+        <NTabPane name="growth" tab="增长">
+          <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
         <NTabPane name="inflation" tab="通胀">
           <InflationTab v-if="shouldRender('inflation')" :data-map="dataMap" :loading="loading" />
@@ -300,9 +299,6 @@ onMounted(() => {
         </NTabPane>
         <NTabPane name="energy" tab="能源">
           <EnergyTab v-if="shouldRender('energy')" :data-map="dataMap" :loading="loading" />
-        </NTabPane>
-        <NTabPane name="growth" tab="增长">
-          <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
       </NTabs>
     </NCard>
