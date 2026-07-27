@@ -7,7 +7,6 @@ import BudgetChart from './BudgetChart.vue';
 import GrowthComboChart from './GrowthComboChart.vue';
 // 需求侧指标图表（原 consumption/ 目录，已归入 growth/）
 import RetailDurableChart from './RetailDurableChart.vue';
-import ConsumptionComboChart from './ConsumptionComboChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'GrowthTab' });
@@ -149,14 +148,6 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           <div class="chart-box__title">零售销售 & 耐用品订单 & 成屋销售</div>
           <div class="chart-box__sub">左轴 %：零售销售蓝（#3b82f6）/ 耐用品订单紫（#7c3aed）；右轴 万户：成屋销售年化青（#14b8a6）</div>
           <RetailDurableChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 需求侧指标综合（综合图，半宽，与上图同一行） -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">需求侧指标综合</div>
-          <div class="chart-box__sub">零售销售、耐用品订单、成屋销售三大指标标准化后对比（0-100）</div>
-          <ConsumptionComboChart :data-map="dataMap" />
         </div>
       </NGi>
       <!-- GDP vs 零售销售 vs 耐用品订单（综合图，跨双列） -->
