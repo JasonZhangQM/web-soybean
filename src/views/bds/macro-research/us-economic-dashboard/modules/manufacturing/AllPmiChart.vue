@@ -97,7 +97,7 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#7c3aed', width: 2 },
+        lineStyle: { color: '#7c3aed', width: 2, type: 'dashed' },
         itemStyle: { color: '#7c3aed' }
       },
       {
@@ -117,7 +117,7 @@ function buildOption() {
         smooth: true,
         symbol: 'circle',
         symbolSize: 5,
-        lineStyle: { color: '#f97316', width: 2 },
+        lineStyle: { color: '#f97316', width: 2, type: 'dashed' },
         itemStyle: { color: '#f97316' }
       }
     ]

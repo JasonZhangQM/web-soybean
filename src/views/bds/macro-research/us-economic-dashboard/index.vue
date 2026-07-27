@@ -284,15 +284,6 @@ onMounted(() => {
         <NTabPane name="employment" tab="就业">
           <EmploymentTab v-if="shouldRender('employment')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
-        <NTabPane name="expectation" tab="预期">
-          <ExpectationTab v-if="shouldRender('expectation')" :data-map="dataMap" :loading="loading" />
-        </NTabPane>
-        <NTabPane name="energy" tab="能源">
-          <EnergyTab v-if="shouldRender('energy')" :data-map="dataMap" :loading="loading" />
-        </NTabPane>
-        <NTabPane name="growth" tab="增长">
-          <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
-        </NTabPane>
         <!-- 金融：合并原 货币政策（政策利率，父注入 EconomicIndicator）+ 美债收益（收益率，父注入 DailyIndicator） -->
         <NTabPane name="financial" tab="金融">
           <FinancialTab
@@ -303,6 +294,15 @@ onMounted(() => {
             :yields-data-map="yieldsDataMap"
             :yields-loading="yieldsLoading"
           />
+        </NTabPane>
+        <NTabPane name="expectation" tab="预期">
+          <ExpectationTab v-if="shouldRender('expectation')" :data-map="dataMap" :loading="loading" />
+        </NTabPane>
+        <NTabPane name="energy" tab="能源">
+          <EnergyTab v-if="shouldRender('energy')" :data-map="dataMap" :loading="loading" />
+        </NTabPane>
+        <NTabPane name="growth" tab="增长">
+          <GrowthTab v-if="shouldRender('growth')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
       </NTabs>
     </NCard>

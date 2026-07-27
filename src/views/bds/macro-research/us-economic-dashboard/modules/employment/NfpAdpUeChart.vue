@@ -2,18 +2,20 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries, alignAsOf } from '../utils';
 
 defineOptions({ name: 'EmploymentNfpAdpUeChart' });
 
 /**
- * 非农 / ADP / 失业率 综合视图（双轴）
+ * 非农 / ADP / 初请失业救济 / 失业率 综合视图（双轴）
  * - 非农就业新增：柱状，左轴（万人），蓝色
  * - ADP 就业变动：柱状，左轴（万人），青色
+ * - 初请失业救济人数：折线，左轴（万人），橙色（周频，as-of join 对齐到非农日期）
  * - 失业率：折线，右轴（%），绿色，附 4.2% 自然率参考线
  *
  * 合并自原 NfpAdpChart（非农 vs ADP 双柱）与 UnemploymentChart（失业率走势）。
- * 日期对齐策略：以 NONFARM_PAYROLL 日期为主轴，ADP/失业率按相同日期匹配，缺失记 null。
+ * 日期对齐策略：以 NONFARM_PAYROLL 日期为主轴，ADP/失业率按相同日期匹配，
+ * 初请为周频与非农月频不重合，用 alignAsOf 取 <= 非农日期的最近一条。
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -32,11 +34,12 @@ function getThemeColors() {
   };
 }
 
-// 构建 ECharts 配置：双轴（左轴柱状非农+ADP，右轴折线失业率）
+// 构建 ECharts 配置：双轴（左轴柱状非农+ADP+初请折线，右轴折线失业率）
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
   const nfpArr = getSeries(props.dataMap, 'NONFARM_PAYROLL');
   const adpArr = getSeries(props.dataMap, 'ADP_EMPLOYMENT_CHANGE');
+  const claimsArr = getSeries(props.dataMap, 'INITIAL_JOBLESS_CLAIMS');
   const ueArr = getSeries(props.dataMap, 'UNEMPLOYMENT_RATE');
 
   // 以非农就业日期为主轴，ADP/失业率按相同日期匹配
@@ -48,6 +51,11 @@ function buildOption() {
     const v = adpMap.get(x.report_date);
     return v == null ? null : v;
   });
+  // 初请为周频，与非农月频日期不重合，用 as-of join 取 <= 非农日期的最近一条
+  const claimsValues = alignAsOf(
+    nfpArr.map(x => x.report_date),
+    claimsArr
+  );
   const ueValues = nfpArr.map(x => {
     const v = ueMap.get(x.report_date);
     return v == null ? null : v;
@@ -66,7 +74,7 @@ function buildOption() {
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['非农就业新增', 'ADP 就业变动', '失业率']
+      data: ['非农就业新增', 'ADP 就业变动', '初请失业救济', '失业率']
     },
     grid: { left: 50, right: 60, top: 30, bottom: 40 },
     xAxis: {
@@ -75,7 +83,7 @@ function buildOption() {
       axisLabel: { color: muted, fontSize: 11 },
       axisLine: { lineStyle: { color: rule } }
     },
-    // 双轴：左轴非农+ADP(万人) + 右轴失业率(%)
+    // 双轴：左轴非农+ADP+初请(万人) + 右轴失业率(%)
     yAxis: [
       {
         type: 'value',
@@ -110,6 +118,18 @@ function buildOption() {
         barMaxWidth: 24,
         itemStyle: { color: '#14b8a680' },
         data: adpValues
+      },
+      {
+        name: '初请失业救济',
+        type: 'line',
+        yAxisIndex: 0,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        lineStyle: { color: '#ea580c', width: 2 },
+        itemStyle: { color: '#ea580c' },
+        connectNulls: true,
+        data: claimsValues
       },
       {
         name: '失业率',

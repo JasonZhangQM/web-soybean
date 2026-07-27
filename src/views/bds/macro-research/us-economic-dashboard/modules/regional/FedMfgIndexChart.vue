@@ -2,15 +2,16 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries, normalize } from '../utils';
+import { getSeries } from '../utils';
 
-defineOptions({ name: 'RegionalComboChart' });
+defineOptions({ name: 'RegionalFedMfgIndexChart' });
 
 /**
- * 地区联储 vs ISM 制造业综合对比（跨双列，高 320px）
- * NY_FED_MFG_INDEX / RICHMOND_FED_MFG_INDEX / ISM_MFG_PMI 三指标
- * 由于量纲不同，每个指标独立 min-max 标准化至 0-100
- * 以 ISM_MFG_PMI 日期为主轴，按 report_date 精确对齐其他两个指标（未匹配为 null）
+ * 纽约联储 & 里士满联储制造业指数（双折线 + 0 荣枯线）
+ * - 纽约联储：青 #0891b2
+ * - 里士满联储：紫 #7c3aed
+ * 两者均无单位（指数），共用左轴，0 为扩张/收缩分界线
+ * 日期对齐：并集（月频，频率一致），缺失记 null
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -29,30 +30,30 @@ function getThemeColors() {
   };
 }
 
-// 构建 ECharts 配置：三折线（标准化后），仅 ISM 含 50 荣枯线
+// 构建 ECharts 配置：双折线 + 0 荣枯线
 function buildOption() {
   const { ink, muted, rule } = getThemeColors();
-  const ismArr = getSeries(props.dataMap, 'ISM_MFG_PMI');
-  const nyArr = getSeries(props.dataMap, 'NY_FED_MFG_INDEX');
-  const richmondArr = getSeries(props.dataMap, 'RICHMOND_FED_MFG_INDEX');
+  // 各指标分别过滤 null，保证数据干净
+  const nyArr = getSeries(props.dataMap, 'NY_FED_MFG_INDEX').filter(x => x.value != null);
+  const richmondArr = getSeries(props.dataMap, 'RICHMOND_FED_MFG_INDEX').filter(x => x.value != null);
 
-  // 每个指标独立 min-max 标准化到 0-100
-  const ismNorm = normalize(ismArr.map(x => Number(x.value)));
-  const nyNorm = normalize(nyArr.map(x => Number(x.value)));
-  const richmondNorm = normalize(richmondArr.map(x => Number(x.value)));
+  // 日期并集（升序）
+  const dateSet = new Set<string>();
+  nyArr.forEach(x => dateSet.add(x.report_date.slice(0, 10)));
+  richmondArr.forEach(x => dateSet.add(x.report_date.slice(0, 10)));
+  const dates = Array.from(dateSet).sort();
 
-  // 以 ISM 日期为主轴，按 report_date 精确对齐其他两个指标
-  const nyMap = new Map(nyArr.map((x, i) => [x.report_date, nyNorm[i]]));
-  const richmondMap = new Map(richmondArr.map((x, i) => [x.report_date, richmondNorm[i]]));
+  // 各指标按日期建 Map，便于 O(1) 查找
+  const nyMap = new Map(nyArr.map(x => [x.report_date.slice(0, 10), Number(x.value)]));
+  const richmondMap = new Map(richmondArr.map(x => [x.report_date.slice(0, 10), Number(x.value)]));
 
-  const dates = ismArr.map(x => x.report_date.slice(0, 7));
-  const ismValues = ismNorm;
-  const nyValues = ismArr.map(x => {
-    const v = nyMap.get(x.report_date);
+  // 对齐主轴：缺失填 null
+  const nyValues = dates.map(d => {
+    const v = nyMap.get(d);
     return v == null ? null : v;
   });
-  const richmondValues = ismArr.map(x => {
-    const v = richmondMap.get(x.report_date);
+  const richmondValues = dates.map(d => {
+    const v = richmondMap.get(d);
     return v == null ? null : v;
   });
 
@@ -65,7 +66,7 @@ function buildOption() {
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
-      data: ['纽约联储制造业指数', '里士满联储制造业指数', 'ISM制造业PMI']
+      data: ['纽约联储制造业指数', '里士满联储制造业指数']
     },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -89,7 +90,15 @@ function buildOption() {
         symbol: 'circle',
         symbolSize: 5,
         lineStyle: { color: '#0891b2', width: 2 },
-        itemStyle: { color: '#0891b2' }
+        itemStyle: { color: '#0891b2' },
+        connectNulls: true,
+        // 0 荣枯线（虚线灰色）：仅在第一个系列声明，避免重复
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: { color: '#9ca3af', type: 'dashed', width: 1 },
+          data: [{ yAxis: 0, label: { formatter: '荣枯线 0', color: muted, fontSize: 10 } }]
+        }
       },
       {
         name: '里士满联储制造业指数',
@@ -99,24 +108,8 @@ function buildOption() {
         symbol: 'circle',
         symbolSize: 5,
         lineStyle: { color: '#7c3aed', width: 2 },
-        itemStyle: { color: '#7c3aed' }
-      },
-      {
-        name: 'ISM制造业PMI',
-        type: 'line',
-        data: ismValues,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 5,
-        lineStyle: { color: '#2563eb', width: 2 },
-        itemStyle: { color: '#2563eb' },
-        // 仅 ISM 制造业含 50 荣枯线（虚线灰色），挂在此 series 上
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          lineStyle: { color: '#9ca3af', type: 'dashed', width: 1 },
-          data: [{ yAxis: 50, label: { formatter: '荣枯线 50', color: muted, fontSize: 10 } }]
-        }
+        itemStyle: { color: '#7c3aed' },
+        connectNulls: true
       }
     ]
   } as any;

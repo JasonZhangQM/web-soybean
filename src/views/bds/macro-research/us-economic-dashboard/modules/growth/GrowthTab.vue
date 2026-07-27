@@ -6,9 +6,7 @@ import GdpChart from './GdpChart.vue';
 import BudgetChart from './BudgetChart.vue';
 import GrowthComboChart from './GrowthComboChart.vue';
 // 跨目录复用原 consumption/ 目录下的图表组件（合并 Tab 后保留图表，避免重复实现）
-import RetailChart from '../consumption/RetailChart.vue';
-import DurableChart from '../consumption/DurableChart.vue';
-import HouseChart from '../consumption/HouseChart.vue';
+import RetailDurableChart from '../consumption/RetailDurableChart.vue';
 import ConsumptionComboChart from '../consumption/ConsumptionComboChart.vue';
 import { getLatest } from '../utils';
 
@@ -145,28 +143,20 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           <BudgetChart :data-map="dataMap" />
         </div>
       </NGi>
-      <!-- 零售销售环比 -->
+      <!-- 零售销售 & 耐用品订单 & 成屋销售（合并图，三折线双轴，半宽） -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">零售销售环比</div>
-          <div class="chart-box__sub">环比增速正负分别着色：≥0 蓝色，&lt;0 红色</div>
-          <RetailChart :data-map="dataMap" />
+          <div class="chart-box__title">零售销售 & 耐用品订单 & 成屋销售</div>
+          <div class="chart-box__sub">左轴 %：零售销售蓝（#3b82f6）/ 耐用品订单紫（#7c3aed）；右轴 万户：成屋销售年化青（#14b8a6）</div>
+          <RetailDurableChart :data-map="dataMap" />
         </div>
       </NGi>
-      <!-- 耐用品订单环比 -->
+      <!-- 需求侧指标综合（综合图，半宽，与上图同一行） -->
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">耐用品订单环比</div>
-          <div class="chart-box__sub">环比增速正负分别着色：≥0 紫色，&lt;0 红色</div>
-          <DurableChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 成屋销售年化 -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">成屋销售年化</div>
-          <div class="chart-box__sub">折线 + 填充，反映房地产市场需求强度</div>
-          <HouseChart :data-map="dataMap" />
+          <div class="chart-box__title">需求侧指标综合</div>
+          <div class="chart-box__sub">零售销售、耐用品订单、成屋销售三大指标标准化后对比（0-100）</div>
+          <ConsumptionComboChart :data-map="dataMap" />
         </div>
       </NGi>
       <!-- GDP vs 零售销售 vs 耐用品订单（综合图，跨双列） -->
@@ -175,14 +165,6 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
           <div class="chart-box__title">GDP vs 零售销售 vs 耐用品订单</div>
           <div class="chart-box__sub">GDP 季环比柱状（左轴）+ 零售销售/耐用品订单标准化折线（右轴 0-100），以 GDP 日期为主轴对齐</div>
           <GrowthComboChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 需求侧指标综合（综合图，跨双列） -->
-      <NGi span="24">
-        <div class="chart-box">
-          <div class="chart-box__title">需求侧指标综合</div>
-          <div class="chart-box__sub">零售销售、耐用品订单、成屋销售三大指标标准化后对比（0-100）</div>
-          <ConsumptionComboChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

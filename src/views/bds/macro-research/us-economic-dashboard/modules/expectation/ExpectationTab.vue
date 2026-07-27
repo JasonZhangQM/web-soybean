@@ -3,13 +3,9 @@ import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 expectation/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
 // 跨目录复用原 manufacturing/ 目录下的 PMI 对比图表（合并 Tab 后保留图表，避免重复实现）
-import MfgPmiCompareChart from '../manufacturing/MfgPmiCompareChart.vue';
-import SvcPmiCompareChart from '../manufacturing/SvcPmiCompareChart.vue';
 import AllPmiChart from '../manufacturing/AllPmiChart.vue';
 // 跨目录复用原 regional/ 目录下的联储指数图表
-import NyFedChart from '../regional/NyFedChart.vue';
-import RichmondFedChart from '../regional/RichmondFedChart.vue';
-import RegionalComboChart from '../regional/RegionalComboChart.vue';
+import FedMfgIndexChart from '../regional/FedMfgIndexChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'ExpectationTab' });
@@ -146,54 +142,22 @@ const richmondFedZone = computed(() => fedZone(richmondFedLatest.value?.value));
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行起：6 张图表，前 4 张半宽，后 2 张综合图跨双列 -->
+    <!-- 第 2 行起：2 张图表，半宽置于同一行 -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <!-- ISM 制造业 vs 标普全球制造业 PMI -->
+      <!-- 四大 PMI 全景对比（综合图，半宽） -->
       <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">ISM 制造业 vs 标普全球制造业 PMI</div>
-          <div class="chart-box__sub">美国本土 ISM 与标普全球（原 IHS Markit）制造业 PMI 对比，PMI &gt; 50 扩张，&lt; 50 收缩</div>
-          <MfgPmiCompareChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- ISM 非制造业 vs 标普全球服务业 PMI -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">ISM 非制造业 vs 标普全球服务业 PMI</div>
-          <div class="chart-box__sub">美国服务业景气度对比，ISM 非制造业涵盖服务业及建筑业，标普全球服务业 PMI 聚焦服务业</div>
-          <SvcPmiCompareChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 纽约联储制造业指数 -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">纽约联储制造业指数</div>
-          <div class="chart-box__sub">纽约联储月度制造业景气调查，0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
-          <NyFedChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 里士满联储制造业指数 -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">里士满联储制造业指数</div>
-          <div class="chart-box__sub">里士满联储月度制造业景气调查，0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
-          <RichmondFedChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 四大 PMI 全景对比（综合图，跨双列） -->
-      <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">四大 PMI 全景对比</div>
           <div class="chart-box__sub">ISM 制造业 / ISM 非制造业 / 标普全球制造业 / 标普全球服务业 PMI 综合对比，50 荣枯线为分界</div>
           <AllPmiChart :data-map="dataMap" />
         </div>
       </NGi>
-      <!-- 地区联储 vs ISM 制造业综合对比（综合图，跨双列） -->
-      <NGi span="24">
+      <!-- 纽约联储 & 里士满联储制造业指数（合并图，双折线 + 0 荣枯线，半宽） -->
+      <NGi span="24 s:24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">地区联储 vs ISM 制造业综合对比</div>
-          <div class="chart-box__sub">三指标 min-max 标准化至 0-100 后对比，以 ISM 制造业 PMI 日期为主轴对齐其他指标，50 中线为参考</div>
-          <RegionalComboChart :data-map="dataMap" />
+          <div class="chart-box__title">纽约联储 & 里士满联储制造业指数</div>
+          <div class="chart-box__sub">双折线对比：纽约联储青（#0891b2）、里士满联储紫（#7c3aed），0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
+          <FedMfgIndexChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>
