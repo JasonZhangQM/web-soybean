@@ -2,10 +2,10 @@
 import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 expectation/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
-// 跨目录复用原 manufacturing/ 目录下的 PMI 对比图表（合并 Tab 后保留图表，避免重复实现）
-import AllPmiChart from '../manufacturing/AllPmiChart.vue';
-// 跨目录复用原 regional/ 目录下的联储指数图表
-import FedMfgIndexChart from '../regional/FedMfgIndexChart.vue';
+// PMI 全景对比图（原 manufacturing/ 目录，已归入 expectation/）
+import AllPmiChart from './AllPmiChart.vue';
+// 联储制造业指数图（原 regional/ 目录，已归入 expectation/）
+import FedMfgIndexChart from './FedMfgIndexChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'ExpectationTab' });

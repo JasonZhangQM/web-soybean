@@ -2,15 +2,15 @@
 import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 financial/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
-// 跨目录复用原 policy/ 目录下的政策利率图表（合并 Tab 后保留图表，避免重复实现）
-import RateVsPceChart from '../policy/RateVsPceChart.vue';
-// 跨目录复用原 yields/ 目录下的收益率图表
-import YieldCompareChart from '../yields/YieldCompareChart.vue';
+// 政策利率 vs 核心 PCE 图（原 policy/ 目录，已归入 financial/）
+import RateVsPceChart from './RateVsPceChart.vue';
+// 收益率综合图（原 yields/ 目录，已归入 financial/）
+import YieldCompareChart from './YieldCompareChart.vue';
 // 注意：两个 utils.ts 都导出 getLatest，但操作类型不同
 // - ../utils 操作 EconomicIndicator（政策利率，父注入 dataMap）
-// - ../yields/utils 操作 DailyIndicator（收益率，组件内 yieldsDataMap）
+// - ./utils 操作 DailyIndicator（收益率，组件内 yieldsDataMap）
 import { getLatest as getLatestEconomic } from '../utils';
-import { getLatest as getLatestDaily } from '../yields/utils';
+import { getLatest as getLatestDaily } from './utils';
 
 defineOptions({ name: 'FinancialTab' });
 

@@ -5,9 +5,9 @@ import MetricCard from '../../../_shared/MetricCard.vue';
 import GdpChart from './GdpChart.vue';
 import BudgetChart from './BudgetChart.vue';
 import GrowthComboChart from './GrowthComboChart.vue';
-// 跨目录复用原 consumption/ 目录下的图表组件（合并 Tab 后保留图表，避免重复实现）
-import RetailDurableChart from '../consumption/RetailDurableChart.vue';
-import ConsumptionComboChart from '../consumption/ConsumptionComboChart.vue';
+// 需求侧指标图表（原 consumption/ 目录，已归入 growth/）
+import RetailDurableChart from './RetailDurableChart.vue';
+import ConsumptionComboChart from './ConsumptionComboChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'GrowthTab' });
