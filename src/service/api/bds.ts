@@ -334,7 +334,7 @@ export function syncAllGoldReserves() {
 /** 获取美债收益率指标代码列表（用于下拉选项，数据源为后端 Config.YIELD_INDICATORS 字典） */
 export function fetchDailyIndicatorCodes() {
   return request<Api.Bds.DailyIndicatorCode[]>({
-    url: '/api/v1/bds/yield-indicator-codes',
+    url: '/api/v1/bds/daily-indicator-codes',
     method: 'get'
   });
 }
@@ -342,7 +342,7 @@ export function fetchDailyIndicatorCodes() {
 /** 查询美债收益率指标分页列表（indicator_code 多选 IN + 日期范围，按 report_date desc 排序） */
 export function fetchDailyIndicators(params: Api.Bds.DailyIndicatorQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.DailyIndicator>>({
-    url: '/api/v1/bds/yield-indicators',
+    url: '/api/v1/bds/daily-indicators',
     method: 'get',
     params
   });
@@ -351,7 +351,7 @@ export function fetchDailyIndicators(params: Api.Bds.DailyIndicatorQueryParams) 
 /** 同步单个美债收益率指标（按指标代码精确匹配，调用 FRED API series/observations） */
 export function syncDailyIndicator(indicator_code: string) {
   return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/yield-indicator',
+    url: '/api/v1/bds/sync/daily-indicator',
     method: 'post',
     params: { indicator_code }
   });
@@ -360,7 +360,7 @@ export function syncDailyIndicator(indicator_code: string) {
 /** 全量同步所有美债收益率指标（4 指标 ×15s 上限，单独设置 60 秒超时） */
 export function syncAllDailyIndicators() {
   return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/yield-indicators-all',
+    url: '/api/v1/bds/sync/daily-indicators-all',
     method: 'post',
     timeout: 60 * 1000
   });
