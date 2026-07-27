@@ -140,3 +140,37 @@ export function alignByDate(
     return { date, stock: result };
   });
 }
+
+/**
+ * As-of join：将目标时序按主轴日期对齐，取 report_date <= 主轴日期的最近一条 value
+ * 用于不同频率指标的日期对齐（如日频/per_fomc 利率 vs 月频 PCE）。
+ * 主轴日期需升序；目标时序内部空值建议先 forwardFill 再传入。
+ * 返回与 mainDates 等长的数值数组，无命中或命中项 value 为空时为 null。
+ */
+export function alignAsOf(
+  mainDates: string[],
+  targetArr: Api.Bds.EconomicIndicator[]
+): (number | null)[] {
+  if (!targetArr.length) return mainDates.map(() => null);
+  // 防御性升序排序（调用方通常已排序，复制避免污染原数组）
+  const sorted = [...targetArr].sort((a, b) => a.report_date.localeCompare(b.report_date));
+  const values: (number | null)[] = [];
+  // 双指针：主轴日期升序，cursor 单调递增，总体 O(n + m)
+  let cursor = 0;
+  for (const d of mainDates) {
+    // 推进 cursor：只要下一条 report_date 仍 <= d 就前进
+    while (cursor + 1 < sorted.length && sorted[cursor + 1].report_date <= d) {
+      cursor++;
+    }
+    const hit = sorted[cursor];
+    if (hit && hit.report_date <= d) {
+      // value 运行时可能为 null/''/number/string，统一转 number
+      const v: any = hit.value;
+      values.push(v == null || v === '' ? null : Number(v));
+    } else {
+      values.push(null);
+    }
+  }
+  return values;
+}
+

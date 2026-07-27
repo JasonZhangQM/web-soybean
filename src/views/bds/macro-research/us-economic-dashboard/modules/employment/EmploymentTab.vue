@@ -2,10 +2,8 @@
 import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 employment/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
-import NfpAdpChart from './NfpAdpChart.vue';
-import UnemploymentChart from './UnemploymentChart.vue';
+import NfpAdpUeChart from './NfpAdpUeChart.vue';
 import JoltsChart from './JoltsChart.vue';
-import EmploymentComboChart from './EmploymentComboChart.vue';
 import { getLatest } from '../utils';
 
 defineOptions({ name: 'EmploymentTab' });
@@ -93,20 +91,13 @@ const ueDesc = computed(() => {
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行：4 张图表（2 列布局） -->
+    <!-- 第 2 行：2 张图表（2 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
-          <div class="chart-box__title">非农就业 vs ADP 就业</div>
-          <div class="chart-box__sub">非农就业（BLS）与 ADP（私营部门）双柱对比，验证就业市场趋势一致性</div>
-          <NfpAdpChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">失业率走势</div>
-          <div class="chart-box__sub">U-3 失业率时序，4.2% 为长期自然率参考线</div>
-          <UnemploymentChart :data-map="dataMap" />
+          <div class="chart-box__title">非农 / ADP / 失业率</div>
+          <div class="chart-box__sub">非农与 ADP 双柱对比（左轴万人）+ 失业率折线（右轴 %），4.2% 为自然率参考线</div>
+          <NfpAdpUeChart :data-map="dataMap" />
         </div>
       </NGi>
       <NGi span="24 s:24 m:12">
@@ -114,13 +105,6 @@ const ueDesc = computed(() => {
           <div class="chart-box__title">JOLTS 职位空缺</div>
           <div class="chart-box__sub">职位空缺数反映劳动力市场需求强度，与失业率负相关</div>
           <JoltsChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">就业市场综合视图</div>
-          <div class="chart-box__sub">失业率（左轴折线）+ 非农就业新增（右轴柱状），双视角观察就业市场</div>
-          <EmploymentComboChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>

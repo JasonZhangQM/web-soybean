@@ -2,7 +2,7 @@
 import { watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from '../utils';
+import { getSeries, alignAsOf } from '../utils';
 
 defineOptions({ name: 'RateVsPceChart' });
 
@@ -11,7 +11,9 @@ defineOptions({ name: 'RateVsPceChart' });
  * 左轴：利率上限（红） + 利率下限（蓝）双折线
  * 右轴：核心 PCE 同比（绿）折线
  *
- * 数据对齐：以利率下限日期为主轴，按 report_date 精确匹配利率上限与核心 PCE
+ * 数据对齐：
+ * - 利率上下限同为 per_fomc 频率，按 report_date 精确匹配
+ * - 核心 PCE 为 monthly 频率，与利率频率不同，用 alignAsOf 取 <= 利率日期的最近一条
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -37,19 +39,19 @@ function buildOption() {
   const upperArr = getSeries(props.dataMap, 'FED_FUNDS_RATE_UPPER');
   const pceArr = getSeries(props.dataMap, 'CORE_PCE_YOY');
 
-  // 以利率下限日期为主轴，按 report_date 精确匹配利率上限与核心 PCE
+  // 利率上下限同为 per_fomc 频率，按 report_date 精确匹配
   const upperMap = new Map(upperArr.map(x => [x.report_date, Number(x.value)]));
-  const pceMap = new Map(pceArr.map(x => [x.report_date, Number(x.value)]));
   const dates = lowerArr.map(x => x.report_date.slice(0, 10));
   const lowerValues = lowerArr.map(x => Number(x.value));
   const upperValues = lowerArr.map(x => {
     const v = upperMap.get(x.report_date);
     return v == null ? null : v;
   });
-  const pceValues = lowerArr.map(x => {
-    const v = pceMap.get(x.report_date);
-    return v == null ? null : v;
-  });
+  // 核心 PCE 为 monthly 频率，与利率频率不同，用 as-of join 取 <= 利率日期的最近一条
+  const pceValues = alignAsOf(
+    lowerArr.map(x => x.report_date),
+    pceArr
+  );
 
   return {
     tooltip: {

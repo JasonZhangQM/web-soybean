@@ -3,13 +3,9 @@ import { computed } from 'vue';
 // 跨目录复用中国看板 MetricCard：从 financial/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
 import MetricCard from '../../../_shared/MetricCard.vue';
 // 跨目录复用原 policy/ 目录下的政策利率图表（合并 Tab 后保留图表，避免重复实现）
-import FedRateRangeChart from '../policy/FedRateRangeChart.vue';
 import RateVsPceChart from '../policy/RateVsPceChart.vue';
 // 跨目录复用原 yields/ 目录下的收益率图表
 import YieldCompareChart from '../yields/YieldCompareChart.vue';
-import SpreadChart from '../yields/SpreadChart.vue';
-import YieldComboChart from '../yields/YieldComboChart.vue';
-import YieldTipsChart from '../yields/YieldTipsChart.vue';
 // 注意：两个 utils.ts 都导出 getLatest，但操作类型不同
 // - ../utils 操作 EconomicIndicator（政策利率，父注入 dataMap）
 // - ../yields/utils 操作 DailyIndicator（收益率，组件内 yieldsDataMap）
@@ -158,54 +154,22 @@ const spreadStatus = computed(() => {
         </NGi>
       </NGrid>
 
-      <!-- 第 2 行起：6 张图表，政策利率类用 dataMap，收益率类用 yieldsDataMap -->
+      <!-- 第 2 行：2 张图表，政策利率类用 dataMap，收益率类用 yieldsDataMap -->
       <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-        <!-- 联邦基金利率区间（跨双列，数据来自父注入 EconomicIndicator dataMap） -->
-        <NGi span="24">
-          <div class="chart-box">
-            <div class="chart-box__title">联邦基金利率区间</div>
-            <div class="chart-box__sub">FOMC 利率决策上限（红）与下限（蓝），上下限之间区间填充，反映政策利率走廊</div>
-            <FedRateRangeChart :data-map="dataMap" />
-          </div>
-        </NGi>
-        <!-- 利率 vs 核心 PCE（跨双列，数据来自父注入 EconomicIndicator dataMap） -->
-        <NGi span="24">
+        <!-- 利率 vs 核心 PCE（半宽，数据来自父注入 EconomicIndicator dataMap） -->
+        <NGi span="24 s:24 m:12">
           <div class="chart-box">
             <div class="chart-box__title">利率 vs 核心 PCE</div>
             <div class="chart-box__sub">左轴利率上下限（红/蓝）+ 右轴核心 PCE 同比（绿），观察政策利率与核心通胀的关系</div>
             <RateVsPceChart :data-map="dataMap" />
           </div>
         </NGi>
-        <!-- 2年期 vs 10年期美债收益率（半宽，数据来自组件内 DailyIndicator yieldsDataMap） -->
+        <!-- 2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差（半宽，合并自原 YieldCompareChart + SpreadChart + YieldTipsChart） -->
         <NGi span="24 s:24 m:12">
           <div class="chart-box">
-            <div class="chart-box__title">2年期 vs 10年期美债收益率</div>
-            <div class="chart-box__sub">2Y（蓝）与 10Y（红）日频收益率双折线对比，以 10Y 日期为主轴对齐 2Y</div>
+            <div class="chart-box__title">2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差</div>
+            <div class="chart-box__sub">左轴 2Y（蓝）/ 10Y（红）/ TIPS（橙）收益率实线 + 右轴 10Y-2Y 利差虚线（紫）带填充，含 0 倒挂线；10Y 与 TIPS 差距=盈亏平衡通胀率</div>
             <YieldCompareChart :data-map="yieldsDataMap" />
-          </div>
-        </NGi>
-        <!-- 10Y-2Y 利差（半宽，数据来自组件内 DailyIndicator yieldsDataMap） -->
-        <NGi span="24 s:24 m:12">
-          <div class="chart-box">
-            <div class="chart-box__title">10Y-2Y 利差</div>
-            <div class="chart-box__sub">10Y-2Y 利差柱状图，正值蓝柱、负值红柱，含 0 倒挂线（虚线灰色）</div>
-            <SpreadChart :data-map="yieldsDataMap" />
-          </div>
-        </NGi>
-        <!-- 2Y + 10Y 收益率 vs 10Y-2Y 利差（跨双列，数据来自组件内 DailyIndicator yieldsDataMap） -->
-        <NGi span="24">
-          <div class="chart-box">
-            <div class="chart-box__title">2Y + 10Y 收益率 vs 10Y-2Y 利差</div>
-            <div class="chart-box__sub">双轴综合视图：左轴 2Y/10Y 收益率折线，右轴 10Y-2Y 利差柱状（按正负着色）</div>
-            <YieldComboChart :data-map="yieldsDataMap" />
-          </div>
-        </NGi>
-        <!-- 10年期名义收益率 vs 10年期TIPS（跨双列，数据来自组件内 DailyIndicator yieldsDataMap） -->
-        <NGi span="24">
-          <div class="chart-box">
-            <div class="chart-box__title">10年期名义收益率 vs 10年期TIPS</div>
-            <div class="chart-box__sub">双折线对比：名义蓝（#2563eb）、TIPS 橙（#ea580c）；两线差距 = 盈亏平衡通胀率，可观察市场对未来 10 年平均通胀预期</div>
-            <YieldTipsChart :data-map="yieldsDataMap" />
           </div>
         </NGi>
       </NGrid>
