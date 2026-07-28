@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'InflationMichiganChart' });
 
@@ -26,6 +28,14 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：1 年/5 年通胀预期，单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'MICHIGAN_5Y_INFLATION_EXPECTATION', name: '5年通胀预期', color: '#3b82f6', unit: '%' },
+    { code: 'MICHIGAN_1Y_INFLATION_EXPECTATION', name: '1年通胀预期', color: '#f97316', unit: '%' }
+  ])
+);
 
 // 构建 ECharts 配置：5 年 + 1 年通胀预期双折线
 function buildOption() {
@@ -103,5 +113,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-260px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-260px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'EnergyComboChart' });
 
@@ -26,6 +28,14 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'EIA_CRUDE_OIL_INVENTORY_CHANGE', name: '原油库存变动', color: '#3b82f6', unit: '万桶' },
+    { code: 'EIA_GASOLINE_INVENTORY_CHANGE', name: '汽油库存变动', color: '#f97316', unit: '万桶' }
+  ])
+);
 
 // 构建 ECharts 配置：双柱状图，以原油日期为主轴按 report_date 对齐汽油
 function buildOption() {
@@ -94,5 +104,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-320px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

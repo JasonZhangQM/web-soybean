@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries, calcScissors } from '../../../_shared/utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'InflationInflationChart' });
 
@@ -17,6 +19,27 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：CPI / PPI 从 dataMap 取，剪刀差从 calcScissors 计算结果取
+const latestRows = computed(() => {
+  const rows = buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_CPI_YOY', name: 'CPI同比', color: '#dc2626', unit: '%' },
+    { code: 'CN_PPI_YOY', name: 'PPI同比', color: '#2563eb', unit: '%' }
+  ]);
+  // 剪刀差最新值：从计算结果取最后一条非 null
+  const scissors = calcScissors(
+    getSeries(props.dataMap, 'CN_CPI_YOY'),
+    getSeries(props.dataMap, 'CN_PPI_YOY')
+  ).filter(x => x.value != null);
+  const latestScissors = scissors.length > 0 ? scissors[scissors.length - 1] : null;
+  rows.push({
+    name: 'CPI-PPI剪刀差',
+    color: '#ea580c',
+    value: latestScissors ? Number(latestScissors.value).toFixed(2) + ' %' : '--',
+    date: latestScissors ? latestScissors.report_date.slice(0, 10) : '--'
+  });
+  return rows;
+});
 
 /** 构建 ECharts 配置：三系列共用日期并集，缺失日期填 null */
 function buildOption() {
@@ -134,5 +157,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-300px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

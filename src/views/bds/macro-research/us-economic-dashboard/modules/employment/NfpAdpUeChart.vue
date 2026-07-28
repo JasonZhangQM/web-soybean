@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries, alignAsOf } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'EmploymentNfpAdpUeChart' });
 
@@ -33,6 +35,16 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：非农/ADP/初请单位万人，失业率单位 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'NONFARM_PAYROLL', name: '非农就业新增', color: '#3b82f6', unit: '万人' },
+    { code: 'ADP_EMPLOYMENT_CHANGE', name: 'ADP 就业变动', color: '#14b8a6', unit: '万人' },
+    { code: 'INITIAL_JOBLESS_CLAIMS', name: '初请失业救济', color: '#ea580c', unit: '万人' },
+    { code: 'UNEMPLOYMENT_RATE', name: '失业率', color: '#16a34a', unit: '%' }
+  ])
+);
 
 // 构建 ECharts 配置：双轴（左轴柱状非农+ADP+初请折线，右轴折线失业率）
 function buildOption() {
@@ -162,5 +174,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-260px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-260px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

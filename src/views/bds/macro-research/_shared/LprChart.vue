@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from './utils';
+import LatestTable from './LatestTable.vue';
+import { buildLatestRows } from './latest-utils';
 
 defineOptions({ name: 'LiquidityLprChart' });
 
@@ -13,6 +15,14 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：1Y/5Y LPR，单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_LPR_1Y', name: '1Y LPR', color: '#dc2626', unit: '%' },
+    { code: 'CN_LPR_5Y', name: '5Y LPR', color: '#2563eb', unit: '%' }
+  ])
+);
 
 /** 构建 ECharts 配置：对齐两系列日期并集，阶梯式折线 */
 function buildOption() {
@@ -94,5 +104,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-320px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

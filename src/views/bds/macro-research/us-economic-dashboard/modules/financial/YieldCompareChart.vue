@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from './utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'YieldsCompareChart' });
 
@@ -33,6 +35,16 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：收益率/利差单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.DailyIndicator>(props.dataMap, [
+    { code: 'YIELD_2Y', name: '2年期收益率', color: '#2563eb', unit: '%' },
+    { code: 'YIELD_10Y', name: '10年期收益率', color: '#dc2626', unit: '%' },
+    { code: 'YIELD_TIPS_10Y', name: '10年期TIPS', color: '#ea580c', unit: '%' },
+    { code: 'YIELD_SPREAD_10Y2Y', name: '10Y-2Y利差', color: '#a855f7', unit: '%' }
+  ])
+);
 
 // 构建 ECharts 配置：三折线（左轴）+ 利差虚线带填充（右轴）
 function buildOption() {
@@ -171,5 +183,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-320px w-full"></div>
+    <LatestTable :rows="latestRows" :left="66" />
+  </div>
 </template>

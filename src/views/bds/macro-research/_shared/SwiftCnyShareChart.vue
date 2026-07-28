@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
+import LatestTable from './LatestTable.vue';
+import { buildLatestRowFromArray } from './latest-utils';
 
 defineOptions({ name: 'ExternalSwiftCnyShareChart' });
 
@@ -12,6 +14,11 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：单系列，props 为 data 数组
+const latestRows = computed(() =>
+  buildLatestRowFromArray(props.data, 'Swift人民币占比', '#2563eb', '%')
+);
 
 /** 构建 ECharts 配置 */
 function buildOption() {
@@ -63,5 +70,8 @@ watch(() => props.data, () => updateOptions(() => buildOption()), { deep: true }
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-300px w-full"></div>
+    <LatestTable :rows="latestRows" :left="66" />
+  </div>
 </template>

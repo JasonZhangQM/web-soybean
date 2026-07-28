@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'InflationYoYChart' });
 
@@ -27,6 +29,17 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：5 个同比指标，单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CPI_YOY', name: 'CPI同比', color: '#dc2626', unit: '%' },
+    { code: 'CORE_CPI_YOY', name: '核心CPI同比', color: '#f59e0b', unit: '%' },
+    { code: 'PCE_YOY', name: 'PCE同比', color: '#7c3aed', unit: '%' },
+    { code: 'CORE_PCE_YOY', name: '核心PCE同比', color: '#6366f1', unit: '%' },
+    { code: 'PPI_YOY', name: 'PPI同比', color: '#0891b2', unit: '%' }
+  ])
+);
 
 // 构建 ECharts 配置：五条同比折线 + 2% 目标线
 function buildOption() {
@@ -131,5 +144,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-260px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-260px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'ManufacturingAllPmiChart' });
 
@@ -10,6 +12,7 @@ defineOptions({ name: 'ManufacturingAllPmiChart' });
  * 四大 PMI 全景对比
  * ISM 制造业 / ISM 非制造业 / 标普全球制造业 / 标普全球服务业，4 折线 + 50 荣枯线
  * 以 ISM_MFG_PMI 日期为主轴，其他系列按 report_date 对齐（缺失填 null）
+ * 左上角叠加半透明数据表格，展示各指标最新值
  */
 interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
@@ -27,6 +30,16 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：复用通用工具函数批量构造
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'ISM_MFG_PMI', name: 'ISM制造业PMI', color: '#2563eb' },
+    { code: 'ISM_NON_MFG_PMI', name: 'ISM非制造业PMI', color: '#7c3aed' },
+    { code: 'SP_GLOBAL_MFG_PMI', name: '标普全球制造业PMI', color: '#14b8a6' },
+    { code: 'SP_GLOBAL_SVC_PMI', name: '标普全球服务业PMI', color: '#f97316' }
+  ])
+);
 
 // 构建 ECharts 配置：4 条折线叠加，50 荣枯线参考线
 function buildOption() {
@@ -59,6 +72,7 @@ function buildOption() {
       textStyle: { color: ink, fontSize: 11 },
       data: ['ISM制造业PMI', 'ISM非制造业PMI', '标普全球制造业PMI', '标普全球服务业PMI']
     },
+    // 顶部预留空间给浮动表格
     grid: { left: 50, right: 50, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
@@ -133,5 +147,10 @@ watch(() => themeStore.darkMode, () => {
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <!-- 图表本体 -->
+    <div ref="domRef" class="h-320px w-full"></div>
+    <!-- 左上方半透明数据表格：展示各 PMI 指标最新值 -->
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

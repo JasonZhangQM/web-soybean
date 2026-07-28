@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries, alignAsOf } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'RateVsPceChart' });
 
@@ -31,6 +33,15 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：利率与 PCE 单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'FED_FUNDS_RATE_UPPER', name: '利率上限', color: '#dc2626', unit: '%' },
+    { code: 'FED_FUNDS_RATE', name: '利率下限', color: '#2563eb', unit: '%' },
+    { code: 'CORE_PCE_YOY', name: '核心PCE同比', color: '#16a34a', unit: '%' }
+  ])
+);
 
 // 构建 ECharts 配置：利率上下限（左轴）+ 核心 PCE 同比（右轴）
 function buildOption() {
@@ -143,5 +154,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-320px w-full"></div>
+    <LatestTable :rows="latestRows" :left="66" />
+  </div>
 </template>

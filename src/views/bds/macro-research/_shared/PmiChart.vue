@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from './utils';
+import LatestTable from './LatestTable.vue';
+import { buildLatestRows } from './latest-utils';
 
 defineOptions({ name: 'ExpectationPmiChart' });
 
@@ -16,6 +18,16 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：4 个 PMI 指标，无单位
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_OFFICIAL_MFG_PMI', name: '官方制造业PMI', color: '#dc2626' },
+    { code: 'CN_OFFICIAL_NON_MFG_PMI', name: '官方非制造业PMI', color: '#7c3aed' },
+    { code: 'CN_RATINGDOG_MFG_PMI', name: '财新制造业PMI', color: '#2563eb' },
+    { code: 'CN_RATINGDOG_SVC_PMI', name: '财新服务业PMI', color: '#16a34a' }
+  ])
+);
 
 /** 构建 ECharts 配置：四系列共用日期并集，缺失日期填 null */
 function buildOption() {
@@ -129,5 +141,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-300px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from './utils';
+import LatestTable from './LatestTable.vue';
+import { buildLatestRows } from './latest-utils';
 
 defineOptions({ name: 'ExternalTradeChart' });
 
@@ -17,6 +19,15 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：出口/进口单位 %，贸易顺差单位 亿美元
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_EXPORT_YOY_USD', name: '出口同比(美元)', color: '#dc2626', unit: '%' },
+    { code: 'CN_IMPORT_YOY_USD', name: '进口同比(美元)', color: '#16a34a', unit: '%' },
+    { code: 'CN_TRADE_BALANCE_USD', name: '贸易顺差', color: '#7c3aed', unit: '亿美元' }
+  ])
+);
 
 /** 构建 ECharts 配置：三系列日期并集对齐，缺失日期填 null */
 function buildOption() {
@@ -142,5 +153,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-300px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

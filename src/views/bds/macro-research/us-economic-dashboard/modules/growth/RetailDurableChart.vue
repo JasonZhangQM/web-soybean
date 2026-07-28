@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'ConsumptionRetailDurableChart' });
 
@@ -30,6 +32,15 @@ function getThemeColors() {
     rule: dark ? '#374151' : '#d1d5db'
   };
 }
+
+// 最新值表格行：零售/耐用品单位 %，成屋销售单位 万户
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'RETAIL_SALES_MOM', name: '零售销售环比', color: '#3b82f6', unit: '%' },
+    { code: 'DURABLE_GOODS_ORDERS_MOM', name: '耐用品订单环比', color: '#7c3aed', unit: '%' },
+    { code: 'EXISTING_HOME_SALES', name: '成屋销售年化', color: '#14b8a6', unit: '万户' }
+  ])
+);
 
 // 构建 ECharts 配置：零售销售 & 耐用品订单环比（左轴 %）+ 成屋销售年化（右轴 万户）
 function buildOption() {
@@ -165,5 +176,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-260px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-260px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>

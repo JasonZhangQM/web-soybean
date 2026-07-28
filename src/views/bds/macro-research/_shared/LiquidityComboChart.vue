@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries, calcM1M2 } from './utils';
+import LatestTable from './LatestTable.vue';
+import { buildLatestRows } from './latest-utils';
 
 defineOptions({ name: 'LiquidityComboChart' });
 
@@ -16,6 +18,30 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：社融/贷款单位 亿元，M1/M2/剪刀差单位 %
+// 剪刀差为 calcM1M2 计算值，需单独从计算结果取最新
+const latestRows = computed(() => {
+  const rows = buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_SOCIAL_FINANCING_CUM', name: '社融增量累计', color: '#dc2626', unit: '亿元' },
+    { code: 'CN_NEW_RMB_LOANS_CUM', name: '新增贷款累计', color: '#2563eb', unit: '亿元' },
+    { code: 'CN_M1_YOY', name: 'M1同比', color: '#2563eb', unit: '%' },
+    { code: 'CN_M2_YOY', name: 'M2同比', color: '#dc2626', unit: '%' }
+  ]);
+  // M1-M2 剪刀差最新值：从 calcM1M2 计算结果取最后一条非 null
+  const scissors = calcM1M2(
+    getSeries(props.dataMap, 'CN_M1_YOY'),
+    getSeries(props.dataMap, 'CN_M2_YOY')
+  ).filter(x => x.value != null);
+  const latestScissors = scissors.length > 0 ? scissors[scissors.length - 1] : null;
+  rows.push({
+    name: 'M1-M2剪刀差',
+    color: '#7c3aed',
+    value: latestScissors ? Number(latestScissors.value).toFixed(2) + ' %' : '--',
+    date: latestScissors ? latestScissors.report_date.slice(0, 10) : '--'
+  });
+  return rows;
+});
 
 /** 构建 ECharts 配置：双轴混合图，日期并集对齐 */
 function buildOption() {
@@ -161,5 +187,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-320px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-320px w-full"></div>
+    <LatestTable :rows="latestRows" :left="66" />
+  </div>
 </template>

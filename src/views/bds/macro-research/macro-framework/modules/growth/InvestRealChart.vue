@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries } from '../../../_shared/utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'GrowthInvestRealChart' });
 
@@ -16,6 +18,14 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
+
+// 最新值表格行：2 个投资指标，单位均为 %
+const latestRows = computed(() =>
+  buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+    { code: 'CN_URBAN_FIXED_ASSET_INVEST_YOY', name: '城镇固投同比', color: '#2563eb', unit: '%' },
+    { code: 'CN_REAL_ESTATE_INVEST', name: '房地产投资同比', color: '#16a34a', unit: '%' }
+  ])
+);
 
 /** 构建 ECharts 配置：两系列共用日期并集，缺失日期填 null */
 function buildOption() {
@@ -95,5 +105,8 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 </script>
 
 <template>
-  <div ref="domRef" class="h-300px w-full"></div>
+  <div class="relative">
+    <div ref="domRef" class="h-300px w-full"></div>
+    <LatestTable :rows="latestRows" :left="56" />
+  </div>
 </template>
