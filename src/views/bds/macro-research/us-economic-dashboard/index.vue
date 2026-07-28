@@ -61,8 +61,9 @@ const DASHBOARD_INDICATORS = {
 // 扁平化全部所需指标代码（去重）
 const ALL_CODES = Array.from(new Set(Object.values(DASHBOARD_INDICATORS).flat()));
 
-// 收益率看板所需的全部 4 个指标代码（DailyIndicator，独立于上面的 EconomicIndicator 分组）
-const YIELD_CODES = ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_10Y2Y', 'YIELD_TIPS_10Y'] as const;
+// 收益率与信用利差看板所需的全部 6 个指标代码（DailyIndicator，独立于上面的 EconomicIndicator 分组）
+// 收益率 4 个 + 信用利差 2 个（IG 投资级 / HY 高收益），统一通过 FRED 同步入库到 bds_daily_indicator 表
+const YIELD_CODES = ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_10Y2Y', 'YIELD_TIPS_10Y', 'CREDIT_SPREAD_IG', 'CREDIT_SPREAD_HY'] as const;
 // 收益率指标下拉选项：computed 包装保证 store 异步加载后更新
 const yieldIndicatorOptions = computed(() => bdsStore.getDailyIndicatorCodeOptions());
 
@@ -106,8 +107,8 @@ async function fetchAllData() {
 }
 
 /**
- * 拉取收益率指标数据（DailyIndicator）
- * 一次调用多选 IN 拉取 4 个指标，按 indicator_code 分组并按 report_date 升序排序
+ * 拉取日频指标数据（DailyIndicator，收益率 + 信用利差）
+ * 一次调用多选 IN 拉取 6 个指标，按 indicator_code 分组并按 report_date 升序排序
  * 从 FinancialTab 上提，供顶部筛选区同步功能与 FinancialTab 共用
  */
 async function fetchAllYieldsData() {
@@ -183,7 +184,7 @@ function handleYieldSync() {
   executeSync(() => syncDailyIndicator(code), yieldSyncLoading, fetchAllYieldsData);
 }
 
-/** 收益率全量同步：同步所有 4 个收益率指标 */
+/** 日频指标全量同步：同步所有 6 个日频指标（4 收益率 + 2 信用利差） */
 function handleYieldAllSync() {
   executeSync(() => syncAllDailyIndicators(), yieldAllSyncLoading, fetchAllYieldsData);
 }
