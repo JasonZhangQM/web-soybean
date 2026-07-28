@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import InfoCard from '../InfoCard.vue';
+import InfoCard from '../../../_shared/InfoCard.vue';
 
 defineOptions({ name: 'StructuralPanel' });
 

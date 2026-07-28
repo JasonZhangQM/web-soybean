@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import InfoCard from '../InfoCard.vue';
+import InfoCard from '../../../_shared/InfoCard.vue';
 import InflationChart from './InflationChart.vue';
 import UnemploymentChart from './UnemploymentChart.vue';
 import { getSeries } from '../../../_shared/utils';
