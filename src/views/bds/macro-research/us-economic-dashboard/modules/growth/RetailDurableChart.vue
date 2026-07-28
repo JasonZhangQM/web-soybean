@@ -69,12 +69,20 @@ function buildOption() {
     tooltip: {
       trigger: 'axis',
       appendToBody: true,
-      valueFormatter: (value: number, p: any) => {
-        if (value == null) return '--';
-        // 成屋销售年化系列显示「万户」，其他显示 %
-        return p?.seriesName === '成屋销售年化'
-          ? `${Number(value).toFixed(2)} 万户`
-          : `${Number(value).toFixed(2)}%`;
+      // axis 模式下 valueFormatter 第二参为 dataIndex 而非 seriesIndex，无法区分系列
+      // 改用 formatter：params 数组中每个元素携带 seriesIndex/seriesName/value，可准确区分系列
+      formatter: (params: any) => {
+        if (!Array.isArray(params) || params.length === 0) return '';
+        // 日期轴标签
+        const date = params[0].axisValueLabel || params[0].name || '';
+        const lines = params.map((p: any) => {
+          const v = p.value;
+          // 成屋销售年化为第 3 个系列（seriesIndex=2），单位「万户」；前两个为 % 环比
+          const unit = p.seriesIndex === 2 ? '万户' : '%';
+          const valStr = v == null ? '--' : `${Number(v).toFixed(2)} ${unit}`;
+          return `${p.marker}${p.seriesName}: ${valStr}`;
+        });
+        return [date, ...lines].join('<br/>');
       }
     },
     legend: {

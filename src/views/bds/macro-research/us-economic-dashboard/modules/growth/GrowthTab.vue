@@ -4,7 +4,6 @@ import { computed } from 'vue';
 import MetricCard from '../../../_shared/MetricCard.vue';
 import GdpChart from './GdpChart.vue';
 import BudgetChart from './BudgetChart.vue';
-import GrowthComboChart from './GrowthComboChart.vue';
 // 需求侧指标图表（原 consumption/ 目录，已归入 growth/）
 import RetailDurableChart from './RetailDurableChart.vue';
 import { getLatest } from '../utils';
@@ -124,10 +123,18 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
       </NGi>
     </NGrid>
 
-    <!-- 第 2 行起：7 张图表，前 5 张半宽，后 2 张综合图跨双列 -->
+    <!-- 3 张图表同一行：大屏三等分（l:8），中屏两等分后第三张换行（m:12） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+      <!-- 零售销售 & 耐用品订单 & 成屋销售（合并图，三折线双轴） -->
+      <NGi span="24 s:24 m:12 l:8">
+        <div class="chart-box">
+          <div class="chart-box__title">零售销售 & 耐用品订单 & 成屋销售</div>
+          <div class="chart-box__sub">左轴 %：；右轴 万户</div>
+          <RetailDurableChart :data-map="dataMap" />
+        </div>
+      </NGi>
       <!-- GDP 季环比 -->
-      <NGi span="24 s:24 m:12">
+      <NGi span="24 s:24 m:12 l:8">
         <div class="chart-box">
           <div class="chart-box__title">GDP 季环比</div>
           <div class="chart-box__sub">GDP 季环比增速（%），≥2 蓝柱高于潜在增速，0~2 琥珀温和增长，&lt;0 红柱负增长</div>
@@ -135,27 +142,11 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
         </div>
       </NGi>
       <!-- 政府预算 -->
-      <NGi span="24 s:24 m:12">
+      <NGi span="24 s:24 m:12 l:8">
         <div class="chart-box">
           <div class="chart-box__title">政府预算</div>
           <div class="chart-box__sub">政府预算（亿美元），正值蓝柱盈余，负值橙柱赤字</div>
           <BudgetChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- 零售销售 & 耐用品订单 & 成屋销售（合并图，三折线双轴，半宽） -->
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">零售销售 & 耐用品订单 & 成屋销售</div>
-          <div class="chart-box__sub">左轴 %：零售销售蓝（#3b82f6）/ 耐用品订单紫（#7c3aed）；右轴 万户：成屋销售年化青（#14b8a6）</div>
-          <RetailDurableChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <!-- GDP vs 零售销售 vs 耐用品订单（综合图，跨双列） -->
-      <NGi span="24">
-        <div class="chart-box">
-          <div class="chart-box__title">GDP vs 零售销售 vs 耐用品订单</div>
-          <div class="chart-box__sub">GDP 季环比柱状（左轴）+ 零售销售/耐用品订单标准化折线（右轴 0-100），以 GDP 日期为主轴对齐</div>
-          <GrowthComboChart :data-map="dataMap" />
         </div>
       </NGi>
     </NGrid>
@@ -181,5 +172,7 @@ function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
   font-size: 11px;
   color: var(--muted, #6b7280);
   margin-bottom: 12px;
+  /* 固定副标题区域高度（2 行），避免因文字长度不同导致 chart-box 总高度不一致 */
+  min-height: 32px;
 }
 </style>
