@@ -73,6 +73,7 @@ const pendingItems = [
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
+  text-align: center;
   margin-bottom: 12px;
 }
 </style>

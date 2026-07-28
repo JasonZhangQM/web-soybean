@@ -2,12 +2,12 @@
 import InfoCard from '../InfoCard.vue';
 import PmiChart from './PmiChart.vue';
 
-defineOptions({ name: 'ExpectationPanel' });
+defineOptions({ name: 'ExpectationTab' });
 
 /**
- * 预期与信心面板
+ * 预期与信心 Tab
  * 中国四大 PMI 走势图（官方实线、财新虚线）
- * 下方附加贯穿所有维度的"自我实现层"指标说明（消费者信心、企业家信心、通胀预期、市场波动率）
+ * 同行附加贯穿所有维度的"自我实现层"指标说明（消费者信心、企业家信心、通胀预期、市场波动率）
  * 预期可以改变所有维度的传导效率，属快变量，实时-月度尺度
  */
 interface Props {
@@ -44,20 +44,24 @@ const items: InfoItem[] = [
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 2 行：中国四大 PMI 走势图 -->
-    <div class="chart-box">
-      <div class="chart-box__title">中国 PMI 走势</div>
-      <PmiChart :data-map="dataMap" />
-    </div>
-
-    <!-- 第 3 行：预期与信心说明卡片 -->
-    <InfoCard
-      class="mt-16px"
-      title="预期与信心"
-      badge="快变量 · 实时-月度尺度"
-      subtitle="贯穿所有维度的'自我实现层'——预期可以改变所有维度的传导效率"
-      :items="items"
-    />
+    <!-- 第 1 行：中国四大 PMI 走势图 + 预期与信心说明卡片（2 列布局） -->
+    <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
+      <NGi span="24 m:12">
+        <div class="chart-box">
+          <div class="chart-box__title">中国 PMI 走势</div>
+          <PmiChart :data-map="dataMap" />
+        </div>
+      </NGi>
+      <NGi span="24 m:12">
+        <InfoCard
+          title="预期与信心"
+          badge="快变量 · 实时-月度尺度"
+          subtitle="贯穿所有维度的'自我实现层'——预期可以改变所有维度的传导效率"
+          :items="items"
+          :columns="1"
+        />
+      </NGi>
+    </NGrid>
   </NSpin>
 </template>
 
@@ -73,6 +77,7 @@ const items: InfoItem[] = [
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
+  text-align: center;
   margin-bottom: 4px;
 }
 </style>

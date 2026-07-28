@@ -11,7 +11,7 @@ import FinancialTab from './modules/financial/FinancialTab.vue';
 import PolicyTab from './modules/policy/PolicyTab.vue';
 import ExternalTab from './modules/external/ExternalTab.vue';
 import StructuralPanel from './modules/structural/StructuralPanel.vue';
-import ExpectationPanel from './modules/expectation/ExpectationPanel.vue';
+import ExpectationTab from './modules/expectation/ExpectationTab.vue';
 
 defineOptions({ name: 'MacroFrameworkPage' });
 
@@ -208,7 +208,7 @@ onMounted(() => {
           <ExternalTab v-if="shouldRender('external')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
         <NTabPane name="expectation" tab="预期与信心">
-          <ExpectationPanel v-if="shouldRender('expectation')" :data-map="dataMap" :loading="loading" />
+          <ExpectationTab v-if="shouldRender('expectation')" :data-map="dataMap" :loading="loading" />
         </NTabPane>
       </NTabs>
     </NCard>
