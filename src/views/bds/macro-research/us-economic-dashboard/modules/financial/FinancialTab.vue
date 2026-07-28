@@ -1,16 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-// 跨目录复用中国看板 MetricCard：从 financial/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
-import MetricCard from '../../../_shared/MetricCard.vue';
 // 政策利率 vs 核心 PCE 图（原 policy/ 目录，已归入 financial/）
 import RateVsPceChart from './RateVsPceChart.vue';
 // 收益率综合图（原 yields/ 目录，已归入 financial/）
 import YieldCompareChart from './YieldCompareChart.vue';
-// 注意：两个 utils.ts 都导出 getLatest，但操作类型不同
-// - ../utils 操作 EconomicIndicator（政策利率，父注入 dataMap）
-// - ./utils 操作 DailyIndicator（收益率，组件内 yieldsDataMap）
-import { getLatest as getLatestEconomic } from '../utils';
-import { getLatest as getLatestDaily } from './utils';
 
 defineOptions({ name: 'FinancialTab' });
 
@@ -33,127 +25,12 @@ interface Props {
   yieldsLoading?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading: false });
-
-// ===== 政策利率卡片最新值（基于父注入 dataMap，EconomicIndicator 类型）=====
-const lowerLatest = computed(() => getLatestEconomic(props.dataMap, 'FED_FUNDS_RATE'));
-const upperLatest = computed(() => getLatestEconomic(props.dataMap, 'FED_FUNDS_RATE_UPPER'));
-
-/**
- * 政策利率环比变化：value - value_prev（value_prev 为 null 时返回 null）
- * EconomicIndicator 自带 value_prev 字段，直接使用
- */
-function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
-  if (!item || item.value_prev == null) return null;
-  return Number(item.value) - Number(item.value_prev);
-}
-
-// ===== 收益率卡片最新值（基于父注入 yieldsDataMap，DailyIndicator 类型）=====
-const y2Latest = computed(() => getLatestDaily(props.yieldsDataMap, 'YIELD_2Y'));
-const y10Latest = computed(() => getLatestDaily(props.yieldsDataMap, 'YIELD_10Y'));
-const spreadLatest = computed(() => getLatestDaily(props.yieldsDataMap, 'YIELD_SPREAD_10Y2Y'));
-const tipsLatest = computed(() => getLatestDaily(props.yieldsDataMap, 'YIELD_TIPS_10Y'));
-
-/**
- * 收益率环比变化：当前 value - 前一条非 null 记录的 value
- * DailyIndicator 无 value_prev 字段，从 yieldsDataMap 中取前一条记录计算
- */
-function computeChangeFromPrev(code: string): number | null {
-  const list = props.yieldsDataMap.get(code);
-  if (!list || list.length < 2) return null;
-  // 从尾部向前找最新一条非 null 记录
-  let latestIdx = -1;
-  for (let i = list.length - 1; i >= 0; i--) {
-    if (list[i].value != null) {
-      latestIdx = i;
-      break;
-    }
-  }
-  if (latestIdx <= 0) return null;
-  // 找上一条非 null 记录
-  let prevIdx = -1;
-  for (let i = latestIdx - 1; i >= 0; i--) {
-    if (list[i].value != null) {
-      prevIdx = i;
-      break;
-    }
-  }
-  if (prevIdx < 0) return null;
-  return Number(list[latestIdx].value) - Number(list[prevIdx].value);
-}
-
-// 利差状态：倒挂（<0，红色）/ 正常（≥0，绿色）
-const spreadStatus = computed(() => {
-  if (!spreadLatest.value || spreadLatest.value.value == null) return null;
-  const v = Number(spreadLatest.value.value);
-  // 收益率曲线倒挂：2Y > 10Y，即 10Y-2Y 利差 < 0
-  if (v < 0) return { desc: '倒挂', color: '#dc2626' };
-  return { desc: '正常', color: '#16a34a' };
-});
 </script>
 
 <template>
   <div class="pb-12px">
     <!-- 双数据源加载：政策利率用父组件 loading，收益率用父组件 yieldsLoading -->
     <NSpin :show="loading || yieldsLoading">
-      <!-- 第 1 行：6 张指标卡片（大屏单行排列，l 断点 6*4=24） -->
-      <!-- 前 2 张为政策利率（EconomicIndicator），后 4 张为收益率（DailyIndicator） -->
-      <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="利率下限"
-            :value="lowerLatest?.value ?? null"
-            unit="%"
-            :date="lowerLatest?.report_date"
-            :change="computeChange(lowerLatest)"
-          />
-        </NGi>
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="利率上限"
-            :value="upperLatest?.value ?? null"
-            unit="%"
-            :date="upperLatest?.report_date"
-            :change="computeChange(upperLatest)"
-          />
-        </NGi>
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="2年期美债收益率"
-            :value="y2Latest?.value ?? null"
-            unit="%"
-            :date="y2Latest?.report_date"
-            :change="computeChangeFromPrev('YIELD_2Y')"
-          />
-        </NGi>
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="10年期美债收益率"
-            :value="y10Latest?.value ?? null"
-            unit="%"
-            :date="y10Latest?.report_date"
-            :change="computeChangeFromPrev('YIELD_10Y')"
-          />
-        </NGi>
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="10Y-2Y利差"
-            :value="spreadLatest?.value ?? null"
-            unit="%"
-            :date="spreadLatest?.report_date"
-            :desc="spreadStatus?.desc"
-            :color="spreadStatus?.color"
-          />
-        </NGi>
-        <NGi span="12 s:12 m:8 l:4">
-          <MetricCard
-            label="10年期TIPS"
-            :value="tipsLatest?.value ?? null"
-            unit="%"
-            :date="tipsLatest?.report_date"
-          />
-        </NGi>
-      </NGrid>
-
       <!-- 第 2 行：2 张图表，政策利率类用 dataMap，收益率类用 yieldsDataMap -->
       <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
         <!-- 利率 vs 核心 PCE（半宽，数据来自父注入 EconomicIndicator dataMap） -->

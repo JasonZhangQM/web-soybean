@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-// 跨目录复用中国看板 MetricCard：从 employment/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
-import MetricCard from '../../../_shared/MetricCard.vue';
 import NfpAdpUeChart from './NfpAdpUeChart.vue';
 import JoltsChart from './JoltsChart.vue';
-import { getLatest } from '../utils';
 
 defineOptions({ name: 'EmploymentTab' });
 
@@ -17,80 +13,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   loading: false
 });
-
-// ===== 各指标最新值（用于顶部卡片） =====
-const nfpLatest = computed(() => getLatest(props.dataMap, 'NONFARM_PAYROLL'));
-const adpLatest = computed(() => getLatest(props.dataMap, 'ADP_EMPLOYMENT_CHANGE'));
-const ueLatest = computed(() => getLatest(props.dataMap, 'UNEMPLOYMENT_RATE'));
-const joltsLatest = computed(() => getLatest(props.dataMap, 'JOLTS_JOB_OPENINGS'));
-const claimsLatest = computed(() => getLatest(props.dataMap, 'INITIAL_JOBLESS_CLAIMS'));
-
-// 环比变化：value - value_prev（value_prev 为 null 时返回 null，MetricCard 自动隐藏）
-function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
-  if (!item || item.value_prev == null) return null;
-  return Number(item.value) - Number(item.value_prev);
-}
-
-// 失业率描述：≥4.2 「高于自然率」，<4.2 「低于自然率」
-const ueDesc = computed(() => {
-  const v = ueLatest.value?.value;
-  if (v == null) return '';
-  return Number(v) >= 4.2 ? '高于自然率' : '低于自然率';
-});
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：5 张指标卡片（大屏单行排列，l 断点 5*4=20 ≤ 24） -->
-    <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
-          label="非农就业新增"
-          :value="nfpLatest?.value ?? null"
-          unit="万人"
-          :date="nfpLatest?.report_date"
-          :change="computeChange(nfpLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
-          label="ADP 就业变动"
-          :value="adpLatest?.value ?? null"
-          unit="万人"
-          :date="adpLatest?.report_date"
-          :change="computeChange(adpLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
-          label="失业率"
-          :value="ueLatest?.value ?? null"
-          unit="%"
-          :date="ueLatest?.report_date"
-          :change="computeChange(ueLatest)"
-          :desc="ueDesc"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
-          label="JOLTS 职位空缺"
-          :value="joltsLatest?.value ?? null"
-          unit="万人"
-          :date="joltsLatest?.report_date"
-          :change="computeChange(joltsLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:4">
-        <MetricCard
-          label="初请失业金"
-          :value="claimsLatest?.value ?? null"
-          unit="万人"
-          :date="claimsLatest?.report_date"
-          :change="computeChange(claimsLatest)"
-        />
-      </NGi>
-    </NGrid>
-
     <!-- 第 2 行：2 张图表（2 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 s:24 m:12">

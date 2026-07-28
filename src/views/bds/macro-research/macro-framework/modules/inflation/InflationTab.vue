@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import FwMetricCard from '../FwMetricCard.vue';
 import InfoCard from '../InfoCard.vue';
 import InflationChart from './InflationChart.vue';
 import UnemploymentChart from '../labor/UnemploymentChart.vue';
-import { getLatest, getSeries, calcScissors } from '../../../_shared/utils';
+import { getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'InflationTab' });
 
 /**
  * 维度二：通胀与就业
- * 第 1 行：4 张指标卡片（CPI / PPI / 剪刀差 / 城镇调查失业率）
  * 第 2 行：通胀走势图 + 失业率走势图（两列并排）
  * 第 3 行：劳动力市场待补充指标说明
  */
@@ -22,50 +20,9 @@ interface Props {
 }
 const props = withDefaults(defineProps<Props>(), { loading: false });
 
-// ===== CPI / PPI 最新值（用于顶部卡片） =====
-const cpiLatest = computed(() => getLatest(props.dataMap, 'CN_CPI_YOY'));
-const ppiLatest = computed(() => getLatest(props.dataMap, 'CN_PPI_YOY'));
-
-// ===== CPI-PPI 剪刀差：CPI 同比 - PPI 同比，按 report_date 对齐 =====
-const cpiSeries = computed(() => getSeries(props.dataMap, 'CN_CPI_YOY'));
-const ppiSeries = computed(() => getSeries(props.dataMap, 'CN_PPI_YOY'));
-const scissorsSeries = computed(() => calcScissors(cpiSeries.value, ppiSeries.value));
-const scissorsLatest = computed(() => {
-  const arr = scissorsSeries.value;
-  return arr.length ? arr[arr.length - 1] : null;
-});
-
 // ===== 城镇调查失业率 =====
 const UNEMPLOYMENT_CODE = 'CN_URBAN_UNEMPLOYMENT';
-const unemploymentLatest = computed(() => getLatest(props.dataMap, UNEMPLOYMENT_CODE));
 const unemploymentData = computed(() => getSeries(props.dataMap, UNEMPLOYMENT_CODE));
-// 环比变化 = 当前值 - 上一期值
-const unemploymentChange = computed<number | null>(() => {
-  const list = unemploymentData.value;
-  if (!list || list.length < 2) return null;
-  const cur = Number(list[list.length - 1].value);
-  const prev = Number(list[list.length - 2].value);
-  if (!Number.isFinite(cur) || !Number.isFinite(prev)) return null;
-  return +(cur - prev).toFixed(2);
-});
-
-// 同比变化：value - value_prev（value_prev 为 null 时返回 null）
-function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
-  if (!item || item.value_prev == null) return null;
-  return Number(item.value) - Number(item.value_prev);
-}
-
-// 剪刀差：> 0 红色「下游受益」，< 0 绿色「上游受益」
-const scissorsDesc = computed(() => {
-  const v = scissorsLatest.value?.value;
-  if (v == null) return '';
-  return Number(v) > 0 ? '下游受益' : '上游受益';
-});
-const scissorsColor = computed(() => {
-  const v = scissorsLatest.value?.value;
-  if (v == null) return undefined;
-  return Number(v) > 0 ? '#dc2626' : '#16a34a';
-});
 
 // 劳动力市场待补充指标说明
 const pendingItems = [
@@ -78,54 +35,6 @@ const pendingItems = [
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：4 张指标卡片（CPI / PPI / 剪刀差 / 失业率） -->
-    <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:8 l:6">
-        <FwMetricCard
-          label="CPI 同比"
-          :value="cpiLatest?.value ?? null"
-          unit="%"
-          desc="下游消费价格"
-          timing="滞后"
-          :date="cpiLatest?.report_date"
-          :change="computeChange(cpiLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:6">
-        <FwMetricCard
-          label="PPI 同比"
-          :value="ppiLatest?.value ?? null"
-          unit="%"
-          desc="上游工业品价格"
-          timing="先行"
-          :date="ppiLatest?.report_date"
-          :change="computeChange(ppiLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:6">
-        <FwMetricCard
-          label="CPI-PPI 剪刀差"
-          :value="scissorsLatest?.value ?? null"
-          unit="%"
-          timing="先行"
-          :date="scissorsLatest?.report_date"
-          :desc="scissorsDesc"
-          :color="scissorsColor"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:8 l:6">
-        <FwMetricCard
-          label="城镇调查失业率"
-          :value="unemploymentLatest?.value ?? null"
-          unit="%"
-          desc="劳动力市场闲置程度"
-          :change="unemploymentChange"
-          timing="滞后"
-          :date="unemploymentLatest?.report_date"
-        />
-      </NGi>
-    </NGrid>
-
     <!-- 第 2 行：通胀走势图 + 失业率走势图（两列并排） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mb-16px">
       <NGi span="24 m:12">

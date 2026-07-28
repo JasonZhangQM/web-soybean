@@ -1,11 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-// 跨目录复用中国看板的 MetricCard 组件
-// 注：inflation/ 目录下需向上 3 级到达 macro-research/，再进入 economic-dashboard/modules/
-import MetricCard from '../../../_shared/MetricCard.vue';
 import InflationYoYChart from './InflationYoYChart.vue';
 import MichiganChart from './MichiganChart.vue';
-import { getLatest } from '../utils';
 
 defineOptions({ name: 'InflationTab' });
 
@@ -18,100 +13,10 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   loading: false
 });
-
-// ===== 各指标最新值（用于顶部卡片） =====
-const cpiYoYLatest = computed(() => getLatest(props.dataMap, 'CPI_YOY'));
-const coreCpiYoYLatest = computed(() => getLatest(props.dataMap, 'CORE_CPI_YOY'));
-const pceYoYLatest = computed(() => getLatest(props.dataMap, 'PCE_YOY'));
-const corePceYoYLatest = computed(() => getLatest(props.dataMap, 'CORE_PCE_YOY'));
-const ppiYoYLatest = computed(() => getLatest(props.dataMap, 'PPI_YOY'));
-const michigan5YLatest = computed(() => getLatest(props.dataMap, 'MICHIGAN_5Y_INFLATION_EXPECTATION'));
-const michigan1YLatest = computed(() => getLatest(props.dataMap, 'MICHIGAN_1Y_INFLATION_EXPECTATION'));
-
-// 同比/环比变化：value - value_prev（value_prev 为 null 时返回 null）
-function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
-  if (!item || item.value_prev == null) return null;
-  return Number(item.value) - Number(item.value_prev);
-}
-
-// 核心 PCE 同比：值 >= 2「高于 2% 目标」，< 2「低于 2% 目标」
-const corePceDesc = computed(() => {
-  const v = corePceYoYLatest.value?.value;
-  if (v == null) return '';
-  return Number(v) >= 2 ? '高于 2% 目标' : '低于 2% 目标';
-});
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：7 张指标卡片（大屏单行排列，l 断点 7*3=21 ≤ 24） -->
-    <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="CPI同比"
-          :value="cpiYoYLatest?.value ?? null"
-          unit="%"
-          :date="cpiYoYLatest?.report_date"
-          :change="computeChange(cpiYoYLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="核心CPI同比"
-          :value="coreCpiYoYLatest?.value ?? null"
-          unit="%"
-          :date="coreCpiYoYLatest?.report_date"
-          :change="computeChange(coreCpiYoYLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="PCE同比"
-          :value="pceYoYLatest?.value ?? null"
-          unit="%"
-          :date="pceYoYLatest?.report_date"
-          :change="computeChange(pceYoYLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="核心PCE同比"
-          :value="corePceYoYLatest?.value ?? null"
-          unit="%"
-          :date="corePceYoYLatest?.report_date"
-          :change="computeChange(corePceYoYLatest)"
-          :desc="corePceDesc"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="PPI同比"
-          :value="ppiYoYLatest?.value ?? null"
-          unit="%"
-          :date="ppiYoYLatest?.report_date"
-          :change="computeChange(ppiYoYLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="密歇根5年通胀预期"
-          :value="michigan5YLatest?.value ?? null"
-          unit="%"
-          :date="michigan5YLatest?.report_date"
-          :change="computeChange(michigan5YLatest)"
-        />
-      </NGi>
-      <NGi span="24 s:12 m:8 l:3">
-        <MetricCard
-          label="密歇根1年通胀预期"
-          :value="michigan1YLatest?.value ?? null"
-          unit="%"
-          :date="michigan1YLatest?.report_date"
-          :change="computeChange(michigan1YLatest)"
-        />
-      </NGi>
-    </NGrid>
-
     <!-- 第 2 行：2 张图表（2 列布局） -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
       <NGi span="24 m:12">

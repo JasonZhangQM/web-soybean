@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-// 跨目录复用中国看板 MetricCard：从 energy/ 经 modules/ → us-economic-dashboard/ → macro-research/ → economic-dashboard/modules/
-import MetricCard from '../../../_shared/MetricCard.vue';
-import CrudeChart from './CrudeChart.vue';
-import GasolineChart from './GasolineChart.vue';
 import EnergyComboChart from './EnergyComboChart.vue';
-import { getLatest } from '../utils';
 
 defineOptions({ name: 'EnergyTab' });
 
@@ -18,58 +12,12 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   loading: false
 });
-
-// ===== 各指标最新值（用于顶部卡片） =====
-const crudeLatest = computed(() => getLatest(props.dataMap, 'EIA_CRUDE_OIL_INVENTORY_CHANGE'));
-const gasolineLatest = computed(() => getLatest(props.dataMap, 'EIA_GASOLINE_INVENTORY_CHANGE'));
-
-// 环比变化：value - value_prev（value_prev 为 null 时返回 null，MetricCard 自动隐藏）
-function computeChange(item: Api.Bds.EconomicIndicator | null): number | null {
-  if (!item || item.value_prev == null) return null;
-  return Number(item.value) - Number(item.value_prev);
-}
 </script>
 
 <template>
   <NSpin :show="loading">
-    <!-- 第 1 行：2 张指标卡片（大屏单行排列，l 断点 2*12=24） -->
-    <NGrid cols="24" responsive="screen" item-responsive :x-gap="12" :y-gap="12" class="mb-16px">
-      <NGi span="12 s:12 m:12 l:12">
-        <MetricCard
-          label="EIA原油库存变动"
-          :value="crudeLatest?.value ?? null"
-          unit="万桶"
-          :date="crudeLatest?.report_date"
-          :change="computeChange(crudeLatest)"
-        />
-      </NGi>
-      <NGi span="12 s:12 m:12 l:12">
-        <MetricCard
-          label="EIA汽油库存变动"
-          :value="gasolineLatest?.value ?? null"
-          unit="万桶"
-          :date="gasolineLatest?.report_date"
-          :change="computeChange(gasolineLatest)"
-        />
-      </NGi>
-    </NGrid>
-
-    <!-- 第 2 行：3 张图表（2 列布局，最后一张跨双列） -->
+    <!-- 原油 vs 汽油库存对比 -->
     <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">EIA 原油库存变动</div>
-          <div class="chart-box__sub">EIA 周度商业原油库存变化（万桶），正值蓝柱表示库存增加，负值橙柱表示库存减少</div>
-          <CrudeChart :data-map="dataMap" />
-        </div>
-      </NGi>
-      <NGi span="24 s:24 m:12">
-        <div class="chart-box">
-          <div class="chart-box__title">EIA 汽油库存变动</div>
-          <div class="chart-box__sub">EIA 周度汽油库存变化（万桶），正值青柱表示库存增加，负值红柱表示库存减少</div>
-          <GasolineChart :data-map="dataMap" />
-        </div>
-      </NGi>
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">原油 vs 汽油库存对比</div>
