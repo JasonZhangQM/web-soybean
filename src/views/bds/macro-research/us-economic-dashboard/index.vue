@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchEconomicIndicators, syncEconomicIndicatorWscn, fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
-import { forwardFill } from './modules/utils';
+import { forwardFill } from '../_shared/utils';
 import { useThemeStore } from '@/store/modules/theme';
 import { useBdsStore } from '@/store/modules/bds';
 import InflationTab from './modules/inflation/InflationTab.vue';

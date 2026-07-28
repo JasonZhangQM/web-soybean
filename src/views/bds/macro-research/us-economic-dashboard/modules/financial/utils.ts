@@ -2,7 +2,7 @@
  * 美债收益率 - 通用工具函数
  * 服务于 us-economic-dashboard/modules/financial/ 内部，避免跨目录依赖与重复实现
  *
- * 与 economic-dashboard/modules/utils.ts 区别：
+ * 与 macro-research/_shared/utils.ts 区别：
  * - 操作类型为 Api.Bds.DailyIndicator（value: number | null，无 value_prev/pub_date 等字段）
  * - 不提供 forwardFill：FRED 数据缺失即缺失，不做填充以保持数据真实性
  */
