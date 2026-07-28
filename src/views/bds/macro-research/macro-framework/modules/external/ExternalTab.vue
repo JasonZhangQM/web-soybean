@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import FxReserveChart from '../../../_shared/FxReserveChart.vue';
-import SwiftCnyShareChart from '../../../_shared/SwiftCnyShareChart.vue';
+import FxReserveChart from './FxReserveChart.vue';
+import SwiftCnyShareChart from './SwiftCnyShareChart.vue';
 import { getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'ExternalTab' });

@@ -2,8 +2,8 @@
 import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import LatestTable from './LatestTable.vue';
-import { buildLatestRowFromArray } from './latest-utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRowFromArray } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'ExternalSwiftCnyShareChart' });
 

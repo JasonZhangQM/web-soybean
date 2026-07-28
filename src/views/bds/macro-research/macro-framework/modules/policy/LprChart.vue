@@ -2,9 +2,9 @@
 import { computed, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
-import { getSeries } from './utils';
-import LatestTable from './LatestTable.vue';
-import { buildLatestRows } from './latest-utils';
+import { getSeries } from '../../../_shared/utils';
+import LatestTable from '../../../_shared/LatestTable.vue';
+import { buildLatestRows } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'LiquidityLprChart' });
 

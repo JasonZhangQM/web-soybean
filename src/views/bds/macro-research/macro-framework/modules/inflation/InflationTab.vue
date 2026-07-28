@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import InfoCard from '../InfoCard.vue';
 import InflationChart from './InflationChart.vue';
-import UnemploymentChart from '../labor/UnemploymentChart.vue';
+import UnemploymentChart from './UnemploymentChart.vue';
 import { getSeries } from '../../../_shared/utils';
 
 defineOptions({ name: 'InflationTab' });

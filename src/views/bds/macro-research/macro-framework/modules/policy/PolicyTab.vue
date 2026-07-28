@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import LiquidityComboChart from '../../../_shared/LiquidityComboChart.vue';
-import LprChart from '../../../_shared/LprChart.vue';
+import LiquidityComboChart from './LiquidityComboChart.vue';
+import LprChart from './LprChart.vue';
 
 defineOptions({ name: 'PolicyTab' });
 

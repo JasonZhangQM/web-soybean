@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import InfoCard from '../InfoCard.vue';
-import PmiChart from '../../../_shared/PmiChart.vue';
+import PmiChart from './PmiChart.vue';
 
 defineOptions({ name: 'ExpectationPanel' });
 

@@ -2,7 +2,7 @@
 import GrowthChart from './GrowthChart.vue';
 import InvestChart from './InvestChart.vue';
 import InvestRealChart from './InvestRealChart.vue';
-import TradeChart from '../../../_shared/TradeChart.vue';
+import TradeChart from './TradeChart.vue';
 
 defineOptions({ name: 'GrowthTab' });
 
