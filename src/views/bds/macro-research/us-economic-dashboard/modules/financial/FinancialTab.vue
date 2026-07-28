@@ -39,7 +39,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading
         <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">利率 vs 核心 PCE</div>
-            <div class="chart-box__sub">左轴利率上下限（红/蓝）+ 右轴核心 PCE 同比（绿），观察政策利率与核心通胀的关系</div>
             <RateVsPceChart :data-map="dataMap" />
           </div>
         </NGi>
@@ -47,7 +46,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading
         <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差</div>
-            <div class="chart-box__sub">左轴 2Y（蓝）/ 10Y（红）/ TIPS（橙）收益率实线 + 右轴 10Y-2Y 利差虚线（紫）带填充，含 0 倒挂线；10Y 与 TIPS 差距=盈亏平衡通胀率</div>
             <YieldCompareChart :data-map="yieldsDataMap" />
           </div>
         </NGi>
@@ -55,7 +53,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading
         <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">投资级 / 高收益 信用利差 + 信用梯度溢价</div>
-            <div class="chart-box__sub">投资级 IG（蓝实线）+ 高收益 HY（红实线）+ 信用梯度溢价=HY-IG（紫虚线带填充），反映信用风险定价与风险偏好梯度</div>
             <CreditSpreadChart :data-map="yieldsDataMap" />
           </div>
         </NGi>
@@ -76,12 +73,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

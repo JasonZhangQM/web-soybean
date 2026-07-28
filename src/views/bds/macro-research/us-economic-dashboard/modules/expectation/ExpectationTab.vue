@@ -24,7 +24,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false });
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">四大 PMI 全景对比</div>
-          <div class="chart-box__sub">ISM 制造业 / ISM 非制造业 / 标普全球制造业 / 标普全球服务业 PMI 综合对比，50 荣枯线为分界</div>
           <AllPmiChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -32,7 +31,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false });
       <NGi span="24 s:24 m:12">
         <div class="chart-box">
           <div class="chart-box__title">纽约联储 & 里士满联储制造业指数</div>
-          <div class="chart-box__sub">双折线对比：纽约联储青（#0891b2）、里士满联储紫（#7c3aed），0 为荣枯分界线，&gt;=0 扩张，&lt;0 收缩</div>
           <FedMfgIndexChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -52,12 +50,6 @@ const props = withDefaults(defineProps<Props>(), { loading: false });
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>

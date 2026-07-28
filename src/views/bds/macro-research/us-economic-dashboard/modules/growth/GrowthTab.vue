@@ -25,7 +25,6 @@ const props = withDefaults(defineProps<Props>(), {
       <NGi span="24 s:24 m:12 l:8">
         <div class="chart-box">
           <div class="chart-box__title">零售销售 & 耐用品订单 & 成屋销售</div>
-          <div class="chart-box__sub">左轴 %：；右轴 万户</div>
           <RetailDurableChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -33,7 +32,6 @@ const props = withDefaults(defineProps<Props>(), {
       <NGi span="24 s:24 m:12 l:8">
         <div class="chart-box">
           <div class="chart-box__title">GDP 季环比</div>
-          <div class="chart-box__sub">GDP 季环比增速（%），≥2 蓝柱高于潜在增速，0~2 琥珀温和增长，&lt;0 红柱负增长</div>
           <GdpChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -41,7 +39,6 @@ const props = withDefaults(defineProps<Props>(), {
       <NGi span="24 s:24 m:12 l:8">
         <div class="chart-box">
           <div class="chart-box__title">政府预算</div>
-          <div class="chart-box__sub">政府预算（亿美元），正值蓝柱盈余，负值橙柱赤字</div>
           <BudgetChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -61,14 +58,6 @@ const props = withDefaults(defineProps<Props>(), {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
-  /* 固定副标题区域高度（2 行），避免因文字长度不同导致 chart-box 总高度不一致 */
-  min-height: 32px;
 }
 </style>

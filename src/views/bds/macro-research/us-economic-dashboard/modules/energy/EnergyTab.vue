@@ -21,7 +21,6 @@ const props = withDefaults(defineProps<Props>(), {
       <NGi span="24">
         <div class="chart-box">
           <div class="chart-box__title">原油 vs 汽油库存对比</div>
-          <div class="chart-box__sub">原油与汽油库存变动双柱对比，以原油日期为主轴对齐汽油，观察上下游库存同步性</div>
           <EnergyComboChart :data-map="dataMap" />
         </div>
       </NGi>
@@ -41,12 +40,6 @@ const props = withDefaults(defineProps<Props>(), {
   font-size: 14px;
   font-weight: 600;
   color: var(--ink, #1a1a2e);
-  margin-bottom: 4px;
-}
-
-.chart-box__sub {
-  font-size: 11px;
-  color: var(--muted, #6b7280);
   margin-bottom: 12px;
 }
 </style>
