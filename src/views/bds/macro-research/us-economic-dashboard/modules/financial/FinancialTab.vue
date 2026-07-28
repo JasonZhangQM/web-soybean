@@ -33,28 +33,26 @@ const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading
   <div class="pb-12px">
     <!-- 双数据源加载：政策利率用父组件 loading，收益率用父组件 yieldsLoading -->
     <NSpin :show="loading || yieldsLoading">
-      <!-- 第 1 行：2 张图表，政策利率类用 dataMap，收益率类用 yieldsDataMap -->
+      <!-- 三张图表同一行：政策利率类用 dataMap，收益率/信用利差类用 yieldsDataMap -->
       <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
-        <!-- 利率 vs 核心 PCE（半宽，数据来自父注入 EconomicIndicator dataMap） -->
-        <NGi span="24 s:24 m:12">
+        <!-- 利率 vs 核心 PCE（数据来自父注入 EconomicIndicator dataMap） -->
+        <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">利率 vs 核心 PCE</div>
             <div class="chart-box__sub">左轴利率上下限（红/蓝）+ 右轴核心 PCE 同比（绿），观察政策利率与核心通胀的关系</div>
             <RateVsPceChart :data-map="dataMap" />
           </div>
         </NGi>
-        <!-- 2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差（半宽，合并自原 YieldCompareChart + SpreadChart + YieldTipsChart） -->
-        <NGi span="24 s:24 m:12">
+        <!-- 2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差（合并自原 YieldCompareChart + SpreadChart + YieldTipsChart） -->
+        <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">2Y / 10Y 收益率 + 10年期TIPS + 10Y-2Y 利差</div>
             <div class="chart-box__sub">左轴 2Y（蓝）/ 10Y（红）/ TIPS（橙）收益率实线 + 右轴 10Y-2Y 利差虚线（紫）带填充，含 0 倒挂线；10Y 与 TIPS 差距=盈亏平衡通胀率</div>
             <YieldCompareChart :data-map="yieldsDataMap" />
           </div>
         </NGi>
-      </NGrid>
-      <!-- 第 2 行：信用利差综合图（整行，三系列同单轴 %） -->
-      <NGrid cols="24" :x-gap="16" :y-gap="16" responsive="screen" item-responsive class="mt-16px">
-        <NGi span="24">
+        <!-- 投资级 / 高收益 信用利差 + 信用梯度溢价（三系列同单轴 %） -->
+        <NGi span="24 s:24 m:8">
           <div class="chart-box">
             <div class="chart-box__title">投资级 / 高收益 信用利差 + 信用梯度溢价</div>
             <div class="chart-box__sub">投资级 IG（蓝实线）+ 高收益 HY（红实线）+ 信用梯度溢价=HY-IG（紫虚线带填充），反映信用风险定价与风险偏好梯度</div>
