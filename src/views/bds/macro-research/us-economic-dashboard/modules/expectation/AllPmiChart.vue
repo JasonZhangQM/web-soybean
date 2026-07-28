@@ -149,7 +149,7 @@ watch(() => themeStore.darkMode, () => {
 <template>
   <div class="relative">
     <!-- 图表本体 -->
-    <div ref="domRef" class="h-320px w-full"></div>
+    <div ref="domRef" class="h-360px w-full"></div>
     <!-- 左上方半透明数据表格：展示各 PMI 指标最新值 -->
     <LatestTable :rows="latestRows" :left="56" />
   </div>

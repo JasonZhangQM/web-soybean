@@ -184,7 +184,7 @@ watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: tru
 
 <template>
   <div class="relative">
-    <div ref="domRef" class="h-320px w-full"></div>
+    <div ref="domRef" class="h-360px w-full"></div>
     <LatestTable :rows="latestRows" :left="66" />
   </div>
 </template>
