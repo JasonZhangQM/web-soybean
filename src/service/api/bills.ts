@@ -164,10 +164,14 @@ export function syncGroup() {
   });
 }
 
-/** 触发账单批量导入（后端执行 run/batch-import 任务） */
+/** 触发账单批量导入（后端执行 run/batch-import 任务）
+ *  批量导入含数据拉取、加工、盈亏计算等多步，耗时较长，
+ *  单独设置 1 分钟超时，覆盖全局默认值
+ */
 export function batchImportBills() {
   return request<Api.Bills.SyncResult>({
     url: '/api/v1/bills/run/batch-import',
-    method: 'post'
+    method: 'post',
+    timeout: 60 * 1000
   });
 }
