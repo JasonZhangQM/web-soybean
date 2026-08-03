@@ -373,28 +373,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_option',
-        path: '/irs/option',
-        meta: {
-          title: 'irs_option',
-          i18nKey: 'route.irs_option',
-          order: 1,
-          constant: true
-        },
-        children: [
-          {
-            name: 'irs_option_symbol-options',
-            path: '/irs/option/symbol-options',
-            component: 'view.irs_option_symbol-options',
-            meta: {
-              title: 'irs_option_symbol-options',
-              i18nKey: 'route.irs_option_symbol-options',
-              constant: true
-            }
-          }
-        ]
-      },
-      {
         name: 'irs_option-monitor',
         path: '/irs/option-monitor',
         component: 'view.irs_option-monitor',

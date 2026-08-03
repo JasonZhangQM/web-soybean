@@ -127,32 +127,6 @@ declare namespace Api {
       price: number | null;
     }
 
-    /** 期权配置（对应 SymbolOptionOut，共 11 字段，含标的扁平化字段） */
-    interface SymbolOption {
-      /** 关联标的ID */
-      underlying_id: number;
-      /** 行权价 */
-      price_strike: number;
-      /** 到期日（YYYY-MM-DD） */
-      delisted_date: string;
-      /** 剩余天数（自动计算） */
-      days_left: number | null;
-      /** 单点价值（自动计算） */
-      value_per: number | null;
-      /** 主键 */
-      id: number;
-      /** 创建时间 */
-      create_time: string;
-      /** 更新时间 */
-      update_time: string;
-      /** 标的代码 */
-      underlying_symbol: string | null;
-      /** 标的名称 */
-      underlying_name: string | null;
-      /** 标的乘数 */
-      underlying_multiplier: number | null;
-    }
-
     /** 贴水监测（对应 DiscountMonitorOut，共 16 字段，合并配置与监测） */
     interface DiscountMonitor {
       /** 主键 */
