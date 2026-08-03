@@ -405,6 +405,16 @@ export const generatedRoutes = [
         ]
       },
       {
+        name: 'irs_option-monitor',
+        path: '/irs/option-monitor',
+        component: 'view.irs_option-monitor',
+        meta: {
+          title: 'irs_option-monitor',
+          i18nKey: 'route.irs_option-monitor',
+          constant: true
+        }
+      },
+      {
         name: 'irs_value',
         path: '/irs/value',
         meta: {

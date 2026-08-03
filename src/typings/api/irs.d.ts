@@ -237,6 +237,48 @@ declare namespace Api {
       update_time: string;
     }
 
+    /** 期权监测合并（对应 OptionMonitorOut，共 19 字段，合并配置与监测） */
+    interface OptionMonitor {
+      /** 标的代码 */
+      underlying_symbol: string;
+      /** 行权价 */
+      price_strike: number;
+      /** 行权日 */
+      delisted_date: string;
+      /** 剩余天数 */
+      days_left: number | null;
+      /** 期权乘数 */
+      multiplier: number;
+      /** 期权代码 */
+      symbol: string;
+      /** 期权类型(call/put) */
+      option_type: string;
+      /** 标的现价 */
+      price_ud: number | null;
+      /** 期权现价 */
+      price: number | null;
+      /** 时间价值 */
+      value_t: number | null;
+      /** 内在价值 */
+      value_i: number | null;
+      /** 平值(%) */
+      atm_i: number | null;
+      /** 时间(%) */
+      ratio_t: number | null;
+      /** 内在(%) */
+      ratio_i: number | null;
+      /** 时间(%Y) */
+      ratio_t_y: number | null;
+      /** 内在(%Y) */
+      ratio_i_y: number | null;
+      /** 主键 */
+      id: number;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
     /** 同步结果（{status, message}） */
     interface SyncResult {
       /** 同步状态 */

@@ -146,6 +146,43 @@ export function fetchDiscountOptions() {
   });
 }
 
+/** 期权监测合并查询参数 */
+interface OptionMonitorQueryParams {
+  /** 标的代码（精确匹配） */
+  underlying_symbol?: string;
+  /** 期权类型（精确匹配） */
+  option_type?: string;
+  /** 期权代码（模糊匹配） */
+  symbol?: string;
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 查询期权监测合并列表 */
+export function fetchOptionMonitors(params?: OptionMonitorQueryParams) {
+  return request<Api.Common.PageResponse<Api.Irs.OptionMonitor>>({
+    url: '/api/v1/irs/option-monitors',
+    method: 'get',
+    params
+  });
+}
+
+/** 期权标的下拉选项（标的代码列表） */
+interface OptionUnderlyingsResponse {
+  /** 标的代码选项列表 */
+  underlying_symbols: Array<{ label: string; value: string }>;
+}
+
+/** 获取期权标地下拉选项（从 Config.OPTIONS_MARCH 取数，无数据库查询） */
+export function fetchOptionUnderlyings() {
+  return request<OptionUnderlyingsResponse>({
+    url: '/api/v1/irs/option-underlyings',
+    method: 'get'
+  });
+}
+
 /** irs 同步目标类型 */
 type IrsSyncTarget =
   | 'symbol-value'
