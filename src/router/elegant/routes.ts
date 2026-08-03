@@ -383,16 +383,6 @@ export const generatedRoutes = [
         },
         children: [
           {
-            name: 'irs_option_monitor-option-ts',
-            path: '/irs/option/monitor-option-ts',
-            component: 'view.irs_option_monitor-option-ts',
-            meta: {
-              title: 'irs_option_monitor-option-ts',
-              i18nKey: 'route.irs_option_monitor-option-ts',
-              constant: true
-            }
-          },
-          {
             name: 'irs_option_monitor-options',
             path: '/irs/option/monitor-options',
             component: 'view.irs_option_monitor-options',

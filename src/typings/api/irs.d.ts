@@ -199,58 +199,6 @@ declare namespace Api {
       underlying_name: string | null;
     }
 
-    /** 期权T型报价（对应 MonitorOptionTOut，共 24 字段，含期权/标的扁平化字段） */
-    interface MonitorOptionT {
-      /** 关联期权配置ID */
-      option_id: number;
-      /** 标的现价 */
-      price_ud: number | null;
-      /** 认购期权现价 */
-      price_c: number | null;
-      /** 认购时间价值 */
-      value_t_c: number | null;
-      /** 认购内在价值 */
-      value_i_c: number | null;
-      /** 认购时间占比(%) */
-      ratio_t_c: number | null;
-      /** 认购内在占比(%) */
-      ratio_i_c: number | null;
-      /** 认购年化时间占比(%) */
-      ratio_t_y_c: number | null;
-      /** 认购年化内在占比(%) */
-      ratio_i_y_c: number | null;
-      /** 认沽期权现价 */
-      price_p: number | null;
-      /** 认沽时间价值 */
-      value_t_p: number | null;
-      /** 认沽内在价值 */
-      value_i_p: number | null;
-      /** 认沽时间占比(%) */
-      ratio_t_p: number | null;
-      /** 认沽内在占比(%) */
-      ratio_i_p: number | null;
-      /** 认沽年化时间占比(%) */
-      ratio_t_y_p: number | null;
-      /** 认沽年化内在占比(%) */
-      ratio_i_y_p: number | null;
-      /** 主键 */
-      id: number;
-      /** 创建时间 */
-      create_time: string;
-      /** 更新时间 */
-      update_time: string;
-      /** 行权价 */
-      option_price_strike: number | null;
-      /** 到期日（YYYY-MM-DD） */
-      option_delisted_date: string | null;
-      /** 剩余天数 */
-      option_days_left: number | null;
-      /** 标的代码 */
-      underlying_symbol: string | null;
-      /** 标的名称 */
-      underlying_name: string | null;
-    }
-
     /** 贴水监测（对应 DiscountMonitorOut，共 16 字段，合并配置与监测） */
     interface DiscountMonitor {
       /** 主键 */

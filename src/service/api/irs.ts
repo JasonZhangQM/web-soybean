@@ -107,31 +107,6 @@ export function fetchMonitorOptions(params?: MonitorOptionQueryParams) {
   });
 }
 
-/** 期权T型报价查询参数 */
-interface MonitorOptionTQueryParams {
-  /** 标的代码 */
-  underlying_symbol?: string;
-  /** 标的名称 */
-  underlying_name?: string;
-  /** 行权价 */
-  price_strike?: number;
-  /** 剩余天数 */
-  days_left?: number;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询期权T型报价列表 */
-export function fetchMonitorOptionTs(params?: MonitorOptionTQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.MonitorOptionT>>({
-    url: '/api/v1/irs/monitor-option-ts',
-    method: 'get',
-    params
-  });
-}
-
 /** 贴水监测查询参数 */
 interface MonitorDiscountQueryParams {
   /** 合约类别（精确匹配） */
@@ -179,7 +154,6 @@ type IrsSyncTarget =
   | 'symbol-option'
   | 'symbol-underlying'
   | 'monitor-option'
-  | 'monitor-option-t'
   | 'symbol-discount'
   | 'monitor-discount';
 
