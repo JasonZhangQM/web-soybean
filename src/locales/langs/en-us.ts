@@ -260,7 +260,6 @@ const local: App.I18n.Schema = {
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_option': 'Option',
     'irs_option-monitor': 'Option Monitor',
-    'irs_option_monitor-options': 'Monitor Options',
     'irs_option_symbol-options': 'Symbol Options',
     'irs_value': 'Value',
     'irs_value_symbol-kpis': 'Symbol Kpis',

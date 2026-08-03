@@ -80,33 +80,6 @@ export function fetchSymbolOptions(params?: SymbolOptionQueryParams) {
   });
 }
 
-/** 期权监测查询参数 */
-interface MonitorOptionQueryParams {
-  /** 期权代码 */
-  symbol?: string;
-  /** 标的代码 */
-  underlying_symbol?: string;
-  /** 标的名称 */
-  underlying_name?: string;
-  /** 期权类型(call/put) */
-  option_type?: string;
-  /** 剩余天数 */
-  days_left?: number;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询期权监测列表 */
-export function fetchMonitorOptions(params?: MonitorOptionQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.MonitorOption>>({
-    url: '/api/v1/irs/monitor-options',
-    method: 'get',
-    params
-  });
-}
-
 /** 贴水监测查询参数 */
 interface MonitorDiscountQueryParams {
   /** 合约类别（精确匹配） */
@@ -190,7 +163,6 @@ type IrsSyncTarget =
   | 'monitor-value'
   | 'symbol-option'
   | 'symbol-underlying'
-  | 'monitor-option'
   | 'symbol-discount'
   | 'monitor-discount';
 

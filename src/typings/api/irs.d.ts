@@ -153,52 +153,6 @@ declare namespace Api {
       underlying_multiplier: number | null;
     }
 
-    /** 期权监测（对应 MonitorOptionOut，共 21 字段，含期权/标的扁平化字段） */
-    interface MonitorOption {
-      /** 期权代码 */
-      symbol: string;
-      /** 关联期权配置ID */
-      option_id: number;
-      /** 期权类型(call/put) */
-      option_type: string;
-      /** 标的现价 */
-      price_ud: number | null;
-      /** 期权现价 */
-      price: number | null;
-      /** 时间价值（自动计算） */
-      value_t: number | null;
-      /** 内在价值（自动计算） */
-      value_i: number | null;
-      /** 平值度(%) */
-      atm_i: number | null;
-      /** 时间价值占比(%) */
-      ratio_t: number | null;
-      /** 内在价值占比(%) */
-      ratio_i: number | null;
-      /** 年化时间占比(%) */
-      ratio_t_y: number | null;
-      /** 年化内在占比(%) */
-      ratio_i_y: number | null;
-      /** 主键 */
-      id: number;
-      /** 创建时间 */
-      create_time: string;
-      /** 更新时间 */
-      update_time: string;
-      /** 行权价 */
-      option_price_strike: number | null;
-      /** 到期日（YYYY-MM-DD） */
-      option_delisted_date: string | null;
-      /** 剩余天数 */
-      option_days_left: number | null;
-      /** 单点价值 */
-      option_value_per: number | null;
-      /** 标的代码 */
-      underlying_symbol: string | null;
-      /** 标的名称 */
-      underlying_name: string | null;
-    }
-
     /** 贴水监测（对应 DiscountMonitorOut，共 16 字段，合并配置与监测） */
     interface DiscountMonitor {
       /** 主键 */

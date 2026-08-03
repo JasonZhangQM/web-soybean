@@ -51,7 +51,6 @@ declare module "@elegant-router/types" {
     "irs": "/irs";
     "irs_discounts-monitor": "/irs/discounts-monitor";
     "irs_option": "/irs/option";
-    "irs_option_monitor-options": "/irs/option/monitor-options";
     "irs_option_symbol-options": "/irs/option/symbol-options";
     "irs_option-monitor": "/irs/option-monitor";
     "irs_value": "/irs/value";
@@ -144,7 +143,6 @@ declare module "@elegant-router/types" {
     | "home"
     | "irs_discounts-monitor"
     | "irs_option-monitor"
-    | "irs_option_monitor-options"
     | "irs_option_symbol-options"
     | "irs_value_symbol-kpis"
     | "irs_value_symbol-values"
