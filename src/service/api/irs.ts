@@ -102,6 +102,8 @@ interface OptionMonitorQueryParams {
   option_type?: string;
   /** 期权代码（模糊匹配） */
   symbol?: string;
+  /** 到期月(YYYYMM)，按 delisted_date 所在月范围筛选 */
+  end_month?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

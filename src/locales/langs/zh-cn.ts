@@ -255,6 +255,7 @@ const local: App.I18n.Schema = {
     'bills_profit-years': '年度收益',
     'irs_discounts-monitor': '贴水监测',
     'irs_option-monitor': '期权监测',
+    'irs_option-quote': '期权报价',
     'irs_value': '估值',
     'irs_value_symbol-kpis': '估值指标',
     'irs_value_symbol-values': '估值配置',

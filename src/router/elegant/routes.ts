@@ -383,6 +383,16 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'irs_option-quote',
+        path: '/irs/option-quote',
+        component: 'view.irs_option-quote',
+        meta: {
+          title: 'irs_option-quote',
+          i18nKey: 'route.irs_option-quote',
+          constant: true
+        }
+      },
+      {
         name: 'irs_value',
         path: '/irs/value',
         meta: {
