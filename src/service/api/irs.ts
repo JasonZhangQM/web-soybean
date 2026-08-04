@@ -146,3 +146,29 @@ export function syncIrs(target: IrsSyncTarget) {
     method: 'post'
   });
 }
+
+/** 期权行情同步参数 */
+interface OptionMonitorSyncParams {
+  /** 期权品种名称（如"沪深300股指期权"） */
+  option_name: string;
+  /** 到期年月，格式 YYYYMM（如"202608"） */
+  end_month: string;
+}
+
+/** 同步期权行情（akshare 获取期权行情 + gm 获取标的现价） */
+export function syncOptionMonitor(params: OptionMonitorSyncParams) {
+  return request<Api.Irs.SyncResult>({
+    url: '/api/v1/irs/sync/option-monitor',
+    method: 'post',
+    params,
+    timeout: 60 * 1000 // 60秒超时，akshare + gm 调用耗时较长
+  });
+}
+
+/** 清理已到期期权数据（删除剩余天数 days_left <= 0 的记录） */
+export function cleanOptionMonitor() {
+  return request<Api.Irs.SyncResult>({
+    url: '/api/v1/irs/clean/option-monitor',
+    method: 'post'
+  });
+}
