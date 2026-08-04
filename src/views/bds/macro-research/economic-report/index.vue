@@ -125,7 +125,7 @@ onMounted(() => {
     <main class="container">
       <!-- 同步工具栏 -->
       <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-        <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
+        <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
           <NFormItem label="指标代码">
             <NSelect
               v-model:value="syncSymbol"

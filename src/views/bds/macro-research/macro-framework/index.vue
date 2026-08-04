@@ -152,7 +152,7 @@ onMounted(() => {
   <div class="p-16px">
     <!-- 1. 顶部筛选区 -->
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left" class="flex flex-wrap gap-12px items-center">
+      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px items-center">
         <NFormItem label="日期范围">
           <NDatePicker
             v-model:formatted-value="dateRange"

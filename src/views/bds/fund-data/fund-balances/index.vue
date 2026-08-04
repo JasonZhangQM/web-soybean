@@ -145,7 +145,7 @@ onMounted(() => fetchData());
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
-      <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
+      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="股票代码">
           <NSelect
             v-model:value="searchParams.symbol"

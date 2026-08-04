@@ -123,7 +123,7 @@ onMounted(() => {
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
-      <NForm inline label-placement="left" class="flex flex-wrap gap-12px">
+      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <!-- 指标代码：NSelect 单选精确匹配，选项从 bdsStore 动态拉取 -->
         <NFormItem label="指标">
           <NSelect
