@@ -1,22 +1,14 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
 import { fetchValueMonitor } from '@/service/api';
+import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsValueMonitorPage' });
 
 const loading = ref(false);
 const tableData = ref<Api.Irs.MonitorValue[]>([]);
-const total = ref(0);
-
-// 分页配置（remote 模式）
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  itemCount: 0,
-  prefix: () => `共 ${total.value} 条`
-});
+// 分页配置（remote 模式，使用全局工厂函数）
+const pagination = createTablePagination();
 
 // 拉取估值监测列表（接口内部已自动同步，无需手动触发）
 async function fetchData() {
@@ -28,7 +20,6 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      total.value = data.total;
       pagination.itemCount = data.total;
     }
   } finally {

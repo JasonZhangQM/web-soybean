@@ -5,6 +5,7 @@ import { trimSearchParams } from '@/utils/common';
 import { executeSync } from '@/utils/sync-feedback';
 import { useBillsStore } from '@/store/modules/bills';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
+import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsListPage' });
 
@@ -27,17 +28,8 @@ const loading = ref(false);
 // 导入专用 loading：与表格 loading 分离，避免导入过程中表格闪烁
 const importLoading = ref(false);
 const tableData = ref<Api.Bills.Bill[]>([]);
-const total = ref(0);
-
-// 分页配置：使用 remote 模式，由后端返回数据
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  itemCount: 0,
-  prefix: () => `共 ${total.value} 条`
-});
+// 分页配置（remote 模式，使用全局工厂函数）
+const pagination = createTablePagination();
 
 // 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
 const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string }>({});
@@ -58,7 +50,6 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      total.value = data.total;
       pagination.itemCount = data.total;
     }
   } finally {

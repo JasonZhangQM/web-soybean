@@ -89,7 +89,7 @@ export function useNaivePaginatedTable<ResponseData, ApiData>(
 
   const pagination = reactive({
     page: 1,
-    pageSize: 10,
+    pageSize: 20,
     itemCount: 0,
     showSizePicker: true,
     pageSizes: [10, 15, 20, 25, 30],
@@ -249,7 +249,7 @@ export function defaultTransform<ApiData>(
   return {
     data: [],
     pageNum: 1,
-    pageSize: 10,
+    pageSize: 20,
     total: 0
   };
 }
@@ -318,4 +318,23 @@ function getColumns<Column extends NaiveUI.TableColumn<any>>(cols: Column[], che
 
 export function isTableColumnHasKey<T>(column: NaiveUI.TableColumn<T>): column is NaiveUI.TableColumnWithKey<T> {
   return Boolean((column as NaiveUI.TableColumnWithKey<T>).key);
+}
+
+/**
+ * 创建数据表格分页配置（各页面共享同一份默认配置，返回独立实例）。
+ *
+ * - 统一默认值：page=1, pageSize=20, pageSizes=[10,20,50,100], showSizePicker=true
+ * - prefix 直接引用自身 itemCount，无需外部注入 total ref
+ * - 每次调用返回独立的 reactive 对象，避免跨页面状态污染
+ */
+export function createTablePagination() {
+  const pagination = reactive({
+    page: 1,
+    pageSize: 20,
+    showSizePicker: true,
+    pageSizes: [10, 20, 50, 100],
+    itemCount: 0,
+    prefix: () => `共 ${pagination.itemCount} 条`
+  }) as PaginationProps;
+  return pagination;
 }

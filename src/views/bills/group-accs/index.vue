@@ -4,6 +4,7 @@ import { fetchGroupAccs, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
+import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsGroupAccsPage' });
 
@@ -13,17 +14,8 @@ const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncLoading = ref(false);
 const tableData = ref<Api.Bills.GroupAcc[]>([]);
-const total = ref(0);
-
-// 分页配置：使用 remote 模式，由后端返回数据
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  itemCount: 0,
-  prefix: () => `共 ${total.value} 条`
-});
+// 分页配置（remote 模式，使用全局工厂函数）
+const pagination = createTablePagination();
 
 // 筛选参数：account 多选精确匹配，acc_aset_only 控制账户净值不为0
 const searchParams = reactive<{ account?: string[]; acc_aset_only?: boolean }>({ acc_aset_only: true });
@@ -45,7 +37,6 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      total.value = data.total;
       pagination.itemCount = data.total;
     }
   } finally {

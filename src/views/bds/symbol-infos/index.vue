@@ -5,6 +5,7 @@ import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBdsStore } from '@/store/modules/bds';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
+import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'SymbolInfosPage' });
 
@@ -18,17 +19,8 @@ const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncLoading = ref(false);
 const tableData = ref<Api.Bds.SymbolInfo[]>([]);
-const total = ref(0);
-
-// 分页配置（remote 模式）
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  itemCount: 0,
-  prefix: () => `共 ${total.value} 条`
-});
+// 分页配置（remote 模式，使用全局工厂函数）
+const pagination = createTablePagination();
 
 // 搜索参数：symbol 远程搜索选中代码，industry 下拉精确匹配
 const searchParams = reactive<{
@@ -50,7 +42,6 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      total.value = data.total;
       pagination.itemCount = data.total;
     }
   } finally {

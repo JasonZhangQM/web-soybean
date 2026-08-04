@@ -5,6 +5,7 @@ import { fetchGoldReserves, syncGoldReserve, syncAllGoldReserves } from '@/servi
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
+import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'GoldReservesPage' });
 
@@ -15,17 +16,8 @@ const syncLoading = ref(false);
 // 全量同步 loading：与单国家同步分离，避免按钮间互相影响
 const allSyncLoading = ref(false);
 const tableData = ref<Api.Bds.GoldReserve[]>([]);
-const total = ref(0);
-
-// 分页配置（remote 模式）
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  showSizePicker: true,
-  pageSizes: [10, 20, 50, 100],
-  itemCount: 0,
-  prefix: () => `共 ${total.value} 条`
-});
+// 分页配置（remote 模式，使用全局工厂函数）
+const pagination = createTablePagination();
 
 // 搜索参数：country_code 多选精确匹配，日期范围
 const searchParams = reactive<{
@@ -61,7 +53,6 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      total.value = data.total;
       pagination.itemCount = data.total;
     }
   } finally {
