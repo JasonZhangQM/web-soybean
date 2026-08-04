@@ -193,7 +193,6 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
-        :scroll-x="1240"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
