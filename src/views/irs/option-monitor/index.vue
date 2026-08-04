@@ -220,7 +220,7 @@ onMounted(() => {
         </NFormItem>
         <NFormItem>
           <NButton
-            type="error"
+            type="primary"
             :loading="cleanLoading"
             @click="handleClean"
           >

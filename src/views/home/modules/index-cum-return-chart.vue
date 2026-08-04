@@ -25,12 +25,14 @@ const startDate = ref<string | null>(getDefaultStartDate());
 // 多色配色，按指数数量循环取色
 const colors = ['#5da8ff', '#26deca', '#fedc69', '#ff7d85', '#a78bfa', '#34d399', '#fbbf24'];
 
-// 最新数据行：每个指数的最新累计收益率 / 最大回撤（取最后一个非 null 值）
+// 最新数据行：每个指数的最新累计收益率 / 当前最大回撤 / 历史最大回撤
 interface LatestRow {
   name: string;
   color: string;
   cumReturn: number | null;
   drawdown: number | null;
+  // 历史最大回撤：整个数据集中回撤最深的值（最小值，因回撤为负数）
+  maxDrawdown: number | null;
   date: string;
 }
 const latestRows = ref<LatestRow[]>([]);
@@ -195,11 +197,15 @@ async function initData() {
         break;
       }
     }
+    // 历史最大回撤：整个数据集中回撤最深的值（回撤为负数，取最小值）
+    const ddValid = ddArr.filter((v): v is number => v != null && Number.isFinite(v));
+    const maxDdVal = ddValid.length ? Math.min(...ddValid) : null;
     return {
       name,
       color: colors[idx % colors.length],
       cumReturn: cumVal,
       drawdown: ddVal,
+      maxDrawdown: maxDdVal,
       date: cumDate || (lastIdx >= 0 ? data.trade_dates[lastIdx] : '')
     };
   });
@@ -285,7 +291,8 @@ init();
             <tr>
               <th class="th-name">指数</th>
               <th class="th-num">累计收益率(%)</th>
-              <th class="th-num">最大回撤(%)</th>
+              <th class="th-num">当前回撤(%)</th>
+              <th class="th-num">历史最大回撤(%)</th>
             </tr>
           </thead>
           <tbody>
@@ -296,6 +303,7 @@ init();
               </td>
               <td class="td-num">{{ fmt(row.cumReturn) }}</td>
               <td class="td-num">{{ fmt(row.drawdown) }}</td>
+              <td class="td-num">{{ fmt(row.maxDrawdown) }}</td>
             </tr>
           </tbody>
         </table>
