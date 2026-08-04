@@ -101,12 +101,12 @@ function handlePageSizeChange(pageSize: number) {
 
 // 触发同步代码（从 Config 读取连续合约 + gm SDK 更新合约信息）
 async function handleSyncCode() {
-  await executeSync(() => syncIrs('symbol-discount'), syncCodeLoading, fetchData);
+  await executeSync(() => syncIrs('discount-symbol'), syncCodeLoading, fetchData);
 }
 
 // 触发同步行情（调用 discount_yield_em_orm 获取实时行情并计算贴水）
 async function handleSync() {
-  await executeSync(() => syncIrs('monitor-discount'), syncLoading, fetchData);
+  await executeSync(() => syncIrs('discount-monitor'), syncLoading, fetchData);
 }
 
 // 数值字段统一保留两位小数，空值显示 '-'

@@ -136,9 +136,8 @@ type IrsSyncTarget =
   | 'symbol-value'
   | 'symbol-kpi'
   | 'monitor-value'
-  | 'symbol-underlying'
-  | 'symbol-discount'
-  | 'monitor-discount';
+  | 'discount-symbol'
+  | 'discount-monitor';
 
 /** 触发 irs 同步 */
 export function syncIrs(target: IrsSyncTarget) {
