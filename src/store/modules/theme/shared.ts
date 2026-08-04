@@ -257,6 +257,11 @@ export function getNaiveTheme(
     },
     Tag: {
       borderRadius: `${settings.themeRadius}px`
+    },
+    DataTable: {
+      // 全局缩减 medium size 单元格 padding，使表格更紧凑
+      thPaddingMedium: '4px 8px',
+      tdPaddingMedium: '4px 8px'
     }
   };
 

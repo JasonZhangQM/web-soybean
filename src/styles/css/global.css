@@ -13,3 +13,12 @@ html {
   overflow-x: hidden;
   color: rgb(var(--base-text-color));
 }
+
+/* 全局 NDataTable 行选中高亮：使用主题主色半透明叠加，明暗模式分别调透明度 */
+/* --primary-color 为空格分隔的 RGB（如 100 108 255），需用 CSS Level 4 的 rgb(R G B / A) 语法 */
+html:not(.dark) .n-data-table-tr.row-selected > .n-data-table-td {
+  background-color: rgb(var(--primary-color) / 0.18) !important;
+}
+html.dark .n-data-table-tr.row-selected > .n-data-table-td {
+  background-color: rgb(var(--primary-color) / 0.32) !important;
+}

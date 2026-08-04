@@ -53,6 +53,19 @@ onMounted(() => {
   bdsStore.loadIndustries();
   // 加载经济指标代码列表（全局缓存）
   bdsStore.loadIndicatorCodes();
+
+  // 全局 NDataTable 行点击高亮：事件委托，点击 tr 时切换 row-selected 类
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const tr = target.closest('.n-data-table-tr');
+    if (!tr) return;
+    const table = tr.closest('.n-data-table');
+    if (!table) return;
+    // 同表内移除其他行的选中态
+    table.querySelectorAll('.row-selected').forEach(el => el.classList.remove('row-selected'));
+    // 当前行添加选中态
+    tr.classList.add('row-selected');
+  });
 });
 </script>
 
