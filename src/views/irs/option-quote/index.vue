@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchOptionMonitors, fetchOptionUnderlyings } from '@/service/api';
+import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsOptionQuotePage' });
@@ -30,6 +31,9 @@ const searchParams = reactive({
 
 // 标的代码下拉选项（从后端 Config 动态拉取）
 const underlyingSymbolOptions = ref<{ label: string; value: string }[]>([]);
+
+// 同步行情专用 loading
+const syncLoading = ref(false);
 
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
@@ -133,6 +137,24 @@ function handleSearch() {
   fetchData();
 }
 
+// 从 underlyingSymbolOptions 中根据 value(underlying_symbol) 查找 label(option_name)
+function getOptionNameByValue(value: string): string | undefined {
+  return underlyingSymbolOptions.value.find(o => o.value === value)?.label;
+}
+
+// 触发同步行情（复用搜索栏的标的和到期月值）
+async function handleSync() {
+  if (!searchParams.underlying_symbol || !searchParams.end_month) return;
+  const optionName = getOptionNameByValue(searchParams.underlying_symbol);
+  if (!optionName) return;
+  const endMonth = formatEndMonth(searchParams.end_month);
+  await executeSync(
+    () => syncOptionMonitor({ option_name: optionName, end_month: endMonth }),
+    syncLoading,
+    fetchData
+  );
+}
+
 // 生成认购侧列（取 row.call 的字段）
 function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90) {
   return {
@@ -217,6 +239,17 @@ onMounted(() => {
         </NFormItem>
         <NFormItem>
           <NButton type="primary" @click="handleSearch">搜索</NButton>
+        </NFormItem>
+        <NFormItem>
+          <NButton
+            type="primary"
+            :loading="syncLoading"
+            :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
+            @click="handleSync"
+          >
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            同步行情
+          </NButton>
         </NFormItem>
         <NFormItem v-if="delistedInfo">
           <span class="text-14px">

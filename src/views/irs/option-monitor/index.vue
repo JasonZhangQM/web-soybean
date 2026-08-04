@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor, cleanOptionMonitor } from '@/service/api';
+import { fetchOptionMonitors, fetchOptionUnderlyings, cleanOptionMonitor } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
@@ -29,8 +29,6 @@ const optionTypeOptions = [
 // 标的代码下拉选项（从后端 Config 动态拉取）
 const underlyingSymbolOptions = ref<{ label: string; value: string }[]>([]);
 
-// 同步行情专用 loading
-const syncLoading = ref(false);
 // 清理代码专用 loading
 const cleanLoading = ref(false);
 
@@ -96,24 +94,6 @@ function formatEndMonth(timestamp: number): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   return `${year}${month}`;
-}
-
-// 从 underlyingSymbolOptions 中根据 value(underlying_symbol) 查找 label(option_name)
-function getOptionNameByValue(value: string): string | undefined {
-  return underlyingSymbolOptions.value.find(o => o.value === value)?.label;
-}
-
-// 触发同步行情（复用搜索栏的标的和到期月值）
-async function handleSync() {
-  if (!searchParams.underlying_symbol || !searchParams.end_month) return;
-  const optionName = getOptionNameByValue(searchParams.underlying_symbol);
-  if (!optionName) return;
-  const endMonth = formatEndMonth(searchParams.end_month);
-  await executeSync(
-    () => syncOptionMonitor({ option_name: optionName, end_month: endMonth }),
-    syncLoading,
-    fetchData
-  );
 }
 
 // 清理已到期期权数据（days_left <= 0）
@@ -198,17 +178,6 @@ onMounted(() => {
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem>
-          <NButton
-            type="primary"
-            :loading="syncLoading"
-            :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
-            @click="handleSync"
-          >
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            同步行情
-          </NButton>
         </NFormItem>
         <NFormItem>
           <NButton
