@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchValueMonitors } from '@/service/api';
+import { fetchValueMonitors, createValueMonitor } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -46,6 +46,85 @@ function handleReset() {
   searchParams.name = '';
   pagination.page = 1;
   fetchData();
+}
+
+// ===== 新增模态框 =====
+const showModal = ref(false);
+const submitLoading = ref(false);
+const formRef = ref();
+const formData = reactive({
+  symbol: '',
+  name: '',
+  pp_el: null as number | null,
+  pp_l: null as number | null,
+  pp_m: null as number | null,
+  pp_h: null as number | null,
+  pp_eh: null as number | null
+});
+
+// 表单校验规则：所有字段必填
+const formRules = {
+  symbol: { required: true, message: '请输入代码', trigger: 'blur' },
+  name: { required: true, message: '请输入名称', trigger: 'blur' },
+  pp_el: { required: true, type: 'number' as const, message: '请输入极低', trigger: 'blur' },
+  pp_l: { required: true, type: 'number' as const, message: '请输入低', trigger: 'blur' },
+  pp_m: { required: true, type: 'number' as const, message: '请输入中', trigger: 'blur' },
+  pp_h: { required: true, type: 'number' as const, message: '请输入高', trigger: 'blur' },
+  pp_eh: { required: true, type: 'number' as const, message: '请输入极高', trigger: 'blur' }
+};
+
+// 打开新增模态框
+function handleAdd() {
+  resetForm();
+  showModal.value = true;
+}
+
+// 重置表单
+function resetForm() {
+  formData.symbol = '';
+  formData.name = '';
+  formData.pp_el = null;
+  formData.pp_l = null;
+  formData.pp_m = null;
+  formData.pp_h = null;
+  formData.pp_eh = null;
+  formRef.value?.restoreValidation();
+}
+
+// 提交新增
+async function handleSubmit() {
+  try {
+    await formRef.value?.validate();
+  } catch {
+    return;
+  }
+  submitLoading.value = true;
+  try {
+    const { error } = await createValueMonitor({
+      symbol: formData.symbol,
+      name: formData.name,
+      pp_el: formData.pp_el!,
+      pp_l: formData.pp_l!,
+      pp_m: formData.pp_m!,
+      pp_h: formData.pp_h!,
+      pp_eh: formData.pp_eh!
+    });
+    if (!error) {
+      window.$message?.success('新增成功');
+      showModal.value = false;
+      resetForm();
+      pagination.page = 1;
+      fetchData();
+    }
+  } finally {
+    submitLoading.value = false;
+  }
+}
+
+// 取消新增
+function handleCancel() {
+  showModal.value = false;
+  resetForm();
 }
 
 function handlePageChange(page: number) {
@@ -126,6 +205,12 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
+        <NFormItem>
+          <NButton type="primary" @click="handleAdd">
+            <template #icon><SvgIcon icon="mdi:plus" /></template>
+            新增
+          </NButton>
+        </NFormItem>
       </NForm>
     </NCard>
     <NCard :bordered="false" class="card-wrapper">
@@ -139,5 +224,78 @@ onMounted(() => {
         @update:page-size="handlePageSizeChange"
       />
     </NCard>
+    <NModal
+      v-model:show="showModal"
+      preset="card"
+      title="新增估值监测"
+      class="w-480px"
+      :mask-closable="false"
+    >
+      <NForm
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        label-placement="left"
+        label-width="80px"
+      >
+        <NFormItem label="代码" path="symbol">
+          <NInput v-model:value="formData.symbol" placeholder="请输入代码" />
+        </NFormItem>
+        <NFormItem label="名称" path="name">
+          <NInput v-model:value="formData.name" placeholder="请输入名称" />
+        </NFormItem>
+        <NFormItem label="极低" path="pp_el">
+          <NInputNumber
+            v-model:value="formData.pp_el"
+            :precision="4"
+            :step="0.0001"
+            placeholder="请输入极低"
+            class="w-full"
+          />
+        </NFormItem>
+        <NFormItem label="低" path="pp_l">
+          <NInputNumber
+            v-model:value="formData.pp_l"
+            :precision="4"
+            :step="0.0001"
+            placeholder="请输入低"
+            class="w-full"
+          />
+        </NFormItem>
+        <NFormItem label="中" path="pp_m">
+          <NInputNumber
+            v-model:value="formData.pp_m"
+            :precision="4"
+            :step="0.0001"
+            placeholder="请输入中"
+            class="w-full"
+          />
+        </NFormItem>
+        <NFormItem label="高" path="pp_h">
+          <NInputNumber
+            v-model:value="formData.pp_h"
+            :precision="4"
+            :step="0.0001"
+            placeholder="请输入高"
+            class="w-full"
+          />
+        </NFormItem>
+        <NFormItem label="极高" path="pp_eh">
+          <NInputNumber
+            v-model:value="formData.pp_eh"
+            :precision="4"
+            :step="0.0001"
+            placeholder="请输入极高"
+            class="w-full"
+          />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="handleCancel">取消</NButton>
+          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">确定</NButton>
+        </NSpace>
+      </template>
+    </NModal>
   </div>
 </template>
