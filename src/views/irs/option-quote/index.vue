@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor } from '@/service/api';
+import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor, cleanOptionMonitor } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -34,6 +34,8 @@ const underlyingSymbolOptions = ref<{ label: string; value: string }[]>([]);
 
 // 同步行情专用 loading
 const syncLoading = ref(false);
+// 清理代码专用 loading
+const cleanLoading = ref(false);
 
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
@@ -176,6 +178,11 @@ async function handleSync() {
   );
 }
 
+// 清理已到期期权数据（days_left <= 0）
+async function handleClean() {
+  await executeSync(cleanOptionMonitor, cleanLoading, fetchData);
+}
+
 // 生成认购侧列（取 row.call 的字段），formatter/className 可选
 function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90, formatter = fmt, className?: string) {
   return {
@@ -272,6 +279,16 @@ onMounted(() => {
           >
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             同步行情
+          </NButton>
+        </NFormItem>
+        <NFormItem>
+          <NButton
+            type="primary"
+            :loading="cleanLoading"
+            @click="handleClean"
+          >
+            <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
+            清理代码
           </NButton>
         </NFormItem>
         <NFormItem v-if="delistedInfo">

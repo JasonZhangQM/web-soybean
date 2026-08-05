@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchOptionMonitors, fetchOptionUnderlyings, cleanOptionMonitor } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchOptionMonitors, fetchOptionUnderlyings } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -28,9 +27,6 @@ const optionTypeOptions = [
 ];
 // 标的代码下拉选项（从后端 Config 动态拉取）
 const underlyingSymbolOptions = ref<{ label: string; value: string }[]>([]);
-
-// 清理代码专用 loading
-const cleanLoading = ref(false);
 
 // 拉取期权监测合并列表
 async function fetchData() {
@@ -94,11 +90,6 @@ function formatEndMonth(timestamp: number): string {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   return `${year}${month}`;
-}
-
-// 清理已到期期权数据（days_left <= 0）
-async function handleClean() {
-  await executeSync(cleanOptionMonitor, cleanLoading, fetchData);
 }
 
 // 数值字段统一保留两位小数，空值显示 '-'
@@ -180,16 +171,6 @@ onMounted(() => {
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem>
-          <NButton
-            type="primary"
-            :loading="cleanLoading"
-            @click="handleClean"
-          >
-            <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
-            清理代码
-          </NButton>
         </NFormItem>
       </NForm>
     </NCard>
