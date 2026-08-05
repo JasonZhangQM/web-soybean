@@ -1,7 +1,7 @@
 declare namespace Api {
   /** 账单模块 */
   namespace Bills {
-    /** 账单汇总（对应 GroupOut，共 33 字段） */
+    /** 账单汇总（对应 GroupOut，共 32 字段） */
     interface Group {
       /** 账户 */
       account: string | null;
@@ -19,8 +19,6 @@ declare namespace Api {
       profit_time: string | null;
       /** 市值试算时间 */
       value_time: string | null;
-      /** 收益日结时间 */
-      daily_time: string | null;
       /** 多头持仓 */
       p_long: number | null;
       /** 空头持仓 */
