@@ -171,11 +171,11 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
             <NButton type="primary" :loading="syncCodeLoading" @click="handleSyncCode">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步代码
+              代码
             </NButton>
             <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步行情
+              行情
             </NButton>
           </NSpace>
         </NFormItem>

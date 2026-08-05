@@ -278,7 +278,7 @@ onMounted(() => {
             @click="handleSync"
           >
             <template #icon><SvgIcon icon="mdi:sync" /></template>
-            同步行情
+            行情
           </NButton>
         </NFormItem>
         <NFormItem>
@@ -288,7 +288,7 @@ onMounted(() => {
             @click="handleClean"
           >
             <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
-            清理代码
+            代码
           </NButton>
         </NFormItem>
         <NFormItem v-if="delistedInfo">
