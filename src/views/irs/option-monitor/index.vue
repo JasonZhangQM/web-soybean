@@ -103,6 +103,8 @@ async function handleClean() {
 
 // 数值字段统一保留两位小数，空值显示 '-'
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
+// 期权现价、时间价值、内在价值保留四位小数
+const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4) : '-');
 // 日期截取前 10 位
 const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 // 期权类型显示中文
@@ -116,13 +118,13 @@ const columns = [
   { title: '期权类型', key: 'option_type', width: 70, render: (row: Api.Irs.OptionMonitor) => fmtOptionType(row.option_type) },
   { title: '标的现价', key: 'price_ud', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt(row.price_ud) },
   { title: '平值(%)', key: 'atm_i', width: 80, render: (row: Api.Irs.OptionMonitor) => fmt(row.atm_i) },
-  { title: '期权现价', key: 'price', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt(row.price) },
-  { title: '时间价值', key: 'value_t', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt(row.value_t) },
+  { title: '期权现价', key: 'price', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt4(row.price) },
+  { title: '时间价值', key: 'value_t', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt4(row.value_t) },
   { title: '时间(%)', key: 'ratio_t', width: 80, render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_t) },
-  { title: '时间(%Y)', key: 'ratio_t_y', width: 90, render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_t_y) },
-  { title: '内在价值', key: 'value_i', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt(row.value_i) },
+  { title: '时间(%Y)', key: 'ratio_t_y', width: 90, className: 'font-bold', render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_t_y) },
+  { title: '内在价值', key: 'value_i', width: 100, render: (row: Api.Irs.OptionMonitor) => fmt4(row.value_i) },
   { title: '内在(%)', key: 'ratio_i', width: 80, render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_i) },
-  { title: '内在(%Y)', key: 'ratio_i_y', width: 90, render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_i_y) },
+  { title: '内在(%Y)', key: 'ratio_i_y', width: 90, className: 'font-bold', render: (row: Api.Irs.OptionMonitor) => fmt(row.ratio_i_y) },
   { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.OptionMonitor) => fmtDate(row.delisted_date) },
   { title: '期权乘数', key: 'multiplier', width: 80 }
 ];

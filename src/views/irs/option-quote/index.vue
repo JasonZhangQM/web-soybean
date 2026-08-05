@@ -51,6 +51,8 @@ const delistedInfo = computed(() => {
 
 // 数值字段统一保留两位小数，空值显示 '-'
 const fmt = (v: number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');
+// 期权现价、时间价值、内在价值保留四位小数
+const fmt4 = (v: number | null | undefined) => (v != null ? Number(v).toFixed(4) : '-');
 
 // 将时间戳格式化为 YYYYMM 字符串
 function formatEndMonth(timestamp: number): string {
@@ -155,23 +157,25 @@ async function handleSync() {
   );
 }
 
-// 生成认购侧列（取 row.call 的字段）
-function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90) {
+// 生成认购侧列（取 row.call 的字段），formatter/className 可选
+function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90, formatter = fmt, className?: string) {
   return {
     title,
     key,
     width,
-    render: (row: OptionQuoteRow) => fmt(row.call?.[field])
+    className,
+    render: (row: OptionQuoteRow) => formatter(row.call?.[field])
   };
 }
 
-// 生成认沽侧列（取 row.put 的字段）
-function makePutColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90) {
+// 生成认沽侧列（取 row.put 的字段），formatter/className 可选
+function makePutColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90, formatter = fmt, className?: string) {
   return {
     title,
     key,
     width,
-    render: (row: OptionQuoteRow) => fmt(row.put?.[field])
+    className,
+    render: (row: OptionQuoteRow) => formatter(row.put?.[field])
   };
 }
 
@@ -188,24 +192,24 @@ function makeAxisColumn(title: string, field: keyof OptionQuoteRow, width = 90) 
 
 const columns = [
   // 认购侧（7 列，从左到右）
-  makeCallColumn('内在(%Y)', 'ratio_i_y', 'call_ratio_i_y'),
+  makeCallColumn('内在(%Y)', 'ratio_i_y', 'call_ratio_i_y', 90, fmt, 'font-bold'),
   makeCallColumn('内在(%)', 'ratio_i', 'call_ratio_i'),
-  makeCallColumn('内在价值', 'value_i', 'call_value_i', 100),
-  makeCallColumn('时间(%Y)', 'ratio_t_y', 'call_ratio_t_y'),
+  makeCallColumn('内在价值', 'value_i', 'call_value_i', 100, fmt4),
+  makeCallColumn('时间(%Y)', 'ratio_t_y', 'call_ratio_t_y', 90, fmt, 'font-bold'),
   makeCallColumn('时间(%)', 'ratio_t', 'call_ratio_t'),
-  makeCallColumn('时间价值', 'value_t', 'call_value_t', 100),
-  makeCallColumn('期权现价', 'price', 'call_price', 100),
+  makeCallColumn('时间价值', 'value_t', 'call_value_t', 100, fmt4),
+  makeCallColumn('期权现价', 'price', 'call_price', 100, fmt4),
   // 中心轴（2 列）
   makeAxisColumn('行权价', 'price_strike'),
   makeAxisColumn('平值(%)', 'atm_i'),
   // 认沽侧（7 列，从左到右）
-  makePutColumn('期权现价', 'price', 'put_price', 100),
-  makePutColumn('时间价值', 'value_t', 'put_value_t', 100),
+  makePutColumn('期权现价', 'price', 'put_price', 100, fmt4),
+  makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
   makePutColumn('时间(%)', 'ratio_t', 'put_ratio_t'),
-  makePutColumn('时间(%Y)', 'ratio_t_y', 'put_ratio_t_y'),
-  makePutColumn('内在价值', 'value_i', 'put_value_i', 100),
+  makePutColumn('时间(%Y)', 'ratio_t_y', 'put_ratio_t_y', 90, fmt, 'font-bold'),
+  makePutColumn('内在价值', 'value_i', 'put_value_i', 100, fmt4),
   makePutColumn('内在(%)', 'ratio_i', 'put_ratio_i'),
-  makePutColumn('内在(%Y)', 'ratio_i_y', 'put_ratio_i_y')
+  makePutColumn('内在(%Y)', 'ratio_i_y', 'put_ratio_i_y', 90, fmt, 'font-bold')
 ];
 
 onMounted(() => {
