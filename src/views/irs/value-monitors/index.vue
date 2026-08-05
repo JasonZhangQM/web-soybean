@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, computed, h, onMounted } from 'vue';
+import { ref, reactive, computed, h, watch, onMounted } from 'vue';
 import { NButton } from 'naive-ui';
 import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 
 defineOptions({ name: 'IrsValueMonitorsPage' });
 
@@ -64,12 +65,38 @@ const formData = reactive({
   pp_eh: null as number | null
 });
 
+// 代码远程搜索：NSelect remote，防抖 300ms 调 /bds/symbol-infos
+const {
+  symbolOptions,
+  symbolLoading,
+  handleSymbolSearch,
+  clearSymbolOptions,
+  getNameBySymbol
+} = useSymbolSearch();
+
+// 选择代码后自动回填名称（仅新增模式触发；编辑模式 symbol 禁用不会变）
+function handleSymbolChange(symbol: string | null) {
+  formData.symbol = symbol ?? '';
+  if (symbol && editingId.value === null) {
+    const name = getNameBySymbol(symbol);
+    if (name) formData.name = name;
+  }
+}
+
 // 模态框标题：新增/编辑动态切换
 const modalTitle = computed(() => (editingId.value === null ? '新增估值监测' : '编辑估值监测'));
 
+// "中"自动取"低"与"高"的平均值（低/高任一为空时置空），新增与编辑一致
+watch(
+  () => [formData.pp_l, formData.pp_h],
+  ([l, h]) => {
+    formData.pp_m = l != null && h != null ? Number(((Number(l) + Number(h)) / 2).toFixed(4)) : null;
+  }
+);
+
 // 表单校验规则：所有字段必填
 const formRules = {
-  symbol: { required: true, message: '请输入代码', trigger: 'blur' },
+  symbol: { required: true, message: '请选择代码', trigger: 'change' },
   name: { required: true, message: '请输入名称', trigger: 'blur' },
   pp_el: { required: true, type: 'number' as const, message: '请输入极低', trigger: 'blur' },
   pp_l: { required: true, type: 'number' as const, message: '请输入低', trigger: 'blur' },
@@ -92,6 +119,8 @@ function handleEdit(row: Api.Irs.ValueMonitor) {
   editingId.value = row.id;
   formData.symbol = row.symbol;
   formData.name = row.name ?? '';
+  // 编辑回填时 NSelect 需有对应 option 才能显示，手动塞入当前行
+  symbolOptions.value = [{ label: `${row.symbol} ${row.name ?? ''}`, value: row.symbol }];
   formData.pp_el = row.pp_el != null ? Number(row.pp_el) : null;
   formData.pp_l = row.pp_l != null ? Number(row.pp_l) : null;
   formData.pp_m = row.pp_m != null ? Number(row.pp_m) : null;
@@ -110,6 +139,7 @@ function resetForm() {
   formData.pp_m = null;
   formData.pp_h = null;
   formData.pp_eh = null;
+  clearSymbolOptions();
   formRef.value?.restoreValidation();
 }
 
@@ -296,7 +326,19 @@ onMounted(() => {
         label-width="80px"
       >
         <NFormItem label="代码" path="symbol">
-          <NInput v-model:value="formData.symbol" :disabled="editingId !== null" placeholder="请输入代码" />
+          <NSelect
+            :value="formData.symbol || null"
+            :options="symbolOptions"
+            :loading="symbolLoading"
+            :disabled="editingId !== null"
+            filterable
+            remote
+            clearable
+            placeholder="输入代码或名称搜索"
+            style="width: 100%"
+            @search="handleSymbolSearch"
+            @update:value="handleSymbolChange"
+          />
         </NFormItem>
         <NFormItem label="名称" path="name">
           <NInput v-model:value="formData.name" placeholder="请输入名称" />
@@ -324,7 +366,8 @@ onMounted(() => {
             v-model:value="formData.pp_m"
             :precision="4"
             :step="0.0001"
-            placeholder="请输入中"
+            :disabled="true"
+            placeholder="自动取低与高的平均"
             class="w-full"
           />
         </NFormItem>
