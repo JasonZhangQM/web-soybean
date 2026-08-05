@@ -89,6 +89,25 @@ const pagedData = computed(() => {
   return tableData.value.slice(start, start + pagination.pageSize);
 });
 
+// 平值行：行权价与标的现价绝对价差最小（基于全量数据）
+// 使用 price_ud 而非派生字段 atm_i，gm 降级时只要 price_ud 有缓存值仍可识别
+const minAtmStrike = computed(() => {
+  const valid = tableData.value.filter(r => r.price_ud != null);
+  if (!valid.length) return null;
+  let minRow = valid[0];
+  for (const r of valid) {
+    const diff = Math.abs(Number(r.price_strike) - Number(r.price_ud));
+    const minDiff = Math.abs(Number(minRow.price_strike) - Number(minRow.price_ud));
+    if (diff < minDiff) minRow = r;
+  }
+  return minRow.price_strike;
+});
+
+// 平值(%)绝对值最小的行整行加粗
+function rowClassName(row: OptionQuoteRow) {
+  return row.price_strike === minAtmStrike.value ? 'font-bold' : '';
+}
+
 function handlePageChange(page: number) {
   pagination.page = page;
 }
@@ -201,7 +220,7 @@ const columns = [
   makeCallColumn('期权现价', 'price', 'call_price', 100, fmt4),
   // 中心轴（2 列）
   makeAxisColumn('行权价', 'price_strike'),
-  makeAxisColumn('平值(%)', 'atm_i'),
+  makeAxisColumn('平值(%)', 'atm_i', 90, undefined),
   // 认沽侧（7 列，从左到右）
   makePutColumn('期权现价', 'price', 'put_price', 100, fmt4),
   makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
@@ -268,6 +287,7 @@ onMounted(() => {
         :data="pagedData"
         :loading="loading"
         :pagination="pagination"
+        :row-class-name="rowClassName"
         remote
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"

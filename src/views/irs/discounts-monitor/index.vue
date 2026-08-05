@@ -105,6 +105,11 @@ const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 // 日期截取前 10 位
 const fmtDate = (v?: string | null) => (v ? v.slice(0, 10) : '-');
 
+// 主力行整行加粗，突出主力合约
+function rowClassName(row: Api.Irs.DiscountMonitor) {
+  return row.is_main ? 'font-bold' : '';
+}
+
 const columns = [
   { title: '合约类别', key: 'symbol_type', width: 80 },
   { title: '连续周期', key: 'con_name', width: 100 },
@@ -183,6 +188,7 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
+        :row-class-name="rowClassName"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
