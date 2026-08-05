@@ -258,6 +258,7 @@ const local: App.I18n.Schema = {
     'bills_group-symbols': 'Group Symbols',
     'bills_profit-years': 'Profit Years',
     'irs_discounts-monitor': 'Discounts Monitor',
+    'irs_value-monitors': 'Value Monitors',
     'irs_option-monitor': 'Option Monitor',
     'irs_option-quote': 'Option Quote',
     'irs_value': 'Value',

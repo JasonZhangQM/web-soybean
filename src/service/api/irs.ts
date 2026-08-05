@@ -17,6 +17,27 @@ export function fetchValueMonitor(params?: ValueMonitorQueryParams) {
   });
 }
 
+/** 估值监测（ValueMonitor 独立表）查询参数 */
+interface ValueMonitorsQueryParams {
+  /** 代码（模糊匹配） */
+  symbol?: string;
+  /** 名称（模糊匹配） */
+  name?: string;
+  /** 每页条数 */
+  limit?: number;
+  /** 偏移量 */
+  offset?: number;
+}
+
+/** 查询估值监测列表（ValueMonitor 独立表） */
+export function fetchValueMonitors(params?: ValueMonitorsQueryParams) {
+  return request<Api.Common.PageResponse<Api.Irs.ValueMonitor>>({
+    url: '/api/v1/irs/value-monitors',
+    method: 'get',
+    params
+  });
+}
+
 /** 估值配置查询参数 */
 interface SymbolValueQueryParams {
   /** 证券代码（精确） */

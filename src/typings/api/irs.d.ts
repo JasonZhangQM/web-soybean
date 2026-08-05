@@ -214,5 +214,63 @@ declare namespace Api {
       /** 同步消息 */
       message: string;
     }
+
+    /** 估值监测（对应 ValueMonitorOut，共 25 字段，独立表含估值区间+行情+监测字段） */
+    interface ValueMonitor {
+      /** 代码 */
+      symbol: string;
+      /** 名称 */
+      name: string | null;
+      /** 估值价-极低 */
+      pp_el: number | null;
+      /** 估值价-低 */
+      pp_l: number | null;
+      /** 估值价-中 */
+      pp_m: number | null;
+      /** 估值价-高 */
+      pp_h: number | null;
+      /** 估值价-极高 */
+      pp_eh: number | null;
+      /** 上年末收盘价 */
+      py_close: number | null;
+      /** 年高 */
+      y_high: number | null;
+      /** 年低 */
+      y_low: number | null;
+      /** 最新价 */
+      price: number | null;
+      /** 年高(%) */
+      pv_yh: number | null;
+      /** 年低(%) */
+      pv_yl: number | null;
+      /** 最新(%) */
+      pv_yy: number | null;
+      /** 极低(%) */
+      pv_el: number | null;
+      /** 低(%) */
+      pv_l: number | null;
+      /** 中(%) */
+      pv_m: number | null;
+      /** 高(%) */
+      pv_h: number | null;
+      /** 极高(%) */
+      pv_eh: number | null;
+      /** 极低(y%) */
+      pv_el_y: number | null;
+      /** 低(y%) */
+      pv_l_y: number | null;
+      /** 中(y%) */
+      pv_m_y: number | null;
+      /** 高(y%) */
+      pv_h_y: number | null;
+      /** 极高(y%) */
+      pv_eh_y: number | null;
+      /** 主键 */
+      id: number;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
   }
 }

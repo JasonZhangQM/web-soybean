@@ -254,6 +254,7 @@ const local: App.I18n.Schema = {
     'bills_group-symbols': '标的汇总',
     'bills_profit-years': '年度收益',
     'irs_discounts-monitor': '贴水监测',
+    'irs_value-monitors': '估值监测',
     'irs_option-monitor': '期权监测',
     'irs_option-quote': '期权报价',
     'irs_value': '估值',

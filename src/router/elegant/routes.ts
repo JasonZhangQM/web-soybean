@@ -433,6 +433,17 @@ export const generatedRoutes = [
             }
           }
         ]
+      },
+      {
+        name: 'irs_value-monitors',
+        path: '/irs/value-monitors',
+        component: 'view.irs_value-monitors',
+        meta: {
+          title: 'irs_value-monitors',
+          i18nKey: 'route.irs_value-monitors',
+          order: 4,
+          constant: true
+        }
       }
     ]
   },
