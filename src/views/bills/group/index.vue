@@ -95,10 +95,11 @@ function renderAmount(row: Api.Bills.Group, key: string) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
-// 盈亏率渲染：保留两位小数并追加百分号
-function renderRate(row: Api.Bills.Group, key: string) {
-  const val = (row as any)[key];
-  return val != null ? `${Number(val).toFixed(2)}%` : '-';
+// 盈亏合计 = 浮动盈亏 + 平仓盈亏 + 其他损益 + 融资利息（前端计算，Group 表不落库该字段）
+function renderPflAll(row: Api.Bills.Group) {
+  const sum = (Number(row.pf_total) || 0) + (Number(row.pl_total) || 0)
+    + (Number(row.pl_t_other) || 0) + (Number(row.pl_t_br) || 0);
+  return sum.toFixed(2);
 }
 
 const columns = [
@@ -112,7 +113,7 @@ const columns = [
   { title: '平仓盈亏', key: 'pl_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_total') },
   { title: '其他损益', key: 'pl_t_other', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_other') },
   { title: '融资利息', key: 'pl_t_br', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_br') },
-  { title: '盈亏合计', key: 'pfl_all', width: 100, render: (row: Api.Bills.Group) => renderRate(row, 'pfl_all') },
+  { title: '盈亏合计', key: 'pfl_all', width: 100, render: renderPflAll },
   { title: '交易次数', key: 'count', width: 80 }
 ];
 
