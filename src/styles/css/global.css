@@ -22,3 +22,27 @@ html:not(.dark) .n-data-table-tr.row-selected > .n-data-table-td {
 html.dark .n-data-table-tr.row-selected > .n-data-table-td {
   background-color: rgb(var(--primary-color) / 0.32) !important;
 }
+
+/* 固定列（左/右）单元格需不透明背景，避免横向滚动时下方内容透出重合。
+   注意：Naive UI 实际类名为 n-data-table-td--fixed-left / --fixed-right（无单独 --fixed 类）。
+   普通行直接用卡片色 --card-color；选中行需用"不透明底色 + 半透明主色叠加"保留高亮视觉。 */
+.n-data-table-td--fixed-left,
+.n-data-table-td--fixed-right {
+  background-color: var(--card-color, #fff);
+}
+html.dark .n-data-table-td--fixed-left,
+html.dark .n-data-table-td--fixed-right {
+  background-color: var(--card-color, #18181c);
+}
+
+/* 选中行的固定列：半透明主色会透出下方内容，改用不透明卡片色兜底 + 同透明度主色 linear-gradient 叠加 */
+html:not(.dark) .n-data-table-tr.row-selected > .n-data-table-td--fixed-left,
+html:not(.dark) .n-data-table-tr.row-selected > .n-data-table-td--fixed-right {
+  background-color: var(--card-color, #fff) !important;
+  background-image: linear-gradient(rgb(var(--primary-color) / 0.18), rgb(var(--primary-color) / 0.18)) !important;
+}
+html.dark .n-data-table-tr.row-selected > .n-data-table-td--fixed-left,
+html.dark .n-data-table-tr.row-selected > .n-data-table-td--fixed-right {
+  background-color: var(--card-color, #18181c) !important;
+  background-image: linear-gradient(rgb(var(--primary-color) / 0.32), rgb(var(--primary-color) / 0.32)) !important;
+}

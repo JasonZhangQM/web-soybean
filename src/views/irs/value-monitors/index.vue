@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { fetchValueMonitors, createValueMonitor } from '@/service/api';
+import { ref, reactive, computed, h, onMounted } from 'vue';
+import { NButton } from 'naive-ui';
+import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -49,6 +50,7 @@ function handleReset() {
 }
 
 // ===== 新增模态框 =====
+const editingId = ref<number | null>(null);
 const showModal = ref(false);
 const submitLoading = ref(false);
 const formRef = ref();
@@ -61,6 +63,9 @@ const formData = reactive({
   pp_h: null as number | null,
   pp_eh: null as number | null
 });
+
+// 模态框标题：新增/编辑动态切换
+const modalTitle = computed(() => (editingId.value === null ? '新增估值监测' : '编辑估值监测'));
 
 // 表单校验规则：所有字段必填
 const formRules = {
@@ -76,11 +81,28 @@ const formRules = {
 // 打开新增模态框
 function handleAdd() {
   resetForm();
+  editingId.value = null;
+  showModal.value = true;
+}
+
+// 打开编辑模态框：回填行数据
+// 注意：后端 Decimal 字段经 JSON 序列化可能为字符串，需 Number() 转换为数字
+function handleEdit(row: Api.Irs.ValueMonitor) {
+  resetForm();
+  editingId.value = row.id;
+  formData.symbol = row.symbol;
+  formData.name = row.name ?? '';
+  formData.pp_el = row.pp_el != null ? Number(row.pp_el) : null;
+  formData.pp_l = row.pp_l != null ? Number(row.pp_l) : null;
+  formData.pp_m = row.pp_m != null ? Number(row.pp_m) : null;
+  formData.pp_h = row.pp_h != null ? Number(row.pp_h) : null;
+  formData.pp_eh = row.pp_eh != null ? Number(row.pp_eh) : null;
   showModal.value = true;
 }
 
 // 重置表单
 function resetForm() {
+  editingId.value = null;
   formData.symbol = '';
   formData.name = '';
   formData.pp_el = null;
@@ -91,7 +113,7 @@ function resetForm() {
   formRef.value?.restoreValidation();
 }
 
-// 提交新增
+// 提交新增/修改
 async function handleSubmit() {
   try {
     await formRef.value?.validate();
@@ -100,17 +122,27 @@ async function handleSubmit() {
   }
   submitLoading.value = true;
   try {
-    const { error } = await createValueMonitor({
-      symbol: formData.symbol,
+    const params = {
       name: formData.name,
       pp_el: formData.pp_el!,
       pp_l: formData.pp_l!,
       pp_m: formData.pp_m!,
       pp_h: formData.pp_h!,
       pp_eh: formData.pp_eh!
-    });
+    };
+    let error;
+    if (editingId.value === null) {
+      // 新增：需带 symbol
+      ({ error } = await createValueMonitor({
+        symbol: formData.symbol,
+        ...params
+      }));
+    } else {
+      // 修改：PUT by id
+      ({ error } = await updateValueMonitor(editingId.value, params));
+    }
     if (!error) {
-      window.$message?.success('新增成功');
+      window.$message?.success(editingId.value === null ? '新增成功' : '修改成功');
       showModal.value = false;
       resetForm();
       pagination.page = 1;
@@ -121,10 +153,28 @@ async function handleSubmit() {
   }
 }
 
-// 取消新增
+// 取消新增/编辑
 function handleCancel() {
   showModal.value = false;
   resetForm();
+}
+
+// 删除当前编辑记录
+async function handleDelete() {
+  if (editingId.value === null) return;
+  submitLoading.value = true;
+  try {
+    const { error } = await deleteValueMonitor(editingId.value);
+    if (!error) {
+      window.$message?.success('删除成功');
+      showModal.value = false;
+      resetForm();
+      pagination.page = 1;
+      fetchData();
+    }
+  } finally {
+    submitLoading.value = false;
+  }
 }
 
 function handlePageChange(page: number) {
@@ -144,7 +194,14 @@ const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4) : '-');
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 
 const columns = [
-  { title: '名称', key: 'name', width: 100, fixed: 'left' },
+  {
+    title: '名称',
+    key: 'name',
+    width: 100,
+    fixed: 'left',
+    render: (row: Api.Irs.ValueMonitor) =>
+      h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.name })
+  },
   // 估值区间
   { title: '极低', key: 'pp_el', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_el) },
   { title: '低', key: 'pp_l', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_l) },
@@ -227,7 +284,7 @@ onMounted(() => {
     <NModal
       v-model:show="showModal"
       preset="card"
-      title="新增估值监测"
+      :title="modalTitle"
       class="w-480px"
       :mask-closable="false"
     >
@@ -239,7 +296,7 @@ onMounted(() => {
         label-width="80px"
       >
         <NFormItem label="代码" path="symbol">
-          <NInput v-model:value="formData.symbol" placeholder="请输入代码" />
+          <NInput v-model:value="formData.symbol" :disabled="editingId !== null" placeholder="请输入代码" />
         </NFormItem>
         <NFormItem label="名称" path="name">
           <NInput v-model:value="formData.name" placeholder="请输入名称" />
@@ -293,7 +350,10 @@ onMounted(() => {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="handleCancel">取消</NButton>
-          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">确定</NButton>
+          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">
+            {{ editingId === null ? '确定' : '修改' }}
+          </NButton>
+          <NButton v-if="editingId !== null" type="error" :loading="submitLoading" @click="handleDelete">删除</NButton>
         </NSpace>
       </template>
     </NModal>

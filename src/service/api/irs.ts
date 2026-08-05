@@ -65,6 +65,39 @@ export function createValueMonitor(params: ValueMonitorCreateParams) {
   });
 }
 
+/** 估值监测修改参数（symbol 不可改） */
+interface ValueMonitorUpdateParams {
+  /** 名称 */
+  name: string;
+  /** 极低 */
+  pp_el: number;
+  /** 低 */
+  pp_l: number;
+  /** 中 */
+  pp_m: number;
+  /** 高 */
+  pp_h: number;
+  /** 极高 */
+  pp_eh: number;
+}
+
+/** 修改估值监测记录 */
+export function updateValueMonitor(id: number, params: ValueMonitorUpdateParams) {
+  return request<Api.Irs.SyncResult>({
+    url: `/api/v1/irs/value-monitors/${id}`,
+    method: 'put',
+    data: params
+  });
+}
+
+/** 删除估值监测记录 */
+export function deleteValueMonitor(id: number) {
+  return request<Api.Irs.SyncResult>({
+    url: `/api/v1/irs/value-monitors/${id}`,
+    method: 'delete'
+  });
+}
+
 /** 估值配置查询参数 */
 interface SymbolValueQueryParams {
   /** 证券代码（精确） */
