@@ -12,6 +12,8 @@ defineOptions({ name: 'IrsValueMonitorsPage' });
 const loading = ref(false);
 // 同步年度行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncYearLoading = ref(false);
+// 同步实时行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncLoading = ref(false);
 const tableData = ref<Api.Irs.ValueMonitor[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -56,6 +58,11 @@ function handleReset() {
 // 触发同步年度行情（gm history 拉取上年末至今数据，更新 py_close/y_high/y_low）
 async function handleSyncYear() {
   await executeSync(() => syncIrs('value-monitor-hlc'), syncYearLoading, fetchData);
+}
+
+// 触发同步实时行情（gm current 获取最新价，触发钩子计算 pv_* 指标）
+async function handleSync() {
+  await executeSync(() => syncIrs('value-monitor'), syncLoading, fetchData);
 }
 
 // ===== 新增模态框 =====
@@ -230,6 +237,11 @@ function handlePageSizeChange(pageSize: number) {
 const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4).replace(/\.?0+$/, '') : '-');
 // 百分比字段保留两位小数（Numeric(9,2)），空值显示 '-'
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
+// 行情字段：名称含 ETF 保留 3 位小数，否则保留 2 位小数，空值显示 '-'
+const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
+  if (v == null) return '-';
+  return Number(v).toFixed(row.name?.includes('ETF') ? 3 : 2);
+};
 
 const columns = [
   {
@@ -247,10 +259,10 @@ const columns = [
   { title: '高', key: 'pp_h', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_h) },
   { title: '极高', key: 'pp_eh', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_eh) },
   // 行情字段
-  { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.py_close) },
-  { title: '年高', key: 'y_high', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.y_high) },
-  { title: '年低', key: 'y_low', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.y_low) },
-  { title: '最新价', key: 'price', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.price) },
+  { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
+  { title: '年高', key: 'y_high', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.y_high) },
+  { title: '年低', key: 'y_low', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.y_low) },
+  { title: '最新价', key: 'price', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.price) },
   // 行情监测字段
   { title: '年高(%)', key: 'pv_yh', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yh) },
   { title: '年低(%)', key: 'pv_yl', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yl) },
@@ -304,6 +316,12 @@ onMounted(() => {
           <NButton type="primary" :loading="syncYearLoading" @click="handleSyncYear">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             年度
+          </NButton>
+        </NFormItem>
+        <NFormItem>
+          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            行情
           </NButton>
         </NFormItem>
         <NFormItem>

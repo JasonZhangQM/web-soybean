@@ -221,7 +221,8 @@ type IrsSyncTarget =
   | 'monitor-value'
   | 'discount-symbol'
   | 'discount-monitor'
-  | 'value-monitor-hlc';
+  | 'value-monitor-hlc'
+  | 'value-monitor';
 
 /** 触发 irs 同步 */
 export function syncIrs(target: IrsSyncTarget) {
