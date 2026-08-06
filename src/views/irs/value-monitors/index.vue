@@ -270,13 +270,13 @@ const columns = [
   },
   // 行情字段（合并 % 列：主值后追加 %）
   { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
-  { title: '最新价', key: 'price', width: 120, render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.price, row.pv_yy) },
+  { title: '最新价', key: 'price', width: 120, render: (row: Api.Irs.ValueMonitor) => h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy)) },
   { title: '年高', key: 'y_high', width: 120, render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh) },
   { title: '年低', key: 'y_low', width: 120, render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl) },
   // 估值区间（合并 % 和 y% 列：主值后追加 百分比%,y百分比%，如 3500(-24.44%,-24.41%)）
   { title: '极低', key: 'pp_el', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y) },
   { title: '低', key: 'pp_l', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y) },
-  { title: '中', key: 'pp_m', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y) },
+  { title: '中', key: 'pp_m', width: 170, render: (row: Api.Irs.ValueMonitor) => h('span', { style: 'font-weight: bold' }, fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y)) },
   { title: '高', key: 'pp_h', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y) },
   { title: '极高', key: 'pp_eh', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y) }
 ];
