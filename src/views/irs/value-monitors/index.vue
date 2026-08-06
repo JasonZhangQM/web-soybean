@@ -218,8 +218,8 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 估值价字段保留四位小数（Numeric(12,4)），空值显示 '-'
-const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4) : '-');
+// 估值价字段：最多四位小数，去掉末尾多余的0（如 12.5000→12.5, 4000.0000→4000），空值显示 '-'
+const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4).replace(/\.?0+$/, '') : '-');
 // 百分比字段保留两位小数（Numeric(9,2)），空值显示 '-'
 const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 
