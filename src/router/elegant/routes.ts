@@ -393,48 +393,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_value',
-        path: '/irs/value',
-        meta: {
-          title: 'irs_value',
-          i18nKey: 'route.irs_value',
-          order: 2,
-          constant: true
-        },
-        children: [
-          {
-            name: 'irs_value_symbol-kpis',
-            path: '/irs/value/symbol-kpis',
-            component: 'view.irs_value_symbol-kpis',
-            meta: {
-              title: 'irs_value_symbol-kpis',
-              i18nKey: 'route.irs_value_symbol-kpis',
-              constant: true
-            }
-          },
-          {
-            name: 'irs_value_symbol-values',
-            path: '/irs/value/symbol-values',
-            component: 'view.irs_value_symbol-values',
-            meta: {
-              title: 'irs_value_symbol-values',
-              i18nKey: 'route.irs_value_symbol-values',
-              constant: true
-            }
-          },
-          {
-            name: 'irs_value_value-monitor',
-            path: '/irs/value/value-monitor',
-            component: 'view.irs_value_value-monitor',
-            meta: {
-              title: 'irs_value_value-monitor',
-              i18nKey: 'route.irs_value_value-monitor',
-              constant: true
-            }
-          }
-        ]
-      },
-      {
         name: 'irs_value-monitors',
         path: '/irs/value-monitors',
         component: 'view.irs_value-monitors',

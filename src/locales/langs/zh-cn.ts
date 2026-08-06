@@ -226,9 +226,9 @@ const local: App.I18n.Schema = {
     500: '服务器错误',
     'iframe-page': '外链页面',
     home: '首页',
-    bds: '基础数据',
-    bills: '账单管理',
-    irs: '估值期权',
+    bds: '数据',
+    bills: '账单',
+    irs: '监测',
     'bds_trade-dates': '交易日历',
     'bds_symbol-infos': '证券信息',
     'bds_index-constituents': '指数成分',
@@ -256,11 +256,7 @@ const local: App.I18n.Schema = {
     'irs_discounts-monitor': '贴水监测',
     'irs_value-monitors': '估值监测',
     'irs_option-monitor': '期权监测',
-    'irs_option-quote': '期权报价',
-    'irs_value': '估值',
-    'irs_value_symbol-kpis': '估值指标',
-    'irs_value_symbol-values': '估值配置',
-    'irs_value_value-monitor': '估值总览'
+    'irs_option-quote': '期权报价'
   },
   page: {
     login: {

@@ -230,9 +230,9 @@ const local: App.I18n.Schema = {
     500: 'Server Error',
     'iframe-page': 'Iframe',
     home: 'Home',
-    bds: 'Basic Data',
+    bds: 'Data',
     bills: 'Bills',
-    irs: 'IRS',
+    irs: 'Monitor',
     'bds_trade-dates': 'Trade Dates',
     'bds_symbol-infos': 'Symbol Infos',
     'bds_index-constituents': 'Index Constituents',
@@ -260,11 +260,7 @@ const local: App.I18n.Schema = {
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_value-monitors': 'Value Monitors',
     'irs_option-monitor': 'Option Monitor',
-    'irs_option-quote': 'Option Quote',
-    'irs_value': 'Value',
-    'irs_value_symbol-kpis': 'Symbol Kpis',
-    'irs_value_symbol-values': 'Symbol Values',
-    'irs_value_value-monitor': 'Value Overview'
+    'irs_option-quote': 'Option Quote'
   },
   page: {
     login: {

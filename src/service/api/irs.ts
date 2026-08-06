@@ -1,22 +1,5 @@
 import { request } from '../request';
 
-/** 估值监测查询参数 */
-interface ValueMonitorQueryParams {
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询估值监测列表 */
-export function fetchValueMonitor(params?: ValueMonitorQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.MonitorValue>>({
-    url: '/api/v1/irs/value-monitor',
-    method: 'get',
-    params
-  });
-}
-
 /** 估值监测（ValueMonitor 独立表）查询参数 */
 interface ValueMonitorsQueryParams {
   /** 代码（模糊匹配） */
@@ -95,44 +78,6 @@ export function deleteValueMonitor(id: number) {
   return request<Api.Irs.SyncResult>({
     url: `/api/v1/irs/value-monitors/${id}`,
     method: 'delete'
-  });
-}
-
-/** 估值配置查询参数 */
-interface SymbolValueQueryParams {
-  /** 证券代码（精确） */
-  symbol?: string;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询估值配置列表 */
-export function fetchSymbolValues(params?: SymbolValueQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.SymbolValue>>({
-    url: '/api/v1/irs/symbol-values',
-    method: 'get',
-    params
-  });
-}
-
-/** 估值指标查询参数 */
-interface SymbolKpiQueryParams {
-  /** 证券代码（精确） */
-  symbol?: string;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询估值指标列表 */
-export function fetchSymbolKpis(params?: SymbolKpiQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.SymbolKpi>>({
-    url: '/api/v1/irs/symbol-kpis',
-    method: 'get',
-    params
   });
 }
 
@@ -216,9 +161,6 @@ export function fetchOptionUnderlyings() {
 
 /** irs 同步目标类型 */
 type IrsSyncTarget =
-  | 'symbol-value'
-  | 'symbol-kpi'
-  | 'monitor-value'
   | 'discount-symbol'
   | 'discount-monitor'
   | 'value-monitor-hlc'
