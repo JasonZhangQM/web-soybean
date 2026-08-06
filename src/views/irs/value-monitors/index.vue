@@ -242,13 +242,21 @@ const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
   if (v == null) return '-';
   return Number(v).toFixed(row.name?.includes('ETF') ? 3 : 2);
 };
+// 估值监测合并列：主值后追加(y值)，如 3.5(2.3)
+// - 主值与y值均空：'-'
+// - 仅y值空：显示主值
+// - 仅主值空：显示 -(y值)
+// - 均有值：主值(y值)
+const fmtMerged = (main: number | null, y: number | null) => {
+  const m = main != null ? Number(main).toFixed(2) : '-';
+  return y != null ? `${m}(${Number(y).toFixed(2)})` : m;
+};
 
 const columns = [
   {
     title: '名称',
     key: 'name',
     width: 100,
-    fixed: 'left',
     render: (row: Api.Irs.ValueMonitor) =>
       h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.name })
   },
@@ -258,27 +266,21 @@ const columns = [
   { title: '中', key: 'pp_m', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_m) },
   { title: '高', key: 'pp_h', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_h) },
   { title: '极高', key: 'pp_eh', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt4(row.pp_eh) },
-  // 行情字段
+  // 最新价及监测字段（紧跟极高之后）
+  { title: '最新价', key: 'price', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.price) },
+  { title: '最新(%)', key: 'pv_yy', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yy) },
+  // 估值监测字段（合并 y% 列：主值后追加 y 值，如 3.5(2.3)）
+  { title: '极低(%)', key: 'pv_el', width: 110, render: (row: Api.Irs.ValueMonitor) => fmtMerged(row.pv_el, row.pv_el_y) },
+  { title: '低(%)', key: 'pv_l', width: 110, render: (row: Api.Irs.ValueMonitor) => fmtMerged(row.pv_l, row.pv_l_y) },
+  { title: '中(%)', key: 'pv_m', width: 110, render: (row: Api.Irs.ValueMonitor) => fmtMerged(row.pv_m, row.pv_m_y) },
+  { title: '高(%)', key: 'pv_h', width: 110, render: (row: Api.Irs.ValueMonitor) => fmtMerged(row.pv_h, row.pv_h_y) },
+  { title: '极高(%)', key: 'pv_eh', width: 110, render: (row: Api.Irs.ValueMonitor) => fmtMerged(row.pv_eh, row.pv_eh_y) },
+  // 行情字段及年化监测
   { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
   { title: '年高', key: 'y_high', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.y_high) },
   { title: '年低', key: 'y_low', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.y_low) },
-  { title: '最新价', key: 'price', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.price) },
-  // 行情监测字段
   { title: '年高(%)', key: 'pv_yh', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yh) },
-  { title: '年低(%)', key: 'pv_yl', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yl) },
-  { title: '最新(%)', key: 'pv_yy', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yy) },
-  // 估值监测字段
-  { title: '极低(%)', key: 'pv_el', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_el) },
-  { title: '低(%)', key: 'pv_l', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_l) },
-  { title: '中(%)', key: 'pv_m', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_m) },
-  { title: '高(%)', key: 'pv_h', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_h) },
-  { title: '极高(%)', key: 'pv_eh', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_eh) },
-  // 估值监测年化字段
-  { title: '极低(y%)', key: 'pv_el_y', width: 90, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_el_y) },
-  { title: '低(y%)', key: 'pv_l_y', width: 90, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_l_y) },
-  { title: '中(y%)', key: 'pv_m_y', width: 90, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_m_y) },
-  { title: '高(y%)', key: 'pv_h_y', width: 90, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_h_y) },
-  { title: '极高(y%)', key: 'pv_eh_y', width: 90, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_eh_y) }
+  { title: '年低(%)', key: 'pv_yl', width: 80, render: (row: Api.Irs.ValueMonitor) => fmt(row.pv_yl) }
 ];
 
 onMounted(() => {
