@@ -115,14 +115,6 @@ export function fetchGroupSymbols(params?: GroupSymbolQueryParams) {
   });
 }
 
-/** 查询标的汇总的类别选项列表（distinct 升序） - 兼容旧接口 */
-export function fetchGroupSymbolCategories() {
-  return request<{ categories: string[] }>({
-    url: '/api/v1/bills/group-symbols/categories',
-    method: 'get'
-  });
-}
-
 /** 查询交易类别列表（通用接口，从 Config.MAP_CATEGORY 获取） */
 export function fetchCategories() {
   return request<{ categories: string[] }>({
