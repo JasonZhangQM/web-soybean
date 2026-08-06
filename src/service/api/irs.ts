@@ -220,7 +220,8 @@ type IrsSyncTarget =
   | 'symbol-kpi'
   | 'monitor-value'
   | 'discount-symbol'
-  | 'discount-monitor';
+  | 'discount-monitor'
+  | 'value-monitor-hlc';
 
 /** 触发 irs 同步 */
 export function syncIrs(target: IrsSyncTarget) {

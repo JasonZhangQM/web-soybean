@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, watch, onMounted } from 'vue';
 import { NButton } from 'naive-ui';
-import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor } from '@/service/api';
+import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { createTablePagination } from '@/hooks/common/table';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
+import { executeSync } from '@/utils/sync-feedback';
 
 defineOptions({ name: 'IrsValueMonitorsPage' });
 
 const loading = ref(false);
+// 同步年度行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
+const syncYearLoading = ref(false);
 const tableData = ref<Api.Irs.ValueMonitor[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -48,6 +51,11 @@ function handleReset() {
   searchParams.name = '';
   pagination.page = 1;
   fetchData();
+}
+
+// 触发同步年度行情（gm history 拉取上年末至今数据，更新 py_close/y_high/y_low）
+async function handleSyncYear() {
+  await executeSync(() => syncIrs('value-monitor-hlc'), syncYearLoading, fetchData);
 }
 
 // ===== 新增模态框 =====
@@ -291,6 +299,12 @@ onMounted(() => {
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
+        </NFormItem>
+        <NFormItem>
+          <NButton type="primary" :loading="syncYearLoading" @click="handleSyncYear">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            年度
+          </NButton>
         </NFormItem>
         <NFormItem>
           <NButton type="primary" @click="handleAdd">
