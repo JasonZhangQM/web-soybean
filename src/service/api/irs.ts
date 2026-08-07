@@ -196,7 +196,7 @@ export function syncOptionMonitor(params: OptionMonitorSyncParams) {
     url: '/api/v1/irs/sync/option-monitor',
     method: 'post',
     params,
-    timeout: 60 * 1000 // 60秒超时，akshare + gm 调用耗时较长
+    timeout: 3 * 60 * 1000 // 3分钟超时，akshare + gm 调用耗时较长
   });
 }
 
