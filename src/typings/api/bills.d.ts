@@ -1,7 +1,7 @@
 declare namespace Api {
   /** 账单模块 */
   namespace Bills {
-    /** 账单汇总（对应 GroupOut，共 32 字段） */
+    /** 账单汇总（对应 GroupOut，共 34 字段） */
     interface Group {
       /** 账户 */
       account: string | null;
@@ -31,6 +31,10 @@ declare namespace Api {
       cost_t_short: number | null;
       /** 总成本 */
       cost_total: number | null;
+      /** 最新价 */
+      price: number | null;
+      /** 乘数 */
+      multiplier: number | null;
       /** 多头市值 */
       value_long: number | null;
       /** 空头市值 */
@@ -231,7 +235,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 标的汇总（对应 GroupSymbolOut，共 16 字段） */
+    /** 标的汇总（对应 GroupSymbolOut，共 18 字段） */
     interface GroupSymbol {
       /** 类别 */
       category: string;
@@ -243,6 +247,10 @@ declare namespace Api {
       p_total: number | null;
       /** 总成本 */
       cost_total: number | null;
+      /** 最新价 */
+      price: number | null;
+      /** 乘数 */
+      multiplier: number | null;
       /** 日市值合计 */
       value_d_total: number | null;
       /** 总市值 */

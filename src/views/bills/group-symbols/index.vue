@@ -101,12 +101,26 @@ function renderRate(row: Api.Bills.GroupSymbol) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 最新价：保留 4 位小数，null 显示 '-'
+function renderPrice(row: Api.Bills.GroupSymbol) {
+  const val = row.price;
+  return val != null ? Number(val).toFixed(4) : '-';
+}
+
+// 乘数：整数显示，null 显示 '-'
+function renderMultiplier(row: Api.Bills.GroupSymbol) {
+  const val = row.multiplier;
+  return val != null ? String(val) : '-';
+}
+
 const columns = [
   { title: '交易分类', key: 'category', width: 80 },
   { title: '代码', key: 'symbol', width: 120 },
   { title: '交易次数', key: 'count', width: 80 },
   { title: '持仓量', key: 'p_total', width: 100, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total') },
   { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total') },
+  { title: '最新价', key: 'price', width: 100, render: (row: Api.Bills.GroupSymbol) => renderPrice(row) },
+  { title: '乘数', key: 'multiplier', width: 80, render: (row: Api.Bills.GroupSymbol) => renderMultiplier(row) },
   { title: '当前市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total') },
   { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pf_total') },
   { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pl_all') },
