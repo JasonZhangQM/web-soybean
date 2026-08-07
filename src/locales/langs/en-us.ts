@@ -245,12 +245,9 @@ const local: App.I18n.Schema = {
     'bds_market-data_index-histories': 'Index Quote',
     'bds_market-data_daily-valuations': 'Daily Valuations',
     'bds_macro-research': 'Macro Research',
-    'bds_macro-research_us-economic-dashboard': 'US Dashboard',
     'bds_macro-research_daily-indicators': 'Daily Indicators',
     'bds_macro-research_gold-reserves': 'Gold Reserves',
-    'bds_macro-research_economic-report': 'US Dashboard',
     'bds_macro-research_economic-indicators': 'Economic Data',
-    'bds_macro-research_macro-framework': 'Macro Framework',
     'bills_group': 'Bill Group',
     'bills_bills': 'Bills',
     'bills_profits': 'Profits',
@@ -260,7 +257,10 @@ const local: App.I18n.Schema = {
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_value-monitors': 'Value Monitors',
     'irs_option-monitor': 'Option Monitor',
-    'irs_option-quote': 'Option Quote'
+    'irs_option-quote': 'Option Quote',
+    'irs_economic-report': 'US Dashboard',
+    'irs_macro-framework': 'Macro Framework',
+    'irs_us-economic-dashboard': 'US Dashboard'
   },
   page: {
     login: {

@@ -241,12 +241,9 @@ const local: App.I18n.Schema = {
     'bds_market-data_index-histories': '指数行情',
     'bds_market-data_daily-valuations': '估值指标',
     'bds_macro-research': '宏观研究',
-    'bds_macro-research_economic-report': '美国看板',
     'bds_macro-research_economic-indicators': '经济数据',
-    'bds_macro-research_us-economic-dashboard': '美股看板',
     'bds_macro-research_daily-indicators': '日频数据',
     'bds_macro-research_gold-reserves': '黄金储备',
-    'bds_macro-research_macro-framework': '宏观框架',
     'bills_group': '账单汇总',
     'bills_bills': '交易明细',
     'bills_profits': '账单收益',
@@ -256,7 +253,10 @@ const local: App.I18n.Schema = {
     'irs_discounts-monitor': '贴水监测',
     'irs_value-monitors': '估值监测',
     'irs_option-monitor': '期权报价',
-    'irs_option-quote': '期权监测'
+    'irs_option-quote': '期权监测',
+    'irs_economic-report': '美国看板',
+    'irs_macro-framework': '宏观框架',
+    'irs_us-economic-dashboard': '美股看板'
   },
   page: {
     login: {

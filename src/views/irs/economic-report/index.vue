@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
-import { fetchEconomicIndicatorsLatest, syncEconomicIndicator, syncAllEconomicIndicators } from '@/service/api/bds';
+import { syncEconomicIndicator, syncAllEconomicIndicators } from '@/service/api/bds';
+import { fetchEconomicIndicatorsLatest } from '@/service/api/irs';
 import { executeSync } from '@/utils/sync-feedback';
 import RadarChart from './modules/radar-chart.vue';
 import WeightBarChart from './modules/weight-bar-chart.vue';

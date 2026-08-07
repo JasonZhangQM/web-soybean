@@ -251,14 +251,6 @@ export function fetchEconomicIndicators(params: Api.Bds.EconomicIndicatorQueryPa
   });
 }
 
-/** 获取各经济指标最新值 */
-export function fetchEconomicIndicatorsLatest() {
-  return request<Api.Bds.EconomicIndicator[]>({
-    url: '/api/v1/bds/economic-indicators/latest',
-    method: 'get'
-  });
-}
-
 /** 获取经济指标代码列表（用于下拉选项） */
 export function fetchEconomicIndicatorCodes() {
   return request<Api.Bds.EconomicIndicatorCode[]>({

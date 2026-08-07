@@ -31,10 +31,7 @@ declare module "@elegant-router/types" {
     "bds_macro-research": "/bds/macro-research";
     "bds_macro-research_daily-indicators": "/bds/macro-research/daily-indicators";
     "bds_macro-research_economic-indicators": "/bds/macro-research/economic-indicators";
-    "bds_macro-research_economic-report": "/bds/macro-research/economic-report";
     "bds_macro-research_gold-reserves": "/bds/macro-research/gold-reserves";
-    "bds_macro-research_macro-framework": "/bds/macro-research/macro-framework";
-    "bds_macro-research_us-economic-dashboard": "/bds/macro-research/us-economic-dashboard";
     "bds_market-data": "/bds/market-data";
     "bds_market-data_daily-valuations": "/bds/market-data/daily-valuations";
     "bds_market-data_index-histories": "/bds/market-data/index-histories";
@@ -51,8 +48,11 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
     "irs_discounts-monitor": "/irs/discounts-monitor";
+    "irs_economic-report": "/irs/economic-report";
+    "irs_macro-framework": "/irs/macro-framework";
     "irs_option-monitor": "/irs/option-monitor";
     "irs_option-quote": "/irs/option-quote";
+    "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
     "irs_value-monitors": "/irs/value-monitors";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
   };
@@ -124,10 +124,7 @@ declare module "@elegant-router/types" {
     | "bds_index-constituents"
     | "bds_macro-research_daily-indicators"
     | "bds_macro-research_economic-indicators"
-    | "bds_macro-research_economic-report"
     | "bds_macro-research_gold-reserves"
-    | "bds_macro-research_macro-framework"
-    | "bds_macro-research_us-economic-dashboard"
     | "bds_market-data_daily-valuations"
     | "bds_market-data_index-histories"
     | "bds_symbol-infos"
@@ -140,8 +137,11 @@ declare module "@elegant-router/types" {
     | "bills_profits"
     | "home"
     | "irs_discounts-monitor"
+    | "irs_economic-report"
+    | "irs_macro-framework"
     | "irs_option-monitor"
     | "irs_option-quote"
+    | "irs_us-economic-dashboard"
     | "irs_value-monitors"
   >;
 

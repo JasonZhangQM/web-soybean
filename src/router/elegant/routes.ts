@@ -149,17 +149,6 @@ export const generatedRoutes = [
             }
           },
           {
-            name: 'bds_macro-research_economic-report',
-            path: '/bds/macro-research/economic-report',
-            component: 'view.bds_macro-research_economic-report',
-            meta: {
-              title: 'bds_macro-research_economic-report',
-              i18nKey: 'route.bds_macro-research_economic-report',
-              order: 4,
-              constant: true
-            }
-          },
-          {
             name: 'bds_macro-research_gold-reserves',
             path: '/bds/macro-research/gold-reserves',
             component: 'view.bds_macro-research_gold-reserves',
@@ -167,28 +156,6 @@ export const generatedRoutes = [
               title: 'bds_macro-research_gold-reserves',
               i18nKey: 'route.bds_macro-research_gold-reserves',
               order: 3,
-              constant: true
-            }
-          },
-          {
-            name: 'bds_macro-research_macro-framework',
-            path: '/bds/macro-research/macro-framework',
-            component: 'view.bds_macro-research_macro-framework',
-            meta: {
-              title: 'bds_macro-research_macro-framework',
-              i18nKey: 'route.bds_macro-research_macro-framework',
-              order: 6,
-              constant: true
-            }
-          },
-          {
-            name: 'bds_macro-research_us-economic-dashboard',
-            path: '/bds/macro-research/us-economic-dashboard',
-            component: 'view.bds_macro-research_us-economic-dashboard',
-            meta: {
-              title: 'bds_macro-research_us-economic-dashboard',
-              i18nKey: 'route.bds_macro-research_us-economic-dashboard',
-              order: 6,
               constant: true
             }
           }
@@ -373,6 +340,28 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'irs_economic-report',
+        path: '/irs/economic-report',
+        component: 'view.irs_economic-report',
+        meta: {
+          title: 'irs_economic-report',
+          i18nKey: 'route.irs_economic-report',
+          order: 5,
+          constant: true
+        }
+      },
+      {
+        name: 'irs_macro-framework',
+        path: '/irs/macro-framework',
+        component: 'view.irs_macro-framework',
+        meta: {
+          title: 'irs_macro-framework',
+          i18nKey: 'route.irs_macro-framework',
+          order: 6,
+          constant: true
+        }
+      },
+      {
         name: 'irs_option-monitor',
         path: '/irs/option-monitor',
         component: 'view.irs_option-monitor',
@@ -389,6 +378,17 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_option-quote',
           i18nKey: 'route.irs_option-quote',
+          constant: true
+        }
+      },
+      {
+        name: 'irs_us-economic-dashboard',
+        path: '/irs/us-economic-dashboard',
+        component: 'view.irs_us-economic-dashboard',
+        meta: {
+          title: 'irs_us-economic-dashboard',
+          i18nKey: 'route.irs_us-economic-dashboard',
+          order: 7,
           constant: true
         }
       },
