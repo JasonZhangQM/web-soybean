@@ -31,8 +31,8 @@ const tableData = ref<Api.Bills.Bill[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
-const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string }>({});
+// 筛选参数：account/category 单选精确匹配，symbol NAutoComplete 支持直接输入提交
+const searchParams = reactive<{ account?: string | null; category?: string | null; symbol?: string }>({});
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -43,6 +43,9 @@ async function fetchData() {
   try {
     const { data, error } = await fetchBills({
       ...searchParams,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      account: searchParams.account || undefined,
+      category: searchParams.category || undefined,
       // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       limit: pagination.pageSize,
@@ -64,8 +67,8 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = [];
-  searchParams.category = [];
+  searchParams.account = null;
+  searchParams.category = null;
   searchParams.symbol = '';
   clearSymbolOptions();
   fetchData();
@@ -90,14 +93,14 @@ function handlePageSizeChange(pageSize: number) {
 const columns = [
   // 交易时间截取前 19 位（去掉毫秒/时区部分）
   { title: '交易时间', key: 'trade_time', width: 160, render: (row: Api.Bills.Bill) => row.trade_time?.slice(0, 19) ?? '-' },
-  { title: '代码', key: 'symbol', width: 120 },
+  { title: '代码', key: 'symbol', width: 150 },
   { title: '名称', key: 'name', width: 160 },
   { title: '总分类', key: 'category', width: 80 },
   { title: '一级分类', key: 'category1', width: 80 },
   { title: '买/卖', key: 'b_s', width: 60 },
   { title: '沽/购', key: 'c_p', width: 60 },
   { title: '开/平', key: 'o_c', width: 60 },
-  { title: '成交价', key: 'price', width: 100, render: (row: Api.Bills.Bill) => Number(row.price).toFixed(2) },
+  { title: '成交价', key: 'price', width: 100, render: (row: Api.Bills.Bill) => Number(row.price).toFixed(4) },
   { title: '成交量', key: 'vol', width: 60 },
   { title: '成交额', key: 'amount', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2) },
   { title: '发生额', key: 'amount_act', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount_act).toFixed(2) },
@@ -121,9 +124,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.account"
             :options="accountOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 110px"
           />
         </NFormItem>
@@ -131,9 +133,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.category"
             :options="categoryOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 150px"
           />
         </NFormItem>

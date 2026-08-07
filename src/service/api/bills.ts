@@ -2,10 +2,10 @@ import { request } from '../request';
 
 /** 账单汇总查询参数 */
 interface GroupQueryParams {
-  /** 账户（多选精确匹配） */
-  account?: string[];
-  /** 类别（多选精确匹配） */
-  category?: string[];
+  /** 账户（单选精确匹配） */
+  account?: string | null;
+  /** 类别（单选精确匹配） */
+  category?: string | null;
   /** 证券代码（模糊） */
   symbol?: string;
   /** 仅返回当前市值不为 0 的记录 */
@@ -27,10 +27,10 @@ export function fetchGroups(params?: GroupQueryParams) {
 
 /** 交易收益查询参数 */
 interface BillQueryParams {
-  /** 账户（多选精确匹配） */
-  account?: string[];
-  /** 类别（多选精确匹配） */
-  category?: string[];
+  /** 账户（单选精确匹配） */
+  account?: string | null;
+  /** 类别（单选精确匹配） */
+  category?: string | null;
   /** 证券代码（模糊） */
   symbol?: string;
   /** 每页条数 */
@@ -73,8 +73,8 @@ export function fetchProfits(params?: ProfitQueryParams) {
 
 /** 账户汇总查询参数 */
 interface GroupAccQueryParams {
-  /** 账户（多选精确匹配） */
-  account?: string[];
+  /** 账户（单选精确匹配） */
+  account?: string | null;
   /** 仅显示账户净值不为 0 的记录 */
   acc_aset_only?: boolean;
   /** 每页条数 */
@@ -94,8 +94,8 @@ export function fetchGroupAccs(params?: GroupAccQueryParams) {
 
 /** 标的汇总查询参数 */
 interface GroupSymbolQueryParams {
-  /** 类别（多选精确匹配） */
-  category?: string[];
+  /** 类别（单选精确匹配） */
+  category?: string | null;
   /** 证券代码（模糊） */
   symbol?: string;
   /** 仅显示当前市值不为 0 的记录 */

@@ -31,8 +31,8 @@ const tableData = ref<Api.Bills.GroupSymbol[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：category 多选精确匹配，symbol NAutoComplete 支持直接输入提交，value_only 控制当前市值不为0
-const searchParams = reactive<{ category?: string[]; symbol?: string; value_only?: boolean }>({ value_only: true });
+// 筛选参数：category 单选精确匹配，symbol NAutoComplete 支持直接输入提交，value_only 控制当前市值不为0
+const searchParams = reactive<{ category?: string | null; symbol?: string; value_only?: boolean }>({ value_only: true });
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -42,8 +42,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroupSymbols({
       ...searchParams,
-      // 空数组转为 undefined，避免向后端发送空列表
-      category: searchParams.category?.length ? searchParams.category : undefined,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      category: searchParams.category || undefined,
       // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
@@ -67,7 +67,7 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.category = [];
+  searchParams.category = null;
   searchParams.symbol = '';
   searchParams.value_only = false;
   clearSymbolOptions();
@@ -129,9 +129,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.category"
             :options="categoryOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 150px"
           />
         </NFormItem>

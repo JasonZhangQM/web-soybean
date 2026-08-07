@@ -17,8 +17,8 @@ const tableData = ref<Api.Bills.GroupAcc[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account 多选精确匹配，acc_aset_only 控制账户净值不为0
-const searchParams = reactive<{ account?: string[]; acc_aset_only?: boolean }>({ acc_aset_only: true });
+// 筛选参数：account 单选精确匹配，acc_aset_only 控制账户净值不为0
+const searchParams = reactive<{ account?: string | null; acc_aset_only?: boolean }>({ acc_aset_only: true });
 
 // 账户下拉选项（从全局 store 获取）
 const accountOptions = computed(() => billsStore.getAccountOptions());
@@ -28,8 +28,8 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroupAccs({
       ...searchParams,
-      // 空数组转为 undefined，避免向后端发送空列表
-      account: searchParams.account?.length ? searchParams.account : undefined,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      account: searchParams.account || undefined,
       // 仅在选中"不为0"时传递该参数
       acc_aset_only: searchParams.acc_aset_only === true ? true : undefined,
       limit: pagination.pageSize,
@@ -51,7 +51,7 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = [];
+  searchParams.account = null;
   searchParams.acc_aset_only = false;
   fetchData();
 }
@@ -108,9 +108,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.account"
             :options="accountOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 110px"
           />
         </NFormItem>

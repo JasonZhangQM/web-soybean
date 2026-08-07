@@ -31,8 +31,8 @@ const tableData = ref<Api.Bills.Group[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
-const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string; value_only?: boolean }>({ value_only: true });
+// 筛选参数：account/category 单选精确匹配，symbol NAutoComplete 支持直接输入提交
+const searchParams = reactive<{ account?: string | null; category?: string | null; symbol?: string; value_only?: boolean }>({ value_only: true });
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -43,6 +43,9 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroups({
       ...searchParams,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      account: searchParams.account || undefined,
+      category: searchParams.category || undefined,
       // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
@@ -66,8 +69,8 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = [];
-  searchParams.category = [];
+  searchParams.account = null;
+  searchParams.category = null;
   searchParams.symbol = '';
   searchParams.value_only = false;
   clearSymbolOptions();
@@ -133,9 +136,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.account"
             :options="accountOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 110px"
           />
         </NFormItem>
@@ -143,9 +145,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.category"
             :options="categoryOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 150px"
           />
         </NFormItem>
