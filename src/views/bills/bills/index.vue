@@ -43,7 +43,7 @@ async function fetchData() {
   try {
     const { data, error } = await fetchBills({
       ...searchParams,
-      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize

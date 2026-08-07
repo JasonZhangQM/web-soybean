@@ -43,7 +43,7 @@ async function fetchData() {
   try {
     const { data, error } = await fetchGroups({
       ...searchParams,
-      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
       value_only: searchParams.value_only === true ? true : undefined,

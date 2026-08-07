@@ -10,8 +10,19 @@ import { createTablePagination } from '@/hooks/common/table';
 defineOptions({ name: 'BillsGroupSymbolsPage' });
 
 const billsStore = useBillsStore();
-// 代码远程搜索（NSelect remote，防抖 300ms）
-const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+// 代码远程搜索（NAutoComplete，防抖 300ms）
+const { symbolOptions: rawSymbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+
+// NAutoComplete 选中后 v-model = option.label，所以 label 必须设为纯 symbol
+// display 字段保留下拉列表的富文本（symbol name (industry)），通过 renderLabel 渲染
+const symbolOptions = computed(() =>
+  rawSymbolOptions.value.map(o => ({ label: o.value, value: o.value, display: o.label }))
+);
+
+// 自定义下拉项渲染：显示 "symbol name (industry)"，但选中后 v-model 只拿到纯 symbol
+function renderSymbolLabel(option: any) {
+  return option.display || option.label;
+}
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -20,8 +31,8 @@ const tableData = ref<Api.Bills.GroupSymbol[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：category 多选精确匹配，symbol 远程搜索选中代码，value_only 控制当前市值不为0
-const searchParams = reactive<{ category?: string[]; symbol?: string | null; value_only?: boolean }>({ value_only: true });
+// 筛选参数：category 多选精确匹配，symbol NAutoComplete 支持直接输入提交，value_only 控制当前市值不为0
+const searchParams = reactive<{ category?: string[]; symbol?: string; value_only?: boolean }>({ value_only: true });
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -33,7 +44,7 @@ async function fetchData() {
       ...searchParams,
       // 空数组转为 undefined，避免向后端发送空列表
       category: searchParams.category?.length ? searchParams.category : undefined,
-      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       // 仅在选中"不为0"时传递该参数
       value_only: searchParams.value_only === true ? true : undefined,
@@ -57,7 +68,7 @@ function handleSearch() {
 
 function handleReset() {
   searchParams.category = [];
-  searchParams.symbol = null;
+  searchParams.symbol = '';
   searchParams.value_only = false;
   clearSymbolOptions();
   fetchData();
@@ -125,16 +136,14 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem label="代码">
-          <NSelect
+          <NAutoComplete
             v-model:value="searchParams.symbol"
             :options="symbolOptions"
-            :loading="symbolLoading"
-            filterable
-            remote
+            :render-label="renderSymbolLabel"
             clearable
             placeholder="输入代码或名称搜索"
             style="width: 200px"
-            @search="handleSymbolSearch"
+            @update:value="handleSymbolSearch"
           />
         </NFormItem>
         <NFormItem label="当前市值">
