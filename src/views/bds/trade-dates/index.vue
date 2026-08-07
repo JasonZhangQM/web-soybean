@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { fetchTradeDates, syncTradeDate } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
-import { trimSearchParams } from '@/utils/common';
-import { dateShortcuts } from '@/utils/date-shortcuts';
+import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'TradeDatesPage' });
@@ -15,16 +14,17 @@ const tableData = ref<Api.Bds.TradeDate[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：start_date/end_date 交易日期范围筛选
-const searchParams = reactive<{ start_date?: string | null; end_date?: string | null }>({});
+// 日期范围（YYYY-MM-DD 格式字符串元组），与 macro-framework 页面统一
+const dateRange = ref<[string, string] | null>(null);
 
 // 拉取交易日历列表
 async function fetchData() {
   loading.value = true;
   try {
+    const [start_date, end_date] = dateRange.value || [];
     const { data, error } = await fetchTradeDates({
-      start_date: searchParams.start_date || undefined,
-      end_date: searchParams.end_date || undefined,
+      start_date: start_date || undefined,
+      end_date: end_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -38,15 +38,13 @@ async function fetchData() {
 }
 
 function handleSearch() {
-  trimSearchParams(searchParams);
   pagination.page = 1;
   fetchData();
 }
 
 // 重置搜索条件并刷新
 function handleReset() {
-  searchParams.start_date = null;
-  searchParams.end_date = null;
+  dateRange.value = null;
   fetchData();
 }
 
@@ -80,24 +78,14 @@ onMounted(() => fetchData());
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
-        <NFormItem label="开始日期">
+        <NFormItem label="日期范围">
           <NDatePicker
-            v-model:formatted-value="searchParams.start_date"
-            type="date"
+            v-model:formatted-value="dateRange"
+            type="daterange"
             value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
+            :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 150px"
-          />
-        </NFormItem>
-        <NFormItem label="结束日期">
-          <NDatePicker
-            v-model:formatted-value="searchParams.end_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
-            clearable
-            style="width: 150px"
+            style="width: 320px"
           />
         </NFormItem>
         <NFormItem>
