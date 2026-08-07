@@ -19,9 +19,16 @@ const tableData = ref<Api.Irs.ValueMonitor[]>([]);
 const pagination = createTablePagination();
 
 const searchParams = reactive({
-  symbol: '' as string,
-  name: '' as string
+  symbol: null as string | null
 });
+
+// 列表搜索区代码远程搜索：与新增模态框隔离，独立维护 options
+const {
+  symbolOptions: searchSymbolOptions,
+  symbolLoading: searchSymbolLoading,
+  handleSymbolSearch: handleSearchSymbolSearch,
+  clearSymbolOptions: clearSearchSymbolOptions
+} = useSymbolSearch();
 
 // 拉取估值监测列表
 async function fetchData() {
@@ -29,7 +36,6 @@ async function fetchData() {
   try {
     const { data, error } = await fetchValueMonitors({
       symbol: searchParams.symbol || undefined,
-      name: searchParams.name || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -49,8 +55,8 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.symbol = '';
-  searchParams.name = '';
+  searchParams.symbol = null;
+  clearSearchSymbolOptions();
   pagination.page = 1;
   fetchData();
 }
@@ -321,19 +327,16 @@ onMounted(() => {
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="代码">
-          <NInput
+          <NSelect
             v-model:value="searchParams.symbol"
+            :options="searchSymbolOptions"
+            :loading="searchSymbolLoading"
+            filterable
+            remote
             clearable
-            placeholder="请输入代码"
-            style="width: 160px"
-          />
-        </NFormItem>
-        <NFormItem label="名称">
-          <NInput
-            v-model:value="searchParams.name"
-            clearable
-            placeholder="请输入名称"
-            style="width: 160px"
+            placeholder="代码搜索"
+            style="width: 260px"
+            @search="handleSearchSymbolSearch"
           />
         </NFormItem>
         <NFormItem>
