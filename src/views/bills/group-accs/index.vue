@@ -125,7 +125,7 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
             <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步
+              行情
             </NButton>
           </NSpace>
         </NFormItem>
