@@ -244,7 +244,7 @@ const local: App.I18n.Schema = {
     'bds_market-data': 'Market Data',
     'bds_market-data_index-histories': 'Index Quote',
     'bds_market-data_daily-valuations': 'Daily Valuations',
-    'bds_macro-research': 'Macro Research',
+    'bds_macro-research': 'Macro Data',
     'bds_macro-research_daily-indicators': 'Daily Indicators',
     'bds_macro-research_gold-reserves': 'Gold Reserves',
     'bds_macro-research_economic-indicators': 'Economic Data',

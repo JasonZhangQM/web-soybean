@@ -240,7 +240,7 @@ const local: App.I18n.Schema = {
     'bds_market-data': '行情数据',
     'bds_market-data_index-histories': '指数行情',
     'bds_market-data_daily-valuations': '估值指标',
-    'bds_macro-research': '宏观研究',
+    'bds_macro-research': '宏观数据',
     'bds_macro-research_economic-indicators': '经济数据',
     'bds_macro-research_daily-indicators': '日频数据',
     'bds_macro-research_gold-reserves': '黄金储备',
