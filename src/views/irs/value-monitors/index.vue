@@ -77,8 +77,16 @@ const formData = reactive({
   pp_l: null as number | null,
   pp_m: null as number | null,
   pp_h: null as number | null,
-  pp_eh: null as number | null
+  pp_eh: null as number | null,
+  // 行情字段（兜底编辑，默认折叠）
+  py_close: null as number | null,
+  y_high: null as number | null,
+  y_low: null as number | null,
+  price: null as number | null
 });
+
+// 行情折叠面板展开状态：默认折叠，仅编辑模式显示
+const quoteExpandedNames = ref<string[]>([]);
 
 // 代码远程搜索：NSelect remote，防抖 300ms 调 /bds/symbol-infos
 const {
@@ -141,6 +149,11 @@ function handleEdit(row: Api.Irs.ValueMonitor) {
   formData.pp_m = row.pp_m != null ? Number(row.pp_m) : null;
   formData.pp_h = row.pp_h != null ? Number(row.pp_h) : null;
   formData.pp_eh = row.pp_eh != null ? Number(row.pp_eh) : null;
+  // 回填行情字段（兜底编辑用）
+  formData.py_close = row.py_close != null ? Number(row.py_close) : null;
+  formData.y_high = row.y_high != null ? Number(row.y_high) : null;
+  formData.y_low = row.y_low != null ? Number(row.y_low) : null;
+  formData.price = row.price != null ? Number(row.price) : null;
   showModal.value = true;
 }
 
@@ -154,6 +167,11 @@ function resetForm() {
   formData.pp_m = null;
   formData.pp_h = null;
   formData.pp_eh = null;
+  formData.py_close = null;
+  formData.y_high = null;
+  formData.y_low = null;
+  formData.price = null;
+  quoteExpandedNames.value = [];
   clearSymbolOptions();
   formRef.value?.restoreValidation();
 }
@@ -184,7 +202,19 @@ async function handleSubmit() {
       }));
     } else {
       // 修改：PUT by id
-      ({ error } = await updateValueMonitor(editingId.value, params));
+      // 行情字段仅展开编辑时才传，未展开不传（后端 None 表示不修改）
+      const quoteExpanded = quoteExpandedNames.value.includes('quote');
+      ({ error } = await updateValueMonitor(editingId.value, {
+        ...params,
+        ...(quoteExpanded
+          ? {
+              py_close: formData.py_close,
+              y_high: formData.y_high,
+              y_low: formData.y_low,
+              price: formData.price
+            }
+          : {})
+      }));
     }
     if (!error) {
       window.$message?.success(editingId.value === null ? '新增成功' : '修改成功');
@@ -421,6 +451,47 @@ onMounted(() => {
             class="w-full"
           />
         </NFormItem>
+        <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
+        <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
+          <NCollapseItem title="行情字段（兜底编辑）" name="quote">
+            <NFormItem label="上年末" path="py_close">
+              <NInputNumber
+                v-model:value="formData.py_close"
+                :precision="4"
+                :step="0.0001"
+                placeholder="上年末收盘价"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="年高" path="y_high">
+              <NInputNumber
+                v-model:value="formData.y_high"
+                :precision="4"
+                :step="0.0001"
+                placeholder="年度最高价"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="年低" path="y_low">
+              <NInputNumber
+                v-model:value="formData.y_low"
+                :precision="4"
+                :step="0.0001"
+                placeholder="年度最低价"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="最新价" path="price">
+              <NInputNumber
+                v-model:value="formData.price"
+                :precision="4"
+                :step="0.0001"
+                placeholder="最新成交价"
+                class="w-full"
+              />
+            </NFormItem>
+          </NCollapseItem>
+        </NCollapse>
       </NForm>
       <template #footer>
         <NSpace justify="end">

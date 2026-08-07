@@ -62,6 +62,14 @@ interface ValueMonitorUpdateParams {
   pp_h: number;
   /** 极高 */
   pp_eh: number;
+  /** 上年末（可选，不传表示不修改） */
+  py_close?: number | null;
+  /** 年高（可选，不传表示不修改） */
+  y_high?: number | null;
+  /** 年低（可选，不传表示不修改） */
+  y_low?: number | null;
+  /** 最新价（可选，不传表示不修改） */
+  price?: number | null;
 }
 
 /** 修改估值监测记录 */

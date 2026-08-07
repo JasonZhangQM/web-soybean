@@ -17,6 +17,7 @@ declare module "@elegant-router/types" {
   export type RouteMap = {
     "root": "/";
     "not-found": "/:pathMatch(.*)*";
+    "irs_value": "/irs/value";
     "403": "/403";
     "404": "/404";
     "500": "/500";
@@ -73,6 +74,7 @@ declare module "@elegant-router/types" {
     RouteKey,
     | "root"
     | "not-found"
+    | "irs_value"
   >;
 
   /**
@@ -150,6 +152,7 @@ declare module "@elegant-router/types" {
     CustomRouteKey,
     | "root"
     | "not-found"
+    | "irs_value"
   >;
 
   /**
