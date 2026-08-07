@@ -23,13 +23,13 @@ const tableData = ref<Api.Bds.IndexConstituent[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：index_code 多选精确匹配，symbol 远程搜索选中代码，trade_date 交易日期精确匹配
+// 搜索参数：index_code 单选精确匹配，symbol 远程搜索选中代码，trade_date 交易日期精确匹配
 const queryForm = reactive<{
-  index_code: string[];
+  index_code: string | null;
   symbol: string | null;
   trade_date: string | null;
 }>({
-  index_code: [],
+  index_code: null,
   symbol: null,
   trade_date: null
 });
@@ -42,7 +42,8 @@ async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchIndexConstituents({
-      index_code: queryForm.index_code.length ? queryForm.index_code : undefined,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      index_code: queryForm.index_code || undefined,
       symbol: queryForm.symbol || undefined,
       trade_date: queryForm.trade_date || undefined,
       limit: pagination.pageSize,
@@ -113,9 +114,8 @@ onMounted(() => fetchData());
           <NSelect
             v-model:value="queryForm.index_code"
             :options="indexCodeOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 150px"
           />
         </NFormItem>

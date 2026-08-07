@@ -107,8 +107,8 @@ export function syncIndexHistory() {
 
 /** 指数成分股查询参数 */
 export interface IndexConstituentQueryParams {
-  /** 指数代码（多选精确匹配） */
-  index_code?: string[];
+  /** 指数代码（精确匹配） */
+  index_code?: string;
   /** 成分股代码（模糊匹配） */
   symbol?: string;
   /** 交易日期（YYYY-MM-DD，精确匹配） */

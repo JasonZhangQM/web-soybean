@@ -115,7 +115,7 @@ function renderMultiplier(row: Api.Bills.GroupSymbol) {
 
 const columns = [
   { title: '交易分类', key: 'category', width: 80 },
-  { title: '代码', key: 'symbol', width: 120 },
+  { title: '代码', key: 'symbol', width: 160 },
   { title: '交易次数', key: 'count', width: 80 },
   { title: '持仓量', key: 'p_total', width: 100, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total') },
   { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total') },
