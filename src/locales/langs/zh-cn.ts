@@ -255,8 +255,8 @@ const local: App.I18n.Schema = {
     'irs_option-monitor': '期权报价',
     'irs_option-quote': '期权监测',
     'irs_economic-report': '美国看板',
-    'irs_macro-framework': '宏观框架',
-    'irs_us-economic-dashboard': '美股看板'
+    'irs_macro-framework': '中国宏观',
+    'irs_us-economic-dashboard': '美国宏观'
   },
   page: {
     login: {
