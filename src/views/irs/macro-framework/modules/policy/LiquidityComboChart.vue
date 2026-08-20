@@ -4,12 +4,12 @@ import { useEcharts } from '@/hooks/common/echarts';
 import { useThemeStore } from '@/store/modules/theme';
 import { getSeries, calcM1M2 } from '../../../_shared/utils';
 import LatestTable from '../../../_shared/LatestTable.vue';
-import { buildLatestRows } from '../../../_shared/latest-utils';
+import { buildLatestRows, type LatestRow } from '../../../_shared/latest-utils';
 
 defineOptions({ name: 'LiquidityComboChart' });
 
 /** 流动性综合视图（双轴）
- *  左轴（亿元）：社融增量柱状 红 + 新增贷款柱状 蓝（重叠半透明）
+ *  左轴（万亿元）：社融增量柱状 红 + 新增贷款柱状 蓝（重叠半透明）
  *  右轴（%）：M1 同比折线 蓝、M2 同比折线 红、M1-M2 剪刀差紫色面积 + y=0 参考线
  *  xAxis 为所有系列日期并集 */
 interface Props {
@@ -19,15 +19,32 @@ const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
 
-// 最新值表格行：社融/贷款单位 亿元，M1/M2/剪刀差单位 %
+// 最新值表格行：社融/贷款原始单位为亿元，转换为万亿元展示；M1/M2/剪刀差单位 %
 // 剪刀差为 calcM1M2 计算值，需单独从计算结果取最新
 const latestRows = computed(() => {
-  const rows = buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
-    { code: 'CN_SOCIAL_FINANCING_CUM', name: '社融增量累计', color: '#dc2626', unit: '亿元' },
-    { code: 'CN_NEW_RMB_LOANS_CUM', name: '新增贷款累计', color: '#2563eb', unit: '亿元' },
+  const rows: LatestRow[] = [];
+  // 社融/贷款：除以 10000 将亿元转为万亿元
+  const sfArr = (props.dataMap.get('CN_SOCIAL_FINANCING_CUM') ?? []).filter(x => x.value != null);
+  const loanArr = (props.dataMap.get('CN_NEW_RMB_LOANS_CUM') ?? []).filter(x => x.value != null);
+  const sfLatest = sfArr.length > 0 ? sfArr[sfArr.length - 1] : null;
+  const loanLatest = loanArr.length > 0 ? loanArr[loanArr.length - 1] : null;
+  rows.push({
+    name: '社融增量累计',
+    color: '#dc2626',
+    value: sfLatest ? (Number(sfLatest.value) / 10000).toFixed(2) + ' 万亿元' : '--',
+    date: sfLatest ? sfLatest.report_date.slice(0, 10) : '--'
+  });
+  rows.push({
+    name: '新增贷款累计',
+    color: '#2563eb',
+    value: loanLatest ? (Number(loanLatest.value) / 10000).toFixed(2) + ' 万亿元' : '--',
+    date: loanLatest ? loanLatest.report_date.slice(0, 10) : '--'
+  });
+  // M1/M2 同比通过通用工具构造
+  rows.push(...buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
     { code: 'CN_M1_YOY', name: 'M1同比', color: '#2563eb', unit: '%' },
     { code: 'CN_M2_YOY', name: 'M2同比', color: '#dc2626', unit: '%' }
-  ]);
+  ]));
   // M1-M2 剪刀差最新值：从 calcM1M2 计算结果取最后一条非 null
   const scissors = calcM1M2(
     getSeries(props.dataMap, 'CN_M1_YOY'),
@@ -61,9 +78,9 @@ function buildOption() {
   [...sf, ...loan, ...m1, ...m2].forEach(x => dateSet.add(x.report_date));
   const dates = Array.from(dateSet).sort();
 
-  // 按日期构建值映射，缺失日期为 null
-  const buildValues = (arr: Api.Bds.EconomicIndicator[]) => {
-    const map = new Map(arr.map(x => [x.report_date, Number(x.value)]));
+  // 按日期构建值映射，缺失日期为 null；divisor 用于单位换算（如亿元→万亿元除以 10000）
+  const buildValues = (arr: Api.Bds.EconomicIndicator[], divisor = 1) => {
+    const map = new Map(arr.map(x => [x.report_date, Number(x.value) / divisor]));
     return dates.map(d => (map.has(d) ? (map.get(d) as number) : null));
   };
   // 剪刀差按其自身日期对齐到 dates
@@ -84,7 +101,7 @@ function buildOption() {
     yAxis: [
       {
         type: 'value',
-        name: '亿元',
+        name: '万亿元',
         nameTextStyle: { color: axisColor },
         axisLabel: { color: axisColor },
         axisLine: { lineStyle: { color: axisColor } },
@@ -107,7 +124,7 @@ function buildOption() {
         yAxisIndex: 0,
         itemStyle: { color: 'rgba(220, 38, 38, 0.65)' },
         barGap: '-100%',
-        data: buildValues(sf)
+        data: buildValues(sf, 10000)
       },
       // 左轴：新增贷款累计柱状（蓝半透明，与社融重叠）
       {
@@ -116,7 +133,7 @@ function buildOption() {
         yAxisIndex: 0,
         itemStyle: { color: 'rgba(37, 99, 235, 0.65)' },
         barGap: '-100%',
-        data: buildValues(loan)
+        data: buildValues(loan, 10000)
       },
       // 右轴：M1 同比折线（蓝）
       {
