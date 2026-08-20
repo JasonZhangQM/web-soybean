@@ -73,6 +73,16 @@ export const generatedRoutes = [
             }
           },
           {
+            name: 'bds_fund-data_finance-primes',
+            path: '/bds/fund-data/finance-primes',
+            component: 'view.bds_fund-data_finance-primes',
+            meta: {
+              title: 'bds_fund-data_finance-primes',
+              i18nKey: 'route.bds_fund-data_finance-primes',
+              constant: true
+            }
+          },
+          {
             name: 'bds_fund-data_fund-balances',
             path: '/bds/fund-data/fund-balances',
             component: 'view.bds_fund-data_fund-balances',
@@ -171,6 +181,16 @@ export const generatedRoutes = [
           constant: true
         },
         children: [
+          {
+            name: 'bds_market-data_daily-mktvalues',
+            path: '/bds/market-data/daily-mktvalues',
+            component: 'view.bds_market-data_daily-mktvalues',
+            meta: {
+              title: 'bds_market-data_daily-mktvalues',
+              i18nKey: 'route.bds_market-data_daily-mktvalues',
+              constant: true
+            }
+          },
           {
             name: 'bds_market-data_daily-valuations',
             path: '/bds/market-data/daily-valuations',

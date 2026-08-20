@@ -491,6 +491,126 @@ declare namespace Api {
       offset: number;
     }
 
+    /** 财务主要指标 */
+    interface FinancePrime {
+      /** 主键 */
+      id: number;
+      /** 股票代码 */
+      symbol: string;
+      /** 发布日期 */
+      pub_date: string;
+      /** 报告日期 */
+      rpt_date: string;
+      /** 报表类型 */
+      rpt_type: number;
+      /** 数据类型 */
+      data_type: number;
+      /** 资产总计 */
+      ttl_ast: number | null;
+      /** 负债合计 */
+      ttl_liab: number | null;
+      /** 营业总收入 */
+      ttl_inc_oper: number | null;
+      /** 营业收入 */
+      inc_oper: number | null;
+      /** 营业利润 */
+      oper_prof: number | null;
+      /** 利润总额 */
+      ttl_prof: number | null;
+      /** 归母股东权益合计 */
+      ttl_eqy_pcom: number | null;
+      /** 归母净利润 */
+      net_prof_pcom: number | null;
+      /** 扣非归母净利润 */
+      net_prof_pcom_cut: number | null;
+      /** 净资产收益率ROE(摊薄) */
+      roe: number | null;
+      /** 净资产收益率ROE(加权) */
+      roe_weight_avg: number | null;
+      /** 扣非净资产收益率ROE(摊薄) */
+      roe_cut: number | null;
+      /** 扣非净资产收益率ROE(加权) */
+      roe_weight_avg_cut: number | null;
+      /** 经营活动产生的现金流量净额 */
+      net_cf_oper: number | null;
+      /** 营业收入同比增长率 */
+      inc_oper_yoy: number | null;
+      /** 营业总收入同比增长率 */
+      ttl_inc_oper_yoy: number | null;
+      /** 归属母公司股东的净利润同比增长率 */
+      net_prof_pcom_yoy: number | null;
+      /** 净资产 */
+      net_asset: number | null;
+      /** 净利润 */
+      net_prof: number | null;
+      /** 扣非净利润 */
+      net_prof_cut: number | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 财务主要指标查询参数 */
+    interface FinancePrimeQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string | null;
+      /** 报表类型 */
+      rpt_type?: number | null;
+      /** 报告日期起始日 */
+      start_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
+    /** 每日市值 */
+    interface DailyMktvalue {
+      /** 主键 */
+      id: number;
+      /** 股票代码 */
+      symbol: string;
+      /** 交易日期 */
+      trade_date: string;
+      /** 总市值 */
+      tot_mv: number | null;
+      /** 总市值(证监会算法) */
+      tot_mv_csrc: number | null;
+      /** A股市值 */
+      a_mv: number | null;
+      /** A股市值(剔除限售股) */
+      a_mv_ex_ltd: number | null;
+      /** B股市值 */
+      b_mv: number | null;
+      /** B股市值(剔除限售股) */
+      b_mv_ex_ltd: number | null;
+      /** 企业价值 */
+      ev: number | null;
+      /** 企业价值(剔除货币资金) */
+      ev_ex_curr: number | null;
+      /** 企业价值/EBITDA */
+      ev_ebitda: number | null;
+      /** 股权价值 */
+      equity_value: number | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 每日市值查询参数 */
+    interface DailyMktvalueQueryParams {
+      /** 股票代码（模糊匹配） */
+      symbol?: string | null;
+      /** 交易日期起始日 */
+      start_date?: string | null;
+      /** 每页条数 */
+      limit: number;
+      /** 偏移量 */
+      offset: number;
+    }
+
     /** 经济指标数据 */
     interface EconomicIndicator {
       /** 主键 */

@@ -242,6 +242,42 @@ export function syncDailyValuation(symbol: string) {
   });
 }
 
+/** 查询财务主要指标列表 */
+export function fetchFinancePrimes(params: Api.Bds.FinancePrimeQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.FinancePrime>>({
+    url: '/api/v1/bds/finance-primes',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步财务主要指标数据（单个股票代码，精确匹配） */
+export function syncFinancePrime(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/finance-prime',
+    method: 'post',
+    params: { symbol }
+  });
+}
+
+/** 查询每日市值列表 */
+export function fetchDailyMktvalues(params: Api.Bds.DailyMktvalueQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.DailyMktvalue>>({
+    url: '/api/v1/bds/daily-mktvalues',
+    method: 'get',
+    params
+  });
+}
+
+/** 同步每日市值数据（单个股票代码，精确匹配） */
+export function syncDailyMktvalue(symbol: string) {
+  return request<Api.Bds.SyncResult>({
+    url: '/api/v1/bds/sync/daily-mktvalue',
+    method: 'post',
+    params: { symbol }
+  });
+}
+
 /** 查询经济指标分页列表 */
 export function fetchEconomicIndicators(params: Api.Bds.EconomicIndicatorQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.EconomicIndicator>>({
