@@ -19,6 +19,23 @@ const props = withDefaults(defineProps<Props>(), {});
 
 const themeStore = useThemeStore();
 
+/** 计算累计值指标最新一期的同比增速（社融增量累计 / 新增贷款累计通用）
+ *  累计值为"当年年初至当月累计"，同比 = (本期累计 - 去年同月累计) / |去年同月累计| × 100
+ *  去年同期按年月（YYYY-MM）匹配，规避同月日期不一致（01 vs 31）导致精确匹配失败
+ */
+function calcCumYoy(arr: Api.Bds.EconomicIndicator[]): number | null {
+  if (arr.length < 2) return null;
+  const latest = arr[arr.length - 1];
+  const [y, m] = latest.report_date.slice(0, 7).split('-').map(Number);
+  const prevYm = `${y - 1}-${String(m).padStart(2, '0')}`;
+  // 升序数组从后向前找，同年月多条时取最新发布的一条
+  const base = [...arr].reverse().find(x => x.report_date.slice(0, 7) === prevYm);
+  if (!base) return null;
+  const baseVal = Number(base.value);
+  if (baseVal === 0) return null;
+  return ((Number(latest.value) - baseVal) / Math.abs(baseVal)) * 100;
+}
+
 // 最新值表格行：社融/贷款原始单位为亿元，转换为万亿元展示；M1/M2/剪刀差单位 %
 // 剪刀差为 calcM1M2 计算值，需单独从计算结果取最新
 const latestRows = computed(() => {
@@ -34,10 +51,26 @@ const latestRows = computed(() => {
     value: sfLatest ? (Number(sfLatest.value) / 10000).toFixed(2) + ' 万亿元' : '--',
     date: sfLatest ? sfLatest.report_date.slice(0, 10) : '--'
   });
+  // 社融同比增速：由前端根据社融原始累计值计算
+  const sfYoy = calcCumYoy(sfArr);
+  rows.push({
+    name: '社融增量累计同比',
+    color: '#b91c1c',
+    value: sfYoy != null ? sfYoy.toFixed(2) + ' %' : '--',
+    date: sfLatest ? sfLatest.report_date.slice(0, 10) : '--'
+  });
   rows.push({
     name: '新增贷款累计',
     color: '#2563eb',
     value: loanLatest ? (Number(loanLatest.value) / 10000).toFixed(2) + ' 万亿元' : '--',
+    date: loanLatest ? loanLatest.report_date.slice(0, 10) : '--'
+  });
+  // 新增贷款同比增速：与社融同比相同方式计算
+  const loanYoy = calcCumYoy(loanArr);
+  rows.push({
+    name: '新增贷款累计同比',
+    color: '#1d4ed8',
+    value: loanYoy != null ? loanYoy.toFixed(2) + ' %' : '--',
     date: loanLatest ? loanLatest.report_date.slice(0, 10) : '--'
   });
   // M1/M2 同比通过通用工具构造
