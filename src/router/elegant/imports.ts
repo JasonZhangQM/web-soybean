@@ -21,7 +21,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "iframe-page": () => import("@/views/_builtin/iframe-page/[url].vue"),
   login: () => import("@/views/_builtin/login/index.vue"),
   "bds_fund-data_finance-derivs": () => import("@/views/bds/fund-data/finance-derivs/index.vue"),
-  "bds_fund-data_finance-primes": () => import("@/views/bds/fund-data/finance-primes/index.vue"),
   "bds_fund-data_fund-balances": () => import("@/views/bds/fund-data/fund-balances/index.vue"),
   "bds_fund-data_fund-cashflows": () => import("@/views/bds/fund-data/fund-cashflows/index.vue"),
   "bds_fund-data_fund-incomes": () => import("@/views/bds/fund-data/fund-incomes/index.vue"),

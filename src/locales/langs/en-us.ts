@@ -241,7 +241,6 @@ const local: App.I18n.Schema = {
     'bds_fund-data_fund-incomes': 'Income Statement',
     'bds_fund-data_fund-cashflows': 'Cash Flow Statement',
     'bds_fund-data_finance-derivs': 'Finance Derivs',
-    'bds_fund-data_finance-primes': 'Finance Prime',
     'bds_market-data': 'Market Data',
     'bds_market-data_index-histories': 'Index Quote',
     'bds_market-data_daily-valuations': 'Daily Valuations',

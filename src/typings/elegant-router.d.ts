@@ -24,7 +24,6 @@ declare module "@elegant-router/types" {
     "bds": "/bds";
     "bds_fund-data": "/bds/fund-data";
     "bds_fund-data_finance-derivs": "/bds/fund-data/finance-derivs";
-    "bds_fund-data_finance-primes": "/bds/fund-data/finance-primes";
     "bds_fund-data_fund-balances": "/bds/fund-data/fund-balances";
     "bds_fund-data_fund-cashflows": "/bds/fund-data/fund-cashflows";
     "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes";
@@ -120,7 +119,6 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "login"
     | "bds_fund-data_finance-derivs"
-    | "bds_fund-data_finance-primes"
     | "bds_fund-data_fund-balances"
     | "bds_fund-data_fund-cashflows"
     | "bds_fund-data_fund-incomes"

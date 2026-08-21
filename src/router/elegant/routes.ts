@@ -73,16 +73,6 @@ export const generatedRoutes = [
             }
           },
           {
-            name: 'bds_fund-data_finance-primes',
-            path: '/bds/fund-data/finance-primes',
-            component: 'view.bds_fund-data_finance-primes',
-            meta: {
-              title: 'bds_fund-data_finance-primes',
-              i18nKey: 'route.bds_fund-data_finance-primes',
-              constant: true
-            }
-          },
-          {
             name: 'bds_fund-data_fund-balances',
             path: '/bds/fund-data/fund-balances',
             component: 'view.bds_fund-data_fund-balances',

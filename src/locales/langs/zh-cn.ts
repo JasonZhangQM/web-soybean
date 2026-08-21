@@ -237,7 +237,6 @@ const local: App.I18n.Schema = {
     'bds_fund-data_fund-incomes': '利润表',
     'bds_fund-data_fund-cashflows': '现金流量表',
     'bds_fund-data_finance-derivs': '财务指标',
-    'bds_fund-data_finance-primes': '主要指标',
     'bds_market-data': '行情数据',
     'bds_market-data_index-histories': '指数行情',
     'bds_market-data_daily-valuations': '估值指标',
