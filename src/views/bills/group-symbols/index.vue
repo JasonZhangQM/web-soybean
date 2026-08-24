@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, h } from 'vue';
 import { fetchGroupSymbols, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
@@ -94,6 +94,28 @@ function renderAmount(row: Api.Bills.GroupSymbol, key: keyof Api.Bills.GroupSymb
   const val = row[key];
   return val != null ? Number(val).toFixed(2) : '-';
 }
+
+// 当前页三列盈亏汇总（前端计算，null 值跳过不计）
+const plSummary = computed(() => {
+  let pfTotal = 0;
+  let plAll = 0;
+  let pflAll = 0;
+  for (const row of tableData.value) {
+    if (row.pf_total != null) pfTotal += Number(row.pf_total);
+    if (row.pl_all != null) plAll += Number(row.pl_all);
+    if (row.pfl_all != null) pflAll += Number(row.pfl_all);
+  }
+  return { pfTotal, plAll, pflAll };
+});
+
+// 分页栏左侧前缀：保留总条数，并展示三列汇总（prefix 渲染在分页栏最左侧，天然左对齐）
+pagination.prefix = () =>
+  h('div', { class: 'flex items-center gap-16px' }, [
+    h('span', null, `浮动盈亏: ${plSummary.value.pfTotal.toFixed(2)}`),
+    h('span', null, `平仓盈亏: ${plSummary.value.plAll.toFixed(2)}`),
+    h('span', null, `盈亏合计: ${plSummary.value.pflAll.toFixed(2)}`),
+    h('span', null, `共 ${pagination.itemCount} 条`)
+  ]);
 
 // 盈亏合计渲染：保留两位小数
 function renderRate(row: Api.Bills.GroupSymbol) {
