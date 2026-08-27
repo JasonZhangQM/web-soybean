@@ -66,7 +66,7 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  queryForm.index_code = [];
+  queryForm.index_code = null;
   queryForm.symbol = null;
   queryForm.trade_date = null;
   clearSymbolOptions();
