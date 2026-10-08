@@ -14,7 +14,7 @@ interface Props {
   dataMap: Map<string, Api.Bds.EconomicIndicator[]>;
   loading?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), { loading: false });
+withDefaults(defineProps<Props>(), { loading: false });
 
 interface InfoItem {
   name: string;

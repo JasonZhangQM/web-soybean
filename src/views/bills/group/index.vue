@@ -11,7 +11,7 @@ defineOptions({ name: 'BillsGroupPage' });
 
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
-const { symbolOptions: rawSymbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 // NAutoComplete 选中后 v-model = option.label，所以 label 必须设为纯 symbol
 // display 字段保留下拉列表的富文本（symbol name (industry)），通过 renderLabel 渲染
@@ -32,7 +32,12 @@ const tableData = ref<Api.Bills.Group[]>([]);
 const pagination = createTablePagination();
 
 // 筛选参数：account/category 单选精确匹配，symbol NAutoComplete 支持直接输入提交
-const searchParams = reactive<{ account?: string | null; category?: string | null; symbol?: string; value_only?: boolean }>({ value_only: true });
+const searchParams = reactive<{
+  account?: string | null;
+  category?: string | null;
+  symbol?: string;
+  value_only?: boolean;
+}>({ value_only: true });
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -100,8 +105,11 @@ function renderAmount(row: Api.Bills.Group, key: string) {
 
 // 盈亏合计 = 浮动盈亏 + 平仓盈亏 + 其他损益 + 融资利息（前端计算，Group 表不落库该字段）
 function renderPflAll(row: Api.Bills.Group) {
-  const sum = (Number(row.pf_total) || 0) + (Number(row.pl_total) || 0)
-    + (Number(row.pl_t_other) || 0) + (Number(row.pl_t_br) || 0);
+  const sum =
+    (Number(row.pf_total) || 0) +
+    (Number(row.pl_total) || 0) +
+    (Number(row.pl_t_other) || 0) +
+    (Number(row.pl_t_br) || 0);
   return sum.toFixed(2);
 }
 
@@ -122,13 +130,23 @@ const columns = [
   { title: '交易分类', key: 'category', width: 80 },
   { title: '代码', key: 'symbol', width: 160 },
   { title: '持仓', key: 'p_total', width: 100, render: (row: Api.Bills.Group) => renderAmount(row, 'p_total') },
-  { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'cost_total') },
+  {
+    title: '持仓成本',
+    key: 'cost_total',
+    width: 120,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'cost_total')
+  },
   { title: '最新价', key: 'price', width: 100, render: (row: Api.Bills.Group) => renderPrice(row) },
   { title: '乘数', key: 'multiplier', width: 80, render: (row: Api.Bills.Group) => renderMultiplier(row) },
   { title: '市值', key: 'value_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'value_total') },
   { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pf_total') },
   { title: '平仓盈亏', key: 'pl_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_total') },
-  { title: '其他损益', key: 'pl_t_other', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_other') },
+  {
+    title: '其他损益',
+    key: 'pl_t_other',
+    width: 120,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_other')
+  },
   { title: '融资利息', key: 'pl_t_br', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_br') },
   { title: '盈亏合计', key: 'pfl_all', width: 100, render: renderPflAll },
   { title: '交易次数', key: 'count', width: 80 }

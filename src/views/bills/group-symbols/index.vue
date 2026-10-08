@@ -11,7 +11,7 @@ defineOptions({ name: 'BillsGroupSymbolsPage' });
 
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
-const { symbolOptions: rawSymbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 // NAutoComplete 选中后 v-model = option.label，所以 label 必须设为纯 symbol
 // display 字段保留下拉列表的富文本（symbol name (industry)），通过 renderLabel 渲染
@@ -32,7 +32,9 @@ const tableData = ref<Api.Bills.GroupSymbol[]>([]);
 const pagination = createTablePagination();
 
 // 筛选参数：category 单选精确匹配，symbol NAutoComplete 支持直接输入提交，value_only 控制当前市值不为0
-const searchParams = reactive<{ category?: string | null; symbol?: string; value_only?: boolean }>({ value_only: true });
+const searchParams = reactive<{ category?: string | null; symbol?: string; value_only?: boolean }>({
+  value_only: true
+});
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -140,14 +142,34 @@ const columns = [
   { title: '代码', key: 'symbol', width: 160 },
   { title: '交易次数', key: 'count', width: 80 },
   { title: '持仓量', key: 'p_total', width: 100, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total') },
-  { title: '持仓成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total') },
+  {
+    title: '持仓成本',
+    key: 'cost_total',
+    width: 120,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total')
+  },
   { title: '最新价', key: 'price', width: 100, render: (row: Api.Bills.GroupSymbol) => renderPrice(row) },
   { title: '乘数', key: 'multiplier', width: 80, render: (row: Api.Bills.GroupSymbol) => renderMultiplier(row) },
-  { title: '当前市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total') },
-  { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pf_total') },
+  {
+    title: '当前市值',
+    key: 'value_total',
+    width: 120,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total')
+  },
+  {
+    title: '浮动盈亏',
+    key: 'pf_total',
+    width: 120,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pf_total')
+  },
   { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'pl_all') },
   { title: '盈亏合计', key: 'pfl_all', width: 100, render: renderRate },
-  { title: '出入净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'diff_dw') }
+  {
+    title: '出入净额',
+    key: 'diff_dw',
+    width: 120,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'diff_dw')
+  }
 ];
 
 onMounted(() => {

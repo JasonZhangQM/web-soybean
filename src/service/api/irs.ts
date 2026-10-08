@@ -168,11 +168,7 @@ export function fetchOptionUnderlyings() {
 }
 
 /** irs 同步目标类型 */
-type IrsSyncTarget =
-  | 'discount-symbol'
-  | 'discount-monitor'
-  | 'value-monitor-hlc'
-  | 'value-monitor';
+type IrsSyncTarget = 'discount-symbol' | 'discount-monitor' | 'value-monitor-hlc' | 'value-monitor';
 
 /** 触发 irs 同步 */
 export function syncIrs(target: IrsSyncTarget) {

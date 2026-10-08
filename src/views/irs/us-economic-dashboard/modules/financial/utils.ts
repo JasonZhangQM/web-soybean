@@ -11,10 +11,7 @@
  * 从 Map 中取某指标最新一条记录（数组已按 report_date 升序，最后一项为最新）
  * 仅返回 value 非 null 的最新记录，避免取到无意义的空值
  */
-export function getLatest(
-  dataMap: Map<string, Api.Bds.DailyIndicator[]>,
-  code: string
-): Api.Bds.DailyIndicator | null {
+export function getLatest(dataMap: Map<string, Api.Bds.DailyIndicator[]>, code: string): Api.Bds.DailyIndicator | null {
   const list = dataMap.get(code);
   if (!list || !list.length) return null;
   // 从尾部向前找第一条 value 非 null 的记录
@@ -27,9 +24,6 @@ export function getLatest(
 /**
  * 从 Map 中取某指标时序数组（安全访问，缺失返回空数组）
  */
-export function getSeries(
-  dataMap: Map<string, Api.Bds.DailyIndicator[]>,
-  code: string
-): Api.Bds.DailyIndicator[] {
+export function getSeries(dataMap: Map<string, Api.Bds.DailyIndicator[]>, code: string): Api.Bds.DailyIndicator[] {
   return dataMap.get(code) ?? [];
 }

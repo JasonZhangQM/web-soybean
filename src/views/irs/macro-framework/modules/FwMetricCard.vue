@@ -59,13 +59,7 @@ const tagType = computed<'info' | 'success' | 'warning' | 'default'>(() => {
       :color="color"
     />
     <!-- 时序属性徽标：timing 为空时不渲染 -->
-    <NTag
-      v-if="timing"
-      class="fw-metric-card__tag"
-      :type="tagType"
-      size="small"
-      round
-    >
+    <NTag v-if="timing" class="fw-metric-card__tag" :type="tagType" size="small" round>
       {{ timing }}
     </NTag>
   </div>

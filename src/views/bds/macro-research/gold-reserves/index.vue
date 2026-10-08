@@ -92,20 +92,12 @@ async function handleSync() {
     return;
   }
   const code = syncCountryCode.value;
-  await executeSync(
-    () => syncGoldReserve(code),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncGoldReserve(code), syncLoading, fetchData);
 }
 
 // 触发全量同步所有国家黄金储备
 async function handleAllSync() {
-  await executeSync(
-    () => syncAllGoldReserves(),
-    allSyncLoading,
-    fetchData
-  );
+  await executeSync(() => syncAllGoldReserves(), allSyncLoading, fetchData);
 }
 
 // 列标题与后端 ORM comment 保持一致
@@ -113,7 +105,12 @@ const columns = [
   { title: '国家代码', key: 'country_code', width: 100, fixed: 'left' as const },
   { title: '国家名称', key: 'country_name', width: 120 },
   { title: '报告日期', key: 'rpt_date', width: 120 },
-  { title: '黄金储备(USD)', key: 'gold_holdings_usd', width: 160, render: (row: Api.Bds.GoldReserve) => fmtNum(row.gold_holdings_usd) },
+  {
+    title: '黄金储备(USD)',
+    key: 'gold_holdings_usd',
+    width: 160,
+    render: (row: Api.Bds.GoldReserve) => fmtNum(row.gold_holdings_usd)
+  },
   { title: '单位', key: 'unit', width: 100 },
   { title: '频率', key: 'frequency', width: 80 },
   { title: '创建时间', key: 'create_time', width: 180 },

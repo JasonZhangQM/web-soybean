@@ -47,19 +47,21 @@ function buildOption() {
       splitLine: { lineStyle: { color: rule } },
       axisLine: { lineStyle: { color: rule } }
     },
-    series: [{
-      type: 'radar',
-      data: indicators.map(item => ({
-        value: item.value,
-        name: item.name,
-        lineStyle: { color: item.color, width: 2 },
-        areaStyle: { color: item.color + '22' },
-        itemStyle: { color: item.color },
-        symbol: 'circle',
-        symbolSize: 5
-      })),
-      emphasis: { disabled: true }
-    }],
+    series: [
+      {
+        type: 'radar',
+        data: indicators.map(item => ({
+          value: item.value,
+          name: item.name,
+          lineStyle: { color: item.color, width: 2 },
+          areaStyle: { color: item.color + '22' },
+          itemStyle: { color: item.color },
+          symbol: 'circle',
+          symbolSize: 5
+        })),
+        emphasis: { disabled: true }
+      }
+    ],
     legend: {
       bottom: 0,
       textStyle: { color: ink, fontSize: 11 },
@@ -73,9 +75,12 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时刷新文字颜色
-watch(() => themeStore.darkMode, () => {
-  updateOptions(() => buildOption());
-});
+watch(
+  () => themeStore.darkMode,
+  () => {
+    updateOptions(() => buildOption());
+  }
+);
 </script>
 
 <template>

@@ -47,31 +47,36 @@ function buildOption() {
   return {
     animation: false,
     tooltip: { appendToBody: true },
-    series: [{
-      type: 'sankey',
-      layout: 'none',
-      emphasis: { focus: 'adjacency', disabled: false },
-      nodeAlign: 'left',
-      layoutIterations: 0,
-      data: nodes,
-      links: links,
-      label: { color: ink, fontSize: 11 },
-      lineStyle: { color: 'gradient', curveness: 0.5 },
-      itemStyle: {
-        color: accent,
-        borderColor: accent,
-        borderWidth: 1
+    series: [
+      {
+        type: 'sankey',
+        layout: 'none',
+        emphasis: { focus: 'adjacency', disabled: false },
+        nodeAlign: 'left',
+        layoutIterations: 0,
+        data: nodes,
+        links: links,
+        label: { color: ink, fontSize: 11 },
+        lineStyle: { color: 'gradient', curveness: 0.5 },
+        itemStyle: {
+          color: accent,
+          borderColor: accent,
+          borderWidth: 1
+        }
       }
-    }]
+    ]
   } as any;
 }
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时刷新文字颜色
-watch(() => themeStore.darkMode, () => {
-  updateOptions(() => buildOption());
-});
+watch(
+  () => themeStore.darkMode,
+  () => {
+    updateOptions(() => buildOption());
+  }
+);
 </script>
 
 <template>

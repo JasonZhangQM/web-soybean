@@ -91,7 +91,10 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
 
   /** 获取经济指标代码下拉选项（label=指标简称兜底全称，value=指标代码） */
   function getIndicatorCodeOptions() {
-    return indicatorCodeList.value.map(item => ({ label: item.indicator_short_name || item.indicator_name, value: item.indicator_code }));
+    return indicatorCodeList.value.map(item => ({
+      label: item.indicator_short_name || item.indicator_name,
+      value: item.indicator_code
+    }));
   }
 
   // 黄金储备国家列表（全局缓存，后端 Config.GOLD_RESERVE_COUNTRIES 字典，首次加载时获取）

@@ -52,12 +52,7 @@ const pendingItems = [
     </NGrid>
 
     <!-- 第 3 行：劳动力市场待补充指标说明（跨全宽，两列） -->
-    <InfoCard
-      title="劳动力市场待补充指标"
-      badge="数据待补充"
-      :items="pendingItems"
-      :columns="2"
-    />
+    <InfoCard title="劳动力市场待补充指标" badge="数据待补充" :items="pendingItems" :columns="2" />
   </NSpin>
 </template>
 

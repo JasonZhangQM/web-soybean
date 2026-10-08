@@ -33,7 +33,11 @@ const rptTypeOptions = [
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
-const { symbolOptions: syncSymbolOptions, symbolLoading: syncSymbolLoading, handleSymbolSearch: handleSyncSearch } = useSymbolSearch();
+const {
+  symbolOptions: syncSymbolOptions,
+  symbolLoading: syncSymbolLoading,
+  handleSymbolSearch: handleSyncSearch
+} = useSymbolSearch();
 
 // 同步用单个股票代码（精确匹配）
 const syncSymbol = ref<string | null>(null);
@@ -92,11 +96,7 @@ async function handleSync() {
     return;
   }
   const symbol = syncSymbol.value;
-  await executeSync(
-    () => syncFundIncome(symbol),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncFundIncome(symbol), syncLoading, fetchData);
 }
 
 // 金额格式化：后端 Decimal 字段返回字符串，单位为元，转换为亿元保留 2 位小数
@@ -121,9 +121,19 @@ const columns = [
   { title: '报告日期', key: 'rpt_date', width: 120 },
   { title: '发布日期', key: 'pub_date', width: 120 },
   { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type) },
-  { title: '营业总收入', key: 'ttl_inc_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_inc_oper) },
+  {
+    title: '营业总收入',
+    key: 'ttl_inc_oper',
+    width: 120,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_inc_oper)
+  },
   { title: '营业收入', key: 'inc_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_oper) },
-  { title: '营业总成本', key: 'ttl_cost_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_cost_oper) },
+  {
+    title: '营业总成本',
+    key: 'ttl_cost_oper',
+    width: 120,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_cost_oper)
+  },
   { title: '营业成本', key: 'cost_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.cost_oper) },
   { title: '销售费用', key: 'exp_sell', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_sell) },
   { title: '管理费用', key: 'exp_adm', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_adm) },
@@ -135,10 +145,20 @@ const columns = [
   { title: '利润总额', key: 'ttl_prof', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_prof) },
   { title: '所得税费用', key: 'inc_tax', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_tax) },
   { title: '净利润', key: 'net_prof', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof) },
-  { title: '归母净利润', key: 'net_prof_pcom', width: 150, render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom) },
+  {
+    title: '归母净利润',
+    key: 'net_prof_pcom',
+    width: 150,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom)
+  },
   { title: '营业外收入', key: 'inc_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_noper) },
   { title: '营业外支出', key: 'exp_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_noper) },
-  { title: '综合收益总额', key: 'ttl_comp_inc', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_comp_inc) },
+  {
+    title: '综合收益总额',
+    key: 'ttl_comp_inc',
+    width: 120,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_comp_inc)
+  },
   { title: '基本每股收益', key: 'eps_base', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_base) },
   { title: '稀释每股收益', key: 'eps_dil', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_dil) }
 ];

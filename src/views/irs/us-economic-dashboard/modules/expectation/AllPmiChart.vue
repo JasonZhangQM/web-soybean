@@ -141,9 +141,12 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时刷新文字颜色
-watch(() => themeStore.darkMode, () => {
-  updateOptions(() => buildOption());
-});
+watch(
+  () => themeStore.darkMode,
+  () => {
+    updateOptions(() => buildOption());
+  }
+);
 </script>
 
 <template>

@@ -19,9 +19,7 @@ const themeStore = useThemeStore();
 const COLOR = '#ea580c';
 
 // 最新值表格行：单系列，props 为 data 数组
-const latestRows = computed(() =>
-  buildLatestRowFromArray(props.data, '城镇调查失业率', COLOR, '%')
-);
+const latestRows = computed(() => buildLatestRowFromArray(props.data, '城镇调查失业率', COLOR, '%'));
 
 /** 构建 ECharts 配置：数据为空时返回空配置 */
 function buildOption() {
@@ -88,9 +86,16 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时重建配置以刷新坐标轴颜色
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
 // 数据变更时刷新图表
-watch(() => props.data, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => props.data,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

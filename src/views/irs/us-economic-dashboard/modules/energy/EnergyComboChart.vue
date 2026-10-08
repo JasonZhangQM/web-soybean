@@ -99,8 +99,15 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换或数据变化时刷新
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

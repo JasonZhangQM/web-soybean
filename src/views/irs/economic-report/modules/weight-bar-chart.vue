@@ -50,27 +50,32 @@ function buildOption() {
       axisLabel: { color: muted, fontSize: 11 },
       splitLine: { lineStyle: { color: rule } }
     },
-    series: [{
-      type: 'bar',
-      data: barData.map(d => ({ value: d.value, itemStyle: { color: d.color } })),
-      barWidth: '55%',
-      label: {
-        show: true,
-        position: 'top',
-        color: ink,
-        fontSize: 11,
-        fontWeight: 600
+    series: [
+      {
+        type: 'bar',
+        data: barData.map(d => ({ value: d.value, itemStyle: { color: d.color } })),
+        barWidth: '55%',
+        label: {
+          show: true,
+          position: 'top',
+          color: ink,
+          fontSize: 11,
+          fontWeight: 600
+        }
       }
-    }]
+    ]
   } as any;
 }
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时刷新文字颜色
-watch(() => themeStore.darkMode, () => {
-  updateOptions(() => buildOption());
-});
+watch(
+  () => themeStore.darkMode,
+  () => {
+    updateOptions(() => buildOption());
+  }
+);
 </script>
 
 <template>

@@ -67,9 +67,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
 function renderChart(items: Api.Bills.GroupSymbol[]) {
   if (!items || items.length === 0) return;
   // 按 pf_total 降序排序，取前 10；pf_total 可能为 null，用 Number() 转换：null → 0
-  const sorted = [...items]
-    .sort((a, b) => Number(b.pf_total) - Number(a.pf_total))
-    .slice(0, 10);
+  const sorted = [...items].sort((a, b) => Number(b.pf_total) - Number(a.pf_total)).slice(0, 10);
 
   const symbols = sorted.map(item => item.symbol);
   const pfTotals = sorted.map(item => Number(item.pf_total));

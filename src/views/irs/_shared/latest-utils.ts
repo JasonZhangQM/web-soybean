@@ -46,9 +46,7 @@ export function buildLatestRows<T extends { value: number | string | null; repor
     return {
       name: c.name,
       color: c.color,
-      value: latest
-        ? Number(latest.value).toFixed(digits) + (unit ? ` ${unit}` : '')
-        : '--',
+      value: latest ? Number(latest.value).toFixed(digits) + (unit ? ` ${unit}` : '') : '--',
       date: latest ? latest.report_date.slice(0, 10) : '--'
     };
   });
@@ -79,9 +77,7 @@ export function buildLatestRowFromArray<T extends { value: number | string | nul
     {
       name,
       color,
-      value: latest
-        ? Number(latest.value).toFixed(d) + (u ? ` ${u}` : '')
-        : '--',
+      value: latest ? Number(latest.value).toFixed(d) + (u ? ` ${u}` : '') : '--',
       date: latest ? latest.report_date.slice(0, 10) : '--'
     }
   ];

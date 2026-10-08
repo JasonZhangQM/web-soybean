@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchEconomicIndicators, syncEconomicIndicatorWscn, fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
+import { ref, computed, onMounted } from 'vue';
+import {
+  fetchEconomicIndicators,
+  syncEconomicIndicatorWscn,
+  fetchDailyIndicators,
+  syncDailyIndicator,
+  syncAllDailyIndicators
+} from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { forwardFill } from '../_shared/utils';
-import { useThemeStore } from '@/store/modules/theme';
 import { useBdsStore } from '@/store/modules/bds';
 import InflationTab from './modules/inflation/InflationTab.vue';
 import EmploymentTab from './modules/employment/EmploymentTab.vue';
@@ -15,7 +20,6 @@ import FinancialTab from './modules/financial/FinancialTab.vue';
 
 defineOptions({ name: 'UsEconomicDashboardPage' });
 
-const themeStore = useThemeStore();
 const bdsStore = useBdsStore();
 const loading = ref(false);
 const wscnSyncLoading = ref(false);
@@ -45,15 +49,47 @@ const dateRange = ref<[string, string] | null>(null);
 // 看板所需全部美国宏观指标代码（按 6 大类分组，美债收益率指标由 FinancialTab 内部独立获取）
 const DASHBOARD_INDICATORS = {
   // 通胀 (11)
-  inflation: ['CPI_YOY', 'CPI_MOM', 'CORE_CPI_YOY', 'CORE_CPI_MOM', 'PCE_YOY', 'PCE_MOM', 'CORE_PCE_YOY', 'CORE_PCE_MOM', 'PPI_YOY', 'MICHIGAN_5Y_INFLATION_EXPECTATION', 'MICHIGAN_1Y_INFLATION_EXPECTATION'],
+  inflation: [
+    'CPI_YOY',
+    'CPI_MOM',
+    'CORE_CPI_YOY',
+    'CORE_CPI_MOM',
+    'PCE_YOY',
+    'PCE_MOM',
+    'CORE_PCE_YOY',
+    'CORE_PCE_MOM',
+    'PPI_YOY',
+    'MICHIGAN_5Y_INFLATION_EXPECTATION',
+    'MICHIGAN_1Y_INFLATION_EXPECTATION'
+  ],
   // 就业 (5)
-  employment: ['NONFARM_PAYROLL', 'ADP_EMPLOYMENT_CHANGE', 'UNEMPLOYMENT_RATE', 'JOLTS_JOB_OPENINGS', 'INITIAL_JOBLESS_CLAIMS'],
+  employment: [
+    'NONFARM_PAYROLL',
+    'ADP_EMPLOYMENT_CHANGE',
+    'UNEMPLOYMENT_RATE',
+    'JOLTS_JOB_OPENINGS',
+    'INITIAL_JOBLESS_CLAIMS'
+  ],
   // 预期 (6) —— 合并原 制造业调查 + 地区联储（景气调查类先行指标）
-  expectation: ['ISM_MFG_PMI', 'SP_GLOBAL_MFG_PMI', 'ISM_NON_MFG_PMI', 'SP_GLOBAL_SVC_PMI', 'NY_FED_MFG_INDEX', 'RICHMOND_FED_MFG_INDEX'],
+  expectation: [
+    'ISM_MFG_PMI',
+    'SP_GLOBAL_MFG_PMI',
+    'ISM_NON_MFG_PMI',
+    'SP_GLOBAL_SVC_PMI',
+    'NY_FED_MFG_INDEX',
+    'RICHMOND_FED_MFG_INDEX'
+  ],
   // 能源 (2)
   energy: ['EIA_CRUDE_OIL_INVENTORY_CHANGE', 'EIA_GASOLINE_INVENTORY_CHANGE'],
   // 增长 (6) —— 合并原 GDP与增长 + 消费与投资
-  growth: ['GDP_QOQ', 'GOVERNMENT_BUDGET', 'RETAIL_SALES_MOM', 'DURABLE_GOODS_ORDERS_MOM', 'EXISTING_HOME_SALES', 'CONSUMER_CONFIDENCE'],
+  growth: [
+    'GDP_QOQ',
+    'GOVERNMENT_BUDGET',
+    'RETAIL_SALES_MOM',
+    'DURABLE_GOODS_ORDERS_MOM',
+    'EXISTING_HOME_SALES',
+    'CONSUMER_CONFIDENCE'
+  ],
   // 金融 (2) —— 合并原 货币政策（收益率指标由 FinancialTab 内部独立获取，不进入此分组）
   financial: ['FED_FUNDS_RATE', 'FED_FUNDS_RATE_UPPER']
 } as const;
@@ -63,7 +99,14 @@ const ALL_CODES = Array.from(new Set(Object.values(DASHBOARD_INDICATORS).flat())
 
 // 收益率与信用利差看板所需的全部 6 个指标代码（DailyIndicator，独立于上面的 EconomicIndicator 分组）
 // 收益率 4 个 + 信用利差 2 个（IG 投资级 / HY 高收益），统一通过 FRED 同步入库到 bds_daily_indicator 表
-const YIELD_CODES = ['YIELD_2Y', 'YIELD_10Y', 'YIELD_SPREAD_10Y2Y', 'YIELD_TIPS_10Y', 'CREDIT_SPREAD_IG', 'CREDIT_SPREAD_HY'] as const;
+const YIELD_CODES = [
+  'YIELD_2Y',
+  'YIELD_10Y',
+  'YIELD_SPREAD_10Y2Y',
+  'YIELD_TIPS_10Y',
+  'CREDIT_SPREAD_IG',
+  'CREDIT_SPREAD_HY'
+] as const;
 // 收益率指标下拉选项：computed 包装保证 store 异步加载后更新
 const yieldIndicatorOptions = computed(() => bdsStore.getDailyIndicatorCodeOptions());
 
@@ -80,7 +123,7 @@ async function fetchAllData() {
       ALL_CODES.map(code =>
         fetchEconomicIndicators({
           indicator_code: code,
-          country: ['美国'],
+          country: '美国',
           start_date: start_date || undefined,
           end_date: end_date || undefined,
           limit: 1000,
@@ -205,7 +248,8 @@ function initDefaultDateRange() {
   const end = new Date();
   const start = new Date();
   start.setFullYear(start.getFullYear() - 3);
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   dateRange.value = [fmt(start), fmt(end)];
 }
 

@@ -33,7 +33,15 @@ const dateRange = ref<[string, string] | null>(null);
 // 六维宏观分析框架所需全部中国宏观指标代码（按 6 大维度分组）
 const DASHBOARD_INDICATORS = {
   // 维度一：经济增长（7个指标）
-  growth: ['CN_GDP_YOY', 'CN_INDUSTRIAL_VALUE_ADDED_YOY', 'CN_INDUSTRIAL_PROFIT_YOY', 'CN_RETAIL_SALES_YOY', 'CN_REAL_ESTATE_INVEST', 'CN_URBAN_FIXED_ASSET_INVEST_YOY', 'CN_URBAN_UNEMPLOYMENT'],
+  growth: [
+    'CN_GDP_YOY',
+    'CN_INDUSTRIAL_VALUE_ADDED_YOY',
+    'CN_INDUSTRIAL_PROFIT_YOY',
+    'CN_RETAIL_SALES_YOY',
+    'CN_REAL_ESTATE_INVEST',
+    'CN_URBAN_FIXED_ASSET_INVEST_YOY',
+    'CN_URBAN_UNEMPLOYMENT'
+  ],
   // 维度二：通胀与就业（CPI/PPI + 失业率；失业率与growth共享，已在growth拉取）
   inflation: ['CN_CPI_YOY', 'CN_PPI_YOY'],
   // 维度三：金融条件（无数据，纯框架说明）
@@ -62,7 +70,7 @@ async function fetchAllData() {
       ALL_CODES.map(code =>
         fetchEconomicIndicators({
           indicator_code: code,
-          country: ['中国'],
+          country: '中国',
           start_date: start_date || undefined,
           end_date: end_date || undefined,
           limit: 1000,
@@ -136,7 +144,8 @@ function initDefaultDateRange() {
   const end = new Date();
   const start = new Date();
   start.setFullYear(start.getFullYear() - 3);
-  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   dateRange.value = [fmt(start), fmt(end)];
 }
 

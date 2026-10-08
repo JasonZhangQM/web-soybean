@@ -85,20 +85,12 @@ async function handleSync() {
     return;
   }
   const code = syncIndicatorCode.value;
-  await executeSync(
-    () => syncDailyIndicator(code),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncDailyIndicator(code), syncLoading, fetchData);
 }
 
 // 全量同步所有 4 个美债收益率指标
 async function handleAllSync() {
-  await executeSync(
-    () => syncAllDailyIndicators(),
-    allSyncLoading,
-    fetchData
-  );
+  await executeSync(() => syncAllDailyIndicators(), allSyncLoading, fetchData);
 }
 
 // 列标题与后端 ORM comment 保持一致

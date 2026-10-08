@@ -24,7 +24,11 @@ const searchParams = reactive<{
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
-const { symbolOptions: syncSymbolOptions, symbolLoading: syncSymbolLoading, handleSymbolSearch: handleSyncSearch } = useSymbolSearch();
+const {
+  symbolOptions: syncSymbolOptions,
+  symbolLoading: syncSymbolLoading,
+  handleSymbolSearch: handleSyncSearch
+} = useSymbolSearch();
 
 // 同步用单个股票代码（精确匹配）
 const syncSymbol = ref<string | null>(null);
@@ -81,11 +85,7 @@ async function handleSync() {
     return;
   }
   const symbol = syncSymbol.value;
-  await executeSync(
-    () => syncDailyValuation(symbol),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncDailyValuation(symbol), syncLoading, fetchData);
 }
 
 // 数值格式化：估值比率/百分比，保留原值 2 位小数，null 显示 '-'（不除以1e8）

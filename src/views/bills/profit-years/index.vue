@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { fetchProfitYears } from '@/service/api';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -43,15 +43,64 @@ function renderAmount(row: Api.Bills.ProfitYear, key: keyof Api.Bills.ProfitYear
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 收益率渲染：小数转百分比（如 0.0825 → 8.25%），null 显示 '-'
+function renderRate(row: Api.Bills.ProfitYear) {
+  return row.return_rate != null ? `${(Number(row.return_rate) * 100).toFixed(2)}%` : '-';
+}
+
 // 列名按后端 ProfitYear 模型 comment 参数值设置
 const columns = [
   { title: '年度', key: 'year', width: 100 },
-  { title: '平仓盈亏l', key: 'pl_long', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_long') },
-  { title: '平仓盈亏s', key: 'pl_short', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_short') },
-  { title: '其他损益', key: 'pl_other', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_other') },
+  {
+    title: '平仓盈亏l',
+    key: 'pl_long',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_long')
+  },
+  {
+    title: '平仓盈亏s',
+    key: 'pl_short',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_short')
+  },
+  {
+    title: '其他损益',
+    key: 'pl_other',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_other')
+  },
   { title: '融资利息', key: 'pl_br', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_br') },
-  { title: '总平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_all') },
-  { title: '累计盈亏', key: 'pl_cumulative', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_cumulative') }
+  {
+    title: '总平仓盈亏',
+    key: 'pl_all',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_all')
+  },
+  {
+    title: '累计盈亏',
+    key: 'pl_cumulative',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_cumulative')
+  },
+  {
+    title: '年初资产',
+    key: 'asset_begin',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_begin')
+  },
+  {
+    title: '年末资产',
+    key: 'asset_end',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_end')
+  },
+  {
+    title: '日均资产',
+    key: 'asset_avg',
+    width: 120,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_avg')
+  },
+  { title: '收益率', key: 'return_rate', width: 100, render: renderRate }
 ];
 
 onMounted(() => fetchData());

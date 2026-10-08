@@ -116,7 +116,12 @@ const columns = [
   { title: '真实合约', key: 'symbol', width: 120 },
   { title: '主力', key: 'is_main', width: 60, render: (row: Api.Irs.DiscountMonitor) => (row.is_main ? '是' : '否') },
   { title: '标的代码', key: 'symbol_ud', width: 100 },
-  { title: '到期日', key: 'delisted_date', width: 120, render: (row: Api.Irs.DiscountMonitor) => fmtDate(row.delisted_date) },
+  {
+    title: '到期日',
+    key: 'delisted_date',
+    width: 120,
+    render: (row: Api.Irs.DiscountMonitor) => fmtDate(row.delisted_date)
+  },
   { title: '剩余天数', key: 'days_left', width: 80 },
   { title: '持仓量', key: 'position', width: 100 },
   { title: '合约现价', key: 'price', width: 100, render: (row: Api.Irs.DiscountMonitor) => fmt(row.price) },

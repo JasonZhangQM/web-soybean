@@ -51,10 +51,10 @@ const delistedInfo = computed(() => {
   };
 });
 
-// 数值字段统一保留两位小数，空值显示 '-'
-const fmt = (v: number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');
+// 数值字段统一保留两位小数，空值显示 '-'（ORM Decimal 序列化为字符串，Number() 兼容）
+const fmt = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');
 // 期权现价、时间价值、内在价值保留四位小数
-const fmt4 = (v: number | null | undefined) => (v != null ? Number(v).toFixed(4) : '-');
+const fmt4 = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(4) : '-');
 
 // 将时间戳格式化为 YYYYMM 字符串
 function formatEndMonth(timestamp: number): string {
@@ -171,11 +171,7 @@ async function handleSync() {
   const optionName = getOptionNameByValue(searchParams.underlying_symbol);
   if (!optionName) return;
   const endMonth = formatEndMonth(searchParams.end_month);
-  await executeSync(
-    () => syncOptionMonitor({ option_name: optionName, end_month: endMonth }),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncOptionMonitor({ option_name: optionName, end_month: endMonth }), syncLoading, fetchData);
 }
 
 // 清理已到期期权数据（days_left <= 0）
@@ -184,7 +180,14 @@ async function handleClean() {
 }
 
 // 生成认购侧列（取 row.call 的字段），formatter/className 可选
-function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90, formatter = fmt, className?: string) {
+function makeCallColumn(
+  title: string,
+  field: keyof Api.Irs.OptionMonitor,
+  key: string,
+  width = 90,
+  formatter = fmt,
+  className?: string
+) {
   return {
     title,
     key,
@@ -195,7 +198,14 @@ function makeCallColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: 
 }
 
 // 生成认沽侧列（取 row.put 的字段），formatter/className 可选
-function makePutColumn(title: string, field: keyof Api.Irs.OptionMonitor, key: string, width = 90, formatter = fmt, className?: string) {
+function makePutColumn(
+  title: string,
+  field: keyof Api.Irs.OptionMonitor,
+  key: string,
+  width = 90,
+  formatter = fmt,
+  className?: string
+) {
   return {
     title,
     key,
@@ -227,7 +237,7 @@ const columns = [
   makeCallColumn('期权现价', 'price', 'call_price', 100, fmt4),
   // 中心轴（2 列）
   makeAxisColumn('行权价', 'price_strike'),
-  makeAxisColumn('平值(%)', 'atm_i', 90, undefined),
+  makeAxisColumn('平值(%)', 'atm_i', 90),
   // 认沽侧（7 列，从左到右）
   makePutColumn('期权现价', 'price', 'put_price', 100, fmt4),
   makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
@@ -282,18 +292,16 @@ onMounted(() => {
           </NButton>
         </NFormItem>
         <NFormItem>
-          <NButton
-            type="primary"
-            :loading="cleanLoading"
-            @click="handleClean"
-          >
+          <NButton type="primary" :loading="cleanLoading" @click="handleClean">
             <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
             代码
           </NButton>
         </NFormItem>
         <NFormItem v-if="delistedInfo">
           <span class="text-14px">
-            标的现价 {{ fmt(delistedInfo.price_ud) }}　到期日 {{ delistedInfo.delisted_date }}（{{ delistedInfo.days_left }}）
+            标的现价 {{ fmt(delistedInfo.price_ud) }}　到期日 {{ delistedInfo.delisted_date }}（{{
+              delistedInfo.days_left
+            }}）
           </span>
         </NFormItem>
       </NForm>

@@ -152,7 +152,8 @@ async function handleSync() {
             <!-- SvgIcon 组件 inheritAttrs:false，@click 需绑在外层元素上 -->
             <span
               v-if="item.key === 'pfTotal'"
-              :class="['inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity', syncLoading ? 'animate-spin' : '']"
+              class="inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
+              :class="[syncLoading ? 'animate-spin' : '']"
               @click="handleSync"
             >
               <SvgIcon icon="mdi:sync" class="text-16px" />

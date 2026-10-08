@@ -46,11 +46,9 @@ const formattedValue = computed(() => {
       <div class="metric-card__value">
         <span class="metric-card__num">{{ formattedValue }}</span>
         <span v-if="indicator?.unit" class="metric-card__unit">{{ indicator.unit }}</span>
-        <span
-          v-if="prevCompare"
-          class="metric-card__arrow"
-          :style="{ color: prevCompare.color }"
-        >{{ prevCompare.text }}</span>
+        <span v-if="prevCompare" class="metric-card__arrow" :style="{ color: prevCompare.color }">
+          {{ prevCompare.text }}
+        </span>
       </div>
       <div v-if="expectedCompare" class="metric-card__expected" :style="{ color: expectedCompare.color }">
         {{ expectedCompare.text }}

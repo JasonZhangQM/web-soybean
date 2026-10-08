@@ -39,7 +39,7 @@ const formattedValue = computed(() => {
   <div class="ov-card">
     <div class="ov-card__label">
       <span>{{ label }}</span>
-      <span v-if="sub" class="ov-card__sub"> · {{ sub }}</span>
+      <span v-if="sub" class="ov-card__sub">· {{ sub }}</span>
     </div>
     <div class="ov-card__value">
       <span class="ov-card__num" :style="{ color }">{{ formattedValue }}</span>
@@ -47,7 +47,7 @@ const formattedValue = computed(() => {
     </div>
     <div class="ov-card__bottom">
       <span v-if="date" class="ov-card__date">{{ date }}</span>
-      <span v-if="date && desc" class="ov-card__sep"> · </span>
+      <span v-if="date && desc" class="ov-card__sep">·</span>
       <span v-if="desc" class="ov-card__desc">{{ desc }}</span>
     </div>
   </div>

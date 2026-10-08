@@ -50,7 +50,11 @@ function buildOption() {
   const padding = (dataMax - dataMin) * 0.15 || 0.5;
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['1Y LPR', '5Y LPR'] },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -99,8 +103,15 @@ function buildOption() {
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

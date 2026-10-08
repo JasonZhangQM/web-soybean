@@ -109,20 +109,12 @@ async function handleSync() {
     return;
   }
   const code = syncIndicatorCode.value;
-  await executeSync(
-    () => syncEconomicIndicator(code),
-    syncLoading,
-    fetchData
-  );
+  await executeSync(() => syncEconomicIndicator(code), syncLoading, fetchData);
 }
 
 // 触发 wscn 日历数据源同步（补充 forecast/importance/revised/pub_date）
 async function handleWscnSync() {
-  await executeSync(
-    () => syncEconomicIndicatorWscn(),
-    wscnSyncLoading,
-    fetchData
-  );
+  await executeSync(() => syncEconomicIndicatorWscn(), wscnSyncLoading, fetchData);
 }
 
 // 列标题与后端 ORM comment 保持一致
@@ -134,7 +126,12 @@ const columns = [
   { title: '发布日期', key: 'pub_date', width: 100 },
   { title: '数值', key: 'value', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value) },
   { title: '前值', key: 'value_prev', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_prev) },
-  { title: '预期值', key: 'value_expected', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_expected) },
+  {
+    title: '预期值',
+    key: 'value_expected',
+    width: 100,
+    render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.value_expected)
+  },
   { title: '重要性', key: 'importance', width: 60, render: (row: Api.Bds.EconomicIndicator) => fmtInt(row.importance) },
   { title: '修正值', key: 'revised', width: 100, render: (row: Api.Bds.EconomicIndicator) => fmtNum(row.revised) },
   { title: '标题', key: 'title', width: 200, ellipsis: { tooltip: true } },

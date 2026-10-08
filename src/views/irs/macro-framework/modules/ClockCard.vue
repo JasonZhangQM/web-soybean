@@ -186,18 +186,18 @@ function fmtVal(v: number | string | null | undefined): string {
       </div>
     </div>
     <!-- 数据不足占位 -->
-    <div v-else class="clock-card__empty">
-      GDP 或 CPI 数据不足，无法判断周期阶段
-    </div>
+    <div v-else class="clock-card__empty">GDP 或 CPI 数据不足，无法判断周期阶段</div>
     <!-- 数据基准：展示判断依据的原始指标值 -->
     <div v-if="gdpLatest || cpiLatest" class="clock-card__footer">
       <span v-if="gdpLatest" class="clock-card__data">
-        GDP 同比: <strong>{{ fmtVal(gdpLatest.value) }}%</strong>
+        GDP 同比:
+        <strong>{{ fmtVal(gdpLatest.value) }}%</strong>
         <span class="clock-card__arrow" :style="{ color: growthColor }">{{ growthArrow }}</span>
       </span>
       <span v-if="gdpLatest && cpiLatest" class="clock-card__sep">|</span>
       <span v-if="cpiLatest" class="clock-card__data">
-        CPI 同比: <strong>{{ fmtVal(cpiLatest.value) }}%</strong>
+        CPI 同比:
+        <strong>{{ fmtVal(cpiLatest.value) }}%</strong>
       </span>
     </div>
   </NCard>

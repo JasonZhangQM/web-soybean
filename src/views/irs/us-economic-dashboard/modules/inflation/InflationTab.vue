@@ -10,7 +10,7 @@ interface Props {
   /** 加载状态 */
   loading?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   loading: false
 });
 </script>

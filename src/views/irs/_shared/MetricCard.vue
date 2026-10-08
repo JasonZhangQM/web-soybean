@@ -39,7 +39,10 @@ const formattedValue = computed(() => {
 // 变化方向：优先使用 changeType，否则按 change 正负推断
 const changeInfo = computed(() => {
   if (props.changeType) {
-    return { type: props.changeType, color: props.changeType === 'up' ? '#dc2626' : props.changeType === 'down' ? '#16a34a' : '#6b7280' };
+    return {
+      type: props.changeType,
+      color: props.changeType === 'up' ? '#dc2626' : props.changeType === 'down' ? '#16a34a' : '#6b7280'
+    };
   }
   if (props.change == null) return null;
   if (props.change > 0) return { type: 'up' as const, color: '#dc2626' };

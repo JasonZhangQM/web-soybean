@@ -95,13 +95,7 @@ const formData = reactive({
 const quoteExpandedNames = ref<string[]>([]);
 
 // 代码远程搜索：NSelect remote，防抖 300ms 调 /bds/symbol-infos
-const {
-  symbolOptions,
-  symbolLoading,
-  handleSymbolSearch,
-  clearSymbolOptions,
-  getNameBySymbol
-} = useSymbolSearch();
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions, getNameBySymbol } = useSymbolSearch();
 
 // 选择代码后自动回填名称（仅新增模式触发；编辑模式 symbol 禁用不会变）
 function handleSymbolChange(symbol: string | null) {
@@ -118,8 +112,8 @@ const modalTitle = computed(() => (editingId.value === null ? '新增估值监�
 // "中"自动取"低"与"高"的平均值（低/高任一为空时置空），新增与编辑一致
 watch(
   () => [formData.pp_l, formData.pp_h],
-  ([l, h]) => {
-    formData.pp_m = l != null && h != null ? Number(((Number(l) + Number(h)) / 2).toFixed(4)) : null;
+  ([low, high]) => {
+    formData.pp_m = low != null && high != null ? Number(((Number(low) + Number(high)) / 2).toFixed(4)) : null;
   }
 );
 
@@ -269,10 +263,6 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 估值价字段：最多四位小数，去掉末尾多余的0（如 12.5000→12.5, 4000.0000→4000），空值显示 '-'
-const fmt4 = (v: number | null) => (v != null ? Number(v).toFixed(4).replace(/\.?0+$/, '') : '-');
-// 百分比字段保留两位小数（Numeric(9,2)），空值显示 '-'
-const fmt = (v: number | null) => (v != null ? Number(v).toFixed(2) : '-');
 // 行情字段：名称含 ETF 保留 3 位小数，否则保留 2 位小数，空值显示 '-'
 const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
   if (v == null) return '-';
@@ -283,7 +273,12 @@ const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
 // - 两个百分比均空：仅显示主值
 // - 至少一个百分比有值：显示 主值(百分比%,y百分比%)，空百分比显示为 '-'
 const fmtPriceMerged = (price: number | null, pct: number | null, pctY: number | null) => {
-  const p = price != null ? Number(price).toFixed(4).replace(/\.?0+$/, '') : '-';
+  const p =
+    price != null
+      ? Number(price)
+          .toFixed(4)
+          .replace(/\.?0+$/, '')
+      : '-';
   if (pct == null && pctY == null) return p;
   const pPct = pct != null ? `${Number(pct).toFixed(2)}%` : '-';
   const pPctY = pctY != null ? `${Number(pctY).toFixed(2)}%` : '-';
@@ -306,15 +301,57 @@ const columns = [
   },
   // 行情字段（合并 % 列：主值后追加 %）
   { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
-  { title: '最新价', key: 'price', width: 120, render: (row: Api.Irs.ValueMonitor) => h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy)) },
-  { title: '年高', key: 'y_high', width: 120, render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh) },
-  { title: '年低', key: 'y_low', width: 120, render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl) },
+  {
+    title: '最新价',
+    key: 'price',
+    width: 120,
+    render: (row: Api.Irs.ValueMonitor) =>
+      h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy))
+  },
+  {
+    title: '年高',
+    key: 'y_high',
+    width: 120,
+    render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh)
+  },
+  {
+    title: '年低',
+    key: 'y_low',
+    width: 120,
+    render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl)
+  },
   // 估值区间（合并 % 和 y% 列：主值后追加 百分比%,y百分比%，如 3500(-24.44%,-24.41%)）
-  { title: '极低', key: 'pp_el', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y) },
-  { title: '低', key: 'pp_l', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y) },
-  { title: '中', key: 'pp_m', width: 170, render: (row: Api.Irs.ValueMonitor) => h('span', { style: 'font-weight: bold' }, fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y)) },
-  { title: '高', key: 'pp_h', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y) },
-  { title: '极高', key: 'pp_eh', width: 170, render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y) }
+  {
+    title: '极低',
+    key: 'pp_el',
+    width: 170,
+    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y)
+  },
+  {
+    title: '低',
+    key: 'pp_l',
+    width: 170,
+    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y)
+  },
+  {
+    title: '中',
+    key: 'pp_m',
+    width: 170,
+    render: (row: Api.Irs.ValueMonitor) =>
+      h('span', { style: 'font-weight: bold' }, fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y))
+  },
+  {
+    title: '高',
+    key: 'pp_h',
+    width: 170,
+    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y)
+  },
+  {
+    title: '极高',
+    key: 'pp_eh',
+    width: 170,
+    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y)
+  }
 ];
 
 onMounted(() => {
@@ -376,20 +413,8 @@ onMounted(() => {
         @update:page-size="handlePageSizeChange"
       />
     </NCard>
-    <NModal
-      v-model:show="showModal"
-      preset="card"
-      :title="modalTitle"
-      class="w-480px"
-      :mask-closable="false"
-    >
-      <NForm
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-placement="left"
-        label-width="80px"
-      >
+    <NModal v-model:show="showModal" preset="card" :title="modalTitle" class="w-480px" :mask-closable="false">
+      <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="80px">
         <NFormItem label="代码" path="symbol">
           <NSelect
             :value="formData.symbol || null"

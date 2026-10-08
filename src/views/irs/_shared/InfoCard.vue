@@ -48,11 +48,7 @@ const hasItems = computed(() => Array.isArray(props.items) && props.items.length
     <!-- 副标题 -->
     <div v-if="subtitle" class="info-card__subtitle">{{ subtitle }}</div>
     <!-- 条目列表 -->
-    <div
-      v-if="hasItems"
-      class="info-card__list"
-      :style="{ '--info-card-cols': columns }"
-    >
+    <div v-if="hasItems" class="info-card__list" :style="{ '--info-card-cols': columns }">
       <div v-for="(item, idx) in items" :key="idx" class="info-card__item">
         <span class="info-card__name">{{ item.name }}</span>
         <span class="info-card__desc">{{ item.desc }}</span>

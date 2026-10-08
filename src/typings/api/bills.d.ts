@@ -277,7 +277,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 年度收益（对应 ProfitYearOut，共 10 字段） */
+    /** 年度收益（对应 ProfitYearOut，共 14 字段） */
     interface ProfitYear {
       /** 年度 */
       year: number;
@@ -293,6 +293,14 @@ declare namespace Api {
       pl_all: number | null;
       /** 累计盈亏 */
       pl_cumulative: number | null;
+      /** 年初资产 */
+      asset_begin: number | null;
+      /** 年末资产 */
+      asset_end: number | null;
+      /** 日均资产 */
+      asset_avg: number | null;
+      /** 收益率 */
+      return_rate: number | null;
       /** 主键 */
       id: number;
       /** 创建时间 */

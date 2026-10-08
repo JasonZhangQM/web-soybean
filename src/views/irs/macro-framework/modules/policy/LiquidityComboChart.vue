@@ -74,15 +74,16 @@ const latestRows = computed(() => {
     date: loanLatest ? loanLatest.report_date.slice(0, 10) : '--'
   });
   // M1/M2 同比通过通用工具构造
-  rows.push(...buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
-    { code: 'CN_M1_YOY', name: 'M1同比', color: '#2563eb', unit: '%' },
-    { code: 'CN_M2_YOY', name: 'M2同比', color: '#dc2626', unit: '%' }
-  ]));
+  rows.push(
+    ...buildLatestRows<Api.Bds.EconomicIndicator>(props.dataMap, [
+      { code: 'CN_M1_YOY', name: 'M1同比', color: '#2563eb', unit: '%' },
+      { code: 'CN_M2_YOY', name: 'M2同比', color: '#dc2626', unit: '%' }
+    ])
+  );
   // M1-M2 剪刀差最新值：从 calcM1M2 计算结果取最后一条非 null
-  const scissors = calcM1M2(
-    getSeries(props.dataMap, 'CN_M1_YOY'),
-    getSeries(props.dataMap, 'CN_M2_YOY')
-  ).filter(x => x.value != null);
+  const scissors = calcM1M2(getSeries(props.dataMap, 'CN_M1_YOY'), getSeries(props.dataMap, 'CN_M2_YOY')).filter(
+    x => x.value != null
+  );
   const latestScissors = scissors.length > 0 ? scissors[scissors.length - 1] : null;
   rows.push({
     name: 'M1-M2剪刀差',
@@ -121,7 +122,11 @@ function buildOption() {
   const scissorsValues = dates.map(d => (scissorsMap.has(d) ? (scissorsMap.get(d) as number) : null));
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['社融增量累计', '新增贷款累计', 'M1 同比', 'M2 同比', 'M1-M2 剪刀差'] },
     grid: { left: 60, right: 60, top: 30, bottom: 40 },
     xAxis: {
@@ -232,8 +237,15 @@ function buildOption() {
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

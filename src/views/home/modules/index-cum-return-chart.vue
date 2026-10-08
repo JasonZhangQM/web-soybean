@@ -272,7 +272,8 @@ init();
         />
         <!-- 同步按钮：参照浮动盈亏卡片样式，SvgIcon inheritAttrs:false 故 @click 绑在外层 span -->
         <span
-          :class="['inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity ml-8px', syncLoading ? 'animate-spin' : '']"
+          class="inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity ml-8px"
+          :class="[syncLoading ? 'animate-spin' : '']"
           @click="handleSync"
         >
           <SvgIcon icon="mdi:sync" class="text-16px" />
@@ -281,11 +282,7 @@ init();
       <!-- echarts 容器：单独 div，避免被 echarts 清空 innerHTML 时覆盖日期选择器 -->
       <div ref="domRef" class="h-480px"></div>
       <!-- 最新数据表格：绝对定位左下方，半透明背景，pointer-events:none 不遮挡 echarts 交互 -->
-      <div
-        v-if="latestRows.length"
-        class="latest-table"
-        :style="tableStyle"
-      >
+      <div v-if="latestRows.length" class="latest-table" :style="tableStyle">
         <table>
           <thead>
             <tr>

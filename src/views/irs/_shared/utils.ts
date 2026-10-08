@@ -12,10 +12,7 @@ export interface DerivedItem {
 /**
  * CPI-PPI 剪刀差：按 report_date 对齐，CPI 同比 - PPI 同比
  */
-export function calcScissors(
-  cpiArr: Api.Bds.EconomicIndicator[],
-  ppiArr: Api.Bds.EconomicIndicator[]
-): DerivedItem[] {
+export function calcScissors(cpiArr: Api.Bds.EconomicIndicator[], ppiArr: Api.Bds.EconomicIndicator[]): DerivedItem[] {
   const ppiMap = new Map(ppiArr.map(x => [x.report_date, Number(x.value)]));
   return cpiArr
     .filter(x => ppiMap.has(x.report_date))
@@ -29,10 +26,7 @@ export function calcScissors(
 /**
  * M1-M2 剪刀差：按 report_date 对齐，M1 同比 - M2 同比
  */
-export function calcM1M2(
-  m1Arr: Api.Bds.EconomicIndicator[],
-  m2Arr: Api.Bds.EconomicIndicator[]
-): DerivedItem[] {
+export function calcM1M2(m1Arr: Api.Bds.EconomicIndicator[], m2Arr: Api.Bds.EconomicIndicator[]): DerivedItem[] {
   const m2Map = new Map(m2Arr.map(x => [x.report_date, Number(x.value)]));
   return m1Arr
     .filter(x => m2Map.has(x.report_date))
@@ -147,10 +141,7 @@ export function alignByDate(
  * 主轴日期需升序；目标时序内部空值建议先 forwardFill 再传入。
  * 返回与 mainDates 等长的数值数组，无命中或命中项 value 为空时为 null。
  */
-export function alignAsOf(
-  mainDates: string[],
-  targetArr: Api.Bds.EconomicIndicator[]
-): (number | null)[] {
+export function alignAsOf(mainDates: string[], targetArr: Api.Bds.EconomicIndicator[]): (number | null)[] {
   if (!targetArr.length) return mainDates.map(() => null);
   // 防御性升序排序（调用方通常已排序，复制避免污染原数组）
   const sorted = [...targetArr].sort((a, b) => a.report_date.localeCompare(b.report_date));
@@ -173,4 +164,3 @@ export function alignAsOf(
   }
   return values;
 }
-

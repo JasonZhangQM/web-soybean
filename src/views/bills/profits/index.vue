@@ -10,7 +10,7 @@ defineOptions({ name: 'BillsProfitsPage' });
 
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
-const { symbolOptions: rawSymbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 // NAutoComplete 选中后 v-model = option.label，所以 label 必须设为纯 symbol
 // display 字段保留下拉列表的富文本（symbol name (industry)），通过 renderLabel 渲染
@@ -91,8 +91,18 @@ const columns = [
   { title: '名称', key: 'name', width: 120 },
   { title: '多头持仓', key: 'p_long', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long') },
   { title: '空头持仓', key: 'p_short', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short') },
-  { title: '多头成本', key: 'cost_t_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_long') },
-  { title: '空头成本', key: 'cost_t_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short') },
+  {
+    title: '多头成本',
+    key: 'cost_t_long',
+    width: 120,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_long')
+  },
+  {
+    title: '空头成本',
+    key: 'cost_t_short',
+    width: 120,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short')
+  },
   { title: '平仓盈亏l', key: 'pl_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long') },
   { title: '平仓盈亏s', key: 'pl_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short') },
   { title: '其他损益', key: 'pl_other', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_other') },

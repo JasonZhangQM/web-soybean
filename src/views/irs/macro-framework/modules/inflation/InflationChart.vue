@@ -27,10 +27,9 @@ const latestRows = computed(() => {
     { code: 'CN_PPI_YOY', name: 'PPI同比', color: '#2563eb', unit: '%' }
   ]);
   // 剪刀差最新值：从计算结果取最后一条非 null
-  const scissors = calcScissors(
-    getSeries(props.dataMap, 'CN_CPI_YOY'),
-    getSeries(props.dataMap, 'CN_PPI_YOY')
-  ).filter(x => x.value != null);
+  const scissors = calcScissors(getSeries(props.dataMap, 'CN_CPI_YOY'), getSeries(props.dataMap, 'CN_PPI_YOY')).filter(
+    x => x.value != null
+  );
   const latestScissors = scissors.length > 0 ? scissors[scissors.length - 1] : null;
   rows.push({
     name: 'CPI-PPI剪刀差',
@@ -69,7 +68,11 @@ function buildOption() {
   const scissorsValues = dates.map(d => (scissorsMap.has(d) ? (scissorsMap.get(d) as number) : null));
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['CPI 同比', 'PPI 同比', 'CPI-PPI 剪刀差'] },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -151,9 +154,16 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时重建配置以刷新坐标轴颜色
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
 // 数据变更时刷新图表
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

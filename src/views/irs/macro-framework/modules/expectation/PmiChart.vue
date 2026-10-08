@@ -52,7 +52,11 @@ function buildOption() {
   };
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['官方制造业PMI', '官方非制造业PMI', '财新制造业PMI', '财新服务业PMI'] },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -71,8 +75,8 @@ function buildOption() {
       splitLine: { lineStyle: { color: splitColor } },
       // y 轴不从 0 开始，根据数据范围自适应（保留少量边距，避免折线贴边）
       scale: true,
-      min: value => Math.floor((value.min - 1) * 10) / 10,
-      max: value => Math.ceil((value.max + 1) * 10) / 10
+      min: (value: { min: number; max: number }) => Math.floor((value.min - 1) * 10) / 10,
+      max: (value: { min: number; max: number }) => Math.ceil((value.max + 1) * 10) / 10
     },
     series: [
       {
@@ -136,8 +140,15 @@ function buildOption() {
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

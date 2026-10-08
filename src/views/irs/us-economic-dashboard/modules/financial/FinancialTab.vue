@@ -26,7 +26,7 @@ interface Props {
   /** 收益率数据加载状态（父组件拉取中） */
   yieldsLoading?: boolean;
 }
-const props = withDefaults(defineProps<Props>(), { loading: false, yieldsLoading: false });
+withDefaults(defineProps<Props>(), { loading: false, yieldsLoading: false });
 </script>
 
 <template>

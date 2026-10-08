@@ -56,7 +56,11 @@ function buildOption() {
   };
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['GDP 同比', '工业增加值同比', '城镇固投同比', '社零同比', '出口同比(美元)'] },
     grid: { left: 50, right: 30, top: 30, bottom: 40 },
     xAxis: {
@@ -134,9 +138,16 @@ function buildOption() {
 const { domRef, updateOptions } = useEcharts(buildOption);
 
 // 暗色模式切换时重建配置以刷新坐标轴颜色
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
 // 数据变更时刷新图表
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

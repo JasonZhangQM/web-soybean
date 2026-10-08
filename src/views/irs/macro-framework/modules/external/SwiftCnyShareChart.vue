@@ -16,9 +16,7 @@ const props = withDefaults(defineProps<Props>(), {});
 const themeStore = useThemeStore();
 
 // 最新值表格行：单系列，props 为 data 数组
-const latestRows = computed(() =>
-  buildLatestRowFromArray(props.data, 'Swift人民币占比', '#2563eb', '%')
-);
+const latestRows = computed(() => buildLatestRowFromArray(props.data, 'Swift人民币占比', '#2563eb', '%'));
 
 /** 构建 ECharts 配置 */
 function buildOption() {
@@ -30,7 +28,11 @@ function buildOption() {
   const values = props.data.map(x => Number(x.value));
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     grid: { left: 60, right: 30, top: 30, bottom: 40 },
     xAxis: {
       type: 'category',
@@ -65,8 +67,15 @@ function buildOption() {
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.data, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.data,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

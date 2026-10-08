@@ -51,7 +51,11 @@ function buildOption() {
   };
 
   return {
-    tooltip: { trigger: 'axis', appendToBody: true, valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2)) },
+    tooltip: {
+      trigger: 'axis',
+      appendToBody: true,
+      valueFormatter: (value: number) => (value == null ? '--' : Number(value).toFixed(2))
+    },
     legend: { bottom: 0, data: ['出口同比(美元)', '进口同比(美元)', '贸易顺差'] },
     grid: { left: 50, right: 60, top: 30, bottom: 40 },
     xAxis: {
@@ -148,8 +152,15 @@ function buildOption() {
 
 const { domRef, updateOptions } = useEcharts(buildOption);
 
-watch(() => themeStore.darkMode, () => updateOptions(() => buildOption()));
-watch(() => props.dataMap, () => updateOptions(() => buildOption()), { deep: true });
+watch(
+  () => themeStore.darkMode,
+  () => updateOptions(() => buildOption())
+);
+watch(
+  () => props.dataMap,
+  () => updateOptions(() => buildOption()),
+  { deep: true }
+);
 </script>
 
 <template>

@@ -326,8 +326,14 @@ export function isTableColumnHasKey<T>(column: NaiveUI.TableColumn<T>): column i
  * - 统一默认值：page=1, pageSize=20, pageSizes=[10,20,50,100], showSizePicker=true
  * - prefix 直接引用自身 itemCount，无需外部注入 total ref
  * - 每次调用返回独立的 reactive 对象，避免跨页面状态污染
+ * - page/pageSize/itemCount 必有初始值，类型上收紧为必填（PaginationProps 中为可选）
  */
 export function createTablePagination() {
+  type RequiredPagination = PaginationProps & {
+    page: number;
+    pageSize: number;
+    itemCount: number;
+  };
   const pagination = reactive({
     page: 1,
     pageSize: 20,
@@ -335,6 +341,6 @@ export function createTablePagination() {
     pageSizes: [10, 20, 50, 100],
     itemCount: 0,
     prefix: () => `共 ${pagination.itemCount} 条`
-  }) as PaginationProps;
+  }) as RequiredPagination;
   return pagination;
 }

@@ -23,11 +23,14 @@ interface LatestRow {
   date: string;
 }
 
-withDefaults(defineProps<{
-  rows: LatestRow[];
-  /** 左偏移量（px），应 = echarts grid.left + 少量间距，避免遮挡 y 轴刻度数值 */
-  left?: number;
-}>(), { left: 56 });
+withDefaults(
+  defineProps<{
+    rows: LatestRow[];
+    /** 左偏移量（px），应 = echarts grid.left + 少量间距，避免遮挡 y 轴刻度数值 */
+    left?: number;
+  }>(),
+  { left: 56 }
+);
 </script>
 
 <template>

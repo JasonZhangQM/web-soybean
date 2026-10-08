@@ -79,17 +79,47 @@ function renderAmount(row: Api.Bills.GroupAcc, key: keyof Api.Bills.GroupAcc) {
 
 const columns = [
   { title: '账户', key: 'account', width: 120 },
-  { title: '资金余额', key: 'cash_acc', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cash_acc') },
+  {
+    title: '资金余额',
+    key: 'cash_acc',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cash_acc')
+  },
   { title: '理财余额', key: 'fm_acc', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'fm_acc') },
-  { title: '证券成本', key: 'cost_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cost_total') },
-  { title: '证券市值', key: 'value_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'value_total') },
-  { title: '账户净值', key: 'acc_aset', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'acc_aset') },
-  { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pf_total') },
+  {
+    title: '证券成本',
+    key: 'cost_total',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'cost_total')
+  },
+  {
+    title: '证券市值',
+    key: 'value_total',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'value_total')
+  },
+  {
+    title: '账户净值',
+    key: 'acc_aset',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'acc_aset')
+  },
+  {
+    title: '浮动盈亏',
+    key: 'pf_total',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pf_total')
+  },
   { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pl_all') },
   { title: '盈亏合计', key: 'pfl_all', width: 100, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pfl_all') },
   { title: '融资余额', key: 'diff_br', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_br') },
   { title: '出入净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_dw') },
-  { title: '划转净额', key: 'diff_dwt', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_dwt') },
+  {
+    title: '划转净额',
+    key: 'diff_dwt',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_dwt')
+  },
   { title: '状态', key: 'status', width: 100, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'status') }
 ];
 

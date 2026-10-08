@@ -11,7 +11,7 @@ defineOptions({ name: 'BillsListPage' });
 
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
-const { symbolOptions: rawSymbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
+const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 // NAutoComplete 选中后 v-model = option.label，所以 label 必须设为纯 symbol
 // display 字段保留下拉列表的富文本（symbol name (industry)），通过 renderLabel 渲染
@@ -92,7 +92,12 @@ function handlePageSizeChange(pageSize: number) {
 
 const columns = [
   // 交易时间截取前 19 位（去掉毫秒/时区部分）
-  { title: '交易时间', key: 'trade_time', width: 160, render: (row: Api.Bills.Bill) => row.trade_time?.slice(0, 19) ?? '-' },
+  {
+    title: '交易时间',
+    key: 'trade_time',
+    width: 160,
+    render: (row: Api.Bills.Bill) => row.trade_time?.slice(0, 19) ?? '-'
+  },
   { title: '代码', key: 'symbol', width: 150 },
   { title: '名称', key: 'name', width: 160 },
   { title: '总分类', key: 'category', width: 80 },
@@ -103,7 +108,12 @@ const columns = [
   { title: '成交价', key: 'price', width: 100, render: (row: Api.Bills.Bill) => Number(row.price).toFixed(4) },
   { title: '成交量', key: 'vol', width: 60 },
   { title: '成交额', key: 'amount', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2) },
-  { title: '发生额', key: 'amount_act', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount_act).toFixed(2) },
+  {
+    title: '发生额',
+    key: 'amount_act',
+    width: 120,
+    render: (row: Api.Bills.Bill) => Number(row.amount_act).toFixed(2)
+  },
   { title: '税费合计', key: 'fee_tax', width: 80, render: (row: Api.Bills.Bill) => Number(row.fee_tax).toFixed(2) },
   { title: '账户', key: 'account', width: 60 }
 ];
