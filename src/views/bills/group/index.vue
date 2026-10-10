@@ -218,6 +218,10 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
+        :default-sort="[
+          { columnKey: 'account', order: 'ascend' },
+          { columnKey: 'symbol', order: 'ascend' }
+        ]"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
