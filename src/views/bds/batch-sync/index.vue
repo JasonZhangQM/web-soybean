@@ -234,10 +234,7 @@ const errorColumns = [
             </NFormItem>
 
             <NFormItem>
-              <NSpace>
-                <NButton type="primary" :loading="starting" @click="handleStart">启动批量同步</NButton>
-                <NButton v-if="isRunning" type="error" :loading="stopping" @click="handleStop">停止任务</NButton>
-              </NSpace>
+              <NButton type="primary" :loading="starting" @click="handleStart">启动批量同步</NButton>
             </NFormItem>
           </NForm>
         </NCard>
