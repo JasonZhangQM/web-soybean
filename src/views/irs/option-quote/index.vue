@@ -280,29 +280,30 @@ onMounted(() => {
         <NFormItem>
           <NButton type="primary" @click="handleSearch">搜索</NButton>
         </NFormItem>
-        <NFormItem>
-          <NButton
-            type="primary"
-            :loading="syncLoading"
-            :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
-            @click="handleSync"
-          >
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            行情
-          </NButton>
-        </NFormItem>
-        <NFormItem>
-          <NButton type="primary" :loading="cleanLoading" @click="handleClean">
-            <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
-            代码
-          </NButton>
-        </NFormItem>
         <NFormItem v-if="delistedInfo">
           <span class="text-14px">
             标的现价 {{ fmt(delistedInfo.price_ud) }}　到期日 {{ delistedInfo.delisted_date }}（{{
               delistedInfo.days_left
             }}）
           </span>
+        </NFormItem>
+        <!-- 操作按钮区：整体靠右 -->
+        <NFormItem class="ml-auto">
+          <NSpace>
+            <NButton
+              type="primary"
+              :loading="syncLoading"
+              :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
+              @click="handleSync"
+            >
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              行情
+            </NButton>
+            <NButton type="primary" :loading="cleanLoading" @click="handleClean">
+              <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
+              代码
+            </NButton>
+          </NSpace>
         </NFormItem>
       </NForm>
     </NCard>
