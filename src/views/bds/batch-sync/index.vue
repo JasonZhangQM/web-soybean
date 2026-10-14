@@ -109,10 +109,13 @@ async function handleStop() {
       message.error(error.message || '停止失败');
       return;
     }
+    // 僵尸任务场景（后端重启残留）：stop 端点直接置为 stopped 并返回 stopped 状态
+    // 正常停止场景：返回 stopping，后续靠轮询拿到 stopped
     message.info(data?.message || '停止信号已发出');
-    // 继续轮询直到状态变成 stopped / done / failed
   } finally {
     stopping.value = false;
+    // 无论成功与否，主动刷新一次 DB 状态，让 UI 与后端一致
+    if (task.value) await loadTask(task.value.id);
   }
 }
 
