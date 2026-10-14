@@ -174,6 +174,10 @@ onMounted(() => {
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
+          </NSpace>
+        </NFormItem>
+        <NFormItem class="ml-auto">
+          <NSpace>
             <NButton type="primary" :loading="syncCodeLoading" @click="handleSyncCode">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               代码

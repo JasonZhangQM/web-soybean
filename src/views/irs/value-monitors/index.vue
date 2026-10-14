@@ -382,23 +382,21 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <NFormItem>
-          <NButton type="primary" :loading="syncYearLoading" @click="handleSyncYear">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            年度
-          </NButton>
-        </NFormItem>
-        <NFormItem>
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            行情
-          </NButton>
-        </NFormItem>
-        <NFormItem>
-          <NButton type="primary" @click="handleAdd">
-            <template #icon><SvgIcon icon="mdi:plus" /></template>
-            新增
-          </NButton>
+        <NFormItem class="ml-auto">
+          <NSpace>
+            <NButton type="primary" :loading="syncYearLoading" @click="handleSyncYear">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              年度
+            </NButton>
+            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              行情
+            </NButton>
+            <NButton type="primary" @click="handleAdd">
+              <template #icon><SvgIcon icon="mdi:plus" /></template>
+              新增
+            </NButton>
+          </NSpace>
         </NFormItem>
       </NForm>
     </NCard>

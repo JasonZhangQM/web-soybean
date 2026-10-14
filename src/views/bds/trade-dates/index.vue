@@ -92,11 +92,13 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步
-            </NButton>
           </NSpace>
+        </NFormItem>
+        <NFormItem class="ml-auto">
+          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            同步
+          </NButton>
         </NFormItem>
       </NForm>
     </NCard>
