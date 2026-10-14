@@ -168,6 +168,7 @@ const routeMap: RouteMap = {
   "404": "/404",
   "500": "/500",
   "bds": "/bds",
+  "bds_batch-sync": "/bds/batch-sync",
   "bds_fund-data": "/bds/fund-data",
   "bds_fund-data_finance-derivs": "/bds/fund-data/finance-derivs",
   "bds_fund-data_fund-balances": "/bds/fund-data/fund-balances",

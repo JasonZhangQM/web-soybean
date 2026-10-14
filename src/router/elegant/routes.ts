@@ -53,6 +53,17 @@ export const generatedRoutes = [
     },
     children: [
       {
+        name: 'bds_batch-sync',
+        path: '/bds/batch-sync',
+        component: 'view.bds_batch-sync',
+        meta: {
+          title: 'bds_batch-sync',
+          i18nKey: 'route.bds_batch-sync',
+          order: 7,
+          constant: true
+        }
+      },
+      {
         name: 'bds_fund-data',
         path: '/bds/fund-data',
         meta: {

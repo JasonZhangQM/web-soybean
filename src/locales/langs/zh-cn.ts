@@ -232,6 +232,7 @@ const local: App.I18n.Schema = {
     irs_value: '估值',
     'bds_trade-dates': '交易日历',
     'bds_symbol-infos': '证券信息',
+    'bds_batch-sync': '批量同步',
     'bds_index-constituents': '指数成分',
     'bds_fund-data': '财务数据',
     'bds_fund-data_fund-balances': '资产负债表',

@@ -20,6 +20,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   500: () => import("@/views/_builtin/500/index.vue"),
   "iframe-page": () => import("@/views/_builtin/iframe-page/[url].vue"),
   login: () => import("@/views/_builtin/login/index.vue"),
+  "bds_batch-sync": () => import("@/views/bds/batch-sync/index.vue"),
   "bds_fund-data_finance-derivs": () => import("@/views/bds/fund-data/finance-derivs/index.vue"),
   "bds_fund-data_fund-balances": () => import("@/views/bds/fund-data/fund-balances/index.vue"),
   "bds_fund-data_fund-cashflows": () => import("@/views/bds/fund-data/fund-cashflows/index.vue"),

@@ -722,5 +722,57 @@ declare namespace Api {
       /** 频率 */
       frequency: string;
     }
+
+    /** 批量同步失败明细 */
+    interface SyncError {
+      /** 股票代码 */
+      symbol: string;
+      /** 同步表 */
+      table: string;
+      /** 错误信息 */
+      message: string;
+    }
+
+    /** 批量同步任务 */
+    interface SyncTask {
+      /** 主键 */
+      id: number;
+      /** 同步范围: all/index/industry/explicit */
+      scope: string;
+      /** 范围参数: {index_code/industry_name/symbols} */
+      scope_params: Record<string, any> | null;
+      /** 要同步的表列表 */
+      tables: string[];
+      /** 是否写 sync_at: 1=是 0=否 */
+      mark_synced: number;
+      /** 是否跳过当日已同步: 1=是 0=否 */
+      exclude_synced_today: number;
+      /** 最多处理几只 symbol: 0=不限 */
+      max_symbols: number;
+      /** 状态: pending/running/done/failed */
+      status: string;
+      /** 任务总数 */
+      total_count: number;
+      /** 已完成数 */
+      done_count: number;
+      /** success 数 */
+      success_count: number;
+      /** no_data 数 */
+      no_data_count: number;
+      /** error 数 */
+      error_count: number;
+      /** 进度% (0-100) */
+      progress: number;
+      /** 失败明细 */
+      errors: SyncError[] | null;
+      /** 实际开始时间 */
+      start_time: string | null;
+      /** 实际结束时间 */
+      end_time: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
   }
 }

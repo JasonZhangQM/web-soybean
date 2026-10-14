@@ -377,3 +377,66 @@ export function syncAllDailyIndicators() {
     timeout: 60 * 1000
   });
 }
+
+/** 批量同步请求体 */
+export interface BatchSyncRequest {
+  /** 同步范围: all/index/industry/explicit */
+  scope: string;
+  /** scope=index 时填指数代码，如 SHSE.000300 */
+  index_code?: string;
+  /** scope=industry 时填行业名，如 银行 */
+  industry?: string;
+  /** scope=explicit 时填手写清单 */
+  symbols?: string[];
+  /** 要同步的表列表，默认 6 张全跑 */
+  tables?: string[];
+  /** 全部成功后是否写 sync_at 标记，默认 true */
+  mark_synced?: boolean;
+  /** 是否跳过当日已同步标的，默认 false */
+  exclude_synced_today?: boolean;
+  /** 最多处理几只 symbol: 0=不限 */
+  max_symbols?: number;
+}
+
+/** 启动批量同步任务（后台线程异步执行，立即返回 task 对象） */
+export function startBatchSync(req: BatchSyncRequest) {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/run/batch-sync',
+    method: 'post',
+    data: req
+  });
+}
+
+/** 查询批量同步任务列表（按创建时间倒序，最新在前） */
+export function fetchSyncTasks(limit = 10) {
+  return request<Api.Bds.SyncTask[]>({
+    url: '/api/v1/bds/sync-tasks',
+    method: 'get',
+    params: { limit }
+  });
+}
+
+/** 查询最新一条批量同步任务（供前端轮询进度） */
+export function fetchLatestSyncTask() {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/sync-tasks/latest',
+    method: 'get'
+  });
+}
+
+/** 查询单条批量同步任务详情（含 progress / errors） */
+export function fetchSyncTask(taskId: number) {
+  return request<Api.Bds.SyncTask>({
+    url: `/api/v1/bds/sync-tasks/${taskId}`,
+    method: 'get'
+  });
+}
+
+/** 停止正在运行的批量同步任务 */
+export function stopBatchSync(taskId: number) {
+  return request<{ status: string; message: string }>({
+    url: '/api/v1/bds/stop/batch-sync',
+    method: 'post',
+    params: { task_id: taskId }
+  });
+}

@@ -236,6 +236,7 @@ const local: App.I18n.Schema = {
     irs_value: 'Valuation',
     'bds_trade-dates': 'Trade Dates',
     'bds_symbol-infos': 'Symbol Infos',
+    'bds_batch-sync': 'Batch Sync',
     'bds_index-constituents': 'Index Constituents',
     'bds_fund-data': 'Financial Data',
     'bds_fund-data_fund-balances': 'Balance Sheet',
