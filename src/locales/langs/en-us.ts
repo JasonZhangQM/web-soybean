@@ -261,7 +261,6 @@ const local: App.I18n.Schema = {
     'irs_value-monitors': 'Value Monitors',
     'irs_option-monitor': 'Option Monitor',
     'irs_option-quote': 'Option Quote',
-    'irs_economic-report': 'US Dashboard',
     'irs_macro-framework': 'China Macro',
     'irs_us-economic-dashboard': 'US Macro'
   },

@@ -268,7 +268,7 @@ onMounted(() => {
   <div class="p-16px">
     <!-- 顶部筛选区 -->
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px items-center">
+      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="日期范围">
           <NDatePicker
             v-model:formatted-value="dateRange"
@@ -281,27 +281,25 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem>
+          <NButton type="primary" :loading="loading" @click="handleRefresh">
+            <template #icon><SvgIcon icon="mdi:refresh" /></template>
+            刷新
+          </NButton>
+        </NFormItem>
+        <!-- 同步区域：整体靠右，wscn同步 + 日频指标同步 + 全量同步 -->
+        <NFormItem class="ml-auto">
           <NSpace>
-            <NButton type="primary" :loading="loading" @click="handleRefresh">
-              <template #icon><SvgIcon icon="mdi:refresh" /></template>
-              刷新
-            </NButton>
             <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               wscn同步
             </NButton>
-          </NSpace>
-        </NFormItem>
-        <!-- 收益率同步区：单指标同步 + 全量同步（DailyIndicator，FRED 数据源） -->
-        <NFormItem>
-          <NSpace>
             <NSelect
               v-model:value="yieldSyncCode"
               :options="yieldIndicatorOptions"
               filterable
               clearable
-              placeholder="选择收益率指标"
-              style="width: 200px"
+              placeholder="选择日频指标"
+              style="width: 180px"
             />
             <NButton type="primary" :loading="yieldSyncLoading" @click="handleYieldSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>

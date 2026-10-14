@@ -42,7 +42,6 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   bills_profits: () => import("@/views/bills/profits/index.vue"),
   home: () => import("@/views/home/index.vue"),
   "irs_discounts-monitor": () => import("@/views/irs/discounts-monitor/index.vue"),
-  "irs_economic-report": () => import("@/views/irs/economic-report/index.vue"),
   "irs_macro-framework": () => import("@/views/irs/macro-framework/index.vue"),
   "irs_option-monitor": () => import("@/views/irs/option-monitor/index.vue"),
   "irs_option-quote": () => import("@/views/irs/option-quote/index.vue"),

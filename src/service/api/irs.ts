@@ -203,11 +203,3 @@ export function cleanOptionMonitor() {
     method: 'post'
   });
 }
-
-/** 获取各经济指标最新值（可视化分析查询，复用 bds EconomicIndicator 数据） */
-export function fetchEconomicIndicatorsLatest() {
-  return request<Api.Bds.EconomicIndicator[]>({
-    url: '/api/v1/irs/economic-indicators/latest',
-    method: 'get'
-  });
-}

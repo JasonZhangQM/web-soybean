@@ -133,8 +133,8 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <!-- 同步区域：选择指标后点击同步按钮触发后端 FRED 同步 -->
-        <NFormItem label="同步指标">
+        <!-- 同步区域：整体靠右，选择指标后同步或全量同步 -->
+        <NFormItem class="ml-auto">
           <NSpace>
             <NSelect
               v-model:value="syncIndicatorCode"
@@ -142,20 +142,17 @@ onMounted(() => {
               filterable
               clearable
               placeholder="选择指标"
-              style="width: 200px"
+              style="width: 160px"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>
+            <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              全量同步
+            </NButton>
           </NSpace>
-        </NFormItem>
-        <!-- 全量同步：4 指标 ×15s 超时上限，后端已设 60s 超时 -->
-        <NFormItem>
-          <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            全量同步
-          </NButton>
         </NFormItem>
       </NForm>
     </NCard>

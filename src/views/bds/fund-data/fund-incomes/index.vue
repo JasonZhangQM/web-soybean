@@ -207,6 +207,11 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton type="primary" @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
+          </NSpace>
+        </NFormItem>
+        <!-- 同步区域：整体靠右，选择代码后同步 -->
+        <NFormItem class="ml-auto">
+          <NSpace>
             <NSelect
               v-model:value="syncSymbol"
               :options="syncSymbolOptions"

@@ -361,17 +361,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_economic-report',
-        path: '/irs/economic-report',
-        component: 'view.irs_economic-report',
-        meta: {
-          title: 'irs_economic-report',
-          i18nKey: 'route.irs_economic-report',
-          order: 5,
-          constant: true
-        }
-      },
-      {
         name: 'irs_macro-framework',
         path: '/irs/macro-framework',
         component: 'view.irs_macro-framework',

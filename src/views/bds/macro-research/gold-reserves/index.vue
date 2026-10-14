@@ -157,29 +157,26 @@ onMounted(() => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <!-- 同步区域：选择国家后点击同步按钮触发后端 IMF 数据源同步 -->
-        <NFormItem label="同步国家">
+        <!-- 同步区域：整体靠右，选择国家后同步或全量同步 -->
+        <NFormItem class="ml-auto">
           <NSpace>
             <NSelect
               v-model:value="syncCountryCode"
               :options="countryOptions"
               filterable
               clearable
-              placeholder="选择国家"
+              placeholder="选择同步国家"
               style="width: 200px"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>
+            <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              全量同步
+            </NButton>
           </NSpace>
-        </NFormItem>
-        <!-- 全量同步：20 国 ×30s 超时上限，单独设置 5 分钟超时 -->
-        <NFormItem>
-          <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            全量同步
-          </NButton>
         </NFormItem>
       </NForm>
     </NCard>

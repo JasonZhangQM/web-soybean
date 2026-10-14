@@ -161,7 +161,7 @@ onMounted(() => {
   <div class="p-16px">
     <!-- 1. 顶部筛选区 -->
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px items-center">
+      <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="日期范围">
           <NDatePicker
             v-model:formatted-value="dateRange"
@@ -174,16 +174,16 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem>
-          <NSpace>
-            <NButton type="primary" :loading="loading" @click="handleRefresh">
-              <template #icon><SvgIcon icon="mdi:refresh" /></template>
-              刷新
-            </NButton>
-            <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              wscn同步
-            </NButton>
-          </NSpace>
+          <NButton type="primary" :loading="loading" @click="handleRefresh">
+            <template #icon><SvgIcon icon="mdi:refresh" /></template>
+            刷新
+          </NButton>
+        </NFormItem>
+        <NFormItem class="ml-auto">
+          <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            wscn同步
+          </NButton>
         </NFormItem>
       </NForm>
     </NCard>
