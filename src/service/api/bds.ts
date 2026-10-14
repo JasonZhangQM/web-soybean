@@ -130,12 +130,20 @@ export function fetchIndexConstituents(params: IndexConstituentQueryParams) {
   });
 }
 
-/** 同步指数成分股（可指定交易日，未指定则获取最新交易日数据） */
-export function syncIndexConstituent(trade_date?: string) {
-  return request<Api.Bds.SyncResult>({
+/** 指数成分股同步/回填请求体 */
+export interface IndexConstituentSyncRequest {
+  /** 本次要处理的指数代码清单（页面勾选），至少 1 个 */
+  index_codes: string[];
+  /** 回填起点 YYYY-MM-DD；不传=各指数从库内最新交易日+1 增量 */
+  start_date?: string;
+}
+
+/** 启动指数成分股同步/回填任务（后台线程异步执行，立即返回 task 对象，需轮询进度） */
+export function startIndexConstituentSync(req: IndexConstituentSyncRequest) {
+  return request<Api.Bds.SyncTask>({
     url: '/api/v1/bds/sync/index-constituent',
     method: 'post',
-    params: trade_date ? { trade_date } : undefined
+    data: req
   });
 }
 

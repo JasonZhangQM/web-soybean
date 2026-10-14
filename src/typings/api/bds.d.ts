@@ -7,6 +7,9 @@ declare namespace Api {
       code: string;
       /** 指数名称（如 上证指数） */
       sec_name: string;
+      /** gm 是否支持该指数（data_source=yfinance 的如 SP500 为 false），
+       *  成分股同步的勾选项据此过滤；老后端未返回该字段时视为支持 */
+      gm_supported?: boolean;
     }
 
     /** 交易日历 */

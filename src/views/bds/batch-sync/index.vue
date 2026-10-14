@@ -141,6 +141,9 @@ async function loadTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
+      // 无 id 时（打开页面）只接管批量同步任务：bds_sync_task 与指数成分股回填共用，
+      // scope=index_backfill 的任务由 /bds/index-constituents 页面自行展示
+      if (!id && data.scope === 'index_backfill') return;
       task.value = data;
       if (!isRunning.value) {
         stopPolling();
