@@ -55,6 +55,10 @@ declare namespace Api {
       gpm: number | null;
       /** 负债率(%) */
       dar: number | null;
+      /** 最新报告期(含快报)（YYYY-MM-DD，来源东财 Excel，未回填为 null） */
+      latest_rpt_date: string | null;
+      /** 同步日期：批量同步完成当日写今日，重跑据此过滤（YYYY-MM-DD，未同步为 null） */
+      sync_at: string | null;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */

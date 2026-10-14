@@ -45,6 +45,8 @@ interface SymbolInfoQueryParams {
   industry?: string;
   /** 代码或名称任一模糊匹配（OR，用于远程搜索） */
   keyword?: string;
+  /** 为 true 时排除 sync_at 等于当日（服务器本地日）的标的，用于批量同步断点续跑 */
+  exclude_synced_today?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
