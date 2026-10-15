@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchGroups, syncGroup } from '@/service/api';
+import { ref, reactive, computed, h, onMounted } from 'vue';
+import { NButton } from 'naive-ui';
+import { fetchGroups, syncGroup, updateGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
@@ -125,10 +126,68 @@ function renderMultiplier(row: Api.Bills.Group) {
   return val != null ? String(val) : '-';
 }
 
+// ===== 编辑弹窗 =====
+
+const editingId = ref<number | null>(null);
+const editingLabel = ref<string>('');
+const showModal = ref(false);
+const submitLoading = ref(false);
+
+const formData = reactive({
+  profit_time: null as string | null,
+  value_time: null as string | null
+});
+
+// 格式化 datetime 字符串：去掉 'T' 换成空格，截取到秒
+function fmtDateTime(s: string | null | undefined): string | null {
+  if (!s) return null;
+  return s.replace('T', ' ').slice(0, 19);
+}
+
+function handleEdit(row: Api.Bills.Group) {
+  editingId.value = row.id;
+  editingLabel.value = `${row.account ?? ''}·${row.category}·${row.symbol}`;
+  formData.profit_time = fmtDateTime(row.profit_time);
+  formData.value_time = fmtDateTime(row.value_time);
+  showModal.value = true;
+}
+
+function handleCancel() {
+  showModal.value = false;
+  editingId.value = null;
+  editingLabel.value = '';
+  formData.profit_time = null;
+  formData.value_time = null;
+}
+
+async function handleSubmit() {
+  if (editingId.value === null) return;
+  submitLoading.value = true;
+  try {
+    const payload: { profit_time?: string | null; value_time?: string | null } = {};
+    if (formData.profit_time !== null) payload.profit_time = formData.profit_time;
+    if (formData.value_time !== null) payload.value_time = formData.value_time;
+    const { error } = await updateGroup(editingId.value, payload);
+    if (!error) {
+      window.$message?.success('修改成功');
+      showModal.value = false;
+      fetchData();
+    }
+  } finally {
+    submitLoading.value = false;
+  }
+}
+
 const columns = [
   { title: '账户', key: 'account', width: 80 },
   { title: '交易分类', key: 'category', width: 80 },
-  { title: '代码', key: 'symbol', width: 160 },
+  {
+    title: '代码',
+    key: 'symbol',
+    width: 160,
+    render: (row: Api.Bills.Group) =>
+      h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.symbol })
+  },
   { title: '持仓', key: 'p_total', width: 100, render: (row: Api.Bills.Group) => renderAmount(row, 'p_total') },
   {
     title: '持仓成本',
@@ -228,5 +287,41 @@ onMounted(() => {
         @update:page-size="handlePageSizeChange"
       />
     </NCard>
+
+    <!-- ===== Group 时间编辑弹窗 ===== -->
+    <NModal v-model:show="showModal" preset="card" title="编辑时间戳" class="w-520px" :mask-closable="false">
+      <div style="margin-bottom: 12px; color: #666; font-size: 13px">
+        {{ editingLabel }}
+      </div>
+      <NForm :model="formData" label-placement="left" label-width="120px">
+        <NFormItem label="收益试算时间">
+          <NDatePicker
+            v-model:formatted-value="formData.profit_time"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            clearable
+            class="w-full"
+          />
+        </NFormItem>
+        <NFormItem label="市值更新时间">
+          <NDatePicker
+            v-model:formatted-value="formData.value_time"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            clearable
+            class="w-full"
+          />
+        </NFormItem>
+        <div style="color: #999; font-size: 12px; margin-top: 4px">
+          注：以上时间戳为收益试算/市值更新的完成时间，不改变实际盈亏和市值数据。
+        </div>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="handleCancel">取消</NButton>
+          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">保存</NButton>
+        </NSpace>
+      </template>
+    </NModal>
   </div>
 </template>

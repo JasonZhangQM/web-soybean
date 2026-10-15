@@ -304,7 +304,7 @@ const columns = [
   {
     title: '最新价',
     key: 'price',
-    width: 120,
+    width: 130,
     render: (row: Api.Irs.ValueMonitor) =>
       h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy))
   },

@@ -167,3 +167,64 @@ export function batchImportBills() {
     timeout: 60 * 1000
   });
 }
+
+/** Bill 修改参数（所有字段可选，只传需要修改的字段） */
+export interface BillUpdateParams {
+  trade_time?: string | null;
+  symbol?: string;
+  name?: string;
+  exec_type?: string;
+  category1?: string;
+  category?: string;
+  b_s?: string | null;
+  c_p?: string | null;
+  o_c?: string | null;
+  price?: number;
+  vol?: number;
+  amount?: number;
+  amount_act?: number;
+  balance?: number | null;
+  fee_tax?: number | null;
+  fees?: number | null;
+  taxes?: number | null;
+  fee_exec1?: number | null;
+  fee_exec2?: number | null;
+  fee_exec3?: number | null;
+  fee_hand?: number | null;
+  fee_sr?: number | null;
+  fee_clear?: number | null;
+  fee_reg?: number | null;
+  fee_other?: number | null;
+  premium?: number | null;
+  cash?: number | null;
+  id_exec?: string | null;
+  id_agree?: string | null;
+  currency?: string;
+  account_id?: string | null;
+  market?: string | null;
+  account?: string;
+}
+
+/** 修改 Bill 记录（PATCH /bills/bills/{id}） */
+export function updateBill(id: number, params: BillUpdateParams) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/bills/bills/${id}`,
+    method: 'patch',
+    data: params
+  });
+}
+
+/** Group 修改参数（仅 profit_time / value_time 可编辑） */
+export interface GroupUpdateParams {
+  profit_time?: string | null;
+  value_time?: string | null;
+}
+
+/** 修改 Group 记录（PATCH /bills/group/{id}） */
+export function updateGroup(id: number, params: GroupUpdateParams) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/bills/group/${id}`,
+    method: 'patch',
+    data: params
+  });
+}
