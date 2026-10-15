@@ -9,6 +9,18 @@ import {
   fetchDailyIndicatorCodes
 } from '@/service/api/bds';
 
+/** 批量同步（卡片 1 财务及行情）表单快照 */
+export interface BatchSyncFormState {
+  scope: string;
+  index_code: string;
+  industry: string;
+  symbols: string;
+  tables: string[];
+  mark_synced: boolean;
+  exclude_synced_today: boolean;
+  max_symbols: number;
+}
+
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   // 指数代码列表（全局缓存，首次加载时获取）
   const indexCodeList = ref<Api.Bds.IndexCodeItem[]>([]);
@@ -36,6 +48,24 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   /** 获取指数代码下拉选项（label=指数名称，value=指数代码） */
   function getIndexCodeOptions() {
     return indexCodeList.value.map(item => ({ label: item.sec_name, value: item.code }));
+  }
+
+  // 批量同步表单快照（会话级保持，切页/重进不丢；不落 localStorage，刷新即重置）
+  // null = 尚未初始化过，由调用方走默认值
+  const batchSyncForm = ref<BatchSyncFormState | null>(null);
+
+  /** 写入批量同步表单快照 */
+  function setBatchSyncForm(state: BatchSyncFormState) {
+    batchSyncForm.value = { ...state, tables: [...state.tables] };
+  }
+
+  // 指数成分股同步：用户选中的指数（会话级保持，切页/重进不丢；不落 localStorage，刷新即重置）
+  // null = 尚未初始化过，由调用方走「默认全选」
+  const selectedIndexCodes = ref<string[] | null>(null);
+
+  /** 写入选中的指数（由 batch-sync 卡片 2 调用） */
+  function setSelectedIndexCodes(codes: string[]) {
+    selectedIndexCodes.value = [...codes];
   }
 
   // 行业列表（全局缓存，后端 DISTINCT 去重，首次加载时获取）
@@ -148,6 +178,10 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     indexCodesLoading,
     loadIndexCodes,
     getIndexCodeOptions,
+    batchSyncForm,
+    setBatchSyncForm,
+    selectedIndexCodes,
+    setSelectedIndexCodes,
     industryList,
     industriesLoaded,
     industriesLoading,

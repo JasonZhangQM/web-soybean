@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   startBatchSync,
@@ -48,16 +48,43 @@ const scopeOptions = [
   { label: '手写清单', value: 'explicit' }
 ];
 
-const form = reactive({
-  scope: 'all',
-  index_code: '',
-  industry: '',
-  symbols: '',
-  tables: TABLE_OPTIONS.map(o => o.value),
-  mark_synced: true,
-  exclude_synced_today: false,
-  max_symbols: 0
-});
+/** 解析同步表记忆值：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
+function resolveTables(stored: string[] | undefined) {
+  const tableValues = TABLE_OPTIONS.map(o => o.value);
+  if (!stored) return tableValues;
+  if (stored.length === 0) return [];
+  const kept = stored.filter(t => tableValues.includes(t));
+  return kept.length > 0 ? kept : tableValues;
+}
+
+/** 构造初始表单：有记忆则沿用（含校验），否则用默认值 */
+function buildInitialForm() {
+  const stored = bdsStore.batchSyncForm;
+  const scopeValues = scopeOptions.map(o => o.value);
+  return {
+    scope: stored && scopeValues.includes(stored.scope) ? stored.scope : 'all',
+    index_code: stored?.index_code ?? '',
+    industry: stored?.industry ?? '',
+    symbols: stored?.symbols ?? '',
+    tables: resolveTables(stored?.tables),
+    mark_synced: stored?.mark_synced ?? true,
+    exclude_synced_today: stored?.exclude_synced_today ?? false,
+    max_symbols: stored?.max_symbols ?? 0
+  };
+}
+
+const form = reactive(buildInitialForm());
+
+// 表单任何变化即写回 store（会话内保持；不落 localStorage）
+watch(form, val => bdsStore.setBatchSyncForm({ ...val }), { deep: true });
+
+/** 同步表全选 / 清空 */
+function selectAllTables() {
+  form.tables = TABLE_OPTIONS.map(o => o.value);
+}
+function clearTables() {
+  form.tables = [];
+}
 
 const starting = ref(false);
 const stopping = ref(false);
@@ -206,8 +233,39 @@ const errorColumns = [
 
 // ===================== 卡片 2：指数成分股同步 =====================
 
-const syncIndexCodes = ref<string[]>([]);
-const syncStartDate = ref<string | null>(null);
+// 与卡片 1「同步表选择」同构：选择项收进一个 reactive 表单（默认值只在初始化/首次加载时给一次）
+const indexForm = reactive<{ index_codes: string[]; start_date: string | null }>({
+  index_codes: [],
+  start_date: null
+});
+
+// 勾选变化写回 store：会话内保持（切页/重进沿用），不落 localStorage
+watch(
+  () => indexForm.index_codes,
+  val => {
+    bdsStore.setSelectedIndexCodes(val);
+  },
+  { deep: true }
+);
+
+/** 解析指数记忆值：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
+function resolveIndexCodes(stored: string[] | null) {
+  const syncableCodes = syncableIndexOptions.value.map(option => option.value);
+  if (!stored) return syncableCodes;
+  if (stored.length === 0) return [];
+  const kept = stored.filter(code => syncableCodes.includes(code));
+  return kept.length > 0 ? kept : syncableCodes;
+}
+
+/** 全选可同步指数 */
+function selectAllIndices() {
+  indexForm.index_codes = syncableIndexOptions.value.map(option => option.value);
+}
+
+/** 清空勾选 */
+function clearIndices() {
+  indexForm.index_codes = [];
+}
 
 const indexStarting = ref(false);
 const indexStopping = ref(false);
@@ -234,15 +292,15 @@ const taskStartDate = computed<string | null>(() => indexTask.value?.scope_param
 let indexPollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function handleIndexStart() {
-  if (syncIndexCodes.value.length === 0) {
+  if (indexForm.index_codes.length === 0) {
     message.warning('请至少选择一个指数');
     return;
   }
 
   indexStarting.value = true;
   try {
-    const payload: IndexConstituentSyncRequest = { index_codes: [...syncIndexCodes.value] };
-    if (syncStartDate.value) payload.start_date = syncStartDate.value;
+    const payload: IndexConstituentSyncRequest = { index_codes: [...indexForm.index_codes] };
+    if (indexForm.start_date) payload.start_date = indexForm.start_date;
     const { data, error } = await startIndexConstituentSync(payload);
     if (error) {
       message.error(error.message || '启动失败');
@@ -272,6 +330,13 @@ async function handleIndexStop() {
   }
 }
 
+/** 运行中锁定表单显示：用任务参数回填勾选与起始日期（对齐卡片 1 的做法） */
+function fillIndexFormFromTask(data: Api.Bds.SyncTask) {
+  const p = (data.scope_params || {}) as Record<string, unknown>;
+  if (Array.isArray(p.index_codes)) indexForm.index_codes = p.index_codes as string[];
+  indexForm.start_date = (p.start_date as string) || null;
+}
+
 async function loadIndexTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
@@ -279,6 +344,9 @@ async function loadIndexTask(id?: number) {
       // 只接管 index_backfill 的任务
       if (data.scope !== 'index_backfill') return;
       indexTask.value = data;
+
+      // 运行中回填表单，保证「任务 ↔ 显示」一致
+      if (indexIsRunning.value) fillIndexFormFromTask(data);
 
       if (!indexIsRunning.value) stopIndexPolling();
     }
@@ -310,19 +378,25 @@ const indexErrorColumns = [
 // ===================== 初始化 =====================
 
 onMounted(async () => {
-  await bdsStore.loadIndexCodes(true);
-  await bdsStore.loadIndustries(true);
+  await bdsStore.loadIndexCodes();
+  await bdsStore.loadIndustries();
   // 卡片 3：取动态数量文案 + 结果表 code→name 映射
   await bdsStore.loadDailyIndicatorCodes(true);
   await bdsStore.loadGoldReserveCountries(true);
-  syncIndexCodes.value = syncableIndexOptions.value.map(option => option.value);
+
+  // 卡片 2 维持选择：store 有记录则沿用（剔除已不可同步的指数），无记录则默认全选
+  indexForm.index_codes = resolveIndexCodes(bdsStore.selectedIndexCodes);
 
   // fetchLatestSyncTask 只返回最新一条，根据 scope 分派
   const { data, error } = await fetchLatestSyncTask();
   if (!error && data) {
     if (data.scope === 'index_backfill') {
       indexTask.value = data;
-      if (indexIsRunning.value) startIndexPolling();
+      if (indexIsRunning.value) {
+        // 运行中：任务参数优先于默认/记忆的勾选
+        fillIndexFormFromTask(data);
+        startIndexPolling();
+      }
     } else {
       task.value = data;
       // 运行中锁定 form
@@ -402,6 +476,8 @@ onBeforeUnmount(() => {
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
+        <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllTables">全选</NButton>
+        <NButton size="tiny" secondary :disabled="isRunning" @click="clearTables">清空</NButton>
       </div>
 
       <!-- 可选参数 -->
@@ -491,13 +567,15 @@ onBeforeUnmount(() => {
       <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: indexIsRunning ? 0.6 : 1 }">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
-        <NCheckboxGroup v-model:value="syncIndexCodes" :disabled="indexIsRunning" style="flex: 1">
+        <NCheckboxGroup v-model:value="indexForm.index_codes" :disabled="indexIsRunning" style="flex: 1">
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in syncableIndexOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
+        <NButton size="tiny" secondary :disabled="indexIsRunning" @click="selectAllIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="indexIsRunning" @click="clearIndices">清空</NButton>
       </div>
 
       <!-- 起始日期 -->
@@ -512,7 +590,7 @@ onBeforeUnmount(() => {
       >
         <span style="font-size: 13px; color: #666; flex-shrink: 0">起始日期：</span>
         <NDatePicker
-          v-model:formatted-value="syncStartDate"
+          v-model:formatted-value="indexForm.start_date"
           :disabled="indexIsRunning"
           type="date"
           value-format="yyyy-MM-dd"
