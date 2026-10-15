@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onBeforeUnmount, computed, h } from 'vue';
-import { useMessage, useDialog } from 'naive-ui';
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
+import { useMessage } from 'naive-ui';
 import {
   startBatchSync,
   fetchLatestSyncTask,
@@ -15,7 +15,6 @@ import { useBdsStore } from '@/store/modules/bds';
 defineOptions({ name: 'BatchSyncPage' });
 
 const message = useMessage();
-const dialog = useDialog();
 const bdsStore = useBdsStore();
 
 // ===================== 共用：指数下拉 / 行业下拉 =====================
@@ -238,38 +237,6 @@ async function handleIndexStart() {
     message.warning('请至少选择一个指数');
     return;
   }
-
-  // 二次确认：历史回填是长任务
-  const names = syncIndexCodes.value.map(code => syncableIndexOptions.value.find(o => o.value === code)?.label || code);
-  const startTip = syncStartDate.value
-    ? `起始日期：${syncStartDate.value}（回填至今天）`
-    : '起始日期：未指定（各指数从库内最新交易日期 +1 增量）';
-  let confirmed = false;
-  await new Promise<void>(resolve => {
-    dialog.warning({
-      title: '确认启动指数成分股同步 / 回填',
-      content: () =>
-        h('div', { style: 'line-height: 1.9' }, [
-          h('div', `指数（${names.length} 只）：${names.join('、')}`),
-          h('div', startTip),
-          h(
-            'div',
-            { style: 'color: #d03050; margin-top: 8px' },
-            '⚠️ 历史回填需逐日调用行情接口，可能耗时数十分钟；期间请保持后端服务运行。'
-          )
-        ]),
-      positiveText: '启动',
-      negativeText: '取消',
-      onPositiveClick: () => {
-        confirmed = true;
-        resolve();
-      },
-      onNegativeClick: () => resolve(),
-      onClose: () => resolve(),
-      onMaskClick: () => resolve()
-    });
-  });
-  if (!confirmed) return;
 
   indexStarting.value = true;
   try {
