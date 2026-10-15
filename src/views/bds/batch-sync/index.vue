@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
-import { NTag, NButton, useMessage } from 'naive-ui';
+import { useMessage } from 'naive-ui';
 import {
   startBatchSync,
   fetchLatestSyncTask,
@@ -49,8 +49,40 @@ const indexCodeOptions = computed(() => bdsStore.getIndexCodeOptions());
 const industryOptions = computed(() => bdsStore.getIndustryOptions());
 
 const starting = ref(false);
-const task = ref<Api.Bds.SyncTask | null>(null);
 const stopping = ref(false);
+const task = ref<Api.Bds.SyncTask | null>(null);
+
+// 进度面板状态
+const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
+const progressValue = computed(() => Number(task.value?.progress || 0));
+const errorList = computed(() => task.value?.errors || []);
+
+const scopeLabelMap: Record<string, string> = {
+  all: '全市场',
+  index: '指数成分股',
+  industry: '指定行业',
+  explicit: '手写清单'
+};
+const scopeExtraLabel = computed(() => {
+  if (!task.value?.scope_params) return '';
+  const p = task.value.scope_params as Record<string, unknown>;
+  if (p.index_code) return `· ${p.index_code}`;
+  if (p.industry) return `· ${p.industry}`;
+  if (Array.isArray(p.symbols)) return `· ${p.symbols.length} 只`;
+  return '';
+});
+
+const statusLabel = computed(() => {
+  const map: Record<string, { text: string; type: 'default' | 'info' | 'success' | 'error' | 'warning' }> = {
+    pending: { text: '等待中', type: 'default' },
+    running: { text: '运行中', type: 'info' },
+    done: { text: '已完成', type: 'success' },
+    failed: { text: '失败', type: 'error' },
+    stopped: { text: '已停止', type: 'warning' }
+  };
+  return map[task.value?.status || ''] || { text: '-', type: 'default' };
+});
+
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function handleStart() {
@@ -92,7 +124,6 @@ async function handleStart() {
       return;
     }
     message.success(`已启动任务 #${data.id}`);
-    // 立即拉一次并开始轮询
     await loadTask(data.id);
     startPolling();
   } finally {
@@ -109,33 +140,14 @@ async function handleStop() {
       message.error(error.message || '停止失败');
       return;
     }
-    // 僵尸任务场景（后端重启残留）：stop 端点直接置为 stopped 并返回 stopped 状态
-    // 正常停止场景：返回 stopping，后续靠轮询拿到 stopped
     message.info(data?.message || '停止信号已发出');
   } finally {
     stopping.value = false;
-    // 无论成功与否，主动刷新一次 DB 状态，让 UI 与后端一致
     if (task.value) await loadTask(task.value.id);
   }
 }
 
-// ===================== 进度面板 =====================
-
-const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
-
-const statusLabel = computed(() => {
-  const map: Record<string, { text: string; type: 'default' | 'info' | 'success' | 'error' | 'warning' }> = {
-    pending: { text: '等待中', type: 'default' },
-    running: { text: '运行中', type: 'info' },
-    done: { text: '已完成', type: 'success' },
-    failed: { text: '失败', type: 'error' },
-    stopped: { text: '已停止', type: 'warning' }
-  };
-  return map[task.value?.status || ''] || { text: '-', type: 'default' };
-});
-
-/** 进度百分比（数字） */
-const progressValue = computed(() => Number(task.value?.progress || 0));
+// ===================== 任务轮询 =====================
 
 async function loadTask(id?: number) {
   try {
@@ -145,9 +157,7 @@ async function loadTask(id?: number) {
       // scope=index_backfill 的任务由 /bds/index-constituents 页面自行展示
       if (!id && data.scope === 'index_backfill') return;
       task.value = data;
-      if (!isRunning.value) {
-        stopPolling();
-      }
+      if (!isRunning.value) stopPolling();
     }
   } catch {
     // 404（暂无任务）忽略
@@ -168,16 +178,6 @@ function stopPolling() {
   }
 }
 
-onMounted(async () => {
-  // 预加载下拉选项
-  await Promise.all([bdsStore.loadIndexCodes(true), bdsStore.loadIndustries(true)]);
-  // 拉取最新任务（可能有上次未完成的）
-  await loadTask();
-  if (isRunning.value) startPolling();
-});
-
-onBeforeUnmount(() => stopPolling());
-
 // ===================== 失败明细表格 =====================
 
 const errorColumns = [
@@ -185,132 +185,127 @@ const errorColumns = [
   { title: '表', key: 'table', width: 130 },
   { title: '错误信息', key: 'message' }
 ];
+
+onMounted(async () => {
+  await Promise.all([bdsStore.loadIndexCodes(true), bdsStore.loadIndustries(true)]);
+  await loadTask();
+  if (isRunning.value) startPolling();
+});
+
+onBeforeUnmount(() => stopPolling());
 </script>
 
 <template>
-  <div class="batch-sync-page">
-    <NGrid :cols="24" :x-gap="24">
-      <!-- 左：参数表单 -->
-      <NGridItem :span="10">
-        <NCard title="同步参数" size="small">
-          <NForm label-placement="left" label-width="100px">
-            <NFormItem label="同步范围">
-              <NSelect v-model:value="form.scope" :options="scopeOptions" />
-            </NFormItem>
+  <div class="p-16px">
+    <NCard size="small">
+      <template #header>
+        <NSpace align="center" :size="12">
+          <span>批量同步</span>
+          <NButton type="primary" size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
+            启动
+          </NButton>
+          <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">
+            停止
+          </NButton>
+        </NSpace>
+      </template>
 
-            <NFormItem v-if="form.scope === 'index'" label="指数代码">
-              <NSelect v-model:value="form.index_code" :options="indexCodeOptions" placeholder="选择指数" filterable />
-            </NFormItem>
+      <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning">
+        <!-- 第一行：同步范围 + 条件项（指数/行业/清单，三选一） -->
+        <NFormItem label="同步范围" label-width="80px">
+          <NSelect v-model:value="form.scope" :options="scopeOptions" style="width: 130px" />
+        </NFormItem>
+        <NFormItem v-if="form.scope === 'index'" label="指数代码" label-width="70px">
+          <NSelect
+            v-model:value="form.index_code"
+            :options="indexCodeOptions"
+            placeholder="选择指数"
+            filterable
+            style="width: 180px"
+          />
+        </NFormItem>
+        <NFormItem v-if="form.scope === 'industry'" label="行业" label-width="56px">
+          <NSelect
+            v-model:value="form.industry"
+            :options="industryOptions"
+            placeholder="选择行业"
+            filterable
+            style="width: 180px"
+          />
+        </NFormItem>
+        <NFormItem v-if="form.scope === 'explicit'" label="代码清单" label-width="70px">
+          <NInput v-model:value="form.symbols" placeholder="空格或逗号分隔" style="width: 260px" />
+        </NFormItem>
+      </NForm>
 
-            <NFormItem v-if="form.scope === 'industry'" label="行业">
-              <NSelect v-model:value="form.industry" :options="industryOptions" placeholder="选择行业" filterable />
-            </NFormItem>
+      <!-- 同步表 checkbox -->
+      <div style="margin-top: 8px; display: flex; align-items: center; gap: 16px">
+        <span style="font-size: 13px; color: #666; flex-shrink: 0">同步表：</span>
+        <NCheckboxGroup v-model:value="form.tables" :disabled="isRunning" style="flex: 1">
+          <NSpace :size="12" :wrap="true">
+            <NCheckbox v-for="opt in TABLE_OPTIONS" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </NCheckbox>
+          </NSpace>
+        </NCheckboxGroup>
+      </div>
 
-            <NFormItem v-if="form.scope === 'explicit'" label="代码清单">
-              <NInput
-                v-model:value="form.symbols"
-                type="textarea"
-                placeholder="输入股票代码，空格或逗号分隔&#10;如：SHSE.600519 SZSE.000001"
-                :autosize="{ minRows: 3 }"
-              />
-            </NFormItem>
+      <!-- 可选参数：最多标的 + 标记同步 + 跳过已同步（单独一行） -->
+      <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning" style="margin-top: 8px">
+        <NFormItem label="最多标的" label-width="80px">
+          <NInputNumber v-model:value="form.max_symbols" :min="0" placeholder="0=不限" style="width: 120px" />
+        </NFormItem>
+        <NFormItem label="标记同步" label-width="80px">
+          <NSwitch v-model:value="form.mark_synced" />
+          <span style="margin-left: 6px; font-size: 12px; color: #999">写 sync_at</span>
+        </NFormItem>
+        <NFormItem label="跳过已同步" label-width="100px">
+          <NSwitch v-model:value="form.exclude_synced_today" />
+          <span style="margin-left: 6px; font-size: 12px; color: #999">跳过当日已跑</span>
+        </NFormItem>
+      </NForm>
 
-            <NFormItem label="同步表">
-              <NCheckboxGroup v-model:value="form.tables">
-                <NSpace>
-                  <NCheckbox v-for="opt in TABLE_OPTIONS" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                  </NCheckbox>
-                </NSpace>
-              </NCheckboxGroup>
-            </NFormItem>
+      <!-- 进度面板（v-if="task" 启动后动态加载，复用成分股页面结构） -->
+      <div v-if="task" style="margin-top: 20px">
+        <NSpace align="center">
+          <NTag :type="statusLabel.type" round>{{ statusLabel.text }}</NTag>
+          <span style="font-size: 13px; color: #666">
+            任务 #{{ task.id }} · {{ scopeLabelMap[task.scope] || task.scope }}{{ scopeExtraLabel }}
+          </span>
+        </NSpace>
+        <NProgress
+          type="line"
+          :percentage="progressValue"
+          :show-indicator="true"
+          :indicator-width="38"
+          :status="task.status === 'failed' ? 'error' : task.status === 'done' ? 'success' : 'default'"
+          style="margin-top: 12px"
+        />
+        <NGrid :cols="4" :x-gap="12" style="margin-top: 8px">
+          <NGridItem>
+            <NStatistic label="已完成 / 总数" :value="`${task.done_count} / ${task.total_count}`" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="success" :value="task.success_count" value-style="color: #18a058" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="no_data" :value="task.no_data_count" value-style="color: #999" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="error" :value="task.error_count" value-style="color: #d03050" />
+          </NGridItem>
+        </NGrid>
 
-            <NFormItem label="最多标的">
-              <NInputNumber v-model:value="form.max_symbols" :min="0" placeholder="0=不限" />
-            </NFormItem>
-
-            <NFormItem label="标记同步">
-              <NSwitch v-model:value="form.mark_synced" />
-              <span style="margin-left: 12px; font-size: 12px; color: #999">全部成功后写 sync_at，下次可跳过</span>
-            </NFormItem>
-
-            <NFormItem label="跳过已同步">
-              <NSwitch v-model:value="form.exclude_synced_today" />
-              <span style="margin-left: 12px; font-size: 12px; color: #999">跳过当日已同步标的</span>
-            </NFormItem>
-
-            <NFormItem>
-              <NButton type="primary" :loading="starting" @click="handleStart">启动批量同步</NButton>
-            </NFormItem>
-          </NForm>
-        </NCard>
-      </NGridItem>
-
-      <!-- 右：进度面板 -->
-      <NGridItem :span="14">
-        <NCard title="同步进度" size="small">
-          <NEmpty v-if="!task" description="暂无同步任务，在左侧配置参数后点击启动" />
-
-          <template v-else>
-            <!-- 状态 + 进度条 -->
-            <div style="margin-bottom: 16px">
-              <NSpace align="center">
-                <NTag :type="statusLabel.type" round>
-                  {{ statusLabel.text }}
-                </NTag>
-                <span style="font-size: 13px; color: #666">任务 #{{ task.id }} · {{ task.scope }}</span>
-                <NButton v-if="isRunning" size="small" type="error" :loading="stopping" @click="handleStop">
-                  停止
-                </NButton>
-              </NSpace>
-              <NProgress
-                type="line"
-                :percentage="progressValue"
-                :show-indicator="true"
-                :status="task.status === 'failed' ? 'error' : task.status === 'done' ? 'success' : 'default'"
-                style="margin-top: 12px"
-              />
-            </div>
-
-            <!-- 计数统计 -->
-            <NGrid :cols="4" :x-gap="12" style="margin-bottom: 16px">
-              <NGridItem>
-                <NStatistic label="已完成 / 总数" :value="`${task.done_count} / ${task.total_count}`" />
-              </NGridItem>
-              <NGridItem>
-                <NStatistic label="success" :value="task.success_count" value-style="color: #18a058" />
-              </NGridItem>
-              <NGridItem>
-                <NStatistic label="no_data" :value="task.no_data_count" value-style="color: #999" />
-              </NGridItem>
-              <NGridItem>
-                <NStatistic label="error" :value="task.error_count" value-style="color: #d03050" />
-              </NGridItem>
-            </NGrid>
-
-            <!-- 失败明细 -->
-            <NCollapse v-if="task.errors && task.errors.length > 0">
-              <NCollapseItem title="失败明细" name="errors">
-                <NDataTable
-                  :columns="errorColumns"
-                  :data="task.errors"
-                  :bordered="false"
-                  size="small"
-                  :max-height="300"
-                />
-              </NCollapseItem>
-            </NCollapse>
-
-            <div v-else-if="task.status === 'done'" style="color: #18a058; font-size: 13px">全部完成，无失败项</div>
-          </template>
-        </NCard>
-      </NGridItem>
-    </NGrid>
+        <!-- 失败明细：仅终态后折叠展示，运行中占视觉 -->
+        <NCollapse v-if="!isRunning && errorList.length > 0" style="margin-top: 12px">
+          <NCollapseItem :title="`失败明细（${errorList.length}）`" name="errors">
+            <NDataTable :columns="errorColumns" :data="errorList" :bordered="false" size="small" :max-height="240" />
+          </NCollapseItem>
+        </NCollapse>
+        <div v-else-if="!isRunning && task.status === 'done'" style="color: #18a058; font-size: 13px; margin-top: 12px">
+          全部完成，无失败项
+        </div>
+      </div>
+    </NCard>
   </div>
 </template>
-
-<style scoped>
-.batch-sync-page {
-  padding: 16px;
-}
-</style>
