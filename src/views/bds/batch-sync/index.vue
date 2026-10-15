@@ -157,6 +157,20 @@ async function loadTask(id?: number) {
       // scope=index_backfill 的任务由 /bds/index-constituents 页面自行展示
       if (!id && data.scope === 'index_backfill') return;
       task.value = data;
+
+      // 运行中用后端真实任务参数锁定 form 显示——防止任何意外重置或 v-if 切换
+      if (isRunning.value) {
+        const p = (data.scope_params || {}) as Record<string, unknown>;
+        form.scope = data.scope as typeof form.scope;
+        form.index_code = (p.index_code as string) || '';
+        form.industry = (p.industry as string) || '';
+        form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
+        if (Array.isArray(p.tables)) form.tables = p.tables as typeof form.tables;
+        if (typeof p.mark_synced === 'boolean') form.mark_synced = p.mark_synced;
+        if (typeof p.exclude_synced_today === 'boolean') form.exclude_synced_today = p.exclude_synced_today;
+        if (typeof p.max_symbols === 'number') form.max_symbols = p.max_symbols;
+      }
+
       if (!isRunning.value) stopPolling();
     }
   } catch {
