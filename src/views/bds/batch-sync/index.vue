@@ -11,6 +11,7 @@ import {
   type IndexConstituentSyncRequest
 } from '@/service/api';
 import { useBdsStore } from '@/store/modules/bds';
+import MacroSyncCard from './modules/macro-sync-card.vue';
 
 defineOptions({ name: 'BatchSyncPage' });
 
@@ -29,7 +30,7 @@ const syncableIndexOptions = computed(() =>
     .map(item => ({ label: item.sec_name, value: item.code }))
 );
 
-// ===================== 卡片 1：批量同步 =====================
+// ===================== 卡片 1：财务及行情批量同步 =====================
 
 const TABLE_OPTIONS = [
   { label: '资产负债表', value: 'fund-balance' },
@@ -203,7 +204,7 @@ const errorColumns = [
   { title: '错误信息', key: 'message' }
 ];
 
-// ===================== 卡片 2：指数成分股同步 / 回填 =====================
+// ===================== 卡片 2：指数成分股同步 =====================
 
 const syncIndexCodes = ref<string[]>([]);
 const syncStartDate = ref<string | null>(null);
@@ -311,6 +312,9 @@ const indexErrorColumns = [
 onMounted(async () => {
   await bdsStore.loadIndexCodes(true);
   await bdsStore.loadIndustries(true);
+  // 卡片 3：取动态数量文案 + 结果表 code→name 映射
+  await bdsStore.loadDailyIndicatorCodes(true);
+  await bdsStore.loadGoldReserveCountries(true);
   syncIndexCodes.value = syncableIndexOptions.value.map(option => option.value);
 
   // fetchLatestSyncTask 只返回最新一条，根据 scope 分派
@@ -346,11 +350,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="p-16px">
-    <!-- ===== 卡片 1：批量同步 ===== -->
+    <!-- ===== 卡片 1：财务及行情批量同步 ===== -->
     <NCard size="small">
       <template #header>
         <NSpace align="center" :size="12">
-          <span>批量同步</span>
+          <span>财务及行情批量同步</span>
           <NButton type="primary" size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
             启动
           </NButton>
@@ -457,11 +461,11 @@ onBeforeUnmount(() => {
       </div>
     </NCard>
 
-    <!-- ===== 卡片 2：指数成分股同步 / 回填 ===== -->
+    <!-- ===== 卡片 2：指数成分股同步 ===== -->
     <NCard size="small" style="margin-top: 16px">
       <template #header>
         <NSpace align="center" :size="12">
-          <span>指数成分股同步 / 回填</span>
+          <span>指数成分股同步</span>
           <NButton
             type="primary"
             size="small"
@@ -484,7 +488,7 @@ onBeforeUnmount(() => {
         </NSpace>
       </template>
 
-      <!-- 指数选择：checkbox 组（参照批量同步"同步表"样式） -->
+      <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: indexIsRunning ? 0.6 : 1 }">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
         <NCheckboxGroup v-model:value="syncIndexCodes" :disabled="indexIsRunning" style="flex: 1">
@@ -572,5 +576,8 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </NCard>
+
+    <!-- ===== 卡片 3：宏观数据同步（三个宏观页面的同步入口集中处） ===== -->
+    <MacroSyncCard />
   </div>
 </template>
