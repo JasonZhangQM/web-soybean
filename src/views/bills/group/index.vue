@@ -179,8 +179,6 @@ async function handleSubmit() {
 }
 
 const columns = [
-  { title: '账户', key: 'account', width: 80 },
-  { title: '交易分类', key: 'category', width: 80 },
   {
     title: '代码',
     key: 'symbol',
@@ -188,6 +186,8 @@ const columns = [
     render: (row: Api.Bills.Group) =>
       h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.symbol })
   },
+  { title: '账户', key: 'account', width: 80 },
+  { title: '交易分类', key: 'category', width: 80 },
   { title: '持仓', key: 'p_total', width: 100, render: (row: Api.Bills.Group) => renderAmount(row, 'p_total') },
   {
     title: '持仓成本',
@@ -280,8 +280,8 @@ onMounted(() => {
         remote
         :pagination="pagination"
         :default-sort="[
-          { columnKey: 'account', order: 'ascend' },
-          { columnKey: 'symbol', order: 'ascend' }
+          { columnKey: 'symbol', order: 'ascend' },
+          { columnKey: 'account', order: 'ascend' }
         ]"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
