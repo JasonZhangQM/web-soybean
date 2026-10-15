@@ -136,7 +136,7 @@ onMounted(() => fetchData());
             remote
             clearable
             placeholder="输入代码或名称搜索"
-            style="width: 200px"
+            style="width: 260px"
             @search="handleSymbolSearch"
           />
         </NFormItem>
@@ -162,7 +162,7 @@ onMounted(() => fetchData());
         <NFormItem class="ml-auto">
           <NButton type="primary" :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
-            同步
+            导入
           </NButton>
         </NFormItem>
       </NForm>

@@ -250,7 +250,7 @@ onMounted(() => fetchData());
             remote
             clearable
             placeholder="输入代码或名称搜索"
-            style="width: 200px"
+            style="width: 260px"
             @search="handleSymbolSearch"
           />
         </NFormItem>
@@ -290,7 +290,7 @@ onMounted(() => fetchData());
               remote
               clearable
               placeholder="输入代码或名称搜索"
-              style="width: 200px"
+              style="width: 260px"
               @search="handleSyncSearch"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">

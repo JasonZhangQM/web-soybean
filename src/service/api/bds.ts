@@ -149,8 +149,10 @@ export function startIndexConstituentSync(req: IndexConstituentSyncRequest) {
 
 /** 指数累计收益率查询参数 */
 export interface IndexCumReturnQueryParams {
-  /** 起始日期（YYYY-MM-DD），默认当前日期前30天 */
+  /** 起始日期（YYYY-MM-DD），默认当前日期前10年 */
   start_date?: string;
+  /** 限定指数代码（可多值）；不传返回全部 INDEX_CODE */
+  symbols?: string[];
 }
 
 /** 获取指数累计收益率 */

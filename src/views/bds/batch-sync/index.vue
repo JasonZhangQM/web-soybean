@@ -168,7 +168,7 @@ async function loadBatchTask(id?: number) {
         const p = (data.scope_params || {}) as Record<string, unknown>;
         form.scope = data.scope as typeof form.scope;
         form.index_code = (p.index_code as string) || '';
-        form.industry = (p.industry as string) || '';
+        form.industry = (p.industry_name as string) || (p.industry as string) || '';
         form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
         if (Array.isArray(p.tables)) form.tables = p.tables as typeof form.tables;
         if (typeof p.mark_synced === 'boolean') form.mark_synced = p.mark_synced;
@@ -326,7 +326,7 @@ onMounted(async () => {
         const p = (data.scope_params || {}) as Record<string, unknown>;
         form.scope = data.scope as typeof form.scope;
         form.index_code = (p.index_code as string) || '';
-        form.industry = (p.industry as string) || '';
+        form.industry = (p.industry_name as string) || (p.industry as string) || '';
         form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
         if (Array.isArray(p.tables)) form.tables = p.tables as typeof form.tables;
         if (typeof p.mark_synced === 'boolean') form.mark_synced = p.mark_synced;
