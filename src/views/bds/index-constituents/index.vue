@@ -130,7 +130,7 @@ onMounted(async () => {
           />
         </NFormItem>
         <NFormItem label="去重">
-          <NCheckbox v-model:checked="queryForm.dedup">按成分股代码去重（保留最新交易日）</NCheckbox>
+          <NCheckbox v-model:checked="queryForm.dedup"></NCheckbox>
         </NFormItem>
         <NFormItem>
           <NSpace>
