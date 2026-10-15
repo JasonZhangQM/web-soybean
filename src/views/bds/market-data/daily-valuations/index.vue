@@ -93,43 +93,44 @@ function fmtPct(val: unknown) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
-// 估值指标列配置：20 个数值字段统一 fmtPct 格式化、宽度 120
-const valuationFieldConfigs: Array<{ key: keyof Api.Bds.DailyValuation; title: string }> = [
-  { key: 'pe_ttm', title: '市盈率(TTM)' },
-  { key: 'pe_lyr', title: '市盈率(最新年报LYR)' },
-  { key: 'pe_mrq', title: '市盈率(最新报告期MRQ)' },
-  { key: 'pe_ttm_cut', title: '市盈率(TTM)扣除非经常性损益' },
-  { key: 'pe_lyr_cut', title: '市盈率(最新年报LYR)扣除非经常性损益' },
-  { key: 'pe_mrq_cut', title: '市盈率(最新报告期MRQ)扣除非经常性损益' },
-  { key: 'pb_lyr', title: '市净率(最新年报LYR)' },
-  { key: 'pb_mrq', title: '市净率(最新报告期MRQ)' },
-  { key: 'pcf_ttm_oper', title: '市现率(经营现金流,TTM)' },
-  { key: 'pcf_ttm_ncf', title: '市现率(现金净流量,TTM)' },
-  { key: 'pcf_lyr_oper', title: '市现率(经营现金流,最新年报LYR)' },
-  { key: 'pcf_lyr_ncf', title: '市现率(现金净流量,最新年报LYR)' },
-  { key: 'ps_ttm', title: '市销率(TTM)' },
-  { key: 'ps_lyr', title: '市销率(最新年报LYR)' },
-  { key: 'ps_mrq', title: '市销率(最新报告期MRQ)' },
-  { key: 'peg_lyr', title: '历史PEG值(当年年报增长率)' },
-  { key: 'peg_1q', title: '历史PEG值(当年1季*4较上年年报增长率)' },
-  { key: 'peg_3q', title: '历史PEG值(当年3季*4/3较上年年报增长率)' },
-  { key: 'dy_ttm', title: '股息率(滚动12月TTM)' },
-  { key: 'dy_lfy', title: '股息率(上一财年LFY)' }
+// 估值指标列配置：20 个数值字段统一 fmtPct 格式化，各自不同宽度
+const valuationFieldConfigs: Array<{ key: keyof Api.Bds.DailyValuation; title: string; width?: number }> = [
+  { key: 'pe_ttm', title: 'PE(TTM)', width: 80 },
+  { key: 'pe_ttm_cut', title: 'PE(TTM)扣', width: 100 },
+  { key: 'pb_lyr', title: 'PB(LYR)', width: 80 },
+  { key: 'pb_mrq', title: 'PB(MRQ)', width: 80 },
+  { key: 'pcf_ttm_oper', title: '市现(TTM)经', width: 100 },
+  { key: 'ps_ttm', title: 'PS(TTM)', width: 80 },
+  { key: 'dy_ttm', title: 'DY(TTM)', width: 80 },
+  { key: 'dy_lfy', title: 'DY(LFY)', width: 80 },
+  { key: 'peg_lyr', title: 'PEG(LYR)', width: 80 },
+  { key: 'pe_lyr', title: 'PE(LYR)', width: 80 },
+  { key: 'pe_mrq', title: 'PE(MRQ)', width: 80 },
+  { key: 'pe_lyr_cut', title: 'PE(LYR)扣', width: 80 },
+  { key: 'pe_mrq_cut', title: 'PE(MRQ)扣', width: 90 },
+  { key: 'pcf_ttm_ncf', title: '市现(TTM)净', width: 100 },
+  { key: 'pcf_lyr_oper', title: '市现(LYR)经', width: 100 },
+  { key: 'pcf_lyr_ncf', title: '市现(LYR)净', width: 100 },
+  { key: 'ps_lyr', title: 'PS(LYR)', width: 80 },
+  { key: 'ps_mrq', title: 'PS(MRQ)', width: 80 },
+  { key: 'peg_1q', title: 'PEG(1Q)', width: 80 },
+  { key: 'peg_3q', title: 'PEG(3Q)', width: 80 }
 ];
 
-// 由配置生成数值列：统一 render 与宽度
-function makeValuationColumn(cfg: { key: keyof Api.Bds.DailyValuation; title: string }) {
+// 由配置生成数值列：统一 fmtPct 格式化 + 右对齐，宽度从 cfg 读取（缺省 120）
+function makeValuationColumn(cfg: { key: keyof Api.Bds.DailyValuation; title: string; width?: number }) {
   return {
     title: cfg.title,
     key: cfg.key,
-    width: 120,
+    width: cfg.width ?? 120,
+    align: 'right' as const,
     render: (row: Api.Bds.DailyValuation) => fmtPct(row[cfg.key])
   };
 }
 
 const columns = [
   { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '交易日期', key: 'trade_date', width: 120 },
+  { title: '交易日期', key: 'trade_date', width: 100 },
   ...valuationFieldConfigs.map(makeValuationColumn)
 ];
 
@@ -150,7 +151,7 @@ onMounted(() => fetchData());
             remote
             clearable
             placeholder="输入代码或名称搜索"
-            style="width: 200px"
+            style="width: 280px"
             @search="handleSymbolSearch"
           />
         </NFormItem>
@@ -181,7 +182,7 @@ onMounted(() => fetchData());
               remote
               clearable
               placeholder="输入代码或名称搜索"
-              style="width: 200px"
+              style="width: 280px"
               @search="handleSyncSearch"
             />
             <NButton type="primary" :loading="syncLoading" @click="handleSync">

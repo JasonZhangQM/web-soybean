@@ -188,7 +188,7 @@ function startPolling() {
   stopPolling();
   pollTimer = setInterval(() => {
     if (task.value) loadBatchTask(task.value.id);
-  }, 2000);
+  }, 5000);
 }
 
 function stopPolling() {
@@ -323,7 +323,7 @@ function startIndexPolling() {
   stopIndexPolling();
   indexPollTimer = setInterval(() => {
     if (indexTask.value) loadIndexTask(indexTask.value.id);
-  }, 2000);
+  }, 5000);
 }
 
 function stopIndexPolling() {
