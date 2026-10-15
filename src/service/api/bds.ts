@@ -111,10 +111,12 @@ export function syncIndexHistory() {
 export interface IndexConstituentQueryParams {
   /** 指数代码（精确匹配） */
   index_code?: string;
-  /** 成分股代码（模糊匹配） */
+  /** 成分股代码（精确匹配） */
   symbol?: string;
   /** 交易日期（YYYY-MM-DD，精确匹配） */
   trade_date?: string;
+  /** 是否按成分股代码去重：每只仅保留交易日期最新的一条（同日跨指数取指数代码最小者） */
+  dedup?: boolean;
   /** 每页条数 */
   limit: number;
   /** 偏移量 */

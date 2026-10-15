@@ -21,10 +21,12 @@ const queryForm = reactive<{
   index_code: string | null;
   symbol: string | null;
   trade_date: string | null;
+  dedup: boolean;
 }>({
   index_code: null,
   symbol: null,
-  trade_date: null
+  trade_date: null,
+  dedup: false
 });
 
 async function fetchData() {
@@ -34,6 +36,7 @@ async function fetchData() {
       index_code: queryForm.index_code || undefined,
       symbol: queryForm.symbol || undefined,
       trade_date: queryForm.trade_date || undefined,
+      dedup: queryForm.dedup || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -56,6 +59,7 @@ function handleReset() {
   queryForm.index_code = null;
   queryForm.symbol = null;
   queryForm.trade_date = null;
+  queryForm.dedup = false;
   clearSymbolOptions();
   fetchData();
 }
@@ -124,6 +128,9 @@ onMounted(async () => {
             clearable
             style="width: 150px"
           />
+        </NFormItem>
+        <NFormItem label="去重">
+          <NCheckbox v-model:checked="queryForm.dedup">按成分股代码去重（保留最新交易日）</NCheckbox>
         </NFormItem>
         <NFormItem>
           <NSpace>
