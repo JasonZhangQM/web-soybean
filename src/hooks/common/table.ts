@@ -328,12 +328,26 @@ export type TablePagination = PaginationProps & {
 };
 
 /**
+ * 列表接口 offset 上限（护栏，必须与后端 `server_fast/app/bds/router.py` 的
+ * `MAX_LIST_OFFSET` 保持一致）。
+ *
+ * 背景：MySQL 的 OFFSET 分页必须先丢弃前 offset 行，两张 6M 级日频表在 offset≈9 万处
+ * 执行计划退化为全表扫描 + filesort（92~142s）⇒ 后端直接拒绝超限请求。
+ * 前端据此截断可达页数，避免用户翻到必然超时失败的页。
+ * ⚠️ 本值必须停在悬崖之前（≤ 9 万）：实测 offset=90,000 仍走索引（1.8s），95,000 起即退化为 92s。
+ *   当前取 50,000 —— 末页实测 0.6~1.3s（两表），距悬崖留一倍余量。
+ */
+export const MAX_LIST_OFFSET = 50000;
+
+/**
  * 创建数据表格分页配置（各页面共享同一份默认配置，返回独立实例）。
  *
  * - 统一默认值：page=1, pageSize=20, pageSizes=[10,20,50,100], showSizePicker=true
  * - prefix 直接引用自身 itemCount，无需外部注入 total ref
  * - 每次调用返回独立的 reactive 对象，避免跨页面状态污染
  * - page/pageSize/itemCount 必有初始值，类型上收紧为必填（PaginationProps 中为可选）
+ *
+ * 需要 offset 护栏的页面（超大表）改用 `setPaginationTotal` 设置总数。
  */
 export function createTablePagination() {
   const pagination = reactive({
@@ -350,11 +364,20 @@ export function createTablePagination() {
 /**
  * 设置分页器总数（remote 列表页拿到响应后调用）。
  *
- * 后端列表接口在「无筛选且表极大」时不数全表，改读计数表缓存 / 信息模式估算，
- * 此时响应带 `total_is_estimated=true`：前缀显示「共 ≈N 条」，
- * 避免总数与服务端精确值不一致时被误认为 bug。
+ * 1. 后端在「无筛选且表极大」时不数全表，改读计数表缓存 / 信息模式估算，响应带
+ *    `total_is_estimated=true` ⇒ 前缀显示「共 ≈N 条」，避免数字跳动被误认为 bug。
+ * 2. 可达页数按 `MAX_LIST_OFFSET` 截断：naive-ui 的总页数由 `itemCount` 派生
+ *    （`use-table-data.mjs` 里 `pageCount` 会被置 undefined），所以只能截 `itemCount`，
+ *    而真实总数单独用于前缀展示，保证「共 N 条」仍是真实值。
+ *    截断值取 `MAX_LIST_OFFSET + pageSize` ⇒ `pageCount = ceil((MAX+pageSize)/pageSize)`
+ *    ⇒ 最后一页 offset = pageCount-1 页 × pageSize 恰为 MAX_LIST_OFFSET，合法不越界。
  */
 export function setPaginationTotal(pagination: TablePagination, total: number, estimated?: boolean) {
-  pagination.itemCount = total;
-  pagination.prefix = () => `共 ${estimated ? '≈' : ''}${total} 条`;
+  const reachable = Math.min(total, MAX_LIST_OFFSET + pagination.pageSize);
+  const capped = reachable < total;
+  pagination.itemCount = reachable;
+  pagination.prefix = () =>
+    capped
+      ? `共 ${estimated ? '≈' : ''}${total} 条（分页仅支持前 ${MAX_LIST_OFFSET} 条，请用筛选缩小范围）`
+      : `共 ${estimated ? '≈' : ''}${total} 条`;
 }

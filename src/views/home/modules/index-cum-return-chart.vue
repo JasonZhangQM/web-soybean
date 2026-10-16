@@ -336,6 +336,13 @@ init();
           :style="{ width: '140px', flexShrink: 0 }"
           @update:formatted-value="handleDateChange"
         />
+        <span
+          class="inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity flex-shrink-0"
+          :class="[syncLoading ? 'animate-spin' : '']"
+          @click="handleSync"
+        >
+          <SvgIcon icon="mdi:sync" class="text-16px" />
+        </span>
         <span class="text-13px text-color-2 ml-4px flex-shrink-0">指数</span>
         <NCheckboxGroup v-model:value="visibleSymbols" style="flex: 1; min-width: 0">
           <NSpace :size="10" :wrap="true">
@@ -344,13 +351,6 @@ init();
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
-        <span
-          class="inline-flex cursor-pointer opacity-60 hover:opacity-100 transition-opacity flex-shrink-0"
-          :class="[syncLoading ? 'animate-spin' : '']"
-          @click="handleSync"
-        >
-          <SvgIcon icon="mdi:sync" class="text-16px" />
-        </span>
       </div>
       <!-- echarts 容器 -->
       <div ref="domRef" class="h-520px"></div>
