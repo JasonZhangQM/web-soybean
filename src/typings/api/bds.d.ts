@@ -758,6 +758,8 @@ declare namespace Api {
       mark_synced: number;
       /** 是否跳过当日已同步: 1=是 0=否 */
       exclude_synced_today: number;
+      /** 退市口径: trading=仅在市/delisted=仅退市/all=全部（仅作用于 all/industry/index） */
+      trading_status: string;
       /** 最多处理几只 symbol: 0=不限 */
       max_symbols: number;
       /** 状态: pending/running/done/failed */

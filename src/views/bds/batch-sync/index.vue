@@ -48,6 +48,17 @@ const scopeOptions = [
   { label: '手写清单', value: 'explicit' }
 ];
 
+/**
+ * 退市口径（三态）
+ * 仅作用于 全市场 / 指数成分股 / 指定行业 三个范围；
+ * 手写清单 = 用户显式意图，系统不做二次过滤（下拉在该范围下禁用）
+ */
+const TRADING_STATUS_OPTIONS = [
+  { label: '仅在市', value: 'trading' },
+  { label: '仅退市', value: 'delisted' },
+  { label: '全部', value: 'all' }
+];
+
 /** 解析同步表记忆值：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
 function resolveTables(stored: string[] | undefined) {
   const tableValues = TABLE_OPTIONS.map(o => o.value);
@@ -61,6 +72,7 @@ function resolveTables(stored: string[] | undefined) {
 function buildInitialForm() {
   const stored = bdsStore.batchSyncForm;
   const scopeValues = scopeOptions.map(o => o.value);
+  const tsValues = TRADING_STATUS_OPTIONS.map(o => o.value);
   return {
     scope: stored && scopeValues.includes(stored.scope) ? stored.scope : 'all',
     index_code: stored?.index_code ?? '',
@@ -69,6 +81,7 @@ function buildInitialForm() {
     tables: resolveTables(stored?.tables),
     mark_synced: stored?.mark_synced ?? true,
     exclude_synced_today: stored?.exclude_synced_today ?? false,
+    trading_status: stored && tsValues.includes(stored.trading_status) ? stored.trading_status : 'trading',
     max_symbols: stored?.max_symbols ?? 0
   };
 }
@@ -147,6 +160,7 @@ async function handleStart() {
       tables: form.tables,
       mark_synced: form.mark_synced,
       exclude_synced_today: form.exclude_synced_today,
+      trading_status: form.trading_status as BatchSyncRequest['trading_status'],
       max_symbols: form.max_symbols
     };
     if (form.scope === 'index') payload.index_code = form.index_code;
@@ -183,6 +197,26 @@ async function handleStop() {
   }
 }
 
+/**
+ * 运行中：用任务参数回填表单（锁定显示，避免用户误以为改了就生效）
+ *
+ * ⚠️ 除 index_code / industry_name / symbols 外，其余参数都是 bds_sync_task 的
+ *    **独立列**、不在 scope_params JSON 里。此前误从 scope_params 读取 ⇒
+ *    typeof 判断恒为 false ⇒ 运行中回填从未生效（已改为读 task 列）。
+ */
+function fillFormFromTask(data: Api.Bds.SyncTask) {
+  const p = (data.scope_params || {}) as Record<string, unknown>;
+  form.scope = data.scope as typeof form.scope;
+  form.index_code = (p.index_code as string) || '';
+  form.industry = (p.industry_name as string) || (p.industry as string) || '';
+  form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
+  if (Array.isArray(data.tables) && data.tables.length > 0) form.tables = data.tables as typeof form.tables;
+  form.mark_synced = data.mark_synced === 1;
+  form.exclude_synced_today = data.exclude_synced_today === 1;
+  form.max_symbols = data.max_symbols;
+  form.trading_status = data.trading_status || 'trading';
+}
+
 async function loadBatchTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
@@ -192,17 +226,7 @@ async function loadBatchTask(id?: number) {
       task.value = data;
 
       // 运行中锁定 form 显示
-      if (isRunning.value) {
-        const p = (data.scope_params || {}) as Record<string, unknown>;
-        form.scope = data.scope as typeof form.scope;
-        form.index_code = (p.index_code as string) || '';
-        form.industry = (p.industry_name as string) || (p.industry as string) || '';
-        form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
-        if (Array.isArray(p.tables)) form.tables = p.tables as typeof form.tables;
-        if (typeof p.mark_synced === 'boolean') form.mark_synced = p.mark_synced;
-        if (typeof p.exclude_synced_today === 'boolean') form.exclude_synced_today = p.exclude_synced_today;
-        if (typeof p.max_symbols === 'number') form.max_symbols = p.max_symbols;
-      }
+      if (isRunning.value) fillFormFromTask(data);
 
       if (!isRunning.value) stopPolling();
     }
@@ -401,15 +425,7 @@ onMounted(async () => {
       task.value = data;
       // 运行中锁定 form
       if (isRunning.value) {
-        const p = (data.scope_params || {}) as Record<string, unknown>;
-        form.scope = data.scope as typeof form.scope;
-        form.index_code = (p.index_code as string) || '';
-        form.industry = (p.industry_name as string) || (p.industry as string) || '';
-        form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
-        if (Array.isArray(p.tables)) form.tables = p.tables as typeof form.tables;
-        if (typeof p.mark_synced === 'boolean') form.mark_synced = p.mark_synced;
-        if (typeof p.exclude_synced_today === 'boolean') form.exclude_synced_today = p.exclude_synced_today;
-        if (typeof p.max_symbols === 'number') form.max_symbols = p.max_symbols;
+        fillFormFromTask(data);
         startPolling();
       }
     }
@@ -482,6 +498,17 @@ onBeforeUnmount(() => {
 
       <!-- 可选参数 -->
       <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning" style="margin-top: 8px">
+        <NFormItem label="退市口径" label-width="80px">
+          <NSelect
+            v-model:value="form.trading_status"
+            :options="TRADING_STATUS_OPTIONS"
+            :disabled="form.scope === 'explicit'"
+            style="width: 110px"
+          />
+          <span style="margin-left: 6px; font-size: 12px; color: #999">
+            {{ form.scope === 'explicit' ? '手写清单不受此条件约束' : '仅作用于全市场/指数成分/行业' }}
+          </span>
+        </NFormItem>
         <NFormItem label="最多标的" label-width="80px">
           <NInputNumber v-model:value="form.max_symbols" :min="0" placeholder="0=不限" style="width: 120px" />
         </NFormItem>

@@ -395,6 +395,15 @@ export interface BatchSyncRequest {
   mark_synced?: boolean;
   /** 是否跳过当日已同步标的，默认 false */
   exclude_synced_today?: boolean;
+  /**
+   * 退市口径，默认 trading
+   * - trading: 仅在市（含已公告未退市）
+   * - delisted: 仅已退市
+   * - all: 全部
+   *
+   * 仅作用于 all / industry / index 三个 scope；explicit 手写清单不受此参数约束
+   */
+  trading_status?: 'trading' | 'delisted' | 'all';
   /** 最多处理几只 symbol: 0=不限 */
   max_symbols?: number;
 }
