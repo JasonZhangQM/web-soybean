@@ -320,6 +320,13 @@ export function isTableColumnHasKey<T>(column: NaiveUI.TableColumn<T>): column i
   return Boolean((column as NaiveUI.TableColumnWithKey<T>).key);
 }
 
+/** 分页器配置类型：在 naive-ui PaginationProps 基础上把三个计数项收紧为必填。 */
+export type TablePagination = PaginationProps & {
+  page: number;
+  pageSize: number;
+  itemCount: number;
+};
+
 /**
  * 创建数据表格分页配置（各页面共享同一份默认配置，返回独立实例）。
  *
@@ -329,11 +336,6 @@ export function isTableColumnHasKey<T>(column: NaiveUI.TableColumn<T>): column i
  * - page/pageSize/itemCount 必有初始值，类型上收紧为必填（PaginationProps 中为可选）
  */
 export function createTablePagination() {
-  type RequiredPagination = PaginationProps & {
-    page: number;
-    pageSize: number;
-    itemCount: number;
-  };
   const pagination = reactive({
     page: 1,
     pageSize: 20,
@@ -341,6 +343,18 @@ export function createTablePagination() {
     pageSizes: [10, 20, 50, 100],
     itemCount: 0,
     prefix: () => `共 ${pagination.itemCount} 条`
-  }) as RequiredPagination;
+  }) as TablePagination;
   return pagination;
+}
+
+/**
+ * 设置分页器总数（remote 列表页拿到响应后调用）。
+ *
+ * 后端列表接口在「无筛选且表极大」时不数全表，改读计数表缓存 / 信息模式估算，
+ * 此时响应带 `total_is_estimated=true`：前缀显示「共 ≈N 条」，
+ * 避免总数与服务端精确值不一致时被误认为 bug。
+ */
+export function setPaginationTotal(pagination: TablePagination, total: number, estimated?: boolean) {
+  pagination.itemCount = total;
+  pagination.prefix = () => `共 ${estimated ? '≈' : ''}${total} 条`;
 }

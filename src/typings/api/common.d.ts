@@ -53,6 +53,13 @@ declare namespace Api {
       items: T[];
       /** 满足过滤条件的总记录数 */
       total: number;
+      /**
+       * total 是否为估算值
+       *
+       * 仅当后端「无筛选 + 表极大」走 bds_table_stat 计数表缓存、且缓存缺失/过旧而回落
+       * 信息模式估算时为 true；前端据此把分页器前缀显示为「共 ≈N 条」。
+       */
+      total_is_estimated?: boolean;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
