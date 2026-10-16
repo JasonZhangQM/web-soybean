@@ -39,14 +39,20 @@ export function fetchTradeDates(params?: TradeDateQueryParams) {
 
 /** 证券信息查询参数 */
 interface SymbolInfoQueryParams {
-  /** 代码模糊匹配 */
+  /** 代码精确匹配 */
   symbol?: string;
   /** 行业精确匹配 */
   industry?: string;
+  /** 市场精确匹配：上交所 / 深交所 / 北交所 */
+  market?: string;
+  /** 板块精确匹配：主板 / 创业板 / 科创板 / 北交所 */
+  board?: string;
   /** 代码或名称任一模糊匹配（OR，用于远程搜索） */
   keyword?: string;
   /** 为 true 时排除 sync_at 等于当日（服务器本地日）的标的，用于批量同步断点续跑 */
   exclude_synced_today?: boolean;
+  /** 为 true 时包含已实际退市（delisted_date <= 今日）的标的；默认排除 */
+  include_delisted?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

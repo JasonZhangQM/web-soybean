@@ -34,12 +34,12 @@ declare namespace Api {
       name: string;
       /** 所属行业 */
       industry: string | null;
+      /** 市场：上交所/深交所/北交所；非 A 股为 null */
+      market: string | null;
+      /** 板块：主板/创业板/科创板/北交所；非 A 股为 null */
+      board: string | null;
       /** 上市日期（YYYY-MM-DD） */
       online_date: string | null;
-      /** 最新价 */
-      price: number | null;
-      /** 涨幅(%) */
-      rate: number | null;
       /** PE(静) */
       pe_lyr: number | null;
       /** PE(TTM) */
@@ -60,6 +60,10 @@ declare namespace Api {
       dar: number | null;
       /** 最新报告期(含快报)（YYYY-MM-DD，来源东财 Excel，未回填为 null） */
       latest_rpt_date: string | null;
+      /** 拼音缩写（来源 gm，未同步为 null） */
+      sec_abbr: string | null;
+      /** 退市日期（YYYY-MM-DD；在市为 null，可能为未来日期） */
+      delisted_date: string | null;
       /** 同步日期：批量同步完成当日写今日，重跑据此过滤（YYYY-MM-DD，未同步为 null） */
       sync_at: string | null;
       /** 创建时间 */
@@ -148,6 +152,8 @@ declare namespace Api {
       message: string;
       /** 成功更新的指数代码数量（index-history 同步时返回） */
       updated_count?: number;
+      /** 分步执行结果（symbol-info 串行同步时返回），前端拼成「步骤名:更新N条」 */
+      steps?: Array<{ step: string; result: unknown }>;
     }
 
     /** 资产负债表 */

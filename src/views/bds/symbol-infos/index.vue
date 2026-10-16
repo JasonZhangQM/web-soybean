@@ -23,13 +23,30 @@ const tableData = ref<Api.Bds.SymbolInfo[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 远程搜索选中代码，industry 下拉精确匹配
+// 市场 / 板块下拉选项（取值域固定，后端用 == 精确匹配，不走 store DISTINCT）
+const marketOptions = [
+  { label: '上交所', value: '上交所' },
+  { label: '深交所', value: '深交所' },
+  { label: '北交所', value: '北交所' }
+];
+const boardOptions = [
+  { label: '主板', value: '主板' },
+  { label: '创业板', value: '创业板' },
+  { label: '科创板', value: '科创板' },
+  { label: '北交所', value: '北交所' }
+];
+
+// 搜索参数：symbol 远程搜索选中代码，industry / market / board 下拉精确匹配
 const searchParams = reactive<{
   symbol?: string | null;
   industry?: string | null;
+  market?: string | null;
+  board?: string | null;
   excludeSyncedToday: boolean;
+  includeDelisted: boolean;
 }>({
-  excludeSyncedToday: false
+  excludeSyncedToday: false,
+  includeDelisted: false
 });
 
 // 拉取证券信息列表
@@ -37,12 +54,14 @@ async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchSymbolInfos({
-      ...searchParams,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       industry: searchParams.industry || undefined,
+      market: searchParams.market || undefined,
+      board: searchParams.board || undefined,
       // 未勾选时不传该参数，交给后端按默认 False 处理
       exclude_synced_today: searchParams.excludeSyncedToday || undefined,
+      include_delisted: searchParams.includeDelisted || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -65,7 +84,10 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.industry = null;
+  searchParams.market = null;
+  searchParams.board = null;
   searchParams.excludeSyncedToday = false;
+  searchParams.includeDelisted = false;
   clearSymbolOptions();
   fetchData();
 }
@@ -102,12 +124,11 @@ function renderSyncAt(val: string | null) {
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 130 },
-  { title: '名称', key: 'name', width: 120 },
+  { title: '代码', key: 'symbol', width: 120 },
+  { title: '名称', key: 'name', width: 90 },
   { title: '所属行业', key: 'industry', width: 120 },
+  { title: '板块', key: 'board', width: 60 },
   { title: '上市日期', key: 'online_date', width: 100 },
-  { title: '最新价', key: 'price', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.price) },
-  { title: '涨幅%', key: 'rate', width: 90, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.rate) },
   { title: 'PE(TTM)', key: 'pe_ttm', width: 90, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.pe_ttm) },
   { title: 'PB', key: 'pb', width: 80, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.pb) },
   { title: '股息(TTM%)', key: 'dy_ttm', width: 100, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.dy_ttm) },
@@ -117,7 +138,10 @@ const columns = [
   { title: '毛利率(%)', key: 'gpm', width: 90, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.gpm) },
   { title: '负债率(%)', key: 'dar', width: 90, render: (row: Api.Bds.SymbolInfo) => fmtNum(row.dar) },
   { title: '报告期', key: 'latest_rpt_date', width: 100 },
-  { title: '同步日期', key: 'sync_at', width: 100, render: (row: Api.Bds.SymbolInfo) => renderSyncAt(row.sync_at) }
+  { title: '同步日期', key: 'sync_at', width: 100, render: (row: Api.Bds.SymbolInfo) => renderSyncAt(row.sync_at) },
+  { title: '拼音缩写', key: 'sec_abbr', width: 80 },
+  { title: '退市日期', key: 'delisted_date', width: 100 },
+  { title: '市场', key: 'market', width: 60 }
 ];
 
 onMounted(() => fetchData());
@@ -150,8 +174,29 @@ onMounted(() => fetchData());
             style="width: 150px"
           />
         </NFormItem>
+        <NFormItem label="市场">
+          <NSelect
+            v-model:value="searchParams.market"
+            :options="marketOptions"
+            clearable
+            placeholder="市场"
+            style="width: 110px"
+          />
+        </NFormItem>
+        <NFormItem label="板块">
+          <NSelect
+            v-model:value="searchParams.board"
+            :options="boardOptions"
+            clearable
+            placeholder="板块"
+            style="width: 110px"
+          />
+        </NFormItem>
         <NFormItem label="">
-          <NCheckbox v-model:checked="searchParams.excludeSyncedToday">今日未同步</NCheckbox>
+          <NSpace>
+            <NCheckbox v-model:checked="searchParams.excludeSyncedToday">今日未同步</NCheckbox>
+            <NCheckbox v-model:checked="searchParams.includeDelisted">含退市股</NCheckbox>
+          </NSpace>
         </NFormItem>
         <NFormItem>
           <NSpace>
@@ -162,7 +207,7 @@ onMounted(() => fetchData());
         <NFormItem class="ml-auto">
           <NButton type="primary" :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
-            导入
+            同步证券信息
           </NButton>
         </NFormItem>
       </NForm>
