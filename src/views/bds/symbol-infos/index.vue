@@ -13,8 +13,9 @@ defineOptions({ name: 'SymbolInfosPage' });
 const bdsStore = useBdsStore();
 // 代码远程搜索（NSelect remote，防抖 300ms）
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
-// 行业下拉选项（来自全局 store 缓存，由后端 DISTINCT 去重提供）
-const industryOptions = computed(() => bdsStore.getIndustryOptions());
+// 行业下拉选项（来自全局 store 缓存 + 前置空值哨兵选项）
+const EMPTY_OPTION = { label: '-未定义-', value: '__EMPTY__' };
+const industryOptions = computed(() => [...bdsStore.getIndustryOptions(), EMPTY_OPTION]);
 
 const loading = ref(false);
 // 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -23,30 +24,33 @@ const tableData = ref<Api.Bds.SymbolInfo[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 市场 / 板块下拉选项（取值域固定，后端用 == 精确匹配，不走 store DISTINCT）
+// 市场 / 板块下拉选项（取值域固定，后端用 == 精确匹配，不走 store DISTINCT；尾部加空值哨兵）
 const marketOptions = [
   { label: '上交所', value: '上交所' },
   { label: '深交所', value: '深交所' },
-  { label: '北交所', value: '北交所' }
+  { label: '北交所', value: '北交所' },
+  EMPTY_OPTION
 ];
 const boardOptions = [
   { label: '主板', value: '主板' },
   { label: '创业板', value: '创业板' },
   { label: '科创板', value: '科创板' },
-  { label: '北交所', value: '北交所' }
+  { label: '北交所', value: '北交所' },
+  EMPTY_OPTION
 ];
 
-// 搜索参数：symbol 远程搜索选中代码，industry / market / board 下拉精确匹配
+// 搜索参数：symbol 远程搜索选中代码，industry / market / board / trading_status 下拉精确匹配
+// trading_status 可清空：trading=仅在市 / delisted=仅退市 / null=全部
 const searchParams = reactive<{
   symbol?: string | null;
   industry?: string | null;
   market?: string | null;
   board?: string | null;
   excludeSyncedToday: boolean;
-  includeDelisted: boolean;
+  tradingStatus: 'trading' | 'delisted' | null;
 }>({
   excludeSyncedToday: false,
-  includeDelisted: false
+  tradingStatus: null
 });
 
 // 拉取证券信息列表
@@ -61,7 +65,8 @@ async function fetchData() {
       board: searchParams.board || undefined,
       // 未勾选时不传该参数，交给后端按默认 False 处理
       exclude_synced_today: searchParams.excludeSyncedToday || undefined,
-      include_delisted: searchParams.includeDelisted || undefined,
+      // 退市状态：null 不传（全部），trading=仅在市，delisted=仅退市
+      trading_status: searchParams.tradingStatus || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -87,7 +92,7 @@ function handleReset() {
   searchParams.market = null;
   searchParams.board = null;
   searchParams.excludeSyncedToday = false;
-  searchParams.includeDelisted = false;
+  searchParams.tradingStatus = null;
   clearSymbolOptions();
   fetchData();
 }
@@ -192,10 +197,21 @@ onMounted(() => fetchData());
             style="width: 110px"
           />
         </NFormItem>
+        <NFormItem label="退市">
+          <NSelect
+            v-model:value="searchParams.tradingStatus"
+            :options="[
+              { label: '仅在市', value: 'trading' },
+              { label: '仅退市', value: 'delisted' }
+            ]"
+            clearable
+            placeholder="全部"
+            style="width: 110px"
+          />
+        </NFormItem>
         <NFormItem label="">
           <NSpace>
             <NCheckbox v-model:checked="searchParams.excludeSyncedToday">今日未同步</NCheckbox>
-            <NCheckbox v-model:checked="searchParams.includeDelisted">含退市股</NCheckbox>
           </NSpace>
         </NFormItem>
         <NFormItem>

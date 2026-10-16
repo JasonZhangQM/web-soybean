@@ -51,8 +51,8 @@ interface SymbolInfoQueryParams {
   keyword?: string;
   /** 为 true 时排除 sync_at 等于当日（服务器本地日）的标的，用于批量同步断点续跑 */
   exclude_synced_today?: boolean;
-  /** 为 true 时包含已实际退市（delisted_date <= 今日）的标的；默认排除 */
-  include_delisted?: boolean;
+  /** 退市状态筛选：trading=仅在市，delisted=仅退市，不传=全部 */
+  trading_status?: 'trading' | 'delisted';
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
