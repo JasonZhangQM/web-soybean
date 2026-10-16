@@ -139,7 +139,7 @@ const { domRef, updateOptions } = useEcharts(() => ({
     left: '3%',
     right: '4%',
     bottom: '12%',
-    top: '18%',
+    top: '12%',
     containLabel: true
   },
   xAxis: {
