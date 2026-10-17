@@ -42,15 +42,16 @@ const boardOptions = [
 
 // 搜索参数：symbol 远程搜索选中代码，industry / market / board / trading_status 下拉精确匹配
 // trading_status 可清空：trading=仅在市 / delisted=仅退市 / null=全部
+// syncStatus 可清空：synced=今日已同步 / unsynced=今日未同步 / null=全部
 const searchParams = reactive<{
   symbol?: string | null;
   industry?: string | null;
   market?: string | null;
   board?: string | null;
-  excludeSyncedToday: boolean;
+  syncStatus: 'synced' | 'unsynced' | null;
   tradingStatus: 'trading' | 'delisted' | null;
 }>({
-  excludeSyncedToday: false,
+  syncStatus: null,
   tradingStatus: null
 });
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -66,8 +67,8 @@ async function fetchData() {
       industry: searchParams.industry || undefined,
       market: searchParams.market || undefined,
       board: searchParams.board || undefined,
-      // 未勾选时不传该参数，交给后端按默认 False 处理
-      exclude_synced_today: searchParams.excludeSyncedToday || undefined,
+      // 同步状态：null 不传（全部），synced=今日已同步，unsynced=今日未同步
+      sync_status: searchParams.syncStatus || undefined,
       // 退市状态：null 不传（全部），trading=仅在市，delisted=仅退市
       trading_status: searchParams.tradingStatus || undefined,
       limit: pagination.pageSize,
@@ -94,7 +95,7 @@ function handleReset() {
   searchParams.industry = null;
   searchParams.market = null;
   searchParams.board = null;
-  searchParams.excludeSyncedToday = false;
+  searchParams.syncStatus = null;
   searchParams.tradingStatus = null;
   clearSymbolOptions();
   fetchData();
@@ -212,10 +213,17 @@ onMounted(() => fetchData());
             style="width: 110px"
           />
         </NFormItem>
-        <NFormItem label="">
-          <NSpace>
-            <NCheckbox v-model:checked="searchParams.excludeSyncedToday">今日未同步</NCheckbox>
-          </NSpace>
+        <NFormItem label="同步">
+          <NSelect
+            v-model:value="searchParams.syncStatus"
+            :options="[
+              { label: '今日已同步', value: 'synced' },
+              { label: '今日未同步', value: 'unsynced' }
+            ]"
+            clearable
+            placeholder="全部"
+            style="width: 110px"
+          />
         </NFormItem>
         <NFormItem>
           <NSpace>

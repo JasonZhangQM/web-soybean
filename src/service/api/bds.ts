@@ -51,6 +51,8 @@ interface SymbolInfoQueryParams {
   keyword?: string;
   /** 为 true 时排除 sync_at 等于当日（服务器本地日）的标的，用于批量同步断点续跑 */
   exclude_synced_today?: boolean;
+  /** 当日同步状态筛选：synced=今日已同步，unsynced=今日未同步，不传=全部 */
+  sync_status?: 'synced' | 'unsynced';
   /** 退市状态筛选：trading=仅在市，delisted=仅退市，不传=全部 */
   trading_status?: 'trading' | 'delisted';
   /** 每页条数 */
