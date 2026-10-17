@@ -4,6 +4,7 @@ import { fetchFinanceDerivs, syncFinanceDeriv } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -22,6 +23,8 @@ const searchParams = reactive<{
   rpt_type?: number | null;
   start_date?: string | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // rpt_type 下拉选项
 const rptTypeOptions = [

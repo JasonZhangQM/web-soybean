@@ -3,6 +3,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { fetchMonitorDiscounts, fetchDiscountOptions, syncIrs } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsDiscountsMonitorPage' });
@@ -21,6 +22,8 @@ const searchParams = reactive({
   con_name: null as string | null,
   is_main: null as number | null
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 是否主力下拉选项（NSelect 不支持 boolean 值，用 1/0 代替）
 const isMainOptions = [

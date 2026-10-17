@@ -5,6 +5,7 @@ import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 import { useBdsStore } from '@/store/modules/bds';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IndexHistoriesPage' });
@@ -27,6 +28,8 @@ const searchParams = reactive<{
   symbol?: string[];
   start_date?: string | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 拉取指数历史行情列表
 async function fetchData() {

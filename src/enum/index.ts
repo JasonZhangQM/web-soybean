@@ -5,5 +5,6 @@ export enum SetupStoreId {
   Route = 'route-store',
   Tab = 'tab-store',
   Bills = 'bills-store',
-  Bds = 'bds-store'
+  Bds = 'bds-store',
+  PageState = 'page-state-store'
 }

@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchProfits } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -30,6 +31,8 @@ const pagination = createTablePagination();
 
 // 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
 const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 类别/账户下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());

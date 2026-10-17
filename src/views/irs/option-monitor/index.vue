@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchOptionMonitors, fetchOptionUnderlyings } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsOptionMonitorPage' });
@@ -19,6 +20,8 @@ const searchParams = reactive({
   // 到期月：NDatePicker month 类型返回时间戳；同时作为筛选与同步行情的共用输入
   end_month: null as number | null
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 期权类型下拉选项（前端写死）
 const optionTypeOptions = [

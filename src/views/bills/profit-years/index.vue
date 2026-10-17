@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { fetchProfitYears } from '@/service/api';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsProfitYearsPage' });
@@ -9,6 +10,11 @@ const loading = ref(false);
 const tableData = ref<Api.Bills.ProfitYear[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
+
+// 本页无筛选条件，空对象占位（hook 统一处理筛选参数与分页）
+const searchParams = reactive<Record<string, any>>({});
+// 会话记忆：切回本页时恢复页码
+usePageState({ searchParams, pagination });
 
 async function fetchData() {
   loading.value = true;

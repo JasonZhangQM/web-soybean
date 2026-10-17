@@ -4,6 +4,7 @@ import { fetchIndexConstituents } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 import { useBdsStore } from '@/store/modules/bds';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -28,6 +29,8 @@ const queryForm = reactive<{
   trade_date: null,
   dedup: false
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams: queryForm, pagination });
 
 async function fetchData() {
   loading.value = true;

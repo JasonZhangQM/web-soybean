@@ -4,6 +4,7 @@ import { fetchDailyMktvalues, syncDailyMktvalue } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
@@ -21,6 +22,8 @@ const searchParams = reactive<{
   symbol?: string | null;
   start_date?: string | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();

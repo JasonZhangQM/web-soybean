@@ -4,6 +4,7 @@ import { fetchGroupAccs, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsGroupAccsPage' });
@@ -19,6 +20,8 @@ const pagination = createTablePagination();
 
 // 筛选参数：account 单选精确匹配，acc_aset_only 控制账户净值不为0
 const searchParams = reactive<{ account?: string | null; acc_aset_only?: boolean }>({ acc_aset_only: true });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 账户下拉选项（从全局 store 获取）
 const accountOptions = computed(() => billsStore.getAccountOptions());

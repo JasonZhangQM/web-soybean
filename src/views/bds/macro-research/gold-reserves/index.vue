@@ -5,6 +5,7 @@ import { fetchGoldReserves, syncGoldReserve, syncAllGoldReserves } from '@/servi
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'GoldReservesPage' });
@@ -24,6 +25,8 @@ const searchParams = reactive<{
   country_code?: string[] | null;
   dateRange?: [number, number] | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 国家下拉选项：computed 包装保证 store 异步加载后更新
 const countryOptions = computed(() => bdsStore.getGoldReserveCountryOptions());

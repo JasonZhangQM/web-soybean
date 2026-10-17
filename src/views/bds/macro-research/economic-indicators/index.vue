@@ -4,6 +4,7 @@ import { useBdsStore } from '@/store/modules/bds';
 import { fetchEconomicIndicators, syncEconomicIndicatorWscn } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'EconomicIndicatorsPage' });
@@ -21,6 +22,8 @@ const searchParams = reactive<{
   category?: string | null;
   country?: string | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 类别下拉选项：从 indicatorCodeList 动态提取去重（下拉框内容动态拉取）
 const categoryOptions = computed(() => {

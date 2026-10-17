@@ -3,6 +3,7 @@ import { ref, reactive, computed, h, watch, onMounted } from 'vue';
 import { NButton } from 'naive-ui';
 import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
@@ -21,6 +22,8 @@ const pagination = createTablePagination();
 const searchParams = reactive({
   symbol: null as string | null
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 列表搜索区代码远程搜索：与新增模态框隔离，独立维护 options
 const {

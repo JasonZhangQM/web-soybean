@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor, cleanOptionMonitor } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsOptionQuotePage' });
@@ -39,6 +40,8 @@ const cleanLoading = ref(false);
 
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 到期日、剩余天数、标的现价（同一标的+月份下所有合约相同，取首条记录）
 const delistedInfo = computed(() => {

@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { useBdsStore } from '@/store/modules/bds';
 import { fetchDailyIndicators, syncDailyIndicator, syncAllDailyIndicators } from '@/service/api/bds';
 import { executeSync } from '@/utils/sync-feedback';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'UsDailyIndicatorsPage' });
@@ -21,6 +22,8 @@ const pagination = createTablePagination();
 const searchParams = reactive<{
   indicator_code?: string | null;
 }>({});
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 指标代码下拉选项：computed 包装保证 store 异步加载后更新
 const indicatorOptions = computed(() => bdsStore.getDailyIndicatorCodeOptions());

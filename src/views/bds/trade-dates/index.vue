@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { fetchTradeDates, syncTradeDate } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
+import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'TradeDatesPage' });
@@ -14,14 +15,16 @@ const tableData = ref<Api.Bds.TradeDate[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 日期范围（YYYY-MM-DD 格式字符串元组），与 macro-framework 页面统一
-const dateRange = ref<[string, string] | null>(null);
+// 筛选参数：日期范围（YYYY-MM-DD 格式字符串元组），与 macro-framework 页面统一
+const searchParams = reactive<{ dateRange: [string, string] | null }>({ dateRange: null });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 拉取交易日历列表
 async function fetchData() {
   loading.value = true;
   try {
-    const [start_date, end_date] = dateRange.value || [];
+    const [start_date, end_date] = searchParams.dateRange || [];
     const { data, error } = await fetchTradeDates({
       start_date: start_date || undefined,
       end_date: end_date || undefined,
@@ -44,7 +47,7 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  dateRange.value = null;
+  searchParams.dateRange = null;
   fetchData();
 }
 
@@ -80,7 +83,7 @@ onMounted(() => fetchData());
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="日期范围">
           <NDatePicker
-            v-model:formatted-value="dateRange"
+            v-model:formatted-value="searchParams.dateRange"
             type="daterange"
             value-format="yyyy-MM-dd"
             :shortcuts="dateRangeShortcuts"

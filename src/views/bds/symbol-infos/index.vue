@@ -5,6 +5,7 @@ import { fetchSymbolInfos, syncSymbolInfo } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBdsStore } from '@/store/modules/bds';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -52,6 +53,8 @@ const searchParams = reactive<{
   excludeSyncedToday: false,
   tradingStatus: null
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 拉取证券信息列表
 async function fetchData() {

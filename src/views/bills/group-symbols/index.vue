@@ -4,6 +4,7 @@ import { fetchGroupSymbols, syncGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
+import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -35,6 +36,8 @@ const pagination = createTablePagination();
 const searchParams = reactive<{ category?: string | null; symbol?: string; value_only?: boolean }>({
   value_only: true
 });
+// 会话记忆：切回本页时恢复筛选条件与页码
+usePageState({ searchParams, pagination });
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());

@@ -4,6 +4,7 @@ import { defineStore } from 'pinia';
 import type { RouteKey } from '@elegant-router/types';
 import { router } from '@/router';
 import { useRouteStore } from '@/store/modules/route';
+import { usePageStateStore } from '@/store/modules/page-state';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -25,6 +26,7 @@ import {
 
 export const useTabStore = defineStore(SetupStoreId.Tab, () => {
   const routeStore = useRouteStore();
+  const pageStateStore = usePageStateStore();
   const themeStore = useThemeStore();
   const { routerPush } = useRouterPush(false);
 
@@ -91,6 +93,16 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
   }
 
   /**
+   * 清除页面的会话快照（筛选条件 + 分页）
+   *
+   * 语义约定：page-state 只服务「切走再切回」；标签页关闭即视为重新进入 ⇒ 下次打开回默认。
+   * 与 `usePageState` 的 key 规则一致（缺省 = 路由 name，即 tab 的 routeKey）。
+   */
+  function clearPageState(routeKey: RouteKey) {
+    pageStateStore.clear(routeKey);
+  }
+
+  /**
    * Remove tab
    *
    * @param tabId Tab id
@@ -115,6 +127,9 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
 
     // reset route cache
     routeStore.resetRouteCache(removedTabRouteKey);
+
+    // 关掉标签页 ⇒ 丢弃该页的筛选与分页记忆，下次打开回默认
+    clearPageState(removedTabRouteKey);
   }
 
   /** remove active tab */
@@ -181,6 +196,7 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
     // After tabs are updated and route potentially switched, reset cache for removed tabs
     for (const routeKey of routeKeysToReset) {
       routeStore.resetRouteCache(routeKey);
+      clearPageState(routeKey);
     }
   }
 
