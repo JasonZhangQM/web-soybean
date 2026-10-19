@@ -538,9 +538,11 @@ onBeforeUnmount(() => {
             placeholder="不跳过"
             style="width: 160px"
           />
-          <span style="margin-left: 8px; font-size: 12px; color: #999">
+          <!--
+ <span style="margin-left: 8px; font-size: 12px; color: #999">
             剔除 sync_at ≥ 所选日期的代码；选今天=只跑今日未同步，选昨天=接着昨天进度续跑
-          </span>
+          </span> 
+-->
         </NFormItem>
       </NForm>
 
