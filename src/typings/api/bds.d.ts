@@ -756,8 +756,8 @@ declare namespace Api {
       tables: string[];
       /** 是否写 sync_at: 1=是 0=否 */
       mark_synced: number;
-      /** 是否跳过当日已同步: 1=是 0=否 */
-      exclude_synced_today: number;
+      /** 剔除 sync_at >= 该日期 的标的；null=不跳过 */
+      exclude_synced_since: string | null;
       /** 退市口径: trading=仅在市/delisted=仅退市/all=全部（仅作用于 all/industry/index） */
       trading_status: string;
       /** 最多处理几只 symbol: 0=不限 */

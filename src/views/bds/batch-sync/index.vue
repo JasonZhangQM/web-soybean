@@ -68,6 +68,11 @@ function resolveTables(stored: string[] | undefined) {
   return kept.length > 0 ? kept : tableValues;
 }
 
+/** 跳过已同步的日期不允许选未来：未来日期下没有任何 sync_at，等价于不跳过，容易误解 */
+function disabledFutureDate(ts: number) {
+  return ts > Date.now();
+}
+
 /** 构造初始表单：有记忆则沿用（含校验），否则用默认值 */
 function buildInitialForm() {
   const stored = bdsStore.batchSyncForm;
@@ -80,7 +85,8 @@ function buildInitialForm() {
     symbols: stored?.symbols ?? '',
     tables: resolveTables(stored?.tables),
     mark_synced: stored?.mark_synced ?? true,
-    exclude_synced_today: stored?.exclude_synced_today ?? false,
+    // 会话内存里可能残留旧的 boolean 值，只接受字符串日期
+    exclude_synced_since: typeof stored?.exclude_synced_since === 'string' ? stored.exclude_synced_since : null,
     trading_status: stored && tsValues.includes(stored.trading_status) ? stored.trading_status : 'trading',
     max_symbols: stored?.max_symbols ?? 0
   };
@@ -159,7 +165,7 @@ async function handleStart() {
       scope: form.scope,
       tables: form.tables,
       mark_synced: form.mark_synced,
-      exclude_synced_today: form.exclude_synced_today,
+      exclude_synced_since: form.exclude_synced_since,
       trading_status: form.trading_status as BatchSyncRequest['trading_status'],
       max_symbols: form.max_symbols
     };
@@ -212,7 +218,7 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
   form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
   if (Array.isArray(data.tables) && data.tables.length > 0) form.tables = data.tables as typeof form.tables;
   form.mark_synced = data.mark_synced === 1;
-  form.exclude_synced_today = data.exclude_synced_today === 1;
+  form.exclude_synced_since = data.exclude_synced_since ?? null;
   form.max_symbols = data.max_symbols;
   form.trading_status = data.trading_status || 'trading';
 }
@@ -505,20 +511,36 @@ onBeforeUnmount(() => {
             :disabled="form.scope === 'explicit'"
             style="width: 110px"
           />
-          <span style="margin-left: 6px; font-size: 12px; color: #999">
-            {{ form.scope === 'explicit' ? '手写清单不受此条件约束' : '仅作用于全市场/指数成分/行业' }}
-          </span>
+          <!--
+ <span style="margin-left: 6px; font-size: 12px; color: #999">
+            {{
+              form.scope === 'explicit'
+                ? '手写清单不受此条件约束'
+                : '仅作用于全市场/指数成分/行业（且只取 A 股个股，不含指数）'
+            }}
+          </span> 
+-->
         </NFormItem>
         <NFormItem label="最多标的" label-width="80px">
           <NInputNumber v-model:value="form.max_symbols" :min="0" placeholder="0=不限" style="width: 120px" />
         </NFormItem>
         <NFormItem label="标记同步" label-width="80px">
           <NSwitch v-model:value="form.mark_synced" />
-          <span style="margin-left: 6px; font-size: 12px; color: #999">写 sync_at</span>
+          <!-- <span style="margin-left: 6px; font-size: 12px; color: #999">写 sync_at</span> -->
         </NFormItem>
-        <NFormItem label="跳过已同步" label-width="100px">
-          <NSwitch v-model:value="form.exclude_synced_today" />
-          <span style="margin-left: 6px; font-size: 12px; color: #999">跳过当日已跑</span>
+        <NFormItem label="跳过已同步" label-width="110px">
+          <NDatePicker
+            v-model:formatted-value="form.exclude_synced_since"
+            type="date"
+            value-format="yyyy-MM-dd"
+            clearable
+            :is-date-disabled="disabledFutureDate"
+            placeholder="不跳过"
+            style="width: 160px"
+          />
+          <span style="margin-left: 8px; font-size: 12px; color: #999">
+            剔除 sync_at ≥ 所选日期的代码；选今天=只跑今日未同步，选昨天=接着昨天进度续跑
+          </span>
         </NFormItem>
       </NForm>
 

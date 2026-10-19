@@ -17,7 +17,8 @@ export interface BatchSyncFormState {
   symbols: string;
   tables: string[];
   mark_synced: boolean;
-  exclude_synced_today: boolean;
+  /** 剔除 sync_at >= 该日期（YYYY-MM-DD）的标的；null=不跳过 */
+  exclude_synced_since: string | null;
   /** 退市口径: trading=仅在市/delisted=仅退市/all=全部（仅作用于 all/industry/index） */
   trading_status: string;
   max_symbols: number;

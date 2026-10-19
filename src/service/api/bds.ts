@@ -49,8 +49,8 @@ interface SymbolInfoQueryParams {
   board?: string;
   /** 代码或名称任一模糊匹配（OR，用于远程搜索） */
   keyword?: string;
-  /** 为 true 时排除 sync_at 等于当日（服务器本地日）的标的，用于批量同步断点续跑 */
-  exclude_synced_today?: boolean;
+  /** 剔除 sync_at >= 该日期（YYYY-MM-DD）的标的，用于批量同步断点续跑；不传=不跳过 */
+  exclude_synced_since?: string;
   /** 当日同步状态筛选：synced=今日已同步，unsynced=今日未同步，不传=全部 */
   sync_status?: 'synced' | 'unsynced';
   /** 退市状态筛选：trading=仅在市，delisted=仅退市，不传=全部 */
@@ -395,8 +395,8 @@ export interface BatchSyncRequest {
   tables?: string[];
   /** 全部成功后是否写 sync_at 标记，默认 true */
   mark_synced?: boolean;
-  /** 是否跳过当日已同步标的，默认 false */
-  exclude_synced_today?: boolean;
+  /** 剔除 sync_at >= 该日期（YYYY-MM-DD）的标的；不传/null=不跳过 */
+  exclude_synced_since?: string | null;
   /**
    * 退市口径，默认 trading
    * - trading: 仅在市（含已公告未退市）
