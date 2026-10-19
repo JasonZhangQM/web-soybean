@@ -15,7 +15,7 @@ const bdsStore = useBdsStore();
 // 代码远程搜索（NSelect remote，防抖 300ms）
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 // 行业下拉选项（来自全局 store 缓存 + 前置空值哨兵选项）
-const EMPTY_OPTION = { label: '-未定义-', value: '__EMPTY__' };
+const EMPTY_OPTION = { label: '未定义', value: '__EMPTY__' };
 const industryOptions = computed(() => [...bdsStore.getIndustryOptions(), EMPTY_OPTION]);
 
 const loading = ref(false);
@@ -180,7 +180,7 @@ onMounted(() => fetchData());
             filterable
             clearable
             placeholder="行业精确匹配"
-            style="width: 150px"
+            style="width: 120px"
           />
         </NFormItem>
         <NFormItem label="市场">
@@ -189,7 +189,7 @@ onMounted(() => fetchData());
             :options="marketOptions"
             clearable
             placeholder="市场"
-            style="width: 110px"
+            style="width: 90px"
           />
         </NFormItem>
         <NFormItem label="板块">
@@ -198,7 +198,7 @@ onMounted(() => fetchData());
             :options="boardOptions"
             clearable
             placeholder="板块"
-            style="width: 110px"
+            style="width: 90px"
           />
         </NFormItem>
         <NFormItem label="退市">
@@ -210,7 +210,7 @@ onMounted(() => fetchData());
             ]"
             clearable
             placeholder="全部"
-            style="width: 110px"
+            style="width: 90px"
           />
         </NFormItem>
         <NFormItem label="同步">
@@ -234,7 +234,7 @@ onMounted(() => fetchData());
         <NFormItem class="ml-auto">
           <NButton type="primary" :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
-            同步证券信息
+            同步
           </NButton>
         </NFormItem>
       </NForm>
