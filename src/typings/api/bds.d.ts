@@ -774,6 +774,12 @@ declare namespace Api {
       no_data_count: number;
       /** error 数 */
       error_count: number;
+      /** skipped 数（名单未变/已存跳过，index_backfill 专用；其余 scope 恒 0） */
+      skipped_count: number;
+      /** 被拒存日数（只数校验不通过、疑 gm 伪快照，index_backfill 专用） */
+      dirty_count: number;
+      /** 提前中止的指数个数（被停止/连续失败超限，index_backfill 专用） */
+      aborted_count: number;
       /** 进度% (0-100) */
       progress: number;
       /** 失败明细 */
@@ -786,6 +792,161 @@ declare namespace Api {
       create_time: string;
       /** 更新时间 */
       update_time: string;
+    }
+
+    // ========================================================================
+    // 指数估值（bds_index_valuation）与成分核查水位（bds_index_constituent_sync）
+    // ========================================================================
+
+    /**
+     * 指数估值原始数据行（`/index-valuations/paged`，一条 = 一个指数的一天）。
+     *
+     * 与 `IndexValuationSeries` 的区别：那个是 pivot（每指数一列）给图表画线，
+     * 中间量全被压掉；这个是行式的，保留 n_total/n_valid/n_loss/snapshot_date/calc_at，
+     * 可以核对「这个 PE 是怎么算出来的、用的是哪天确认的成分」。
+     *
+     * ⚠️ 后端 schema 是 Decimal，Pydantic v2 会序列化成字符串，取值须 `Number()`。
+     */
+    interface IndexValuationRow {
+      /** 主键 */
+      id: number;
+      /** 指数代码 */
+      index_code: string;
+      /** 指数名称（后端从 Config.INDEX_CODE 补，不入库） */
+      sec_name: string | null;
+      /** 交易日期（YYYY-MM-DD） */
+      trade_date: string;
+      /** 指数收盘价（来自 bds_index_history） */
+      close: number | null;
+      /** 整体法 PE_TTM（亏损计入，主口径） */
+      pe_ttm: number | null;
+      /** 成分 PE 横截面中位数（仅 PE>0 样本） */
+      pe_median: number | null;
+      /** 整体法 PB_MRQ */
+      pb_mrq: number | null;
+      /** 市值加权股息率 TTM(%) */
+      dy_ttm: number | null;
+      /** 成分总市值合计（元） */
+      mv_total: number | null;
+      /** 成分净利润合计（元，含负值） */
+      profit_total: number | null;
+      /** 成分股数（有估值数据） */
+      n_total: number | null;
+      /** 有效样本数（PE 参与计算） */
+      n_valid: number | null;
+      /** 亏损/无 PE 数 */
+      n_loss: number | null;
+      /** 所用成分快照日期（可追溯） */
+      snapshot_date: string | null;
+      /** 本行计算时间（重算会刷新） */
+      calc_at: string | null;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 指数估值原始数据查询参数 */
+    interface IndexValuationPagedParams {
+      /** 指数代码（多值，走 qs 的 repeat 序列化，FastAPI `List[str]` 直通） */
+      index_codes?: string[];
+      /** 起始日期 YYYY-MM-DD */
+      start_date?: string;
+      /** 结束日期 YYYY-MM-DD */
+      end_date?: string;
+      /** 每页条数 */
+      limit?: number;
+      /** 偏移量 */
+      offset?: number;
+    }
+
+    /** 指数估值序列查询参数 */
+    interface IndexValuationSeriesParams {
+      /** 起始日期 YYYY-MM-DD，默认近 10 年 */
+      start_date?: string;
+      /** 结束日期 YYYY-MM-DD，默认今天 */
+      end_date?: string;
+      /** 指标: pe_ttm / pb_mrq / dy_ttm / pe_median */
+      metric?: string;
+      /** 指数代码（多值，走 qs 的 repeat 序列化） */
+      index_codes?: string[];
+    }
+
+    /** 指数估值日序列（结构与 `/index-cum-returns` 对齐） */
+    interface IndexValuationSeries {
+      trade_dates: string[];
+      series: Record<string, (number | null)[]>;
+      sec_names: Record<string, string>;
+      /** 成分名单末次变化日：表达「用的成分是哪天确定的」，与 trade_dates 无关 */
+      last_change_dates: Record<string, string | null>;
+      metric: string;
+    }
+
+    /** 单个窗口的统计量 */
+    interface IndexValuationStat {
+      /** 分位（%）：窗口内 <= 当前值的样本占比 */
+      pct: number | null;
+      min: number | null;
+      max: number | null;
+      median: number | null;
+      /** z-score：(current - mean) / std */
+      z: number | null;
+      /** 窗口内样本数 */
+      n: number;
+    }
+
+    /** 单指数分位汇总 */
+    interface IndexValuationPercentile {
+      index_code: string;
+      sec_name?: string;
+      metric?: string;
+      current: number | null;
+      last_date?: string;
+      /** 全历史分位（仅作参考：PE 中枢长期下移，会系统性显得「便宜」） */
+      pct_all?: IndexValuationStat;
+      /** 默认展示的分位（10 年自然日回溯） */
+      pct_10y?: IndexValuationStat;
+      /** 5 年分位 */
+      pct_5y?: IndexValuationStat;
+      /** 3 年分位 */
+      pct_3y?: IndexValuationStat;
+      last_change_date: string | null;
+      constituent_checked_to: string | null;
+      constituent_gap_days: number | null;
+      /** 成分核查水位是否落后于估值序列末日（落后 ⇒ 分位可信度打折） */
+      constituent_stale: boolean;
+    }
+
+    /** 指数估值重算请求体 */
+    interface IndexValuationSyncRequest {
+      index_codes?: string[];
+      /** 增量重算最近 N 个交易日（1~60），默认 5 */
+      days?: number;
+      /** 重算起点；传了则覆盖 days */
+      start_date?: string;
+      /** 是否同时算横截面中位数（约慢一倍） */
+      with_median?: boolean;
+    }
+
+    /** 各指数成分核查水位（`/index-constituent-sync-status`） */
+    interface IndexConstituentSyncStatus {
+      index_code: string;
+      sec_name?: string | null;
+      /** 已处理到的交易日（新鲜度唯一依据） */
+      checked_to: string | null;
+      /** 名单最近变化日（= MAX(bds_index_constituent.trade_date)） */
+      last_change_date: string | null;
+      constituent_count: number | null;
+      gap_days: number;
+      first_gap: string | null;
+      no_data_days: number;
+      /** 被拒存（只数校验不通过、疑伪快照）的交易日数；该日成分回退到上一个干净名单 */
+      dirty_days: number;
+      /** 最早一个被拒存的交易日 */
+      first_dirty: string | null;
+      last_check_at: string | null;
+      /** 现表内成分行数：为 0 但 checked_to 有值 ⇒ 成分行被手工删过（如上证指数） */
+      current_rows: number;
     }
   }
 }

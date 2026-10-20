@@ -7,6 +7,7 @@ import {
   fetchSyncTask,
   stopBatchSync,
   startIndexConstituentSync,
+  fetchIndexConstituentSyncStatus,
   type BatchSyncRequest,
   type IndexConstituentSyncRequest
 } from '@/service/api';
@@ -263,10 +264,17 @@ const errorColumns = [
 
 // ===================== 卡片 2：指数成分股同步 =====================
 
+// 默认不勾选上证指数：gm 该指数的成分股数据只到 2000-06-02，本地历史也已删除，
+// 按日增量同步纯属空跑。需要时仍可手动勾选（清单里保留该项）。
+const DEFAULT_SKIP_INDEX_CODES = ['SHSE.000001'];
+
+/** 今日（本地时区）YYYY-MM-DD。起始日期默认当日 ⇒ 日常只需点启动，只同步今天 */
+const todayStr = new Date().toLocaleDateString('sv-SE');
+
 // 与卡片 1「同步表选择」同构：选择项收进一个 reactive 表单（默认值只在初始化/首次加载时给一次）
 const indexForm = reactive<{ index_codes: string[]; start_date: string | null }>({
   index_codes: [],
-  start_date: null
+  start_date: todayStr
 });
 
 // 勾选变化写回 store：会话内保持（切页/重进沿用），不落 localStorage
@@ -278,18 +286,22 @@ watch(
   { deep: true }
 );
 
-/** 解析指数记忆值：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
+/** 解析指数记忆值：无记忆→全选（剔除默认跳过项）；用户主动清空→沿用空；全部失效→回落默认 */
 function resolveIndexCodes(stored: string[] | null) {
-  const syncableCodes = syncableIndexOptions.value.map(option => option.value);
-  if (!stored) return syncableCodes;
+  const allSyncable = syncableIndexOptions.value.map(option => option.value);
+  const defaults = allSyncable.filter(code => !DEFAULT_SKIP_INDEX_CODES.includes(code));
+  if (!stored) return defaults;
   if (stored.length === 0) return [];
-  const kept = stored.filter(code => syncableCodes.includes(code));
-  return kept.length > 0 ? kept : syncableCodes;
+  // 记忆里显式勾过的指数一律尊重（含上证指数），只剔除已不可同步的
+  const kept = stored.filter(code => allSyncable.includes(code));
+  return kept.length > 0 ? kept : defaults;
 }
 
-/** 全选可同步指数 */
+/** 全选：跳过默认不勾的指数（上证指数需要时手动勾） */
 function selectAllIndices() {
-  indexForm.index_codes = syncableIndexOptions.value.map(option => option.value);
+  indexForm.index_codes = syncableIndexOptions.value
+    .map(option => option.value)
+    .filter(code => !DEFAULT_SKIP_INDEX_CODES.includes(code));
 }
 
 /** 清空勾选 */
@@ -300,6 +312,30 @@ function clearIndices() {
 const indexStarting = ref(false);
 const indexStopping = ref(false);
 const indexTask = ref<Api.Bds.SyncTask | null>(null);
+
+// 成分核查水位（P0-0）：名单自 X 未变 ≠ 已核查到 X，两者必须分开看
+const indexWm = ref<Api.Bds.IndexConstituentSyncStatus[]>([]);
+
+async function loadIndexWatermark() {
+  const { data, error } = await fetchIndexConstituentSyncStatus();
+  if (!error) indexWm.value = data?.items || [];
+}
+
+/** 水位摘要文案：正常「名单自 X · 核查至 Y」，有缺口/脏数据时加后缀 */
+function wmText(item: Api.Bds.IndexConstituentSyncStatus) {
+  const base = `名单自 ${item.last_change_date || '-'} · 核查至 ${item.checked_to || '-'}`;
+  if (item.current_rows === 0) return `${base}（表内 0 行，需清理水位）`;
+  const extra: string[] = [];
+  if (item.gap_days > 0) extra.push(`${item.gap_days} 天未确认，自 ${item.first_gap || '-'}`);
+  // 脏日 = gm 返回的名单只数异常被拒存（疑伪快照），该日成分回退到上一个干净名单
+  if (item.dirty_days > 0) extra.push(`${item.dirty_days} 天拒存，自 ${item.first_dirty || '-'}`);
+  return extra.length ? `${base}（${extra.join('；')}）` : base;
+}
+
+/** 水位异常判定：成分行被删 / 有未确认日 / 有被拒存的伪快照 */
+function wmAbnormal(item: Api.Bds.IndexConstituentSyncStatus) {
+  return item.current_rows === 0 || item.gap_days > 0 || item.dirty_days > 0;
+}
 
 const indexIsRunning = computed(() => indexTask.value?.status === 'running' || indexTask.value?.status === 'pending');
 const indexProgressValue = computed(() => Number(indexTask.value?.progress || 0));
@@ -378,7 +414,11 @@ async function loadIndexTask(id?: number) {
       // 运行中回填表单，保证「任务 ↔ 显示」一致
       if (indexIsRunning.value) fillIndexFormFromTask(data);
 
-      if (!indexIsRunning.value) stopIndexPolling();
+      if (!indexIsRunning.value) {
+        stopIndexPolling();
+        // 任务结束刷新水位：checked_to 推进是本卡片的核心可见反馈
+        loadIndexWatermark();
+      }
     }
   } catch {
     // 404 忽略
@@ -416,6 +456,7 @@ onMounted(async () => {
 
   // 卡片 2 维持选择：store 有记录则沿用（剔除已不可同步的指数），无记录则默认全选
   indexForm.index_codes = resolveIndexCodes(bdsStore.selectedIndexCodes);
+  loadIndexWatermark();
 
   // fetchLatestSyncTask 只返回最新一条，根据 scope 分派
   const { data, error } = await fetchLatestSyncTask();
@@ -646,13 +687,35 @@ onBeforeUnmount(() => {
           type="date"
           value-format="yyyy-MM-dd"
           clearable
-          placeholder="不填 = 各指数增量"
+          placeholder="清空 = 从核查水位次日增量"
           style="width: 210px"
         />
       </div>
 
+      <!-- 核查水位（P0-0）：名单自 X 未变 ≠ 已核查到 X，两者必须分开看 -->
+      <div v-if="indexWm.length" style="margin-top: 12px">
+        <div style="font-size: 13px; color: #666; margin-bottom: 6px">
+          核查水位
+          <span style="font-size: 12px; color: #999; margin-left: 8px">
+            「核查至」= 已判定过的最后交易日；「名单自」= 该期间名单确实没变。增量从「核查至」次日接着跑。
+          </span>
+        </div>
+        <NSpace :size="[16, 6]" :wrap="true">
+          <NTag
+            v-for="item in indexWm"
+            :key="item.index_code"
+            size="small"
+            :bordered="false"
+            :type="wmAbnormal(item) ? (item.current_rows === 0 ? 'error' : 'warning') : 'default'"
+          >
+            {{ item.sec_name || item.index_code }}：{{ wmText(item) }}
+          </NTag>
+        </NSpace>
+      </div>
+
       <div style="margin-top: 8px; font-size: 12px; color: #999">
-        仅在成分股名单发生变化的交易日留存快照（不存每日权重）；已存交易日自动跳过，中断后重跑可续补。
+        起始日期留空 =
+        各指数从「核查至」次日增量；要做历史回填请手动改成更早日期（水位不回退）。仅在成分股名单发生变化的交易日留存快照（不存每日权重）；已存交易日自动跳过，中断后重跑可续补。
       </div>
 
       <!-- 进度面板 -->
@@ -671,12 +734,15 @@ onBeforeUnmount(() => {
           :status="indexTask.status === 'failed' ? 'error' : indexTask.status === 'done' ? 'success' : 'default'"
           style="margin-top: 12px"
         />
-        <NGrid :cols="4" :x-gap="12" style="margin-top: 8px">
+        <NGrid :cols="7" :x-gap="12" style="margin-top: 8px">
           <NGridItem>
-            <NStatistic label="已完成 / 总交易日" :value="`${indexTask.done_count} / ${indexTask.total_count}`" />
+            <NStatistic label="已完成 / 总数" :value="`${indexTask.done_count} / ${indexTask.total_count}`" />
           </NGridItem>
           <NGridItem>
             <NStatistic label="留存快照" :value="indexTask.success_count" value-style="color: #18a058" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="跳过" :value="indexTask.skipped_count" value-style="color: #666" />
           </NGridItem>
           <NGridItem>
             <NStatistic label="无数据" :value="indexTask.no_data_count" value-style="color: #999" />
@@ -684,7 +750,25 @@ onBeforeUnmount(() => {
           <NGridItem>
             <NStatistic label="失败" :value="indexTask.error_count" value-style="color: #d03050" />
           </NGridItem>
+          <NGridItem>
+            <NStatistic
+              label="拒存"
+              :value="indexTask.dirty_count"
+              :value-style="indexTask.dirty_count > 0 ? 'color: #f0a020' : 'color: #999'"
+            />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic
+              label="中止指数"
+              :value="indexTask.aborted_count"
+              :value-style="indexTask.aborted_count > 0 ? 'color: #f0a020' : 'color: #999'"
+            />
+          </NGridItem>
         </NGrid>
+        <div style="margin-top: 4px; font-size: 12px; color: #999">
+          跳过 = 名单未变或该日已存；拒存 = 只数校验不通过（疑 gm 伪快照，当日回退上一份干净名单）；中止 =
+          被停止或连续失败超限的指数个数。
+        </div>
 
         <NCollapse v-if="!indexIsRunning && indexErrorList.length > 0" style="margin-top: 12px">
           <NCollapseItem :title="`失败明细（${indexErrorList.length}）`" name="indexErrors">

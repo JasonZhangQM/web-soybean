@@ -127,6 +127,17 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'bds_index-valuation',
+        path: '/bds/index-valuation',
+        component: 'view.bds_index-valuation',
+        meta: {
+          title: 'bds_index-valuation',
+          i18nKey: 'route.bds_index-valuation',
+          order: 5,
+          constant: true
+        }
+      },
+      {
         name: 'bds_macro-research',
         path: '/bds/macro-research',
         component: 'layout.base',
@@ -357,6 +368,17 @@ export const generatedRoutes = [
           title: 'irs_discounts-monitor',
           i18nKey: 'route.irs_discounts-monitor',
           order: 3,
+          constant: true
+        }
+      },
+      {
+        name: 'irs_index-valuation',
+        path: '/irs/index-valuation',
+        component: 'view.irs_index-valuation',
+        meta: {
+          title: 'irs_index-valuation',
+          i18nKey: 'route.irs_index-valuation',
+          order: 5,
           constant: true
         }
       },

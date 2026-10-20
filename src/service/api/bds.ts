@@ -144,7 +144,10 @@ export function fetchIndexConstituents(params: IndexConstituentQueryParams) {
 export interface IndexConstituentSyncRequest {
   /** 本次要处理的指数代码清单（页面勾选），至少 1 个 */
   index_codes: string[];
-  /** 回填起点 YYYY-MM-DD；不传=各指数从库内最新交易日+1 增量 */
+  /**
+   * 回填起点 YYYY-MM-DD；不传=各指数从核查水位 checked_to+1 增量
+   * （水位未初始化退回库内最新交易日+1）。传早于当前水位的日期属历史补录，水位不回退。
+   */
   start_date?: string;
 }
 
@@ -450,5 +453,67 @@ export function stopBatchSync(taskId: number) {
     url: '/api/v1/bds/stop/batch-sync',
     method: 'post',
     params: { task_id: taskId }
+  });
+}
+
+// ============================================================================
+// 指数分位（P0-1）与成分核查水位（P0-0）
+// ============================================================================
+
+/**
+ * 获取指数估值原始数据（行式分页，供 `/bds/index-valuation` 表格页）
+ *
+ * 与 `fetchIndexValuations` 的分工：那个返回 pivot 给图表画线，
+ * 这里一行 = 一个指数的一天，带 n_loss / snapshot_date / calc_at 等中间量。
+ */
+export function fetchIndexValuationsPaged(params?: Api.Bds.IndexValuationPagedParams) {
+  return request<Api.Common.PageResponse<Api.Bds.IndexValuationRow>>({
+    url: '/api/v1/bds/index-valuations/paged',
+    method: 'get',
+    params
+  });
+}
+
+/** 获取指数估值日序列（画图用） */
+export function fetchIndexValuations(params?: Api.Bds.IndexValuationSeriesParams) {
+  return request<Api.Bds.IndexValuationSeries>({
+    url: '/api/v1/bds/index-valuations',
+    method: 'get',
+    params
+  });
+}
+
+/** 获取指数分位汇总（分位由后端实时计算，前端零计算） */
+export function fetchIndexValuationPercentiles(params?: { metric?: string }) {
+  return request<{ metric: string; items: Api.Bds.IndexValuationPercentile[] }>({
+    url: '/api/v1/bds/index-valuation-percentiles',
+    method: 'get',
+    params
+  });
+}
+
+/** 重算最近 N 个交易日的指数估值（同步接口，通常 2~5 秒） */
+export function syncIndexValuation(req: Api.Bds.IndexValuationSyncRequest) {
+  return request<{ start_date: string; result: Record<string, unknown> }>({
+    url: '/api/v1/bds/sync/index-valuation',
+    method: 'post',
+    data: req
+  });
+}
+
+/** 小窗口重建指数估值（全历史重建请用命令行脚本，本接口同步会超时） */
+export function runIndexValuationBackfill(req: Api.Bds.IndexValuationSyncRequest) {
+  return request<{ start_date: string; result: Record<string, unknown> }>({
+    url: '/api/v1/bds/run/index-valuation-backfill',
+    method: 'post',
+    data: req
+  });
+}
+
+/** 获取各指数成分核查水位（只读） */
+export function fetchIndexConstituentSyncStatus() {
+  return request<{ items: Api.Bds.IndexConstituentSyncStatus[]; total: number }>({
+    url: '/api/v1/bds/index-constituent-sync-status',
+    method: 'get'
   });
 }

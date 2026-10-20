@@ -19,7 +19,7 @@ const themeStore = useThemeStore();
 const INDEX_OPTIONS = [
   { value: 'SHSE.000001', label: '上证指数' },
   { value: 'SHSE.000300', label: '沪深300' },
-  { value: 'SHSE.000510', label: '中证A500' },
+  // { value: 'SHSE.000510', label: '中证A500' },
   { value: 'SHSE.000905', label: '中证500' },
   { value: 'SHSE.000852', label: '中证1000' },
   { value: 'SHSE.000688', label: '科创50' },

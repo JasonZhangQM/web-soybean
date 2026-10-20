@@ -29,6 +29,7 @@ declare module "@elegant-router/types" {
     "bds_fund-data_fund-cashflows": "/bds/fund-data/fund-cashflows";
     "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes";
     "bds_index-constituents": "/bds/index-constituents";
+    "bds_index-valuation": "/bds/index-valuation";
     "bds_macro-research": "/bds/macro-research";
     "bds_macro-research_daily-indicators": "/bds/macro-research/daily-indicators";
     "bds_macro-research_economic-indicators": "/bds/macro-research/economic-indicators";
@@ -50,6 +51,7 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
     "irs_discounts-monitor": "/irs/discounts-monitor";
+    "irs_index-valuation": "/irs/index-valuation";
     "irs_macro-framework": "/irs/macro-framework";
     "irs_option-monitor": "/irs/option-monitor";
     "irs_option-quote": "/irs/option-quote";
@@ -124,6 +126,7 @@ declare module "@elegant-router/types" {
     | "bds_fund-data_fund-cashflows"
     | "bds_fund-data_fund-incomes"
     | "bds_index-constituents"
+    | "bds_index-valuation"
     | "bds_macro-research_daily-indicators"
     | "bds_macro-research_economic-indicators"
     | "bds_macro-research_gold-reserves"
@@ -140,6 +143,7 @@ declare module "@elegant-router/types" {
     | "bills_profits"
     | "home"
     | "irs_discounts-monitor"
+    | "irs_index-valuation"
     | "irs_macro-framework"
     | "irs_option-monitor"
     | "irs_option-quote"
