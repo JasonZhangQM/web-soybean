@@ -309,7 +309,6 @@ onMounted(() => fetchData());
         :pagination="pagination"
         :row-key="rowKey"
         :scroll-x="1640"
-        size="small"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

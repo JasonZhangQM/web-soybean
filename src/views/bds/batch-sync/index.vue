@@ -268,13 +268,11 @@ const errorColumns = [
 // 按日增量同步纯属空跑。需要时仍可手动勾选（清单里保留该项）。
 const DEFAULT_SKIP_INDEX_CODES = ['SHSE.000001'];
 
-/** 今日（本地时区）YYYY-MM-DD。起始日期默认当日 ⇒ 日常只需点启动，只同步今天 */
-const todayStr = new Date().toLocaleDateString('sv-SE');
-
 // 与卡片 1「同步表选择」同构：选择项收进一个 reactive 表单（默认值只在初始化/首次加载时给一次）
+// start_date 默认留空 ⇒ 后端按各指数核查水位次日增量；水位缺失（新指数）自动回落上市日做全量
 const indexForm = reactive<{ index_codes: string[]; start_date: string | null }>({
   index_codes: [],
-  start_date: todayStr
+  start_date: null
 });
 
 // 勾选变化写回 store：会话内保持（切页/重进沿用），不落 localStorage
