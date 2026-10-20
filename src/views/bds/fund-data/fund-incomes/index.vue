@@ -238,6 +238,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
+        :scroll-x="3900"
         :loading="loading"
         remote
         :pagination="pagination"
