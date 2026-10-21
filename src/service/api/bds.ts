@@ -388,7 +388,12 @@ export function syncAllDailyIndicators() {
 export interface BatchSyncRequest {
   /** 同步范围: all/index/industry/explicit */
   scope: string;
-  /** scope=index 时填指数代码，如 SHSE.000300 */
+  /**
+   * scope=index 时的指数代码清单（多选）
+   * 后端按各指数**各自最新快照**取成分，求合集（并集去重）后再逐只同步
+   */
+  index_codes?: string[];
+  /** [兼容保留] 单指数写法，等价 index_codes=[index_code]；新调用请用 index_codes */
   index_code?: string;
   /** scope=industry 时填行业名，如 银行 */
   industry?: string;
@@ -485,7 +490,7 @@ export function fetchIndexValuations(params?: Api.Bds.IndexValuationSeriesParams
 
 /** 获取指数分位汇总（分位由后端实时计算，前端零计算） */
 export function fetchIndexValuationPercentiles(params?: { metric?: string }) {
-  return request<{ metric: string; items: Api.Bds.IndexValuationPercentile[] }>({
+  return request<Api.Bds.IndexValuationPercentileResponse>({
     url: '/api/v1/bds/index-valuation-percentiles',
     method: 'get',
     params

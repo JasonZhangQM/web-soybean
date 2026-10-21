@@ -74,14 +74,31 @@ function disabledFutureDate(ts: number) {
   return ts > Date.now();
 }
 
+/**
+ * 从 scope_params 还原指数勾选
+ * 新任务存 index_codes 数组；历史任务（10-21 之前）存 index_code 单值字符串
+ */
+function parseTaskIndexCodes(p: Record<string, unknown>) {
+  if (Array.isArray(p.index_codes)) return p.index_codes as string[];
+  const legacy = p.index_code;
+  return typeof legacy === 'string' && legacy ? [legacy] : [];
+}
+
 /** 构造初始表单：有记忆则沿用（含校验），否则用默认值 */
 function buildInitialForm() {
   const stored = bdsStore.batchSyncForm;
   const scopeValues = scopeOptions.map(o => o.value);
   const tsValues = TRADING_STATUS_OPTIONS.map(o => o.value);
+  // 兼容热更新残留：旧记忆是 index_code 单值字符串，新表单一律数组
+  const legacyCode = (stored as unknown as Record<string, unknown> | null)?.index_code;
+  const indexCodes = Array.isArray(stored?.index_codes)
+    ? [...stored.index_codes]
+    : typeof legacyCode === 'string' && legacyCode
+      ? [legacyCode]
+      : [];
   return {
     scope: stored && scopeValues.includes(stored.scope) ? stored.scope : 'all',
-    index_code: stored?.index_code ?? '',
+    index_codes: indexCodes,
     industry: stored?.industry ?? '',
     symbols: stored?.symbols ?? '',
     tables: resolveTables(stored?.tables),
@@ -123,8 +140,10 @@ const scopeLabelMap: Record<string, string> = {
 const scopeExtraLabel = computed(() => {
   if (!task.value?.scope_params) return '';
   const p = task.value.scope_params as Record<string, unknown>;
-  if (p.index_code) return `· ${p.index_code}`;
-  if (p.industry) return `· ${p.industry}`;
+  const codes = parseTaskIndexCodes(p);
+  if (codes.length === 1) return `· ${codes[0]}`;
+  if (codes.length > 1) return `· ${codes.length} 个指数（成分合集）`;
+  if (p.industry_name || p.industry) return `· ${p.industry_name || p.industry}`;
   if (Array.isArray(p.symbols)) return `· ${p.symbols.length} 只`;
   return '';
 });
@@ -143,8 +162,8 @@ const statusLabel = computed(() => {
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 async function handleStart() {
-  if (form.scope === 'index' && !form.index_code) {
-    message.warning('请选择指数代码');
+  if (form.scope === 'index' && form.index_codes.length === 0) {
+    message.warning('请至少选择一个指数');
     return;
   }
   if (form.scope === 'industry' && !form.industry) {
@@ -170,7 +189,7 @@ async function handleStart() {
       trading_status: form.trading_status as BatchSyncRequest['trading_status'],
       max_symbols: form.max_symbols
     };
-    if (form.scope === 'index') payload.index_code = form.index_code;
+    if (form.scope === 'index') payload.index_codes = [...form.index_codes];
     if (form.scope === 'industry') payload.industry = form.industry;
     if (form.scope === 'explicit') {
       payload.symbols = form.symbols.split(/[\s,，]+/).filter(Boolean);
@@ -214,7 +233,7 @@ async function handleStop() {
 function fillFormFromTask(data: Api.Bds.SyncTask) {
   const p = (data.scope_params || {}) as Record<string, unknown>;
   form.scope = data.scope as typeof form.scope;
-  form.index_code = (p.index_code as string) || '';
+  form.index_codes = parseTaskIndexCodes(p);
   form.industry = (p.industry_name as string) || (p.industry as string) || '';
   form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
   if (Array.isArray(data.tables) && data.tables.length > 0) form.tables = data.tables as typeof form.tables;
@@ -506,11 +525,14 @@ onBeforeUnmount(() => {
         </NFormItem>
         <NFormItem v-if="form.scope === 'index'" label="指数代码" label-width="70px">
           <NSelect
-            v-model:value="form.index_code"
+            v-model:value="form.index_codes"
             :options="indexCodeOptions"
-            placeholder="选择指数"
+            multiple
+            clearable
             filterable
-            style="width: 180px"
+            max-tag-count="responsive"
+            placeholder="选择指数（可多选，取成分合集）"
+            style="width: 340px"
           />
         </NFormItem>
         <NFormItem v-if="form.scope === 'industry'" label="行业" label-width="56px">

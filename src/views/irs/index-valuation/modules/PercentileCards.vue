@@ -59,7 +59,9 @@ function barWidth(pct: number | null | undefined): string {
           <div class="mt-8px grid grid-cols-3 gap-4px text-11px op-70">
             <span>3年 {{ item.pct_3y?.pct != null ? item.pct_3y.pct.toFixed(0) + '%' : '-' }}</span>
             <span>5年 {{ item.pct_5y?.pct != null ? item.pct_5y.pct.toFixed(0) + '%' : '-' }}</span>
-            <span>全史 {{ item.pct_all?.pct != null ? item.pct_all.pct.toFixed(0) + '%' : '-' }}</span>
+            <span title="全历史含股权分置改革、会计准则变更等制度断点，仅作参考，勿与 10 年分位并排比较">
+              全史* {{ item.pct_all?.pct != null ? item.pct_all.pct.toFixed(0) + '%' : '-' }}
+            </span>
           </div>
 
           <div class="mt-8px text-11px leading-16px op-55">
@@ -75,7 +77,16 @@ function barWidth(pct: number | null | undefined): string {
             </div>
           </div>
 
-          <div class="mt-6px text-11px op-40">当前 {{ props.metricLabel }} · {{ item.last_date || '-' }}</div>
+          <!-- 陈旧度：当前值所属交易日 + 是否落后于最新可算数据。不写清楚就会把 T-2 当"当前" -->
+          <div class="mt-6px flex items-center justify-between text-11px">
+            <span class="op-40">当前 {{ props.metricLabel }}</span>
+            <span :style="item.is_stale ? 'color:#ef9f27;font-weight:600' : 'opacity:0.4'">
+              截至 {{ item.as_of || item.last_date || '-' }}
+            </span>
+          </div>
+          <div v-if="item.is_stale" class="mt-2px text-11px" style="color: #ef9f27">
+            估值落后最新数据 {{ item.stale_days }} 天 ⇒ 当前值非最新，需重算
+          </div>
         </div>
       </NGridItem>
     </NGrid>

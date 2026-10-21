@@ -78,15 +78,10 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-function fmtWeight(val: unknown) {
-  return val != null ? Number(val).toFixed(4) : '-';
-}
-
 const columns = [
   { title: '指数代码', key: 'index_code', width: 120 },
   { title: '指数名称', key: 'sec_name', width: 120 },
   { title: '成分股代码', key: 'symbol', width: 120 },
-  { title: '权重', key: 'weight', width: 100, render: (row: Api.Bds.IndexConstituent) => fmtWeight(row.weight) },
   { title: '交易日期', key: 'trade_date', width: 120 }
 ];
 

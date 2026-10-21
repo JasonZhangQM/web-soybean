@@ -108,7 +108,14 @@ declare namespace Api {
       index_code: string;
       /** 成分股代码 */
       symbol: string;
-      /** 权重 */
+      /**
+       * 权重（2026-10-21 已弃用）
+       *
+       * gm 对 000300/000905/000852 一律返回 0 或 NaN、399006 仅少数快照有值，
+       * 且曾把 NaN 归一化成 0.0 ⇒「没返回」与「权重为 0」不可区分，不具备分析价值。
+       * 后端已停止写入，仅历史快照可能残留数值。
+       * 需要权重时一律用 `bds_daily_mktvalue.tot_mv` 现算，勿依赖此字段。
+       */
       weight: number | null;
       /** 交易日期（YYYY-MM-DD） */
       trade_date: string;
@@ -750,7 +757,7 @@ declare namespace Api {
       id: number;
       /** 同步范围: all/index/industry/explicit */
       scope: string;
-      /** 范围参数: {index_code/industry_name/symbols} */
+      /** 范围参数: {index_codes: string[] / industry_name / symbols} */
       scope_params: Record<string, any> | null;
       /** 要同步的表列表 */
       tables: string[];
@@ -824,7 +831,7 @@ declare namespace Api {
       pe_median: number | null;
       /** 整体法 PB_MRQ */
       pb_mrq: number | null;
-      /** 市值加权股息率 TTM(%) */
+      /** 市值加权股息率 TTM(%)，分母含全部成分市值（无分红记 0） */
       dy_ttm: number | null;
       /** 成分总市值合计（元） */
       mv_total: number | null;
@@ -832,6 +839,8 @@ declare namespace Api {
       profit_total: number | null;
       /** 成分股数（有估值数据） */
       n_total: number | null;
+      /** 该快照应有成分数（覆盖率分母）；n_total/expected_total < 98% 时指标为 null */
+      expected_total: number | null;
       /** 有效样本数（PE 参与计算） */
       n_valid: number | null;
       /** 亏损/无 PE 数 */
@@ -901,7 +910,14 @@ declare namespace Api {
       sec_name?: string;
       metric?: string;
       current: number | null;
+      /** 当前值所属交易日 */
       last_date?: string;
+      /** 当前值所属交易日（语义化别名，与 last_date 同值） */
+      as_of: string | null;
+      /** 当前值是否落后于个股估值源末日（true ⇒ 必须提示「数据截至 as_of」） */
+      is_stale: boolean;
+      /** 落后自然日数（不落后为 0） */
+      stale_days: number | null;
       /** 全历史分位（仅作参考：PE 中枢长期下移，会系统性显得「便宜」） */
       pct_all?: IndexValuationStat;
       /** 默认展示的分位（10 年自然日回溯） */
@@ -915,6 +931,14 @@ declare namespace Api {
       constituent_gap_days: number | null;
       /** 成分核查水位是否落后于估值序列末日（落后 ⇒ 分位可信度打折） */
       constituent_stale: boolean;
+    }
+
+    /** 分位接口整体响应（`/index-valuation-percentiles`） */
+    interface IndexValuationPercentileResponse {
+      metric: string;
+      /** 个股估值源末日：据此判断各指数「当前值」是否已跟上 */
+      latest_trade_date: string | null;
+      items: IndexValuationPercentile[];
     }
 
     /** 指数估值重算请求体 */

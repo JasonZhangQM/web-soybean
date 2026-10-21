@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { h } from 'vue';
+
 defineOptions({ name: 'ValuationTable' });
 
 /**
@@ -46,6 +48,18 @@ const columns = [
   { title: '指数', key: 'sec_name', width: 100 },
   { title: '当前值', key: 'current', width: 90, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.current) },
   {
+    // 当前值属于哪一天：估值未跟上时必须让读的人看见，否则会把 T-N 的值当"今天"用
+    title: '数据截至',
+    key: 'as_of',
+    width: 105,
+    render: (row: Api.Bds.IndexValuationPercentile) => {
+      if (!row.as_of) return '-';
+      return row.is_stale
+        ? h('span', { style: 'color: #ef9f27; font-weight: 600' }, `${row.as_of}（落后${row.stale_days}天）`)
+        : row.as_of;
+    }
+  },
+  {
     title: '3年分位',
     key: 'pct_3y',
     width: 90,
@@ -64,9 +78,9 @@ const columns = [
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_10y)
   },
   {
-    title: '全历史分位',
+    title: '全历史分位*',
     key: 'pct_all',
-    width: 100,
+    width: 105,
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_all)
   },
   { title: 'z(5年)', key: 'z5y', width: 85, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.pct_5y?.z) },
@@ -95,7 +109,15 @@ const columns = [
 <template>
   <div>
     <div class="mb-8px text-12px op-60">
-      当前 {{ metricLabel }}；全历史分位仅作参考（PE 中枢长期下移，会系统性显得「便宜」），决策以 10 年分位为主。
+      当前 {{ metricLabel }}；分位 = 窗口内 ≤ 当前值的样本占比（
+      <b>含当前值自身</b>
+      ，故最低不为 0、 当前即历史最高时恒为 100%）。决策以 10 年分位为主；
+      <b>* 全历史</b>
+      跨股权分置改革与会计准则变更，仅作参考，勿与 10 年分位并排比较。
+      <template v-if="metricLabel.includes('中位')">
+        <b>中位 PE 只含 PE>0 样本</b>
+        （亏损股被剔除），与整体法 PE 的抽样池不同，两者分位不可互相印证。
+      </template>
     </div>
     <NDataTable :columns="columns" :data="props.items" :row-key="rowKey" size="small" />
   </div>

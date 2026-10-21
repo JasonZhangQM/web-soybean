@@ -66,6 +66,28 @@ const shownItems = computed(() =>
   visible.value.length ? percentiles.value.filter(i => visible.value.includes(i.index_code)) : percentiles.value
 );
 
+/**
+ * 全页陈旧提示：只要有一个指数落后于个股估值源末日就提示。
+ * 卡片底部虽已标「截至 X」，但小字容易被忽略 —— 陈旧时"当前值"不是最新值，
+ * 直接拿它判贵贱会出错，必须在筛选条下方就说清。
+ */
+const staleInfo = computed(() => {
+  const stale = percentiles.value.filter(i => i.is_stale);
+  if (!stale.length) return null;
+  const asOf = stale
+    .map(i => i.as_of)
+    .filter((d): d is string => !!d)
+    .sort()[0];
+  return {
+    asOf,
+    days: Math.max(...stale.map(i => i.stale_days || 0)),
+    names: stale.map(i => i.sec_name || i.index_code).join('、')
+  };
+});
+
+/** 全无数据：表刚建/刚清空时 5 张卡都是空的，得说清"不是坏了，是还没算" */
+const hasNoData = computed(() => percentiles.value.length > 0 && percentiles.value.every(i => i.current == null));
+
 async function fetchData() {
   loading.value = true;
   try {
@@ -156,9 +178,16 @@ onMounted(fetchData);
       </NForm>
 
       <div class="mt-8px text-12px" style="color: #999">
-        分位与中位数由后端实时计算（窗口按自然日回溯：3/5/10 年），前端只做染色。 数据来源于 BDs
-        →「指数估值」，本页不含任何写操作。
+        分位与中位数由后端实时计算（窗口按自然日回溯 3/5/10 年，锚点为各指数最后一个有值交易日），前端只做染色。
+        数据来源于 BDs →「指数估值」，本页不含任何写操作。
       </div>
+      <NAlert v-if="staleInfo" type="warning" :bordered="false" class="mt-10px" :show-icon="true">
+        估值数据截至 {{ staleInfo.asOf }}，落后最新个股数据 {{ staleInfo.days }} 天（{{ staleInfo.names }}） ——
+        卡片上的「当前值」不是最新值，判断分位前需先重算估值。
+      </NAlert>
+      <NAlert v-else-if="hasNoData" type="info" :bordered="false" class="mt-10px" :show-icon="true">
+        尚无估值数据（表为空）：需先到 BDs →「指数估值」执行重算/回填，本页才有分位可看。
+      </NAlert>
     </NCard>
 
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small" title="估值分位">

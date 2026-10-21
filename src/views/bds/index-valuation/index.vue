@@ -140,9 +140,18 @@ const columns = [
   {
     title: '成分数',
     key: 'n_total',
-    width: 75,
+    width: 100,
     align: 'right' as const,
-    render: (r: Api.Bds.IndexValuationRow) => String(r.n_total ?? '-')
+    // 覆盖率 = 实际进样本数 / 该快照应有成分数；< 98% 时后端把 PE/PB/股息率置空，
+    // 此处同步标橙，否则只看到"成分数 99"却不明白旁边指标为什么是空的
+    render: (r: Api.Bds.IndexValuationRow) => {
+      if (r.n_total == null) return '-';
+      if (r.expected_total == null) return String(r.n_total);
+      const text = `${r.n_total}/${r.expected_total}`;
+      return r.n_total / r.expected_total < 0.98
+        ? h('span', { style: 'color: #ef9f27; font-weight: 600' }, text)
+        : text;
+    }
   },
   {
     title: '有效数',
@@ -296,7 +305,8 @@ onMounted(() => fetchData());
         本表是
         <b>可重算的派生表</b>
         ：补成分快照、财报追溯调整都会改写历史行。 「成分快照」= 该行用的哪天确认的成分名单；「计算时间」=
-        这行算于何时。分位统计与曲线见 IRs →「指数分位」。
+        这行算于何时；「成分数」= 实际进样本数/该快照应有数，覆盖率低于 98% 时
+        PE/PB/股息率一律留空并标橙（防止源端缺股时静默出数）。分位统计与曲线见 IRs →「指数分位」。
       </div>
     </NCard>
 
@@ -308,7 +318,7 @@ onMounted(() => fetchData());
         remote
         :pagination="pagination"
         :row-key="rowKey"
-        :scroll-x="1640"
+        :scroll-x="1670"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

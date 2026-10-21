@@ -12,7 +12,8 @@ import {
 /** 批量同步（卡片 1 财务及行情）表单快照 */
 export interface BatchSyncFormState {
   scope: string;
-  index_code: string;
+  /** scope=index 时的指数代码清单（多选，后端取成分合集） */
+  index_codes: string[];
   industry: string;
   symbols: string;
   tables: string[];
@@ -59,7 +60,7 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
 
   /** 写入批量同步表单快照 */
   function setBatchSyncForm(state: BatchSyncFormState) {
-    batchSyncForm.value = { ...state, tables: [...state.tables] };
+    batchSyncForm.value = { ...state, index_codes: [...state.index_codes], tables: [...state.tables] };
   }
 
   // 指数成分股同步：用户选中的指数（会话级保持，切页/重进不丢；不落 localStorage，刷新即重置）
