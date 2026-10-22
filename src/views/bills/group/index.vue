@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue';
-import { NButton } from 'naive-ui';
 import { fetchGroups, syncGroup, updateGroup } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
@@ -183,11 +182,26 @@ async function handleSubmit() {
 
 const columns = [
   {
+    // 代码同时是操作入口：点击打开时间戳编辑弹窗。
+    // ⚠️ 用 span 而不是 NButton：naive-ui 按钮样式带 user-select:none，代码没法选中复制
     title: '代码',
     key: 'symbol',
     width: 160,
     render: (row: Api.Bills.Group) =>
-      h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.symbol })
+      h(
+        'span',
+        {
+          class: 'cursor-pointer whitespace-nowrap text-primary hover:underline',
+          style: 'user-select: text',
+          title: '点击编辑时间戳（可拖选代码复制）',
+          onClick: () => {
+            // 拖选文字后也会派发 click：有选区就不弹窗，否则选完立刻被弹窗打断
+            if (window.getSelection()?.toString()) return;
+            handleEdit(row);
+          }
+        },
+        row.symbol
+      )
   },
   { title: '账户', key: 'account', width: 80 },
   { title: '交易分类', key: 'category', width: 80 },
