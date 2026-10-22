@@ -29,14 +29,19 @@ interface CardData {
 
 // 各卡片对应的金额，初始为 0，store 数据变化后更新
 const cashAccTotal = ref<number>(0);
+const costTotalSum = ref<number>(0);
 const valueTotalSum = ref<number>(0);
 const accAsetTotal = ref<number>(0);
+const diffBrTotal = ref<number>(0);
 const pfTotalSum = ref<number>(0);
 const plAllTotal = ref<number>(0);
 const pflAllTotal = ref<number>(0);
 
+// 账户净值 = 账户价值(acc_aset，未扣融资负债的总资产) − 融资余额(diff_br)，与账户汇总页口径一致
+const equityTotal = computed(() => accAsetTotal.value - diffBrTotal.value);
+
 // 卡片配置：标题对应后端 GroupAcc 模型 comment
-// 顺序：资金余额 / 证券市值 / 账户净值 / 浮动盈亏 / 平仓盈亏 / 盈亏合计
+// 顺序：资金余额 / 证券成本 / 证券市值 / 账户价值 / 融资余额 / 账户净值 / 浮动盈亏 / 平仓盈亏 / 盈亏合计
 const cardData = computed<CardData[]>(() => [
   {
     key: 'cashAcc',
@@ -45,6 +50,14 @@ const cardData = computed<CardData[]>(() => [
     unit: '',
     color: { start: '#ec4786', end: '#b955a4' },
     icon: 'mdi:cash-multiple'
+  },
+  {
+    key: 'costTotal',
+    title: '证券成本',
+    value: costTotalSum.value,
+    unit: '',
+    color: { start: '#f6a04d', end: '#d97706' },
+    icon: 'mdi:scale-balance'
   },
   {
     key: 'valueTotal',
@@ -56,10 +69,26 @@ const cardData = computed<CardData[]>(() => [
   },
   {
     key: 'accAset',
-    title: '账户净值',
+    title: '账户价值',
     value: accAsetTotal.value,
     unit: '',
     color: { start: '#56cdf3', end: '#719de3' },
+    icon: 'mdi:treasure-chest'
+  },
+  {
+    key: 'diffBr',
+    title: '融资余额',
+    value: diffBrTotal.value,
+    unit: '',
+    color: { start: '#94a3b8', end: '#475569' },
+    icon: 'mdi:bank'
+  },
+  {
+    key: 'equity',
+    title: '账户净值',
+    value: equityTotal.value,
+    unit: '',
+    color: { start: '#2dd4bf', end: '#0f766e' },
     icon: 'mdi:wallet'
   },
   {
@@ -107,8 +136,10 @@ function updateTotals(items: Api.Bills.GroupAcc[]) {
   if (!totalRow) return;
   // 各字段可能为 null，用 Number() 转换：null → 0
   cashAccTotal.value = Number(totalRow.cash_acc);
+  costTotalSum.value = Number(totalRow.cost_total);
   valueTotalSum.value = Number(totalRow.value_total);
   accAsetTotal.value = Number(totalRow.acc_aset);
+  diffBrTotal.value = Number(totalRow.diff_br);
   pfTotalSum.value = Number(totalRow.pf_total);
   plAllTotal.value = Number(totalRow.pl_all);
   pflAllTotal.value = Number(totalRow.pfl_all);
@@ -135,7 +166,7 @@ async function handleSync() {
     <!-- define component start: GradientBg -->
     <DefineGradientBg v-slot="{ $slots, gradientColor }">
       <div
-        class="px-16px pb-4px pt-8px text-white"
+        class="px-10px pb-6px pt-6px text-white"
         :style="{ backgroundImage: gradientColor, borderRadius: themeStore.themeRadius + 'px' }"
       >
         <component :is="$slots.default" />
@@ -143,11 +174,12 @@ async function handleSync() {
     </DefineGradientBg>
     <!-- define component end: GradientBg -->
 
-    <NGrid cols="s:2 m:3 l:6" responsive="screen" :x-gap="16" :y-gap="16">
+    <!-- 9 张卡片一行：数字与图标字号随视口用 clamp 缩放，避免金额溢出 -->
+    <NGrid cols="s:2 m:3 l:9" responsive="screen" :x-gap="12" :y-gap="12">
       <NGi v-for="item in cardData" :key="item.key">
         <GradientBg :gradient-color="getGradientColor(item.color)" class="flex-1">
-          <div class="flex items-center gap-6px">
-            <h3 class="text-16px">{{ item.title }}</h3>
+          <div class="flex items-center gap-4px">
+            <h3 class="text-12px whitespace-nowrap">{{ item.title }}</h3>
             <!-- 浮动盈亏卡片：标题后增加同步图标，点击触发账户汇总同步 -->
             <!-- SvgIcon 组件 inheritAttrs:false，@click 需绑在外层元素上 -->
             <span
@@ -156,17 +188,18 @@ async function handleSync() {
               :class="[syncLoading ? 'animate-spin' : '']"
               @click="handleSync"
             >
-              <SvgIcon icon="mdi:sync" class="text-16px" />
+              <SvgIcon icon="mdi:sync" class="text-12px" />
             </span>
           </div>
-          <div class="flex justify-between pt-12px">
-            <SvgIcon :icon="item.icon" class="text-32px" />
+          <div class="flex items-center justify-between gap-4px pt-4px">
+            <SvgIcon :icon="item.icon" class="shrink-0" :style="{ fontSize: 'clamp(14px, 1vw, 22px)' }" />
             <CountTo
               :prefix="item.unit"
               :start-value="1"
               :end-value="item.value"
               :duration="300"
-              class="text-30px text-white dark:text-dark"
+              class="whitespace-nowrap text-white dark:text-dark"
+              :style="{ fontSize: 'clamp(12px, 0.9vw, 24px)' }"
             />
           </div>
         </GradientBg>

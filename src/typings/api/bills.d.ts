@@ -209,7 +209,7 @@ declare namespace Api {
       cost_total: number | null;
       /** 总市值 */
       value_total: number | null;
-      /** 账户资产 */
+      /** 账户价值（未扣融资负债的总资产） */
       acc_aset: number | null;
       /** 总浮盈 */
       pf_total: number | null;

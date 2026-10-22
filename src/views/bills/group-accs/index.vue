@@ -18,7 +18,7 @@ const tableData = ref<Api.Bills.GroupAcc[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account 单选精确匹配，acc_aset_only 控制账户净值不为0
+// 筛选参数：account 单选精确匹配，acc_aset_only 控制账户价值不为0
 const searchParams = reactive<{ account?: string | null; acc_aset_only?: boolean }>({ acc_aset_only: true });
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
@@ -80,6 +80,14 @@ function renderAmount(row: Api.Bills.GroupAcc, key: keyof Api.Bills.GroupAcc) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 账户净值 = 账户价值(acc_aset，未扣负债的总资产) − 融资余额(diff_br)
+// 后端 acc_aset 口径为「现金 + 理财 + 市值」，负债单列在 diff_br，故需扣减。
+// diff_br 为空时按 0 处理（无融资账户）。
+function renderEquity(row: Api.Bills.GroupAcc) {
+  if (row.acc_aset == null) return '-';
+  return (Number(row.acc_aset) - Number(row.diff_br ?? 0)).toFixed(2);
+}
+
 const columns = [
   { title: '账户', key: 'account', width: 120 },
   {
@@ -102,10 +110,17 @@ const columns = [
     render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'value_total')
   },
   {
-    title: '账户净值',
+    title: '账户价值',
     key: 'acc_aset',
     width: 120,
     render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'acc_aset')
+  },
+  { title: '融资余额', key: 'diff_br', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_br') },
+  {
+    title: '账户净值',
+    key: 'equity',
+    width: 120,
+    render: (row: Api.Bills.GroupAcc) => renderEquity(row)
   },
   {
     title: '浮动盈亏',
@@ -115,7 +130,6 @@ const columns = [
   },
   { title: '平仓盈亏', key: 'pl_all', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pl_all') },
   { title: '盈亏合计', key: 'pfl_all', width: 100, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'pfl_all') },
-  { title: '融资余额', key: 'diff_br', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_br') },
   { title: '出入净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.GroupAcc) => renderAmount(row, 'diff_dw') },
   {
     title: '划转净额',
@@ -146,7 +160,7 @@ onMounted(() => {
             style="width: 110px"
           />
         </NFormItem>
-        <NFormItem label="账户净值">
+        <NFormItem label="账户价值">
           <NRadioGroup v-model:value="searchParams.acc_aset_only">
             <NRadio :value="false">全部</NRadio>
             <NRadio :value="true">不为0</NRadio>
