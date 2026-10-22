@@ -44,14 +44,24 @@ function rowKey(r: Api.Bds.IndexValuationPercentile) {
   return r.index_code;
 }
 
+/**
+ * 列宽按「该列最长实际内容」定，不做等分缩列。
+ *
+ * 这页只有 5 行数据、横向空间充裕，任何一列窄到折行都会让行高参差：
+ * 「数据截至」带落后提示时是 `2026-10-20（落后1天）`，「成分新鲜度」带滞后提示时是
+ * `名单自 2026-06-30 未变（核查至 2026-10-19，滞后）`，这两列是唯一会被挤折的，
+ * 宽度按最坏情况给足，宁可整表横向滚动也不让单元格换行（配合 style 里的 nowrap）。
+ */
 const columns = [
   { title: '指数', key: 'sec_name', width: 100 },
-  { title: '当前值', key: 'current', width: 90, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.current) },
+  { title: '当前值', key: 'current', width: 92, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.current) },
   {
     // 当前值属于哪一天：估值未跟上时必须让读的人看见，否则会把 T-N 的值当"今天"用
+    // 实测 `2026-10-20（落后1天）` 在 14px 下 154px；stale_days 到三位数（如「落后365天」）
+    // 再加 15px，故按 210（可用 186）给，避免字体渲染差异造成折行
     title: '数据截至',
     key: 'as_of',
-    width: 105,
+    width: 210,
     render: (row: Api.Bds.IndexValuationPercentile) => {
       if (!row.as_of) return '-';
       return row.is_stale
@@ -62,48 +72,58 @@ const columns = [
   {
     title: '3年分位',
     key: 'pct_3y',
-    width: 90,
+    width: 92,
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_3y)
   },
   {
     title: '5年分位',
     key: 'pct_5y',
-    width: 90,
+    width: 92,
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_5y)
   },
   {
     title: '10年分位',
     key: 'pct_10y',
-    width: 95,
+    width: 100,
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_10y)
   },
   {
     title: '全历史分位*',
     key: 'pct_all',
-    width: 105,
+    width: 122,
     render: (row: Api.Bds.IndexValuationPercentile) => pctCell(row.pct_all)
   },
-  { title: 'z(5年)', key: 'z5y', width: 85, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.pct_5y?.z) },
+  { title: 'z(5年)', key: 'z5y', width: 88, render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.pct_5y?.z) },
   {
     title: '10年中位数',
     key: 'median10y',
-    width: 105,
+    width: 116,
     render: (row: Api.Bds.IndexValuationPercentile) => fmt(row.pct_10y?.median)
   },
   {
+    // 最坏情况是科创50 这类三位数区间（`108.99 ~ 152.30`，15 字符），按它定宽
     title: '10年区间',
     key: 'range10y',
-    width: 130,
+    width: 148,
     render: (row: Api.Bds.IndexValuationPercentile) => rangeCell(row.pct_10y)
   },
   {
     title: '样本数(10年)',
     key: 'n10y',
-    width: 110,
+    width: 124,
     render: (row: Api.Bds.IndexValuationPercentile) => String(row.pct_10y?.n ?? 0)
   },
-  { title: '成分新鲜度', key: 'fresh', width: 260, render: (row: Api.Bds.IndexValuationPercentile) => freshCell(row) }
+  {
+    // 实测最坏文本（带「核查至 … 滞后」）在 14px 下 346px，按 420（可用 396）给，留足余量
+    title: '成分新鲜度',
+    key: 'fresh',
+    width: 420,
+    render: (row: Api.Bds.IndexValuationPercentile) => freshCell(row)
+  }
 ];
+
+/** 与 columns 宽度合计一致；小于该值时会压缩列宽导致折行，故固定给足 */
+const TABLE_SCROLL_X = 1704;
 </script>
 
 <template>
@@ -124,6 +144,15 @@ const columns = [
         分位直接并列比较。
       </template>
     </div>
-    <NDataTable :columns="columns" :data="props.items" :row-key="rowKey" size="small" />
+    <NDataTable :columns="columns" :data="props.items" :row-key="rowKey" :scroll-x="TABLE_SCROLL_X" />
   </div>
 </template>
+
+<style scoped>
+/* 单元格一律不折行：这页数据只有 5 行，行高参差比横向滚动更难读。
+   宽度已在 columns 里按最长内容给足，故 nowrap 不会触发溢出截断。 */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+</style>
