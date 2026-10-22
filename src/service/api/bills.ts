@@ -100,6 +100,10 @@ interface GroupSymbolQueryParams {
   symbol?: string;
   /** 仅显示当前市值不为 0 的记录 */
   value_only?: boolean;
+  /** 持仓状态：holding=持仓中，closed=已平仓 */
+  pos_state?: 'holding' | 'closed';
+  /** 仅显示写过笔记的记录 */
+  has_note?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -224,6 +228,24 @@ export interface GroupUpdateParams {
 export function updateGroup(id: number, params: GroupUpdateParams) {
   return request<{ status: string; message: string }>({
     url: `/api/v1/bills/group/${id}`,
+    method: 'patch',
+    data: params
+  });
+}
+
+/** 标的笔记修改参数（仅 5 个手动字段可编辑；note_at 由后端填） */
+export interface GroupSymbolNoteParams {
+  logic?: string | null;
+  plan?: string | null;
+  invalidate?: string | null;
+  review?: string | null;
+  theme?: string | null;
+}
+
+/** 修改标的笔记（PATCH /bills/group-symbols/{id}） */
+export function updateGroupSymbolNote(id: number, params: GroupSymbolNoteParams) {
+  return request<{ status: string; message: string; fields: string[]; note_at: string | null }>({
+    url: `/api/v1/bills/group-symbols/${id}`,
     method: 'patch',
     data: params
   });

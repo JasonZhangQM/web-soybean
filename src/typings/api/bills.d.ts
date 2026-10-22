@@ -235,7 +235,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 标的汇总（对应 GroupSymbolOut，共 18 字段） */
+    /** 标的汇总（对应 GroupSymbolOut，共 23 字段） */
     interface GroupSymbol {
       /** 类别 */
       category: string;
@@ -269,6 +269,18 @@ declare namespace Api {
       diff_dw: number | null;
       /** 资金日结差额 */
       diff_dwt: number | null;
+      /** 开仓逻辑（手动维护，重算不覆盖） */
+      logic: string | null;
+      /** 策略与计划（手动维护） */
+      plan: string | null;
+      /** 证伪条件（手动维护） */
+      invalidate: string | null;
+      /** 复盘结论（手动维护） */
+      review: string | null;
+      /** 主题标签（手动维护） */
+      theme: string | null;
+      /** 笔记首次落笔时间（后端填） */
+      note_at: string | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
