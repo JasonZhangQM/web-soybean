@@ -104,6 +104,8 @@ interface GroupSymbolQueryParams {
   pos_state?: 'holding' | 'closed';
   /** 仅显示写过笔记的记录 */
   has_note?: boolean;
+  /** 主题标签（精确匹配） */
+  theme?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -116,6 +118,14 @@ export function fetchGroupSymbols(params?: GroupSymbolQueryParams) {
     url: '/api/v1/bills/group-symbols',
     method: 'get',
     params
+  });
+}
+
+/** 查询已使用过的主题标签（去重 + 行数，供筛选下拉；不受当前筛选影响） */
+export function fetchGroupSymbolThemes() {
+  return request<{ items: { theme: string; count: number }[] }>({
+    url: '/api/v1/bills/group-symbols/themes',
+    method: 'get'
   });
 }
 

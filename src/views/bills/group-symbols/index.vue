@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, h } from 'vue';
-import { fetchGroupSymbols, syncGroup, updateGroupSymbolNote } from '@/service/api';
+import { fetchGroupSymbols, fetchGroupSymbolThemes, syncGroup, updateGroupSymbolNote } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
@@ -34,12 +34,13 @@ const pagination = createTablePagination();
 
 // 筛选参数：category 单选精确匹配，symbol NAutoComplete 支持直接输入提交，
 // pos_state 下拉二选（holding 持仓中 / closed 已平仓），留空 = 全部（不传该参数），默认 holding；
-// has_note 只看写过笔记的
+// has_note 只看写过笔记的；theme 精确匹配（选项来自独立接口，不受当前筛选影响）
 const searchParams = reactive<{
   category?: string | null;
   symbol?: string;
   pos_state: 'holding' | 'closed' | null;
   has_note: boolean;
+  theme?: string | null;
 }>({
   pos_state: 'holding',
   has_note: false
@@ -73,6 +74,8 @@ async function fetchData() {
       symbol: searchParams.symbol || undefined,
       // 清空（null）不传，交给后端不过滤 = 全部
       pos_state: toPosStateParam(searchParams.pos_state),
+      // 主题：NSelect 清空返回 null，转为 undefined
+      theme: searchParams.theme || undefined,
       // 仅勾选时传递
       has_note: searchParams.has_note === true ? true : undefined,
       limit: pagination.pageSize,
@@ -105,6 +108,7 @@ function handleReset() {
   searchParams.symbol = '';
   searchParams.pos_state = 'holding';
   searchParams.has_note = false;
+  searchParams.theme = null;
   clearSymbolOptions();
   fetchData();
 }
@@ -183,12 +187,18 @@ const noteForm = reactive<{
   theme: string | null;
 }>({ logic: null, plan: null, invalidate: null, review: null, theme: null });
 
-// 主题候选：预设常用主题 + 当前页已出现的主题（可自由输入新值）
+// 主题候选：库内已使用过的标签（独立接口，不受当前筛选影响）+ 预设常用标签。
+// ⚠️ 不要从 tableData 提取：一旦按某主题筛选，选项会塌缩成只剩当前那个
+const themeList = ref<string[]>([]);
 const themeOptions = computed(() => {
   const preset = ['黄金', 'IC贴水', '红利', '债券', '海外'];
-  const used = tableData.value.map(r => r.theme).filter((t): t is string => !!t);
-  return Array.from(new Set([...preset, ...used])).map(t => ({ label: t, value: t }));
+  return Array.from(new Set([...preset, ...themeList.value])).map(t => ({ label: t, value: t }));
 });
+
+async function loadThemeOptions() {
+  const { data, error } = await fetchGroupSymbolThemes();
+  if (!error && data) themeList.value = data.items.map(i => i.theme);
+}
 
 function handleEditNote(row: Api.Bills.GroupSymbol) {
   noteTarget.value = row;
@@ -227,6 +237,8 @@ async function handleNoteSubmit() {
       showNoteModal.value = false;
       noteTarget.value = null;
       fetchData();
+      // 新写的主题要能出现在筛选与弹窗下拉里
+      loadThemeOptions();
     }
   } finally {
     noteLoading.value = false;
@@ -306,6 +318,14 @@ const columns = [
   },
   { title: '盈亏合计', key: 'pfl_all', width: 100, align: 'right' as const, render: renderRate },
   {
+    // 主题是跨合约聚合的合并键（黄金 = au 期货 + au 期权）：单行截断 + tooltip 显示全文
+    title: '主题',
+    key: 'theme',
+    width: 90,
+    ellipsis: { tooltip: true },
+    render: (row: Api.Bills.GroupSymbol) => row.theme || '-'
+  },
+  {
     // TEXT 可能几百字：单行截断 + tooltip 显示全文，换行折成空格便于扫视
     title: '开仓逻辑',
     key: 'logic',
@@ -322,6 +342,8 @@ onMounted(() => {
   fetchData();
   // 确保类别列表已加载（全局 store 会自动去重）
   billsStore.loadCategories();
+  // 主题筛选下拉的候选值
+  loadThemeOptions();
 });
 </script>
 
@@ -357,6 +379,17 @@ onMounted(() => {
             clearable
             placeholder="全部"
             style="width: 120px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
+        <NFormItem label="主题">
+          <NSelect
+            v-model:value="searchParams.theme"
+            :options="themeOptions"
+            clearable
+            filterable
+            placeholder="全部"
+            style="width: 130px"
             @update:value="handleSearch"
           />
         </NFormItem>
