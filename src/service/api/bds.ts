@@ -384,6 +384,34 @@ export function syncAllDailyIndicators() {
   });
 }
 
+/** 宏观一键同步请求体 */
+export interface MacroSyncRequest {
+  /**
+   * 要同步的段（可只选部分）
+   * - trade_date: 交易日历（仅在跨年时才真写库）
+   * - symbol_info: 证券信息（东财 Excel + gm 两条通道）
+   * - index_history: 指数行情（按 Config.INDEX_CODE 逐指数增量）
+   * - wscn: 经济指标（华尔街见闻）
+   * - daily: 美债收益率（FRED，含 2 项信用利差）
+   * - gold: 黄金储备（IMF）
+   *
+   * 后端**固定按 trade_date → symbol_info → index_history → wscn → daily → gold 顺序执行**，
+   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + index_history + wscn + daily）
+   */
+  stages?: Array<'trade_date' | 'symbol_info' | 'index_history' | 'wscn' | 'daily' | 'gold'>;
+}
+
+/** 启动一键同步（后台任务，返回 task 供轮询；与批量同步共用 bds_sync_task） */
+export function startMacroSync(req: MacroSyncRequest = {}) {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/sync/macro',
+    method: 'post',
+    data: req,
+    // 建任务后立即返回，实际执行在后台线程
+    timeout: 30 * 1000
+  });
+}
+
 /** 批量同步请求体 */
 export interface BatchSyncRequest {
   /** 同步范围: all/index/industry/explicit */
@@ -497,19 +525,16 @@ export function fetchIndexValuationPercentiles(params?: { metric?: string }) {
   });
 }
 
-/** 重算最近 N 个交易日的指数估值（同步接口，通常 2~5 秒） */
+/**
+ * 启动指数估值重算（后台任务，立即返回 task）
+ *
+ * 区间语义：`start_date`/`end_date` 均闭区间；两端都空 = 逐指数增量（各指数从自己的
+ * 最新已算日重叠 `days` 个交易日）；只传 end = 从各指数最早快照算起（≈全历史，慎用）。
+ * 进度轮询 `/sync-tasks/{id}`，停止用 `stopBatchSync(taskId)`。
+ */
 export function syncIndexValuation(req: Api.Bds.IndexValuationSyncRequest) {
-  return request<{ start_date: string; result: Record<string, unknown> }>({
+  return request<Api.Bds.SyncTask>({
     url: '/api/v1/bds/sync/index-valuation',
-    method: 'post',
-    data: req
-  });
-}
-
-/** 小窗口重建指数估值（全历史重建请用命令行脚本，本接口同步会超时） */
-export function runIndexValuationBackfill(req: Api.Bds.IndexValuationSyncRequest) {
-  return request<{ start_date: string; result: Record<string, unknown> }>({
-    url: '/api/v1/bds/run/index-valuation-backfill',
     method: 'post',
     data: req
   });

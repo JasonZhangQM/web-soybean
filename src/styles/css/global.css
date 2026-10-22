@@ -46,3 +46,42 @@ html.dark .n-data-table-tr.row-selected > .n-data-table-td--fixed-right {
   background-color: var(--card-color, #18181c) !important;
   background-image: linear-gradient(rgb(var(--primary-color) / 0.32), rgb(var(--primary-color) / 0.32)) !important;
 }
+
+/* ===== 一键同步页（bds/batch-sync）四张卡片的标题区 ===== */
+/* naive 的 .n-card-header 默认只有 padding，既无背景也无下边框；size="small" 下
+   titleFontSizeSmall = fontSize = 14px，与正文同字号 ⇒ 标题和卡片体没有区分度。
+   这里统一补：浅底 + 1px 下边框 + 左侧 3px 主色竖条；标题 15px/600。
+   底色刻意用中性色而非主色：卡片头的「启动」按钮是主色实心块，主色底会把它吃掉。 */
+/* 选择器统一用 .n-card.bds-sync-card（3 个类）压过 naive 运行时注入的 .n-card > .n-card-header，
+   避免依赖样式表加载顺序。 */
+.n-card.bds-sync-card > .n-card-header {
+  position: relative;
+  /* 上下 padding 由 12px 压到 4px：size="small" 下 header 高度由 28px 的「启动」按钮撑起，
+     原 12px 上下留白把它顶到约 53px，与 24px 的标题行高不成比例。压到 4px 后约 37px。 */
+  padding: 4px var(--n-padding-left) 4px calc(var(--n-padding-left) + 6px);
+  background-color: rgba(0, 0, 0, 0.024);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+  border-radius: var(--n-border-radius) var(--n-border-radius) 0 0;
+}
+html.dark .n-card.bds-sync-card > .n-card-header {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+.n-card.bds-sync-card > .n-card-header::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background-color: rgb(var(--primary-color));
+  border-radius: var(--n-border-radius) 0 0 0;
+}
+.n-card.bds-sync-card > .n-card-header > .n-card-header__main {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.n-card.bds-sync-card > .n-card-header > .n-card-header__extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

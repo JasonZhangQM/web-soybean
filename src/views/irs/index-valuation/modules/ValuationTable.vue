@@ -118,6 +118,11 @@ const columns = [
         <b>中位 PE 只含 PE>0 样本</b>
         （亏损股被剔除），与整体法 PE 的抽样池不同，两者分位不可互相印证。
       </template>
+      <template v-else-if="metricLabel.includes('PCF')">
+        <b>PCF 只含正经营现金流样本</b>
+        （负现金流成分在分子分母里一并剔除，与 PE 亏损计入的口径不同）， 故其成分范围小于同指数其他指标，分位不可与 PE
+        分位直接并列比较。
+      </template>
     </div>
     <NDataTable :columns="columns" :data="props.items" :row-key="rowKey" size="small" />
   </div>

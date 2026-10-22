@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMessage } from 'naive-ui';
-import { fetchIndexValuationsPaged, syncIndexValuation } from '@/service/api';
+import { fetchIndexValuationsPaged } from '@/service/api';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { useBdsStore } from '@/store/modules/bds';
 import { usePageState } from '@/hooks/common/page-state';
@@ -13,9 +13,12 @@ defineOptions({ name: 'IndexValuationPage' });
 /**
  * 指数估值原始数据（`bds_index_valuation`）
  *
- * 分工：本页只做**原始数据展示**（行式分页 + 筛选 + 重算），图表/分位统计在
+ * 分工：本页只做**原始数据展示**（行式分页 + 筛选），图表/分位统计在
  * `/irs/index-valuation`。与「中国宏观」的分工同构——`/bds/macro-research/economic-indicators`
  * 是纯表，`/irs/macro-framework` 是纯图表。
+ *
+ * **本页不放写操作**：重算已任务化，收口到「批量同步 → 指数估值重算」卡片
+ * （后台线程 + 进度轮询 + 停止 + 审计落库）。
  *
  * ⚠️ 本表是**可重算的派生表**，不是不可变事实表：补成分快照、个股估值源数据覆盖、
  * 财报追溯调整都会改写历史行。故必须展示 `calc_at`（本行算于何时）与
@@ -31,8 +34,6 @@ bdsStore.loadIndexCodes();
 const indexOptions = computed(() => bdsStore.getIndexCodeOptions());
 
 const loading = ref(false);
-// 重算专用 loading：与表格 loading 分离，避免重算过程中表格闪烁
-const syncing = ref(false);
 const tableData = ref<Api.Bds.IndexValuationRow[]>([]);
 
 // 搜索参数：index_codes 多选精确匹配，date_range 为 [起, 止]
@@ -85,62 +86,79 @@ function fmtCalcAt(v: string | null): string {
 }
 
 const columns = [
-  { title: '指数代码', key: 'index_code', width: 115 },
-  { title: '指数名称', key: 'sec_name', width: 100 },
-  { title: '交易日期', key: 'trade_date', width: 105 },
+  { title: '指数代码', key: 'index_code', width: 100 },
+  { title: '指数名称', key: 'sec_name', width: 90 },
+  { title: '交易日期', key: 'trade_date', width: 100 },
   {
     title: '收盘价',
     key: 'close',
-    width: 95,
+    width: 80,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.close)
   },
   {
     title: 'PE(TTM)',
     key: 'pe_ttm',
-    width: 95,
+    width: 80,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.pe_ttm)
   },
   {
     title: '中位PE',
     key: 'pe_median',
-    width: 95,
+    width: 80,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.pe_median)
   },
   {
     title: 'PB(MRQ)',
     key: 'pb_mrq',
-    width: 95,
+    width: 80,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.pb_mrq)
   },
   {
     title: '股息率%',
     key: 'dy_ttm',
-    width: 90,
+    width: 80,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.dy_ttm)
   },
   {
+    title: 'PS(TTM)',
+    key: 'ps_ttm',
+    width: 80,
+    align: 'right' as const,
+    render: (r: Api.Bds.IndexValuationRow) => fmtNum(r.ps_ttm)
+  },
+  {
+    title: 'PCF(TTM)',
+    key: 'pcf_ttm_oper',
+    width: 85,
+    align: 'right' as const,
+    // 与 PE 的口径故意不同：PCF 剔除了负现金流成分（见 n_cf_neg 列），
+    // 所以它只代表「正现金流那部分成分」的市现率，不能当成全成分口径读
+    render: (r: Api.Bds.IndexValuationRow) =>
+      h('span', { title: '剔除负现金流成分后的整体法市现率' }, fmtNum(r.pcf_ttm_oper))
+  },
+  {
     title: '成分市值(万亿)',
     key: 'mv_total',
-    width: 120,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtTrillion(r.mv_total)
   },
   {
     title: '净利合计(亿)',
     key: 'profit_total',
-    width: 120,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtYi(r.profit_total)
   },
   {
     title: '成分数',
     key: 'n_total',
-    width: 100,
+    width: 80,
     align: 'right' as const,
     // 覆盖率 = 实际进样本数 / 该快照应有成分数；< 98% 时后端把 PE/PB/股息率置空，
     // 此处同步标橙，否则只看到"成分数 99"却不明白旁边指标为什么是空的
@@ -156,24 +174,38 @@ const columns = [
   {
     title: '有效数',
     key: 'n_valid',
-    width: 75,
+    width: 70,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => String(r.n_valid ?? '-')
   },
   {
     title: '亏损数',
     key: 'n_loss',
-    width: 75,
+    width: 70,
     align: 'right' as const,
     render: (r: Api.Bds.IndexValuationRow) => fmtLoss(r.n_loss)
   },
   {
+    title: '负现金流数',
+    key: 'n_cf_neg',
+    width: 90,
+    align: 'right' as const,
+    // 不标警示色：负经营现金流是真实经济状态，不是数据缺陷（亏损数同理但 PE 会受影响，
+    // 而 PCF 这里只影响样本范围）。占比高时 PCF 的代表性下降，靠 tooltip 说明即可
+    render: (r: Api.Bds.IndexValuationRow) =>
+      h(
+        'span',
+        { title: '负/无经营现金流成分数，这些成分不参与 PCF 计算' },
+        r.n_cf_neg == null ? '-' : String(r.n_cf_neg)
+      )
+  },
+  {
     title: '成分快照',
     key: 'snapshot_date',
-    width: 105,
+    width: 100,
     render: (r: Api.Bds.IndexValuationRow) => r.snapshot_date || '-'
   },
-  { title: '计算时间', key: 'calc_at', width: 115, render: (r: Api.Bds.IndexValuationRow) => fmtCalcAt(r.calc_at) }
+  { title: '计算时间', key: 'calc_at', width: 100, render: (r: Api.Bds.IndexValuationRow) => fmtCalcAt(r.calc_at) }
 ];
 
 /** 表格行键：指数 + 日期唯一（多指数同日不会撞键） */
@@ -227,21 +259,14 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-/** 重算最近 5 个交易日（覆盖财报修订导致的 PE 跳变）；全历史重建走命令行脚本 */
-async function handleRecalc() {
-  syncing.value = true;
-  try {
-    const { data, error } = await syncIndexValuation({ days: 5 });
-    if (error) {
-      message.error((error as any)?.message || '重算失败');
-      return;
-    }
-    const rows = Object.values(data?.result || {}).reduce((s: number, v: any) => s + (v?.rows || 0), 0);
-    message.success(`重算完成，自 ${data?.start_date} 起写入 ${rows} 行`);
-    await fetchData();
-  } finally {
-    syncing.value = false;
-  }
+/**
+ * 跳批量同步页的「指数估值重算」卡片
+ *
+ * 本页**不放写操作**：重算已任务化（后台线程 + 进度 + 停止 + 审计落库），
+ * 与成分股同步收口在同一处，避免同一件事有两个入口、两套状态。
+ */
+function goRecalc() {
+  router.push({ name: 'bds_batch-sync' });
 }
 
 /** 跳 IRs 图表页；把当前筛选的指数带过去，避免跳过去还要重选 */
@@ -283,7 +308,7 @@ onMounted(() => fetchData());
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
@@ -293,8 +318,8 @@ onMounted(() => fetchData());
               <template #icon><SvgIcon icon="mdi:refresh" /></template>
               刷新
             </NButton>
-            <NButton type="primary" ghost :loading="syncing" @click="handleRecalc">重算最近5日</NButton>
-            <NButton type="info" ghost @click="goChart">
+            <NButton @click="goRecalc">去重算 →</NButton>
+            <NButton @click="goChart">
               <template #icon><SvgIcon icon="mdi:chart-line" /></template>
               查看图表
             </NButton>
@@ -305,8 +330,12 @@ onMounted(() => fetchData());
         本表是
         <b>可重算的派生表</b>
         ：补成分快照、财报追溯调整都会改写历史行。 「成分快照」= 该行用的哪天确认的成分名单；「计算时间」=
-        这行算于何时；「成分数」= 实际进样本数/该快照应有数，覆盖率低于 98% 时
-        PE/PB/股息率一律留空并标橙（防止源端缺股时静默出数）。分位统计与曲线见 IRs →「指数分位」。
+        这行算于何时；「成分数」= 实际进样本数/该快照应有数，覆盖率低于 98% 时 PE/PB/股息率/PS/PCF
+        一律留空并标橙（防止源端缺股时静默出数）。数据由「批量同步 → 指数估值重算」生成；分位统计与曲线见 IRs
+        →「指数分位」。
+        <b>PCF 口径与 PE 不同</b>
+        ：PCF 只让正经营现金流的成分参与（分子分母同口径剔除），「负现金流数」列的成分不参与计算；PE
+        则把亏损成分计入分母。
       </div>
     </NCard>
 
@@ -318,7 +347,7 @@ onMounted(() => fetchData());
         remote
         :pagination="pagination"
         :row-key="rowKey"
-        :scroll-x="1670"
+        :scroll-x="1860"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

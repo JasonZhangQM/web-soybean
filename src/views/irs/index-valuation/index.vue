@@ -19,7 +19,7 @@ defineOptions({ name: 'IrsIndexValuationPage' });
  * 数据源是 bds 的接口（`/api/v1/bds/index-*`），但不另建一层封装：
  * `macro-framework` 同样是直接 `import from '@/service/api/bds'`。
  *
- * ⚠️ 本页**不放写操作**（重算/同步）——那属于数据加工，留在 bds 页。
+ * ⚠️ 本页**不放写操作**（重算/同步）——那属于数据加工，收口到「批量同步 → 指数估值重算」。
  * 决策区混入写操作，会让「看到的数」和「正在改的数」搅在一起。
  */
 
@@ -31,7 +31,11 @@ const METRIC_OPTIONS = [
   { label: 'PE(TTM)', value: 'pe_ttm' },
   { label: 'PB(MRQ)', value: 'pb_mrq' },
   { label: '股息率(%)', value: 'dy_ttm' },
-  { label: '中位PE', value: 'pe_median' }
+  { label: '中位PE', value: 'pe_median' },
+  { label: 'PS(TTM)', value: 'ps_ttm' },
+  // PCF 的口径与 PE 不同：只让正经营现金流的成分参与（分子分母同口径剔除），
+  // 所以同一指数的 PCF 分位与 PE 分位代表的成分范围并不相同，故标签里带 * 并在页脚说明
+  { label: 'PCF(TTM)*', value: 'pcf_ttm_oper' }
 ];
 
 function getDefaultStartDate() {
@@ -179,7 +183,13 @@ onMounted(fetchData);
 
       <div class="mt-8px text-12px" style="color: #999">
         分位与中位数由后端实时计算（窗口按自然日回溯 3/5/10 年，锚点为各指数最后一个有值交易日），前端只做染色。
-        数据来源于 BDs →「指数估值」，本页不含任何写操作。
+        数据来源于 BDs →「指数估值」，本页不含任何写操作（重算在「批量同步 → 指数估值重算」）。
+      </div>
+      <div v-if="metric === 'pcf_ttm_oper'" class="mt-6px text-12px" style="color: #ef9f27">
+        <b>* PCF 口径与 PE 不同</b>
+        ：只让正经营现金流的成分参与，分子分母同口径剔除（PE 则把亏损成分计入分母）。 故 PCF
+        分位的成分范围比同指数其他指标小；负现金流占比越高，可比性越弱 —— 可在 BDs
+        →「指数估值」的「负现金流数」列核对（实测沪深300 约 10%、科创50 约 28%）。
       </div>
       <NAlert v-if="staleInfo" type="warning" :bordered="false" class="mt-10px" :show-icon="true">
         估值数据截至 {{ staleInfo.asOf }}，落后最新个股数据 {{ staleInfo.days }} 天（{{ staleInfo.names }}） ——

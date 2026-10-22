@@ -8,6 +8,7 @@ import {
   stopBatchSync,
   startIndexConstituentSync,
   fetchIndexConstituentSyncStatus,
+  syncIndexValuation,
   type BatchSyncRequest,
   type IndexConstituentSyncRequest
 } from '@/service/api';
@@ -243,12 +244,20 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
   form.trading_status = data.trading_status || 'trading';
 }
 
+/**
+ * 不属于卡片 1 的 scope：各有自己的卡片接管
+ * - index_backfill：卡片 2（指数成分股同步）
+ * - index_valuation：卡片 3（指数估值重算）
+ * - macro_sync：卡片 4（宏观与基础数据同步，自己拉 latest）
+ * 漏掉任意一个都会被卡片 1 抢走并误填表单（一键同步任务的 tables 是段名、不是表名）
+ */
+const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync'];
+
 async function loadBatchTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
-      // 只接管非 index_backfill 的任务
-      if (data.scope === 'index_backfill') return;
+      if (NON_BATCH_SCOPES.includes(data.scope)) return;
       task.value = data;
 
       // 运行中锁定 form 显示
@@ -352,6 +361,26 @@ function wmText(item: Api.Bds.IndexConstituentSyncStatus) {
 /** 水位异常判定：成分行被删 / 有未确认日 / 有被拒存的伪快照 */
 function wmAbnormal(item: Api.Bds.IndexConstituentSyncStatus) {
   return item.current_rows === 0 || item.gap_days > 0 || item.dirty_days > 0;
+}
+
+/**
+ * 行内展示哪几只指数的水位：优先跟随勾选的指数，一只都没勾时退回全量。
+ * 勾了哪只就看哪只，避免 6 条标签全铺在日期框后面挤成两行。
+ */
+const wmVisible = computed(() => {
+  const picked = indexForm.index_codes;
+  if (!picked?.length) return indexWm.value;
+  const set = new Set(picked);
+  return indexWm.value.filter(item => set.has(item.index_code));
+});
+
+/** 行内紧凑文案：名称 + 核查至 + 异常量级；完整的「名单自」口径见 tooltip */
+function wmInline(item: Api.Bds.IndexConstituentSyncStatus) {
+  const parts = [item.checked_to ? `核查至 ${item.checked_to}` : '未核查'];
+  if (item.current_rows === 0) parts.push('表内 0 行');
+  if (item.gap_days > 0) parts.push(`${item.gap_days} 天未确认`);
+  if (item.dirty_days > 0) parts.push(`${item.dirty_days} 天拒存`);
+  return `${item.sec_name || item.index_code}：${parts.join(' · ')}`;
 }
 
 const indexIsRunning = computed(() => indexTask.value?.status === 'running' || indexTask.value?.status === 'pending');
@@ -462,20 +491,316 @@ const indexErrorColumns = [
   { title: '错误信息', key: 'message' }
 ];
 
+// ===================== 卡片 3：指数估值重算 =====================
+
+/**
+ * 估值重算的可选指数：与后端 `DEFAULT_INDEX_CODES` 一致。
+ *
+ * 不用卡片 2 的 `syncableIndexOptions`：那个按 gm 是否支持成分股来筛，与估值无关；
+ * 而且估值要有完整历史成分快照才有意义，只有这 5 个宽基满足。
+ */
+const VALUATION_INDEX_CODES = ['SHSE.000300', 'SHSE.000905', 'SHSE.000852', 'SHSE.000688', 'SZSE.399006'];
+
+const valuationIndexOptions = computed(() =>
+  VALUATION_INDEX_CODES.map(code => {
+    const hit = bdsStore.indexCodeList.find(item => item.code === code);
+    return { label: hit?.sec_name || code, value: code };
+  })
+);
+
+/** 解析估值指数记忆：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
+function resolveValuationCodes(stored: string[] | null | undefined) {
+  if (!stored) return [...VALUATION_INDEX_CODES];
+  if (stored.length === 0) return [];
+  const kept = stored.filter(code => VALUATION_INDEX_CODES.includes(code));
+  return kept.length > 0 ? kept : [...VALUATION_INDEX_CODES];
+}
+
+// start_date / end_date 都留空 = 增量（各指数从自己的最新已算日重叠 days 个交易日）
+const valuationForm = reactive<{
+  index_codes: string[];
+  start_date: string | null;
+  end_date: string | null;
+  days: number;
+  with_median: boolean;
+}>({
+  index_codes: [],
+  start_date: null,
+  end_date: null,
+  days: 5,
+  with_median: true
+});
+
+watch(valuationForm, val => bdsStore.setValuationForm({ ...val }), { deep: true });
+
+/**
+ * 天数框说明文字。**指定任一端点后天数就不参与计算**（不是「只在起点为空时」）：
+ * 只填终点时起点退回各指数最早快照，此时改天数毫无作用 —— 输入框必须同时禁用 + 明示，
+ * 否则用户会以为「填了终点 + 5 个交易日 = 只算末尾 5 天」（实际是跑全历史）。
+ */
+const valuationDaysHint = computed(() => {
+  if (valuationForm.start_date) return { text: '个交易日（已指定起点 ⇒ 天数不生效）', muted: true };
+  if (valuationForm.end_date) return { text: '个交易日（已指定终点 ⇒ 从最早快照起，天数不生效）', muted: true };
+  return { text: '个交易日（起点为空时生效）', muted: false };
+});
+
+function selectAllValuationIndices() {
+  valuationForm.index_codes = [...VALUATION_INDEX_CODES];
+}
+function clearValuationIndices() {
+  valuationForm.index_codes = [];
+}
+
+const valuationStarting = ref(false);
+const valuationStopping = ref(false);
+const valuationTask = ref<Api.Bds.SyncTask | null>(null);
+
+const valuationIsRunning = computed(
+  () => valuationTask.value?.status === 'running' || valuationTask.value?.status === 'pending'
+);
+
+/** 天数框在「指定任一端点」或「任务运行中」时禁用（指定端点后 days 不参与计算） */
+const valuationDaysDisabled = computed(
+  () => valuationIsRunning.value || !!valuationForm.start_date || !!valuationForm.end_date
+);
+const valuationProgressValue = computed(() => Number(valuationTask.value?.progress || 0));
+const valuationErrorList = computed(() => valuationTask.value?.errors || []);
+
+const valuationStatusLabel = computed(() => {
+  const map: Record<string, { text: string; type: 'default' | 'info' | 'success' | 'error' | 'warning' }> = {
+    pending: { text: '等待中', type: 'default' },
+    running: { text: '运行中', type: 'info' },
+    done: { text: '已完成', type: 'success' },
+    failed: { text: '失败', type: 'error' },
+    stopped: { text: '已停止', type: 'warning' }
+  };
+  return map[valuationTask.value?.status || ''] || { text: '-', type: 'default' };
+});
+
+/** 区间回显：逐指数增量时 start_date 为空，不能显示成「~ 今天」这种含糊表述 */
+const valuationRangeText = computed(() => {
+  const p = (valuationTask.value?.scope_params || {}) as Record<string, unknown>;
+  const s = (p.start_date as string) || null;
+  const e = (p.end_date as string) || null;
+  const d = Number(p.days || 5);
+  if (!s && !e) return `增量（各指数各自起点，重叠 ${d} 个交易日）`;
+  if (!s) return `各指数最早快照 ~ ${e}`;
+  return e ? `${s} ~ ${e}` : `${s} ~ 最新`;
+});
+
+const valuationTaskIndexCount = computed(() => {
+  const list = valuationTask.value?.scope_params?.index_codes;
+  return Array.isArray(list) ? list.length : 0;
+});
+
+/** 结构化结果（审计 / 门禁 / 落后指数），非失败信息 */
+const valuationResult = computed<Record<string, any>>(() => (valuationTask.value?.result || {}) as Record<string, any>);
+
+/** 审计汇总：各指数超阈变动行数与最大变动，样例按变动降序 */
+const valuationAudit = computed(() => {
+  const per = (valuationResult.value.per_index || {}) as Record<string, any>;
+  let changed = 0;
+  let compared = 0;
+  let maxPct = 0;
+  const samples: Array<{
+    code: string;
+    trade_date: string;
+    pe_old: number | null;
+    pe_new: number | null;
+    pct: number;
+  }> = [];
+  Object.entries(per).forEach(([code, val]) => {
+    const a = (val as Record<string, any>)?.audit;
+    if (!a) return;
+    changed += Number(a.changed || 0);
+    compared += Number(a.compared || 0);
+    maxPct = Math.max(maxPct, Number(a.max_pct || 0));
+    (a.samples || []).forEach((s: Record<string, any>) => {
+      samples.push({
+        code,
+        trade_date: s.trade_date,
+        pe_old: s.pe_old,
+        pe_new: s.pe_new,
+        pct: Number(s.pct || 0)
+      });
+    });
+  });
+  samples.sort((a, b) => b.pct - a.pct);
+  return { changed, compared, maxPct, samples: samples.slice(0, 20) };
+});
+
+/** 覆盖率门禁拦下的日期（指标留空，不算任务失败） */
+const valuationGatedList = computed(() => {
+  const g = (valuationResult.value.gated || {}) as Record<string, string[]>;
+  return Object.entries(g).map(([code, days]) => ({ code, days, count: days.length }));
+});
+
+/** 落后指数：末次已算日远早于最新交易日 ⇒ 本次顺带补算了一大段 */
+const valuationLaggingList = computed<
+  Array<{ code: string; last_date?: string; missing_days?: number; start_date?: string }>
+>(() => {
+  const l = (valuationResult.value.lagging || {}) as Record<string, any>;
+  return Object.entries(l).map(([code, v]) => ({
+    code,
+    last_date: (v as Record<string, any>)?.last_date as string | undefined,
+    missing_days: (v as Record<string, any>)?.missing_days as number | undefined,
+    start_date: (v as Record<string, any>)?.start_date as string | undefined
+  }));
+});
+
+const valuationAuditColumns = [
+  { title: '指数', key: 'code', width: 130 },
+  { title: '日期', key: 'trade_date', width: 110 },
+  {
+    title: 'PE 旧',
+    key: 'pe_old',
+    width: 100,
+    render: (row: Record<string, any>) => (row.pe_old == null ? '-' : Number(row.pe_old).toFixed(4))
+  },
+  {
+    title: 'PE 新',
+    key: 'pe_new',
+    width: 100,
+    render: (row: Record<string, any>) => (row.pe_new == null ? '-' : Number(row.pe_new).toFixed(4))
+  },
+  {
+    title: '变动%',
+    key: 'pct',
+    width: 90,
+    render: (row: Record<string, any>) => `${Number(row.pct).toFixed(2)}%`
+  }
+];
+
+const valuationErrorColumns = [
+  { title: '指数', key: 'symbol', width: 130 },
+  { title: '数据', key: 'table', width: 130 },
+  { title: '错误信息', key: 'message' }
+];
+
+let valuationPollTimer: ReturnType<typeof setInterval> | null = null;
+
+async function handleValuationStart(confirmed = false) {
+  if (valuationForm.index_codes.length === 0) {
+    message.warning('请至少选择一个指数');
+    return;
+  }
+  if (valuationForm.end_date && valuationForm.start_date && valuationForm.end_date < valuationForm.start_date) {
+    message.warning('结束日期不能早于开始日期');
+    return;
+  }
+  // 只填「止」不填「起」= 从各指数最早快照算起 ≈ 全历史，必须二次确认（方案 §4.2.1）
+  if (valuationForm.end_date && !valuationForm.start_date && !confirmed) {
+    window.$dialog?.warning({
+      title: '确认重算区间',
+      content:
+        '未填开始日期 ⇒ 将从各指数「最早成分快照」算起，相当于重算几乎全部历史（5 个指数约 30~40 分钟）。确定继续？',
+      positiveText: '继续',
+      negativeText: '取消',
+      onPositiveClick: () => {
+        handleValuationStart(true);
+      }
+    });
+    return;
+  }
+
+  valuationStarting.value = true;
+  try {
+    const payload: Api.Bds.IndexValuationSyncRequest = {
+      index_codes: [...valuationForm.index_codes],
+      // 数字框被清空时值为 null ⇒ 兜回默认 5，否则后端 422
+      days: valuationForm.days || 5,
+      with_median: valuationForm.with_median
+    };
+    if (valuationForm.start_date) payload.start_date = valuationForm.start_date;
+    if (valuationForm.end_date) payload.end_date = valuationForm.end_date;
+    const { data, error } = await syncIndexValuation(payload);
+    if (error) {
+      message.error(error.message || '启动失败');
+      return;
+    }
+    message.success(`已启动任务 #${data.id}`);
+    await loadValuationTask(data.id);
+    startValuationPolling();
+  } finally {
+    valuationStarting.value = false;
+  }
+}
+
+async function handleValuationStop() {
+  if (!valuationTask.value) return;
+  valuationStopping.value = true;
+  try {
+    const { data, error } = await stopBatchSync(valuationTask.value.id);
+    if (error) {
+      message.error(error.message || '停止失败');
+      return;
+    }
+    message.info(data?.message || '停止信号已发出（在当前快照区间结束后生效）');
+  } finally {
+    valuationStopping.value = false;
+    if (valuationTask.value) await loadValuationTask(valuationTask.value.id);
+  }
+}
+
+/** 运行中锁定表单显示：用任务参数回填（对齐卡片 1/2 的做法） */
+function fillValuationFormFromTask(data: Api.Bds.SyncTask) {
+  const p = (data.scope_params || {}) as Record<string, unknown>;
+  if (Array.isArray(p.index_codes)) valuationForm.index_codes = p.index_codes as string[];
+  valuationForm.start_date = (p.start_date as string) || null;
+  valuationForm.end_date = (p.end_date as string) || null;
+  if (p.days != null) valuationForm.days = Number(p.days);
+  if (p.with_median != null) valuationForm.with_median = Boolean(p.with_median);
+}
+
+async function loadValuationTask(id?: number) {
+  try {
+    const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
+    if (!error && data) {
+      // 只接管 index_valuation 的任务
+      if (data.scope !== 'index_valuation') return;
+      valuationTask.value = data;
+      if (valuationIsRunning.value) fillValuationFormFromTask(data);
+      if (!valuationIsRunning.value) stopValuationPolling();
+    }
+  } catch {
+    // 404 忽略
+  }
+}
+
+function startValuationPolling() {
+  stopValuationPolling();
+  valuationPollTimer = setInterval(() => {
+    if (valuationTask.value) loadValuationTask(valuationTask.value.id);
+  }, 3000);
+}
+
+function stopValuationPolling() {
+  if (valuationPollTimer) {
+    clearInterval(valuationPollTimer);
+    valuationPollTimer = null;
+  }
+}
+
 // ===================== 初始化 =====================
 
 onMounted(async () => {
   await bdsStore.loadIndexCodes();
   await bdsStore.loadIndustries();
-  // 卡片 3：取动态数量文案 + 结果表 code→name 映射
-  await bdsStore.loadDailyIndicatorCodes(true);
-  await bdsStore.loadGoldReserveCountries(true);
+  // 卡片 4 的段名与条目数全部由后端 result.stages 提供，页面不再预取宏观代码表
 
   // 卡片 2 维持选择：store 有记录则沿用（剔除已不可同步的指数），无记录则默认全选
   indexForm.index_codes = resolveIndexCodes(bdsStore.selectedIndexCodes);
   loadIndexWatermark();
 
-  // fetchLatestSyncTask 只返回最新一条，根据 scope 分派
+  // 卡片 3 维持选择与区间（会话内保持，不落 localStorage）
+  const vStored = bdsStore.valuationForm;
+  valuationForm.index_codes = resolveValuationCodes(vStored?.index_codes);
+  valuationForm.start_date = vStored?.start_date ?? null;
+  valuationForm.end_date = vStored?.end_date ?? null;
+  valuationForm.days = vStored?.days ?? 5;
+  valuationForm.with_median = vStored?.with_median ?? true;
+
+  // fetchLatestSyncTask 只返回最新一条，根据 scope 分派到对应卡片
   const { data, error } = await fetchLatestSyncTask();
   if (!error && data) {
     if (data.scope === 'index_backfill') {
@@ -485,6 +810,14 @@ onMounted(async () => {
         fillIndexFormFromTask(data);
         startIndexPolling();
       }
+    } else if (data.scope === 'index_valuation') {
+      valuationTask.value = data;
+      if (valuationIsRunning.value) {
+        fillValuationFormFromTask(data);
+        startValuationPolling();
+      }
+    } else if (data.scope === 'macro_sync') {
+      // 卡片 4（宏观与基础数据同步）在组件内自行拉 latest 并接管，这里什么都不做
     } else {
       task.value = data;
       // 运行中锁定 form
@@ -499,23 +832,24 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   stopPolling();
   stopIndexPolling();
+  stopValuationPolling();
 });
 </script>
 
 <template>
   <div class="p-16px">
+    <!-- 显示顺序：宏观与基础数据（卡片 4）置顶，其后是卡片 1/2/3。下方「卡片 N」只是代码里的稳定标识，不代表顺序。 -->
+    <!-- ===== 卡片 4：宏观与基础数据同步（六个单段同步入口的集中处） ===== -->
+    <MacroSyncCard />
+
     <!-- ===== 卡片 1：财务及行情批量同步 ===== -->
-    <NCard size="small">
-      <template #header>
-        <NSpace align="center" :size="12">
-          <span>财务及行情批量同步</span>
-          <NButton type="primary" size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
-            启动
-          </NButton>
-          <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">
-            停止
-          </NButton>
-        </NSpace>
+    <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
+      <template #header>财务及行情批量同步</template>
+      <template #header-extra>
+        <NButton type="primary" ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
+          启动
+        </NButton>
+        <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
       </template>
 
       <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning">
@@ -650,30 +984,29 @@ onBeforeUnmount(() => {
     </NCard>
 
     <!-- ===== 卡片 2：指数成分股同步 ===== -->
-    <NCard size="small" style="margin-top: 16px">
-      <template #header>
-        <NSpace align="center" :size="12">
-          <span>指数成分股同步</span>
-          <NButton
-            type="primary"
-            size="small"
-            :loading="indexStarting"
-            :disabled="indexIsRunning"
-            @click="handleIndexStart"
-          >
-            启动
-          </NButton>
-          <NButton
-            v-if="indexIsRunning"
-            type="error"
-            ghost
-            size="small"
-            :loading="indexStopping"
-            @click="handleIndexStop"
-          >
-            停止
-          </NButton>
-        </NSpace>
+    <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
+      <template #header>指数成分股同步</template>
+      <template #header-extra>
+        <NButton
+          type="primary"
+          ghost
+          size="small"
+          :loading="indexStarting"
+          :disabled="indexIsRunning"
+          @click="handleIndexStart"
+        >
+          启动
+        </NButton>
+        <NButton
+          v-if="indexIsRunning"
+          type="error"
+          ghost
+          size="small"
+          :loading="indexStopping"
+          @click="handleIndexStop"
+        >
+          停止
+        </NButton>
       </template>
 
       <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
@@ -690,13 +1023,14 @@ onBeforeUnmount(() => {
         <NButton size="tiny" secondary :disabled="indexIsRunning" @click="clearIndices">清空</NButton>
       </div>
 
-      <!-- 起始日期 -->
+      <!-- 起始日期 + 当前核查水位：水位紧跟日期框，选日期时能直接对照（不另起一块） -->
       <div
         :style="{
           marginTop: '8px',
           display: 'flex',
           alignItems: 'center',
-          gap: '16px',
+          gap: '12px',
+          flexWrap: 'wrap',
           opacity: indexIsRunning ? 0.6 : 1
         }"
       >
@@ -710,32 +1044,30 @@ onBeforeUnmount(() => {
           placeholder="清空 = 从核查水位次日增量"
           style="width: 210px"
         />
-      </div>
-
-      <!-- 核查水位（P0-0）：名单自 X 未变 ≠ 已核查到 X，两者必须分开看 -->
-      <div v-if="indexWm.length" style="margin-top: 12px">
-        <div style="font-size: 13px; color: #666; margin-bottom: 6px">
-          核查水位
-          <span style="font-size: 12px; color: #999; margin-left: 8px">
-            「核查至」= 已判定过的最后交易日；「名单自」= 该期间名单确实没变。增量从「核查至」次日接着跑。
-          </span>
-        </div>
-        <NSpace :size="[16, 6]" :wrap="true">
-          <NTag
-            v-for="item in indexWm"
-            :key="item.index_code"
-            size="small"
-            :bordered="false"
-            :type="wmAbnormal(item) ? (item.current_rows === 0 ? 'error' : 'warning') : 'default'"
-          >
-            {{ item.sec_name || item.index_code }}：{{ wmText(item) }}
-          </NTag>
-        </NSpace>
+        <!-- 核查水位（P0-0）：名单自 X 未变 ≠ 已核查到 X，行内给「核查至」，悬停看完整口径 -->
+        <template v-if="wmVisible.length">
+          <span style="font-size: 13px; color: #666; flex-shrink: 0">核查水位：</span>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap">
+            <NTooltip v-for="item in wmVisible" :key="item.index_code" trigger="hover" :style="{ maxWidth: '420px' }">
+              <template #trigger>
+                <NTag
+                  size="small"
+                  :bordered="false"
+                  :type="wmAbnormal(item) ? (item.current_rows === 0 ? 'error' : 'warning') : 'default'"
+                >
+                  {{ wmInline(item) }}
+                </NTag>
+              </template>
+              {{ wmText(item) }}
+            </NTooltip>
+          </div>
+        </template>
       </div>
 
       <div style="margin-top: 8px; font-size: 12px; color: #999">
-        起始日期留空 =
-        各指数从「核查至」次日增量；要做历史回填请手动改成更早日期（水位不回退）。仅在成分股名单发生变化的交易日留存快照（不存每日权重）；已存交易日自动跳过，中断后重跑可续补。
+        起始日期留空 = 各指数从「核查至」次日增量；要做历史回填请手动改成更早日期（水位不回退）。「核查至」=
+        已判定过的最后交易日，「名单自」=
+        该期间名单确实没变（未勾选指数时显示全部水位，悬停标签看单只明细）。仅在成分股名单发生变化的交易日留存快照（不存每日权重）；已存交易日自动跳过，中断后重跑可续补。
       </div>
 
       <!-- 进度面板 -->
@@ -810,7 +1142,218 @@ onBeforeUnmount(() => {
       </div>
     </NCard>
 
-    <!-- ===== 卡片 3：宏观数据同步（三个宏观页面的同步入口集中处） ===== -->
-    <MacroSyncCard />
+    <!-- ===== 卡片 3：指数估值重算 ===== -->
+    <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
+      <template #header>指数估值重算</template>
+      <template #header-extra>
+        <NButton
+          type="primary"
+          ghost
+          size="small"
+          :loading="valuationStarting"
+          :disabled="valuationIsRunning"
+          @click="handleValuationStart()"
+        >
+          启动
+        </NButton>
+        <NButton
+          v-if="valuationIsRunning"
+          type="error"
+          ghost
+          size="small"
+          :loading="valuationStopping"
+          @click="handleValuationStop"
+        >
+          停止
+        </NButton>
+      </template>
+
+      <!-- 指数选择 -->
+      <div
+        :style="{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          opacity: valuationIsRunning ? 0.6 : 1
+        }"
+      >
+        <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
+        <NCheckboxGroup v-model:value="valuationForm.index_codes" :disabled="valuationIsRunning" style="flex: 1">
+          <NSpace :size="12" :wrap="true">
+            <NCheckbox v-for="opt in valuationIndexOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </NCheckbox>
+          </NSpace>
+        </NCheckboxGroup>
+        <NButton size="tiny" secondary :disabled="valuationIsRunning" @click="selectAllValuationIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="valuationIsRunning" @click="clearValuationIndices">清空</NButton>
+      </div>
+
+      <!-- 区间 + 参数 -->
+      <div
+        :style="{
+          marginTop: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
+          opacity: valuationIsRunning ? 0.6 : 1
+        }"
+      >
+        <span style="font-size: 13px; color: #666; flex-shrink: 0">区间：</span>
+        <NDatePicker
+          v-model:formatted-value="valuationForm.start_date"
+          :disabled="valuationIsRunning"
+          type="date"
+          value-format="yyyy-MM-dd"
+          clearable
+          placeholder="起（空=增量）"
+          style="width: 165px"
+        />
+        <span style="color: #999">~</span>
+        <NDatePicker
+          v-model:formatted-value="valuationForm.end_date"
+          :disabled="valuationIsRunning"
+          type="date"
+          value-format="yyyy-MM-dd"
+          clearable
+          :is-date-disabled="disabledFutureDate"
+          placeholder="止（空=最新）"
+          style="width: 165px"
+        />
+        <span style="font-size: 13px; color: #666; margin-left: 8px">重算最近</span>
+        <NInputNumber
+          v-model:value="valuationForm.days"
+          :min="1"
+          :max="60"
+          :disabled="valuationDaysDisabled"
+          style="width: 100px"
+        />
+        <span style="font-size: 12px" :style="{ color: valuationDaysHint.muted ? '#f0a020' : '#999' }">
+          {{ valuationDaysHint.text }}
+        </span>
+        <NCheckbox v-model:checked="valuationForm.with_median" :disabled="valuationIsRunning">
+          算中位数 pe_median（约慢一倍）
+        </NCheckbox>
+      </div>
+
+      <div style="margin-top: 8px; font-size: 12px; color: #999; line-height: 1.7">
+        两端都空 = 增量：各指数从
+        <b>自己的</b>
+        最新已算日往前重算最近 N 个交易日 → 最新（落后的指数会顺带补齐，不会静默只补最近几天）；只填起点 =
+        全指数共用该起点 → 最新；
+        <b>只填终点 = 各指数最早快照 → 该日（≈全历史，会弹二次确认）</b>
+        ；两端都填 = 该区间（
+        <b>含两端</b>
+        ）。
+        <b>N 仅在两端都空时生效</b>
+        ，指定任一端点即失效。本任务与上面两张卡片全局互斥，同一时刻只能跑一个。
+      </div>
+
+      <!-- 进度面板 -->
+      <div v-if="valuationTask" style="margin-top: 20px">
+        <NSpace align="center">
+          <NTag :type="valuationStatusLabel.type" round>{{ valuationStatusLabel.text }}</NTag>
+          <span style="font-size: 13px; color: #666">
+            任务 #{{ valuationTask.id }} · {{ valuationTaskIndexCount }} 只指数 · {{ valuationRangeText }} · 共
+            {{ valuationTask.total_count }} 个区间
+          </span>
+        </NSpace>
+        <NProgress
+          type="line"
+          :percentage="valuationProgressValue"
+          :show-indicator="true"
+          :indicator-width="38"
+          :status="
+            valuationTask.status === 'failed' ? 'error' : valuationTask.status === 'done' ? 'success' : 'default'
+          "
+          style="margin-top: 12px"
+        />
+        <NGrid :cols="5" :x-gap="12" style="margin-top: 8px">
+          <NGridItem>
+            <NStatistic
+              label="已完成区间 / 总数"
+              :value="`${valuationTask.done_count} / ${valuationTask.total_count}`"
+            />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="已算交易日" :value="valuationTask.success_count" value-style="color: #18a058" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic
+              label="门禁置空"
+              :value="valuationTask.no_data_count"
+              :value-style="valuationTask.no_data_count > 0 ? 'color: #f0a020' : 'color: #999'"
+            />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic
+              label="中止指数"
+              :value="valuationTask.aborted_count"
+              :value-style="valuationTask.aborted_count > 0 ? 'color: #f0a020' : 'color: #999'"
+            />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="失败" :value="valuationTask.error_count" value-style="color: #d03050" />
+          </NGridItem>
+        </NGrid>
+        <div style="margin-top: 4px; font-size: 12px; color: #999">
+          已算交易日 = upsert 行数（含覆盖旧行，
+          <b>不等于新增行数</b>
+          ）；门禁置空 = 当日成分覆盖率不足 98%、指标留空的交易日（是数据不全，不是任务失败）。
+        </div>
+
+        <NAlert v-if="valuationGatedList.length" type="warning" :bordered="false" style="margin-top: 10px">
+          <template #header>覆盖率门禁拦下 {{ valuationGatedList.reduce((s, g) => s + g.count, 0) }} 个交易日</template>
+          <div v-for="g in valuationGatedList" :key="g.code" style="font-size: 12px">
+            {{ g.code }}：{{ g.days.slice(0, 8).join('、') }}{{ g.count > 8 ? ` …共 ${g.count} 天` : '' }}
+          </div>
+          这些日子因个股估值/市值源端缺股，PE/PB/股息率一律留空（不静默出数）。补齐源数据后重算即可。
+        </NAlert>
+
+        <NAlert v-if="valuationLaggingList.length" type="info" :bordered="false" style="margin-top: 10px">
+          <template #header>本次补算了落后的指数</template>
+          <div v-for="l in valuationLaggingList" :key="l.code" style="font-size: 12px">
+            {{ l.code }}：末次已算 {{ l.last_date }}，落后 {{ l.missing_days }} 个交易日（本任务已从
+            {{ l.start_date }} 补起）
+          </div>
+        </NAlert>
+
+        <NCollapse v-if="!valuationIsRunning && valuationAudit.compared > 0" style="margin-top: 12px">
+          <NCollapseItem
+            :title="`重算审计：比对 ${valuationAudit.compared} 行，超 0.5% 变动 ${valuationAudit.changed} 行（最大 ${valuationAudit.maxPct}%）`"
+            name="valuationAudit"
+          >
+            <NDataTable
+              v-if="valuationAudit.samples.length"
+              :columns="valuationAuditColumns"
+              :data="valuationAudit.samples"
+              :bordered="false"
+              size="small"
+              :max-height="240"
+            />
+            <div v-else style="font-size: 12px; color: #999">无超阈变动（幂等重算的预期结果）</div>
+          </NCollapseItem>
+        </NCollapse>
+
+        <NCollapse v-if="!valuationIsRunning && valuationErrorList.length > 0" style="margin-top: 12px">
+          <NCollapseItem :title="`失败明细（${valuationErrorList.length}）`" name="valuationErrors">
+            <NDataTable
+              :columns="valuationErrorColumns"
+              :data="valuationErrorList"
+              :bordered="false"
+              size="small"
+              :max-height="240"
+            />
+          </NCollapseItem>
+        </NCollapse>
+        <div
+          v-else-if="!valuationIsRunning && valuationTask.status === 'done'"
+          style="color: #18a058; font-size: 13px; margin-top: 12px"
+        >
+          全部完成，无失败项
+        </div>
+      </div>
+    </NCard>
   </div>
 </template>

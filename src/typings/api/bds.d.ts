@@ -791,6 +791,12 @@ declare namespace Api {
       progress: number;
       /** 失败明细 */
       errors: SyncError[] | null;
+      /**
+       * 任务结果摘要（结构化，**非失败信息**）
+       *
+       * 仅 index_valuation 使用：`{ per_index, gated, gated_total, lagging, start_date, end_date, ... }`
+       */
+      result: Record<string, any> | null;
       /** 实际开始时间 */
       start_time: string | null;
       /** 实际结束时间 */
@@ -833,6 +839,10 @@ declare namespace Api {
       pb_mrq: number | null;
       /** 市值加权股息率 TTM(%)，分母含全部成分市值（无分红记 0） */
       dy_ttm: number | null;
+      /** 整体法市销率 TTM = ΣMV/Σ(MV/ps)；营收无负值，分母不剔除 */
+      ps_ttm: number | null;
+      /** 整体法市现率 TTM（经营现金流），**仅 pcf>0.5 的成分参与分子与分母**，负现金流剔除 */
+      pcf_ttm_oper: number | null;
       /** 成分总市值合计（元） */
       mv_total: number | null;
       /** 成分净利润合计（元，含负值） */
@@ -845,6 +855,8 @@ declare namespace Api {
       n_valid: number | null;
       /** 亏损/无 PE 数 */
       n_loss: number | null;
+      /** 负/无经营现金流成分数（PCF 剔除样本审计） */
+      n_cf_neg: number | null;
       /** 所用成分快照日期（可追溯） */
       snapshot_date: string | null;
       /** 本行计算时间（重算会刷新） */
@@ -944,10 +956,12 @@ declare namespace Api {
     /** 指数估值重算请求体 */
     interface IndexValuationSyncRequest {
       index_codes?: string[];
-      /** 增量重算最近 N 个交易日（1~60），默认 5 */
+      /** 增量模式重叠的交易日数（1~60），默认 5；用交易日历倒推，不是自然日 */
       days?: number;
-      /** 重算起点；传了则覆盖 days */
-      start_date?: string;
+      /** 重算起点（闭区间）；传了则所有指数共用该起点，days 失效 */
+      start_date?: string | null;
+      /** 重算终点（闭区间，**含当天**）；不传=算到最新 */
+      end_date?: string | null;
       /** 是否同时算横截面中位数（约慢一倍） */
       with_median?: boolean;
     }

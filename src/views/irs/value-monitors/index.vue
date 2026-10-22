@@ -381,21 +381,21 @@ onMounted(() => {
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton type="primary" ghost @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
           <NSpace>
-            <NButton type="primary" :loading="syncYearLoading" @click="handleSyncYear">
+            <NButton type="primary" ghost :loading="syncYearLoading" @click="handleSyncYear">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               年度
             </NButton>
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <NButton type="primary" ghost :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               行情
             </NButton>
-            <NButton type="primary" @click="handleAdd">
+            <NButton type="primary" ghost @click="handleAdd">
               <template #icon><SvgIcon icon="mdi:plus" /></template>
               新增
             </NButton>
@@ -525,10 +525,12 @@ onMounted(() => {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="handleCancel">取消</NButton>
-          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">
+          <NButton type="primary" ghost :loading="submitLoading" @click="handleSubmit">
             {{ editingId === null ? '确定' : '修改' }}
           </NButton>
-          <NButton v-if="editingId !== null" type="error" :loading="submitLoading" @click="handleDelete">删除</NButton>
+          <NButton v-if="editingId !== null" type="error" ghost :loading="submitLoading" @click="handleDelete">
+            删除
+          </NButton>
         </NSpace>
       </template>
     </NModal>

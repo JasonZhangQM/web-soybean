@@ -25,6 +25,20 @@ export interface BatchSyncFormState {
   max_symbols: number;
 }
 
+/** 指数估值重算（卡片 3）表单快照 */
+export interface ValuationFormState {
+  /** 待重算的指数代码 */
+  index_codes: string[];
+  /** 起点（YYYY-MM-DD，闭区间）；null=增量 */
+  start_date: string | null;
+  /** 终点（YYYY-MM-DD，闭区间，含当天）；null=算到最新 */
+  end_date: string | null;
+  /** 增量模式重叠的交易日数（仅 start_date 为空时生效） */
+  days: number;
+  /** 是否同时算横截面中位数 pe_median（约慢一倍） */
+  with_median: boolean;
+}
+
 export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   // 指数代码列表（全局缓存，首次加载时获取）
   const indexCodeList = ref<Api.Bds.IndexCodeItem[]>([]);
@@ -70,6 +84,14 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
   /** 写入选中的指数（由 batch-sync 卡片 2 调用） */
   function setSelectedIndexCodes(codes: string[]) {
     selectedIndexCodes.value = [...codes];
+  }
+
+  // 指数估值重算表单快照（卡片 3；会话级保持，不落 localStorage）
+  const valuationForm = ref<ValuationFormState | null>(null);
+
+  /** 写入指数估值表单快照 */
+  function setValuationForm(state: ValuationFormState) {
+    valuationForm.value = { ...state, index_codes: [...state.index_codes] };
   }
 
   // 行业列表（全局缓存，后端 DISTINCT 去重，首次加载时获取）
@@ -186,6 +208,8 @@ export const useBdsStore = defineStore(SetupStoreId.Bds, () => {
     setBatchSyncForm,
     selectedIndexCodes,
     setSelectedIndexCodes,
+    valuationForm,
+    setValuationForm,
     industryList,
     industriesLoaded,
     industriesLoading,
