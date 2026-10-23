@@ -89,12 +89,14 @@ declare namespace Api {
       message: string;
     }
 
-    /** 估值监测（对应 ValueMonitorOut，共 25 字段，独立表含估值区间+行情+监测字段） */
+    /** 估值监测（对应 ValueMonitorOut，主表 27 字段 + 9 个 v3 派生字段） */
     interface ValueMonitor {
-      /** 代码 */
+      /** 代码（业务主键，API 禁改） */
       symbol: string;
       /** 名称 */
       name: string | null;
+      /** 主题（唯一定义处，跨合约聚合用） */
+      theme: string | null;
       /** 估值价-极低 */
       pp_el: number | null;
       /** 估值价-低 */
@@ -139,12 +141,177 @@ declare namespace Api {
       pv_h_y: number | null;
       /** 极高(y%) */
       pv_eh_y: number | null;
-      /** 主键 */
+      /** 派生：当前生效档位版本日期 */
+      pp_effective_date: string | null;
+      /** 派生：档位版本总数 */
+      pp_version_count: number | null;
+      /** 派生：最早的未来版日期（页面提示「待生效 X-XX」） */
+      pp_pending_date: string | null;
+      /** 派生：最新研究定稿日 */
+      research_date: string | null;
+      /** 派生：最新研究结论 */
+      research_conclusion: string | null;
+      /** 派生：下次复核日 */
+      next_review: string | null;
+      /** 派生：待执行计划数 */
+      plan_pending: number | null;
+      /** 派生：已执行计划数 */
+      plan_done: number | null;
+      /** 主键（会漂移，关联键一律用 symbol） */
       id: number;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
       update_time: string;
+    }
+
+    /** 档位版本（对应 VmVersionOut）：五档 + 现算 pv_* + 状态 + 与上一版差值 */
+    interface VmVersion {
+      id: number;
+      symbol: string;
+      /** 生效日：`effective_date <= D` 的最大版就是 D 日的档位 */
+      effective_date: string;
+      note: string | null;
+      pp_el: number | null;
+      pp_l: number | null;
+      pp_m: number | null;
+      pp_h: number | null;
+      pp_eh: number | null;
+      pv_el: number | null;
+      pv_l: number | null;
+      pv_m: number | null;
+      pv_h: number | null;
+      pv_eh: number | null;
+      pv_el_y: number | null;
+      pv_l_y: number | null;
+      pv_m_y: number | null;
+      pv_h_y: number | null;
+      pv_eh_y: number | null;
+      /** current = 当前生效 / history = 历史 / pending = 未来日 */
+      status: 'current' | 'history' | 'pending';
+      /** 是否还有更晚的未来版 */
+      pending_next: boolean;
+      /** 相对上一版各档位差值（字段名 -> number） */
+      diff: Record<string, number>;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 标的研究（对应 VmResearchOut，按 research_date 留版） */
+    interface VmResearch {
+      id: number;
+      symbol: string;
+      research_date: string;
+      /** 核心论点（≤200 字） */
+      thesis: string | null;
+      /** 结论（≤200 字） */
+      conclusion: string | null;
+      /** 最大风险（≤200 字） */
+      max_risk: string | null;
+      /** 预期差 */
+      expectation_gap: string | null;
+      /** 前提条件（≤200 字） */
+      pre_condition: string | null;
+      /** 下次复核日 */
+      next_review: string | null;
+      /** 研究笔记（知识库链接/编号） */
+      research_note: string | null;
+      /** 摘要（≤800 字） */
+      research_brief: string | null;
+      /** 研究过程日志（≤2000 字） */
+      research_log: string | null;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 计划委托（对应 VmPlanOut，用真实合约代码 + 点位） */
+    interface VmPlan {
+      id: number;
+      /** 归属标的（irs_value_monitor.symbol） */
+      vm_symbol: string;
+      /** 实际下单合约代码 */
+      trade_symbol: string;
+      /** 序号（同标的同 seq 覆盖） */
+      seq: number;
+      /** 买 / 卖 */
+      b_s: string;
+      /** 开 / 平 */
+      o_c: string | null;
+      /** 触发方向：lte / gte 等 */
+      trigger_op: string;
+      /** 显式触发价（为空时回落到 trigger_ref 的档位值） */
+      trigger_price: number | null;
+      /** 引用档位字段：pp_el / pp_l / pp_m / pp_h / pp_eh */
+      trigger_ref: string | null;
+      trigger_price2: number | null;
+      qty: number | null;
+      valid_until: string | null;
+      reason: string | null;
+      /** 实际执行的成交 ID */
+      bill_id: number | null;
+      is_cancelled: boolean;
+      /** 派生：已放弃 > 已执行 > 已过期 > 待执行 */
+      status: string;
+      /** 派生：有效触发价 = trigger_price ?? 当前档位值 */
+      effective_trigger: number | null;
+      /** 派生：引用档位当前值 */
+      trigger_ref_value: number | null;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 投资逻辑（对应 VmLogicOut） */
+    interface VmLogic {
+      id: number;
+      symbol: string;
+      seq: number;
+      content: string;
+      /** 定价依据 */
+      pricing: string | null;
+      /** 状态：完好 / 受损 / 破坏 */
+      state: string;
+      state_at: string | null;
+      evidence: string | null;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 证伪条件（对应 VmInvalidateOut） */
+    interface VmInvalidate {
+      id: number;
+      symbol: string;
+      logic_id: number | null;
+      seq: number;
+      /** 命题 */
+      proposition: string;
+      /** 信号（须可量化） */
+      signal: string;
+      source: string | null;
+      action: string | null;
+      status: string;
+      triggered_at: string | null;
+      create_time: string;
+      update_time: string;
+      /** 派生：signal 里没有数字阈值 -> 前端标红 */
+      quantified: boolean;
+    }
+
+    /** 归属覆盖率行（每个标的的合约行数与成交笔数） */
+    interface VmCoverageRow {
+      symbol: string;
+      name: string | null;
+      group_rows: number | null;
+      bill_rows: number | null;
+    }
+
+    /** 未归属合约行 */
+    interface VmUnmappedRow {
+      id: number;
+      category: string;
+      symbol: string;
+      count: number | null;
+      pf_total: number | null;
+      bill_rows: number | null;
     }
   }
 }

@@ -73,7 +73,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 交易收益（对应 BillOut，共 36 字段） */
+    /** 交易收益（对应 BillOut，共 41 字段） */
     interface Bill {
       /** 交易时间 */
       trade_time: string;
@@ -141,8 +141,38 @@ declare namespace Api {
       market: string | null;
       /** 账户 */
       account: string;
+      /** 归属标的（经 bills_group_symbol.vm_symbol；资金流水行恒为 null） */
+      vm_symbol: string | null;
+      /** 「想法」正文（bills_bill_note，成交当时的判断） */
+      note_idea: string | null;
+      /** 「想法」落笔时间（晚于 trade_time = 事后补写） */
+      note_idea_at: string | null;
+      /** 「复盘」正文 */
+      note_review: string | null;
+      /** 「复盘」落笔时间 */
+      note_review_at: string | null;
       /** 主键 */
       id: number;
+      /** 创建时间 */
+      create_time: string;
+      /** 更新时间 */
+      update_time: string;
+    }
+
+    /** 成交笔记（对应 BillNoteOut，bills_bill_note 一行 = 一笔成交的一个 kind） */
+    interface BillNote {
+      /** 主键 */
+      id: number;
+      /** 关联账单 ID（账单被删后置 null，靠 biz_key 找回） */
+      bill_id: number | null;
+      /** 业务指纹（account|trade_time|symbol|exec_type|amount_act|id_agree|cash 的 md5） */
+      biz_key: string;
+      /** 笔记类型：想法 / 复盘 */
+      kind: string;
+      /** 正文 */
+      content: string;
+      /** 落笔时间（后端写，前端不可传） */
+      content_at: string;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
@@ -235,7 +265,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 标的汇总（对应 GroupSymbolOut，共 23 字段） */
+    /** 标的汇总（对应 GroupSymbolOut，共 19 字段；笔记与主题列已全部下线） */
     interface GroupSymbol {
       /** 类别 */
       category: string;
@@ -269,24 +299,29 @@ declare namespace Api {
       diff_dw: number | null;
       /** 资金日结差额 */
       diff_dwt: number | null;
-      /** 开仓逻辑（手动维护，重算不覆盖） */
-      logic: string | null;
-      /** 策略与计划（手动维护） */
-      plan: string | null;
-      /** 证伪条件（手动维护） */
-      invalidate: string | null;
-      /** 复盘结论（手动维护） */
-      review: string | null;
-      /** 主题标签（手动维护） */
-      theme: string | null;
-      /** 笔记首次落笔时间（后端填） */
-      note_at: string | null;
+      /** 归属标的（唯一的人工列，重算不覆盖；融资融券与未归属为 null） */
+      vm_symbol: string | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
       update_time: string;
+    }
+
+    /** 归属计数（顶部提示「还有多少行没选」；三态之和 = total） */
+    interface GroupSymbolCoverage {
+      /** 已归属行数（含 vm_symbol 与同代码自动命中） */
+      mapped: number;
+      /** 真未归属行数（可归属交易行里既无 vm_symbol、也不同代码），即可操作清单 */
+      unmapped: number;
+      /**
+       * 不参与归属行数：资金流水行（RZRQ / CRJ / SYFY / cash + 理财逆回购）。
+       * 这些行的 symbol 只是流水占位代码而非证券，挂标的不产生任何归属意义，不是漏配。
+       */
+      excluded: number;
+      /** 总行数 */
+      total: number;
     }
 
     /** 年度收益（对应 ProfitYearOut，共 14 字段） */

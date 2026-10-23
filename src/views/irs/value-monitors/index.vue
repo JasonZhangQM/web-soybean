@@ -1,14 +1,25 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, watch, onMounted } from 'vue';
-import { NButton } from 'naive-ui';
-import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
+import { NButton, NTag } from 'naive-ui';
+import { useRoute } from 'vue-router';
+import {
+  fetchValueMonitors,
+  createValueMonitor,
+  updateValueMonitor,
+  deleteValueMonitor,
+  fetchValueMonitorDetail,
+  syncIrs
+} from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
+import DetailDrawer from './modules/DetailDrawer.vue';
 
 defineOptions({ name: 'IrsValueMonitorsPage' });
+
+const route = useRoute();
 
 const loading = ref(false);
 // 同步年度行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -19,8 +30,20 @@ const tableData = ref<Api.Irs.ValueMonitor[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-const searchParams = reactive({
-  symbol: null as string | null
+/**
+ * 筛选：代码（精确）+ 主题（多选）+ 研究状态
+ *
+ * 主题只在本页维护（合约层已无 theme 列），所以主题筛选也只在这里出现。
+ * 多值走 repeat 直通后端（铁律 4.5），不在前端过滤——否则计数与分页都会骗人。
+ */
+const searchParams = reactive<{
+  symbol: string | null;
+  theme: string[] | null;
+  research_state: 'none' | 'due' | null;
+}>({
+  symbol: null,
+  theme: null,
+  research_state: null
 });
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
@@ -33,12 +56,30 @@ const {
   clearSymbolOptions: clearSearchSymbolOptions
 } = useSymbolSearch();
 
+// 主题候选：单独取一次全量（不受当前筛选影响），否则一按主题筛，选项就塌缩成只剩当前那个
+const themeList = ref<string[]>([]);
+const themeOptions = computed(() => themeList.value.map(t => ({ label: t, value: t })));
+
+async function loadThemeOptions() {
+  const { data, error } = await fetchValueMonitors({ limit: 200 });
+  if (!error && data) {
+    themeList.value = Array.from(new Set(data.items.map(i => i.theme).filter((t): t is string => !!t))).sort();
+  }
+}
+
+const researchStateOptions = [
+  { label: '还没做研究', value: 'none' },
+  { label: '复核已到期', value: 'due' }
+];
+
 // 拉取估值监测列表
 async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchValueMonitors({
       symbol: searchParams.symbol || undefined,
+      theme: searchParams.theme?.length ? searchParams.theme : undefined,
+      research_state: searchParams.research_state || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -59,6 +100,8 @@ function handleSearch() {
 
 function handleReset() {
   searchParams.symbol = null;
+  searchParams.theme = null;
+  searchParams.research_state = null;
   clearSearchSymbolOptions();
   pagination.page = 1;
   fetchData();
@@ -74,14 +117,49 @@ async function handleSync() {
   await executeSync(() => syncIrs('value-monitor'), syncLoading, fetchData);
 }
 
-// ===== 新增模态框 =====
+// ===== 档案抽屉 =====
+const showDrawer = ref(false);
+const drawerRow = ref<Api.Irs.ValueMonitor | null>(null);
+
+function openDrawer(row: Api.Irs.ValueMonitor) {
+  drawerRow.value = row;
+  showDrawer.value = true;
+}
+
+/** 抽屉里改完：刷列表（结论/复核/计划计数都在列表上） */
+function onDetailChanged() {
+  fetchData();
+}
+
+/**
+ * 外部跳转进入：`?vm=SYMBOL` 自动开抽屉
+ *
+ * 账单页/合约页的「归属标的」链接都走这个入口，省掉"先搜再点"。
+ */
+async function openFromQuery() {
+  const sym = route.query.vm;
+  if (typeof sym !== 'string' || !sym) return;
+  const { data, error } = await fetchValueMonitors({ symbol: sym, limit: 1 });
+  if (!error && data?.items?.length) {
+    openDrawer(data.items[0]);
+  } else if (!error) {
+    window.$message?.warning(`标的 ${sym} 不在估值监测里`);
+  }
+}
+
+// ===== 新增/编辑模态框 =====
 const editingId = ref<number | null>(null);
+/** 编辑前的原始行：用于判断五档到底有没有改（没改就不该新建版本） */
+const originalRow = ref<Api.Irs.ValueMonitor | null>(null);
 const showModal = ref(false);
 const submitLoading = ref(false);
 const formRef = ref();
 const formData = reactive({
   symbol: '',
   name: '',
+  theme: '' as string | null,
+  /** 档位版本生效日：选新日期=新建一版，选已有日期=改那一版 */
+  effective_date: null as string | null,
   pp_el: null as number | null,
   pp_l: null as number | null,
   pp_m: null as number | null,
@@ -92,6 +170,23 @@ const formData = reactive({
   y_high: null as number | null,
   y_low: null as number | null,
   price: null as number | null
+});
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** 五档是否真的改了：只改名/主题时必须为 false，否则会凭空多出一版档位 */
+const tiersChanged = computed(() => {
+  if (editingId.value === null) return true;
+  const o = originalRow.value;
+  if (!o) return true;
+  const keys = ['pp_el', 'pp_l', 'pp_m', 'pp_h', 'pp_eh'] as const;
+  return keys.some(k => {
+    const a = formData[k] == null ? null : Number(formData[k]);
+    const b = o[k] == null ? null : Number(o[k]);
+    return a !== b;
+  });
 });
 
 // 行情折叠面板展开状态：默认折叠，仅编辑模式显示
@@ -120,7 +215,7 @@ watch(
   }
 );
 
-// 表单校验规则：所有字段必填
+// 表单校验规则
 const formRules = {
   symbol: { required: true, message: '请选择代码', trigger: 'change' },
   name: { required: true, message: '请输入名称', trigger: 'blur' },
@@ -135,6 +230,7 @@ const formRules = {
 function handleAdd() {
   resetForm();
   editingId.value = null;
+  formData.effective_date = today();
   showModal.value = true;
 }
 
@@ -143,8 +239,12 @@ function handleAdd() {
 function handleEdit(row: Api.Irs.ValueMonitor) {
   resetForm();
   editingId.value = row.id;
+  originalRow.value = row;
   formData.symbol = row.symbol;
   formData.name = row.name ?? '';
+  formData.theme = row.theme ?? null;
+  // 默认取「当前生效版」的日期：改五档时若不改日期，就是覆盖当前生效那一版
+  formData.effective_date = row.pp_effective_date ?? today();
   // 编辑回填时 NSelect 需有对应 option 才能显示，手动塞入当前行
   symbolOptions.value = [{ label: `${row.symbol} ${row.name ?? ''}`, value: row.symbol }];
   formData.pp_el = row.pp_el != null ? Number(row.pp_el) : null;
@@ -163,8 +263,11 @@ function handleEdit(row: Api.Irs.ValueMonitor) {
 // 重置表单
 function resetForm() {
   editingId.value = null;
+  originalRow.value = null;
   formData.symbol = '';
   formData.name = '';
+  formData.theme = null;
+  formData.effective_date = null;
   formData.pp_el = null;
   formData.pp_l = null;
   formData.pp_m = null;
@@ -188,8 +291,7 @@ async function handleSubmit() {
   }
   submitLoading.value = true;
   try {
-    const params = {
-      name: formData.name,
+    const tiers = {
       pp_el: formData.pp_el!,
       pp_l: formData.pp_l!,
       pp_m: formData.pp_m!,
@@ -198,17 +300,23 @@ async function handleSubmit() {
     };
     let error;
     if (editingId.value === null) {
-      // 新增：需带 symbol
+      // 新增：需带 symbol；后端会顺手建首版档位
       ({ error } = await createValueMonitor({
         symbol: formData.symbol,
-        ...params
+        name: formData.name,
+        theme: formData.theme || null,
+        effective_date: formData.effective_date || null,
+        ...tiers
       }));
     } else {
-      // 修改：PUT by id
-      // 行情字段仅展开编辑时才传，未展开不传（后端 None 表示不修改）
+      // 修改：
+      // - 五档没改 -> pp_* 一个都不传，后端跳过版本写入（否则每次改名都会凭空多一版）
+      // - 行情字段仅展开编辑时才传，未展开不传（后端 None 表示不修改）
       const quoteExpanded = quoteExpandedNames.value.includes('quote');
       ({ error } = await updateValueMonitor(editingId.value, {
-        ...params,
+        name: formData.name,
+        theme: formData.theme || null,
+        ...(tiersChanged.value ? { ...tiers, effective_date: formData.effective_date || null } : {}),
         ...(quoteExpanded
           ? {
               py_close: formData.py_close,
@@ -222,9 +330,11 @@ async function handleSubmit() {
     if (!error) {
       window.$message?.success(editingId.value === null ? '新增成功' : '修改成功');
       showModal.value = false;
+      const wasEdit = editingId.value !== null;
       resetForm();
-      pagination.page = 1;
+      if (!wasEdit) pagination.page = 1;
       fetchData();
+      loadThemeOptions();
     }
   } finally {
     submitLoading.value = false;
@@ -237,19 +347,51 @@ function handleCancel() {
   resetForm();
 }
 
-// 删除当前编辑记录
+/**
+ * 删除：外键是 RESTRICT，有子数据后端返回 409 + 各子表计数。
+ *
+ * 这里先取一次 detail 拿到计数，把代价摆在确认框里；确认后带 cascade=true。
+ * 不能把 409 当普通错误弹一下——用户会以为"删不掉"（v3 §十一 风险 13）。
+ */
 async function handleDelete() {
   if (editingId.value === null) return;
+  const id = editingId.value;
   submitLoading.value = true;
   try {
-    const { error } = await deleteValueMonitor(editingId.value);
-    if (!error) {
-      window.$message?.success('删除成功');
-      showModal.value = false;
-      resetForm();
-      pagination.page = 1;
-      fetchData();
-    }
+    const { data, error } = await fetchValueMonitorDetail(id);
+    if (error || !data) return;
+    const counts = {
+      档位版本: data.versions.length,
+      研究版本: data.research.length,
+      投资逻辑: data.logic.length,
+      证伪条件: data.invalidate.length,
+      计划委托: data.plans.length
+    };
+    const hasChild = Object.values(counts).some(n => n > 0);
+    const detailText = Object.entries(counts)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => `${k} ${n} 条`)
+      .join('、');
+
+    window.$dialog?.warning({
+      title: hasChild ? `标的还有档案：${detailText}` : '确认删除这个标的？',
+      content: hasChild
+        ? '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？'
+        : '这个标的没有任何档案，删除不会连带其他数据。',
+      positiveText: '确认删除',
+      negativeText: '取消',
+      onPositiveClick: async () => {
+        const res = await deleteValueMonitor(id, true);
+        if (!res.error) {
+          window.$message?.success('删除成功');
+          showModal.value = false;
+          resetForm();
+          pagination.page = 1;
+          fetchData();
+          loadThemeOptions();
+        }
+      }
+    });
   } finally {
     submitLoading.value = false;
   }
@@ -272,9 +414,6 @@ const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
   return Number(v).toFixed(row.name?.includes('ETF') ? 3 : 2);
 };
 // 估值价合并列：主值后追加(百分比%,y百分比%)，如 3500(-24.44%,-24.41%)
-// - 主值空：'-'
-// - 两个百分比均空：仅显示主值
-// - 至少一个百分比有值：显示 主值(百分比%,y百分比%)，空百分比显示为 '-'
 const fmtPriceMerged = (price: number | null, pct: number | null, pctY: number | null) => {
   const p =
     price != null
@@ -288,77 +427,153 @@ const fmtPriceMerged = (price: number | null, pct: number | null, pctY: number |
   return `${p}(${pPct},${pPctY})`;
 };
 // 行情合并列：主值按ETF规则保留小数，后追加(y值%)，如 5064.27(9.38%)
-// 空值处理同 fmtMerged
 const fmtQuoteMerged = (row: Api.Irs.ValueMonitor, main: number | null, y: number | null) => {
   const m = main != null ? Number(main).toFixed(row.name?.includes('ETF') ? 3 : 2) : '-';
   return y != null ? `${m}(${Number(y).toFixed(2)}%)` : m;
 };
 
+// 今天：用于「复核到期」标红
+const TODAY = today();
+
 const columns = [
   {
+    // 名称是档案入口：点了开抽屉（编辑标的信息在抽屉头部与右侧「操作」列）
     title: '名称',
     key: 'name',
-    width: 100,
+    width: 130,
     render: (row: Api.Irs.ValueMonitor) =>
-      h(NButton, { text: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => row.name })
+      h(
+        NButton,
+        { text: true, type: 'primary', onClick: () => openDrawer(row) },
+        { default: () => row.name || row.symbol }
+      )
+  },
+  {
+    // 主题只在标的层维护：合约层的 theme 列 v3 已删除
+    title: '主题',
+    key: 'theme',
+    width: 100,
+    ellipsis: { tooltip: true },
+    render: (row: Api.Irs.ValueMonitor) => row.theme || '-'
+  },
+  {
+    // 结论取自最新一版研究（≤今天），不是主表的列
+    title: '结论',
+    key: 'research_conclusion',
+    width: 220,
+    ellipsis: { tooltip: true },
+    render: (row: Api.Irs.ValueMonitor) =>
+      row.research_conclusion ? row.research_conclusion : h('span', { class: 'text-gray-300' }, '未填')
+  },
+  {
+    // 计划：待执行 / 已执行。待执行 > 0 用橙色，提示"这里有等你动手的事"
+    title: '计划',
+    key: 'plan',
+    width: 100,
+    render: (row: Api.Irs.ValueMonitor) => {
+      const pending = row.plan_pending ?? 0;
+      const done = row.plan_done ?? 0;
+      if (!pending && !done) return h('span', { class: 'text-gray-300' }, '-');
+      return h('span', null, [
+        pending
+          ? h(
+              NTag,
+              { size: 'tiny', bordered: false, type: 'warning', style: 'margin-right:4px' },
+              {
+                default: () => `待 ${pending}`
+              }
+            )
+          : null,
+        done ? h('span', { class: 'text-12px text-gray-500' }, `已 ${done}`) : null
+      ]);
+    }
+  },
+  {
+    // 复核：到期标红。这是档案"该更新了"的唯一提醒
+    title: '复核',
+    key: 'next_review',
+    width: 115,
+    render: (row: Api.Irs.ValueMonitor) => {
+      if (!row.next_review) return h('span', { class: 'text-gray-300' }, '未填');
+      const overdue = row.next_review < TODAY;
+      return h('span', { class: overdue ? 'text-red-500' : '' }, row.next_review);
+    }
   },
   // 行情字段（合并 % 列：主值后追加 %）
-  { title: '上年末', key: 'py_close', width: 80, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
+  { title: '上年末', key: 'py_close', width: 100, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
   {
     title: '最新价',
     key: 'price',
-    width: 130,
+    width: 150,
     render: (row: Api.Irs.ValueMonitor) =>
       h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy))
   },
   {
     title: '年高',
     key: 'y_high',
-    width: 120,
+    width: 140,
     render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh)
   },
   {
     title: '年低',
     key: 'y_low',
-    width: 120,
+    width: 140,
     render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl)
   },
-  // 估值区间（合并 % 和 y% 列：主值后追加 百分比%,y百分比%，如 3500(-24.44%,-24.41%)）
+  // 估值区间（合并 % 和 y% 列）
   {
     title: '极低',
     key: 'pp_el',
-    width: 170,
+    width: 190,
     render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y)
   },
   {
     title: '低',
     key: 'pp_l',
-    width: 170,
+    width: 190,
     render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y)
   },
   {
     title: '中',
     key: 'pp_m',
-    width: 170,
+    width: 190,
     render: (row: Api.Irs.ValueMonitor) =>
       h('span', { style: 'font-weight: bold' }, fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y))
   },
   {
     title: '高',
     key: 'pp_h',
-    width: 170,
+    width: 190,
     render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y)
   },
   {
     title: '极高',
     key: 'pp_eh',
-    width: 170,
+    width: 190,
     render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y)
+  },
+  {
+    title: '操作',
+    key: 'action',
+    width: 75,
+    fixed: 'right' as const,
+    render: (row: Api.Irs.ValueMonitor) =>
+      h(NButton, { text: true, size: 'tiny', onClick: () => handleEdit(row) }, { default: () => '编辑' })
   }
 ];
 
-onMounted(() => {
+/**
+ * 横向滚动宽度 = 各列 width 之和（铁律 4.11：**列宽一改必须重算**，否则
+ * scroll-x 偏小会让浏览器压缩列、内容被迫折行——正是「换行」的根源）。
+ * 当前 130+100+220+100+115+100+150+140+140+190×5+75 = 2220。
+ * 总宽超出容器时由 NDataTable 内部横向滚动接管，页面本身不出现横向滚动条。
+ */
+const scrollX = columns.reduce((sum, col) => sum + ((col.width as number) ?? 0), 0);
+
+onMounted(async () => {
   fetchData();
+  loadThemeOptions();
+  await openFromQuery();
 });
 </script>
 
@@ -375,8 +590,30 @@ onMounted(() => {
             remote
             clearable
             placeholder="代码搜索"
-            style="width: 260px"
+            style="width: 240px"
             @search="handleSearchSymbolSearch"
+          />
+        </NFormItem>
+        <NFormItem label="主题">
+          <NSelect
+            v-model:value="searchParams.theme"
+            :options="themeOptions"
+            multiple
+            clearable
+            filterable
+            placeholder="可多选"
+            style="width: 220px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
+        <NFormItem label="研究">
+          <NSelect
+            v-model:value="searchParams.research_state"
+            :options="researchStateOptions"
+            clearable
+            placeholder="全部"
+            style="width: 140px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
@@ -410,12 +647,17 @@ onMounted(() => {
         :loading="loading"
         remote
         :pagination="pagination"
+        :scroll-x="scrollX"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
     </NCard>
-    <NModal v-model:show="showModal" preset="card" :title="modalTitle" class="w-480px" :mask-closable="false">
-      <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="80px">
+
+    <!-- 标的档案抽屉：概览 / 研究 / 档位 / 逻辑与证伪 / 计划与成交 -->
+    <DetailDrawer v-model:show="showDrawer" :row="drawerRow" @edit="handleEdit" @changed="onDetailChanged" />
+
+    <NModal v-model:show="showModal" preset="card" :title="modalTitle" class="w-520px" :mask-closable="false">
+      <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="90px">
         <NFormItem label="代码" path="symbol">
           <NSelect
             :value="formData.symbol || null"
@@ -433,6 +675,17 @@ onMounted(() => {
         </NFormItem>
         <NFormItem label="名称" path="name">
           <NInput v-model:value="formData.name" placeholder="请输入名称" />
+        </NFormItem>
+        <NFormItem label="主题">
+          <NSelect
+            v-model:value="formData.theme"
+            :options="themeOptions"
+            filterable
+            tag
+            clearable
+            placeholder="黄金 / IC贴水 / 红利…（可输入新标签，跨合约聚合用）"
+            style="width: 100%"
+          />
         </NFormItem>
         <NFormItem label="极低" path="pp_el">
           <NInputNumber
@@ -480,6 +733,28 @@ onMounted(() => {
             class="w-full"
           />
         </NFormItem>
+        <NFormItem label="档位生效日">
+          <NDatePicker
+            v-model:formatted-value="formData.effective_date"
+            type="date"
+            value-format="yyyy-MM-dd"
+            clearable
+            :disabled="editingId !== null && !tiersChanged"
+            style="width: 100%"
+          />
+        </NFormItem>
+        <div
+          class="mb-8px text-12px"
+          :class="editingId !== null && !tiersChanged ? 'text-gray-400' : 'text-orange-500'"
+        >
+          {{
+            editingId === null
+              ? '新增标的时按此日期建立首版档位'
+              : tiersChanged
+                ? '五档已改：选新日期 = 新建一版，选已有日期 = 改那一版'
+                : '五档未改：只改名称/主题，不会新建档位版本'
+          }}
+        </div>
         <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
         <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
           <NCollapseItem title="行情字段（兜底编辑）" name="quote">
@@ -536,3 +811,19 @@ onMounted(() => {
     </NModal>
   </div>
 </template>
+
+<style scoped>
+/*
+ * 单元格一律不折行：内容超出列宽时由表格横向滚动接管（scroll-x = 列宽之和）。
+ *
+ * 为什么必须用 :deep()：NDataTable 的 th/td 是子组件渲染的，scoped 属性加不到它们身上，
+ * 直接写 .n-data-table-td 无效且不报错，表现为「改了没反应」。
+ *
+ * 为什么不用 ellipsis 一刀切：「研究结论」最长 800 字，真不折行就得给 800 字的列宽；
+ * 所以只有它和「主题」配 ellipsis(tooltip) 做截断，其余列靠放宽 width 完整显示。
+ */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+</style>

@@ -33,6 +33,10 @@ interface BillQueryParams {
   category?: string | null;
   /** 证券代码（模糊） */
   symbol?: string;
+  /** 证券名称 / 合约简称（模糊） */
+  name?: string;
+  /** 归属标的（精确，经 bills_group_symbol 关联） */
+  vm_symbol?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -102,10 +106,10 @@ interface GroupSymbolQueryParams {
   value_only?: boolean;
   /** 持仓状态：holding=持仓中，closed=已平仓 */
   pos_state?: 'holding' | 'closed';
-  /** 仅显示写过笔记的记录 */
-  has_note?: boolean;
-  /** 主题标签（精确匹配） */
-  theme?: string;
+  /** 归属筛选：yes=已归属；no=未归属（排除融资融券，它本来就不归属） */
+  mapped?: 'yes' | 'no';
+  /** 按归属标的精确筛选（如 SHSE.000300） */
+  vm_symbol?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -121,11 +125,30 @@ export function fetchGroupSymbols(params?: GroupSymbolQueryParams) {
   });
 }
 
-/** 查询已使用过的主题标签（去重 + 行数，供筛选下拉；不受当前筛选影响） */
-export function fetchGroupSymbolThemes() {
-  return request<{ items: { theme: string; count: number }[] }>({
-    url: '/api/v1/bills/group-symbols/themes',
+/** 查询归属计数：已归属 / 未归属 / 融资融券（顶部提示「还有多少行没选」） */
+export function fetchGroupSymbolsCoverage() {
+  return request<Api.Bills.GroupSymbolCoverage>({
+    url: '/api/v1/bills/group-symbols/unmapped-count',
     method: 'get'
+  });
+}
+
+/** 归属参数（vm_symbol 传 null = 清空归属） */
+export interface GroupSymbolVmParams {
+  vm_symbol: string | null;
+}
+
+/**
+ * 修改合约行的归属标的（PATCH /bills/group-symbols/{id}/vm）
+ *
+ * 后端只写 vm_symbol 一列（铁律 4.9 白名单），不会碰派生列。
+ * 融资融券行传非空值 -> 400（融资只是融资行为，name 不承担归属含义）。
+ */
+export function updateGroupSymbolVm(id: number, params: GroupSymbolVmParams) {
+  return request<{ status: string; vm_symbol: string | null }>({
+    url: `/api/v1/bills/group-symbols/${id}/vm`,
+    method: 'patch',
+    data: params
   });
 }
 
@@ -228,6 +251,103 @@ export function updateBill(id: number, params: BillUpdateParams) {
   });
 }
 
+/**
+ * 删除账单（DELETE /bills/bills/{id}）
+ *
+ * 后端硬约束：只允许删除所属账户的「最后一笔」（trade_time 最大）。
+ * 删中间/前面会被拒，因为导入按 trade_time > MAX 增量过滤，删掉的行不会被下次导入补回。
+ * 删除会级联删掉 bills_profit 对应行，并把受影响的 bills_group.profit_time 清空
+ * （标记待重算，须再跑一次同步才会刷新汇总）。
+ */
+export function deleteBill(id: number) {
+  return request<{
+    status: string;
+    message: string;
+    /** 级联删除的账单收益行数 */
+    deleted_profit: number;
+    /** 被标记待重算的汇总组数 */
+    flagged_groups: number;
+  }>({
+    url: `/api/v1/bills/bills/${id}`,
+    method: 'delete'
+  });
+}
+
+/** 成交笔记类型（后端 kind 字段，只能这两个值） */
+export type BillNoteKind = '想法' | '复盘';
+
+/** 查询某笔成交的全部笔记（想法/复盘，最多两条） */
+export function fetchBillNotes(id: number) {
+  return request<Api.Bills.BillNote[]>({
+    url: `/api/v1/bills/${id}/note`,
+    method: 'get'
+  });
+}
+
+/**
+ * 写一笔成交的笔记（PUT /bills/bills/{id}/note/{kind}）
+ *
+ * - content 传空串 = 删除该条（不留空壳）
+ * - content_at 由后端在首次写入时打，前端不可传——否则「当时写的」可以被伪造
+ * - 独立端点，不走 PATCH /bills/{id}：那是 36 字段的宽口子，
+ *   一旦有人给它加「回写全列」，笔记会被静默冲成 NULL
+ */
+export function saveBillNote(id: number, kind: BillNoteKind, content: string) {
+  return request<{
+    status: string;
+    /** created=新建 / updated=改写 / deleted=空串即删除 / noop=本来就没有 */
+    action: 'created' | 'updated' | 'deleted' | 'noop';
+    kind: string;
+    /** 落笔时间，仅 created/updated 返回 */
+    content_at?: string | null;
+  }>({
+    url: `/api/v1/bills/${id}/note/${encodeURIComponent(kind)}`,
+    method: 'put',
+    data: { content }
+  });
+}
+
+/** 无计划成交查询参数 */
+interface UnplannedBillsQueryParams {
+  /** 账户（精确匹配） */
+  account?: string | null;
+  /** 只统计某月（YYYY-MM），空 = 全部 */
+  month?: string | null;
+  /** 最多返回条数 */
+  limit?: number;
+}
+
+/** 无计划成交行（成交早于该标的任何计划的建立时间） */
+export interface UnplannedBill {
+  id: number;
+  trade_time: string;
+  account: string;
+  category: string;
+  symbol: string;
+  name: string;
+  b_s: string | null;
+  o_c: string | null;
+  price: number;
+  vol: number;
+  vm_symbol: string;
+  /** 该标的首条计划的建立时间；null = 一笔计划都没有 */
+  first_plan_at: string | null;
+}
+
+/**
+ * 无计划成交：成交时间早于该标的**任何计划**的建立时间。
+ *
+ * 这是「先斩后奏 / 事后补计划」的唯一可算证据——研究报告日期、计划日期、
+ * 成交日期三者的先后，就是纪律的度量，文本永远算不出来。
+ */
+export function fetchUnplannedBills(params?: UnplannedBillsQueryParams) {
+  return request<{ items: UnplannedBill[]; count: number }>({
+    url: '/api/v1/bills/unplanned',
+    method: 'get',
+    params
+  });
+}
+
 /** Group 修改参数（仅 profit_time / value_time 可编辑） */
 export interface GroupUpdateParams {
   profit_time?: string | null;
@@ -238,24 +358,6 @@ export interface GroupUpdateParams {
 export function updateGroup(id: number, params: GroupUpdateParams) {
   return request<{ status: string; message: string }>({
     url: `/api/v1/bills/group/${id}`,
-    method: 'patch',
-    data: params
-  });
-}
-
-/** 标的笔记修改参数（仅 5 个手动字段可编辑；note_at 由后端填） */
-export interface GroupSymbolNoteParams {
-  logic?: string | null;
-  plan?: string | null;
-  invalidate?: string | null;
-  review?: string | null;
-  theme?: string | null;
-}
-
-/** 修改标的笔记（PATCH /bills/group-symbols/{id}） */
-export function updateGroupSymbolNote(id: number, params: GroupSymbolNoteParams) {
-  return request<{ status: string; message: string; fields: string[]; note_at: string | null }>({
-    url: `/api/v1/bills/group-symbols/${id}`,
     method: 'patch',
     data: params
   });
