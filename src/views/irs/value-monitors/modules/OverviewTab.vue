@@ -45,6 +45,25 @@ const planCount = computed(() => {
 /** 归属合约的成交合计 */
 const tradeTotal = computed(() => props.detail.trades.length);
 
+/**
+ * 逻辑 / 证伪摘要（方案 A 第 1 条：概览要能看出"档案更没更新"）。
+ *
+ * 只做计数，不做内容预览：概览的作用是判断"要不要点进去"，不是读正文。
+ * 纲领要求逻辑 2-4 条、证伪 ≥3 条，所以低于下限用橙色提示——但不拦保存。
+ */
+const logicStat = computed(() => {
+  const c: Record<string, number> = { 完好: 0, 减弱: 0, 破坏: 0 };
+  for (const l of props.detail.logic) c[l.state] = (c[l.state] ?? 0) + 1;
+  return c;
+});
+const invStat = computed(() => {
+  const c: Record<string, number> = { 未触发: 0, 已触发: 0, 已失效: 0 };
+  for (const i of props.detail.invalidate) c[i.status] = (c[i.status] ?? 0) + 1;
+  return c;
+});
+/** 证伪信号里没有数字阈值的条数（不可量化 = 复盘时算没填） */
+const invUnquantified = computed(() => props.detail.invalidate.filter(i => !i.quantified).length);
+
 function fmtNum(v: number | null | undefined) {
   if (v == null) return '-';
   return Number(v)
@@ -169,6 +188,32 @@ const groupColumns = [
     <NAlert v-else type="info" :bordered="false" class="mb-16px">
       这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究」Tab 按日期新建一版。
     </NAlert>
+
+    <!--
+      逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
+      纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
+    -->
+    <div class="mb-8px flex flex-wrap items-center gap-8px">
+      <span class="font-500">逻辑与证伪</span>
+      <NTag
+        size="small"
+        :bordered="false"
+        :type="logicStat['破坏'] ? 'error' : detail.logic.length < 2 ? 'warning' : 'default'"
+      >
+        逻辑 {{ detail.logic.length }} 条
+        <template v-if="logicStat['减弱']">（减弱 {{ logicStat['减弱'] }}）</template>
+        <template v-if="logicStat['破坏']">（破坏 {{ logicStat['破坏'] }}）</template>
+      </NTag>
+      <NTag
+        size="small"
+        :bordered="false"
+        :type="invStat['已触发'] ? 'error' : detail.invalidate.length < 3 ? 'warning' : 'default'"
+      >
+        证伪 {{ detail.invalidate.length }} 条（已触发 {{ invStat['已触发'] }}）
+      </NTag>
+      <NTag v-if="invUnquantified" size="small" :bordered="false" type="warning">不可量化 {{ invUnquantified }}</NTag>
+      <NButton size="tiny" text type="primary" class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
+    </div>
 
     <!-- 档位摘要 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">

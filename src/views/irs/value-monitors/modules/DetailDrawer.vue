@@ -128,7 +128,10 @@ function goTab(name: string) {
               v-if="tab === 'research'"
               :vm-id="detail.vm.id"
               :research="detail.research"
+              :logic="detail.logic"
+              :invalidate="detail.invalidate"
               @refresh="refresh"
+              @goto="goTab"
             />
           </NTabPane>
           <NTabPane name="version" tab="档位">
@@ -141,7 +144,13 @@ function goTab(name: string) {
             />
           </NTabPane>
           <NTabPane name="logic" tab="逻辑与证伪">
-            <LogicTab v-if="tab === 'logic'" :logic="detail.logic" :invalidate="detail.invalidate" />
+            <LogicTab
+              v-if="tab === 'logic'"
+              :vm-id="detail.vm.id"
+              :logic="detail.logic"
+              :invalidate="detail.invalidate"
+              @refresh="refresh"
+            />
           </NTabPane>
           <NTabPane name="plan" tab="计划与成交">
             <PlanTab

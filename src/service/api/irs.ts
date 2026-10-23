@@ -346,17 +346,25 @@ export interface VmLogicSaveParams {
   seq: number;
   content: string;
   pricing?: string | null;
-  /** 完好 / 受损 / 破坏 */
+  /** 完好 / 减弱 / 破坏（与后端 STATE_CHOICES 一致；曾经写成「受损」会导致按 state 聚合漏数） */
   state?: string;
   evidence?: string | null;
 }
 
-/** 保存一条投资逻辑 */
+/** 保存一条投资逻辑（⚠️ 全字段覆盖：行内只改 state 时必须回填 content/pricing/evidence） */
 export function saveVmLogic(id: number, params: VmLogicSaveParams) {
-  return request<{ status: string; action: string; id: number }>({
+  return request<{ status: string; action: string; id: number; warning: string | null }>({
     url: `/api/v1/irs/value-monitors/${id}/logic`,
     method: 'put',
     data: params
+  });
+}
+
+/** 删除一条投资逻辑（后端会把引用它的证伪 logic_id 置 NULL，返回被摘掉引用的条数） */
+export function deleteVmLogic(id: number, seq: number) {
+  return request<{ status: string; message: string; unlinked_invalidates: number }>({
+    url: `/api/v1/irs/value-monitors/${id}/logic/${seq}`,
+    method: 'delete'
   });
 }
 
@@ -381,12 +389,20 @@ export interface VmInvalidateSaveParams {
   triggered_at?: string | null;
 }
 
-/** 保存一条证伪条件 */
+/** 保存一条证伪条件（不可量化不阻断，返回值带 quantified + warning） */
 export function saveVmInvalidate(id: number, params: VmInvalidateSaveParams) {
-  return request<{ status: string; action: string; id: number }>({
+  return request<{ status: string; action: string; id: number; quantified: boolean; warning: string | null }>({
     url: `/api/v1/irs/value-monitors/${id}/invalidate`,
     method: 'put',
     data: params
+  });
+}
+
+/** 删除一条证伪条件（按 seq） */
+export function deleteVmInvalidate(id: number, seq: number) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/irs/value-monitors/${id}/invalidate/${seq}`,
+    method: 'delete'
   });
 }
 

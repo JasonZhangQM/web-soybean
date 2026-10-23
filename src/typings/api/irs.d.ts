@@ -268,7 +268,7 @@ declare namespace Api {
       content: string;
       /** 定价依据 */
       pricing: string | null;
-      /** 状态：完好 / 受损 / 破坏 */
+      /** 状态：完好 / 减弱 / 破坏（与 models.VmLogic.STATE_CHOICES 一致） */
       state: string;
       state_at: string | null;
       evidence: string | null;

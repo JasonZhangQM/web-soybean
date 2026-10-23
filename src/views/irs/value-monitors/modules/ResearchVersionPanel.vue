@@ -13,8 +13,14 @@ import VmDataTable from './VmDataTable.vue';
 
 defineOptions({ name: 'VmResearchVersionPanel' });
 
-const props = defineProps<{ vmId: number; research: Api.Irs.VmResearch[] }>();
-const emit = defineEmits<{ (e: 'refresh'): void }>();
+const props = defineProps<{
+  vmId: number;
+  research: Api.Irs.VmResearch[];
+  /** 仅用于完成度提示：研究定稿时应该已经有 ≥3 条证伪陪着 */
+  logic: Api.Irs.VmLogic[];
+  invalidate: Api.Irs.VmInvalidate[];
+}>();
+const emit = defineEmits<{ (e: 'refresh'): void; (e: 'goto', tab: string): void }>();
 
 const saving = ref(false);
 const deleting = ref(false);
@@ -114,7 +120,7 @@ function overLimit() {
   return bad;
 }
 
-function doSave(force = false) {
+function doSave(force = false, skipSoft = false) {
   if (!form.research_date) {
     window.$message?.warning('请选择研究定稿日');
     return;
@@ -122,6 +128,22 @@ function doSave(force = false) {
   const bad = overLimit();
   if (bad.length) {
     window.$message?.warning(`字段超长：${bad.join('；')}`);
+    return;
+  }
+  // 软校验：纲领要求证伪 ≥3 条且覆盖第五章每条。**只提示不阻断**——
+  // 研究与证伪是两个 Tab，硬拦会让人为了能保存去凑三条废话证伪，比缺着更糟。
+  const soft =
+    props.invalidate.length < 3
+      ? `本标的目前只有 ${props.invalidate.length} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
+      : null;
+  if (soft && !skipSoft) {
+    window.$dialog?.warning({
+      title: '证伪条数不足',
+      content: `${soft}。研究可以照存，但这份结论暂时没有可证伪的判据——将来无法判断逻辑坏没坏。`,
+      positiveText: '仍然保存',
+      negativeText: '先去补证伪',
+      onPositiveClick: () => doSave(force, true)
+    });
     return;
   }
   const run = async () => {
@@ -183,6 +205,11 @@ function handleDelete() {
     }
   });
 }
+
+/** 完成度提示：研究 = 结论 + 逻辑 + 证伪，后两者在另一个 Tab，所以这里给出口 */
+const logicShort = computed(() => props.logic.length < 2);
+const invShort = computed(() => props.invalidate.length < 3);
+const invUnquantified = computed(() => props.invalidate.filter(i => !i.quantified).length);
 
 const columns = [
   { title: '定稿日', key: 'research_date', width: 110 },
@@ -334,6 +361,29 @@ function countClass(k: keyof typeof LIMITS, v: string) {
         />
       </NFormItem>
     </NForm>
+
+    <!--
+      完成度：研究 = 结论 + 逻辑 + 证伪。后两者在「逻辑与证伪」Tab，
+      放在这里是因为**填研究的人此刻最想知道"档案还缺什么"**，跳出去才想起来就晚了。
+      橙色只提示不阻断——录完研究、回头补证伪是正常顺序。
+    -->
+    <NAlert :type="logicShort || invShort || invUnquantified ? 'warning' : 'success'" :bordered="false" class="mb-12px">
+      <div class="flex flex-wrap items-center gap-8px">
+        <span>
+          本标的已登记：逻辑
+          <b>{{ logic.length }}</b>
+          条（纲领 2-4）、证伪
+          <b>{{ invalidate.length }}</b>
+          条（纲领 ≥3，且覆盖第五章每条）
+        </span>
+        <NTag v-if="logicShort" size="small" :bordered="false" type="warning">逻辑不足 2 条</NTag>
+        <NTag v-if="invShort" size="small" :bordered="false" type="warning">证伪不足 3 条</NTag>
+        <NTag v-if="invUnquantified" size="small" :bordered="false" type="error">不可量化 {{ invUnquantified }}</NTag>
+        <NButton size="tiny" type="primary" ghost class="ml-auto" @click="emit('goto', 'logic')">
+          去登记逻辑与证伪
+        </NButton>
+      </div>
+    </NAlert>
 
     <NSpace>
       <NButton type="primary" :loading="saving" @click="doSave()">保存</NButton>
