@@ -997,13 +997,23 @@ declare namespace Api {
       underlying_symbol: string;
       /** 情景分组键: csi300 / csi500etf / au */
       und_key: string;
+      /** C=认购 P=认沽；null 表示规格尚未补全（观察型合约可只填代码与品种） */
+      cp: string | null;
+      /** 行权价（统一本位，ETF 为 6.25 而非 6250） */
+      strike: number | null;
+      /** 合约乘数 */
+      multiplier: number | null;
+      /** 保证金公式族：cffex / etf / shex */
+      margin_type: string | null;
+      /** 到期日 YYYY-MM-DD */
+      expiry_date: string | null;
       /** akshare 品种名 */
       option_name: string;
       /** 到期年月 YYYYMM；商品期权为 ALL（接口一次返回全部月份） */
       end_month: string | null;
       /** 1=参与一键同步 */
       is_enabled: number;
-      /** manual=手工 / holding=从持仓导入 */
+      /** manual=手工 / holding=从持仓导入（历史标记） */
       source: string;
       note: string | null;
       create_time: string;
@@ -1018,6 +1028,12 @@ declare namespace Api {
       end_month?: string | null;
       underlying_symbol?: string | null;
       und_key?: string | null;
+      /** 以下规格可留空，同步或「补全规格」会自动回填 */
+      cp?: string | null;
+      strike?: number | null;
+      multiplier?: number | null;
+      margin_type?: string | null;
+      expiry_date?: string | null;
       is_enabled?: number;
       note?: string | null;
     }
@@ -1100,10 +1116,13 @@ declare namespace Api {
     }
 
     /** 从持仓导入配置的结果 */
-    interface OptionConfigImportResult {
-      imported: number;
+    interface OptionConfigBackfillResult {
+      /** 补全条数 */
+      filled: number;
+      /** 规格已齐全、跳过的条数 */
       skipped: number;
-      failed: { symbol: string; reason: string }[];
+      /** 无行情快照、无法补全的合约 */
+      no_data: { symbol: string; reason: string }[];
     }
   }
 }

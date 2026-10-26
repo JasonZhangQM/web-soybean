@@ -625,8 +625,19 @@ export function createOptionConfig(data: Api.Bds.OptionConfigCreate) {
   });
 }
 
-/** 修改配置的人工列（启用开关 / 备注）；只发要改的字段 */
-export function updateOptionConfig(id: number, data: { is_enabled?: number; note?: string | null }) {
+/** 修改配置的人工列（启用开关 / 备注 / 合约规格）；**只发要改的字段**，后端对 null 视为不改 */
+export function updateOptionConfig(
+  id: number,
+  data: {
+    is_enabled?: number;
+    note?: string | null;
+    cp?: string | null;
+    strike?: number | null;
+    multiplier?: number | null;
+    margin_type?: string | null;
+    expiry_date?: string | null;
+  }
+) {
   return request<Api.Bds.OptionConfig>({
     url: `/api/v1/bds/option-config/${id}`,
     method: 'put',
@@ -642,10 +653,15 @@ export function deleteOptionConfig(id: number) {
   });
 }
 
-/** 从合约字典（bds_option_contract）导入在仓合约到同步清单，重复按 symbol 跳过 */
-export function importOptionConfigFromHolding() {
-  return request<Api.Bds.OptionConfigImportResult>({
-    url: '/api/v1/bds/option-config/import-holding',
+/**
+ * 从行情快照补全清单里为空的合约规格（兜底路径）。
+ *
+ * 常态无需调用：行情同步时会自动回填。本接口用于「清单行是后来手工加的、
+ * 而行情早已同步过」的场景。只填空值，不覆盖已有值。
+ */
+export function backfillOptionConfigSpec() {
+  return request<Api.Bds.OptionConfigBackfillResult>({
+    url: '/api/v1/bds/option-config/backfill-spec',
     method: 'post'
   });
 }

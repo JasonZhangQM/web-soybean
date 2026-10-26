@@ -9,7 +9,7 @@ import {
   fetchOptionMarketLatestDate,
   fetchOptionSyncPlan,
   fetchSyncTask,
-  importOptionConfigFromHolding,
+  backfillOptionConfigSpec,
   syncOptionMarket,
   updateOptionConfig
 } from '@/service/api';
@@ -361,7 +361,7 @@ async function handleSync() {
       return;
     }
     if (plan.symbol_count === 0) {
-      message.warning('同步清单为空，请先点右侧「同步清单」配置或从持仓导入');
+      message.warning('同步清单为空，请先点右侧「同步清单」添加合约');
       return;
     }
     const groupText = plan.groups
@@ -423,7 +423,7 @@ const syncProgressText = computed(() => {
 const configDrawer = ref(false);
 const configLoading = ref(false);
 const configRows = ref<Api.Bds.OptionConfig[]>([]);
-const importing = ref(false);
+const backfilling = ref(false);
 
 async function loadConfigs() {
   configLoading.value = true;
@@ -468,22 +468,23 @@ function removeConfig(row: Api.Bds.OptionConfig) {
   });
 }
 
-async function importHolding() {
-  importing.value = true;
+async function backfillSpec() {
+  backfilling.value = true;
   try {
-    const { data, error } = await importOptionConfigFromHolding();
+    const { data, error } = await backfillOptionConfigSpec();
     if (error || !data) {
-      message.error('导入失败');
+      message.error('补全失败');
       return;
     }
-    if (data.failed.length) {
-      message.warning(`新增 ${data.imported}，跳过 ${data.skipped}，${data.failed.length} 条无法解析`);
+    const noData = data.no_data.length;
+    if (noData) {
+      message.warning(`补全 ${data.filled} 条，跳过 ${data.skipped} 条，${noData} 条无行情快照`);
     } else {
-      message.success(`新增 ${data.imported}，跳过 ${data.skipped}`);
+      message.success(`补全 ${data.filled} 条，跳过 ${data.skipped} 条`);
     }
     loadConfigs();
   } finally {
-    importing.value = false;
+    backfilling.value = false;
   }
 }
 
@@ -509,7 +510,24 @@ const configColumns = [
     render: (r: Api.Bds.OptionConfig) =>
       h('span', { style: `color:${r.is_enabled ? '#2f9e6e' : '#bbb'}` }, r.is_enabled ? '是' : '否')
   },
-  { title: '来源', key: 'source', width: 80 },
+  {
+    title: '规格',
+    key: 'spec',
+    width: 130,
+    render: (r: Api.Bds.OptionConfig) => {
+      const gaps = [
+        !r.cp && '方向',
+        !r.strike && 'K',
+        !r.multiplier && '乘数',
+        !r.margin_type && '保证金族',
+        !r.expiry_date && '到期日'
+      ].filter(Boolean);
+      if (gaps.length) {
+        return h('span', { style: 'color:#d03050' }, `缺 ${gaps.join('/')}`);
+      }
+      return h('span', { style: 'color:#666' }, `${r.cp} ${r.strike} ×${r.multiplier}`);
+    }
+  },
   { title: '备注', key: 'note', width: 200, render: (r: Api.Bds.OptionConfig) => r.note || '-' },
   {
     title: '操作',
@@ -673,30 +691,31 @@ onUnmounted(stopPolling);
       />
     </NCard>
 
-    <NDrawer v-model:show="configDrawer" :width="1100" placement="right">
+    <NDrawer v-model:show="configDrawer" :width="1200" placement="right">
       <NDrawerContent closable>
         <template #header>
           <div class="flex w-full items-center justify-between pr-16px">
             <span>期权行情同步清单</span>
             <NSpace>
-              <NButton size="small" :loading="importing" @click="importHolding">
-                <template #icon><SvgIcon icon="mdi:download" /></template>
-                从持仓导入
+              <NButton size="small" :loading="backfilling" @click="backfillSpec">
+                <template #icon><SvgIcon icon="mdi:refresh" /></template>
+                补全规格
               </NButton>
               <NButton size="small" :loading="configLoading" @click="loadConfigs">刷新</NButton>
             </NSpace>
           </div>
         </template>
         <div class="mb-8px text-12px" style="color: #999">
-          这张清单决定「行情同步」的范围。商品期权（沪金）的到期月记为「全部月份」——接口一次返回当日全部到期月，
-          填实际月份会让人以为只拉了一个月。
+          这张清单既是「行情同步」的范围，也是合约规格（方向/行权价/乘数/保证金族/到期日）的唯一来源。
+          规格留空没关系——行情同步会自动补全，也可点「补全规格」手工触发；但风险计算要求规格齐全，缺了会拒绝估算。
+          商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月，填实际月份会让人以为只拉了一个月。
         </div>
         <NDataTable
           :columns="configColumns"
           :data="configRows"
           :loading="configLoading"
           :row-key="configRowKey"
-          :scroll-x="1050"
+          :scroll-x="1100"
           size="small"
         />
       </NDrawerContent>
