@@ -642,7 +642,7 @@ export function deleteOptionConfig(id: number) {
   });
 }
 
-/** 从持仓（bills_option_contract）导入在仓合约到同步清单，重复按 symbol 跳过 */
+/** 从合约字典（bds_option_contract）导入在仓合约到同步清单，重复按 symbol 跳过 */
 export function importOptionConfigFromHolding() {
   return request<Api.Bds.OptionConfigImportResult>({
     url: '/api/v1/bds/option-config/import-holding',
