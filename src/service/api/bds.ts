@@ -547,3 +547,104 @@ export function fetchIndexConstituentSyncStatus() {
     method: 'get'
   });
 }
+
+// ============================================================================
+// 期权行情（bds_option_market）与同步清单（bds_option_config）
+// ============================================================================
+
+/**
+ * 分页查询期权行情
+ *
+ * 不传 `trade_date` 时后端只返回**最新交易日**的行（该表按日累积，全量会把历史快照也铺出来）。
+ */
+export function fetchOptionMarket(params?: Api.Bds.OptionMarketQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.OptionMarket>>({
+    url: '/api/v1/bds/option-market',
+    method: 'get',
+    params
+  });
+}
+
+/** 最新行情日期 + 各品种行数 + 最近同步时间（页面默认值与新鲜度提示） */
+export function fetchOptionMarketLatestDate() {
+  return request<Api.Bds.OptionMarketLatestDate>({
+    url: '/api/v1/bds/option-market/latest-date',
+    method: 'get'
+  });
+}
+
+/** 搜索区下拉选项：品种 / 到期月 / 分组键 */
+export function fetchOptionMarketFilters() {
+  return request<Api.Bds.OptionMarketFilters>({
+    url: '/api/v1/bds/option-market/filters',
+    method: 'get'
+  });
+}
+
+/**
+ * 同步前置确认：启用几张合约、几个品种×到期月组合（= 几次接口请求）
+ *
+ * 点「行情同步」时先拿这个数再弹确认框，避免用户不知道这一下会打几次接口。
+ */
+export function fetchOptionSyncPlan() {
+  return request<Api.Bds.OptionSyncPlan>({
+    url: '/api/v1/bds/option-market/config-count',
+    method: 'get'
+  });
+}
+
+/**
+ * 一键同步「配置的全部期权」（后台任务，立即返回 task）
+ *
+ * 进度轮询 `/sync-tasks/{id}`；`total_count` 是**组数**不是合约数，
+ * 所以进度条要显示「第几组/共几组」。停止沿用 `stopBatchSync(taskId)`。
+ */
+export function syncOptionMarket() {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/option-market/sync',
+    method: 'post'
+  });
+}
+
+/** 同步清单查询 */
+export function fetchOptionConfigs(params?: { is_enabled?: number }) {
+  return request<Api.Bds.OptionConfig[]>({
+    url: '/api/v1/bds/option-config',
+    method: 'get',
+    params
+  });
+}
+
+/** 新增同步配置（symbol 会被后端归一化：去账单前缀 / 去 ETF 标的数字前缀） */
+export function createOptionConfig(data: Api.Bds.OptionConfigCreate) {
+  return request<Api.Bds.OptionConfig>({
+    url: '/api/v1/bds/option-config',
+    method: 'post',
+    data
+  });
+}
+
+/** 修改配置的人工列（启用开关 / 备注）；只发要改的字段 */
+export function updateOptionConfig(id: number, data: { is_enabled?: number; note?: string | null }) {
+  return request<Api.Bds.OptionConfig>({
+    url: `/api/v1/bds/option-config/${id}`,
+    method: 'put',
+    data
+  });
+}
+
+/** 删除配置（**不删行情**：行情是事实数据） */
+export function deleteOptionConfig(id: number) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/bds/option-config/${id}`,
+    method: 'delete'
+  });
+}
+
+/** 从持仓（bills_option_contract）导入在仓合约到同步清单，重复按 symbol 跳过 */
+export function importOptionConfigFromHolding() {
+  return request<Api.Bds.OptionConfigImportResult>({
+    url: '/api/v1/bds/option-config/import-holding',
+    method: 'post'
+  });
+}

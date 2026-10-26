@@ -244,6 +244,7 @@ const local: App.I18n.Schema = {
     'bds_market-data_index-histories': '指数行情',
     'bds_market-data_daily-valuations': '估值指标',
     'bds_market-data_daily-mktvalues': '每日市值',
+    'bds_option-market': '期权行情',
     'bds_macro-research': '宏观数据',
     'bds_macro-research_economic-indicators': '经济数据',
     'bds_macro-research_daily-indicators': '日频数据',

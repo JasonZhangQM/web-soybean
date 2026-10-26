@@ -248,6 +248,7 @@ const local: App.I18n.Schema = {
     'bds_market-data_index-histories': 'Index Quote',
     'bds_market-data_daily-valuations': 'Daily Valuations',
     'bds_market-data_daily-mktvalues': 'Daily Market Value',
+    'bds_option-market': 'Option Market',
     'bds_macro-research': 'Macro Data',
     'bds_macro-research_daily-indicators': 'Daily Indicators',
     'bds_macro-research_gold-reserves': 'Gold Reserves',

@@ -986,5 +986,124 @@ declare namespace Api {
       /** 现表内成分行数：为 0 但 checked_to 有值 ⇒ 成分行被手工删过（如上证指数） */
       current_rows: number;
     }
+    /** 期权行情同步清单（`bds_option_config`） */
+    interface OptionConfig {
+      id: number;
+      /** 交易所标准期权代码（IO2611-P-4000 / P2611M06250 / au2612P840） */
+      symbol: string;
+      /** 券商账单代码（ETF 才有，如 SHQQ.10012562；与交易所码无字符串关系） */
+      broker_symbol: string | null;
+      /** 标的代码 */
+      underlying_symbol: string;
+      /** 情景分组键: csi300 / csi500etf / au */
+      und_key: string;
+      /** akshare 品种名 */
+      option_name: string;
+      /** 到期年月 YYYYMM；商品期权为 ALL（接口一次返回全部月份） */
+      end_month: string | null;
+      /** 1=参与一键同步 */
+      is_enabled: number;
+      /** manual=手工 / holding=从持仓导入 */
+      source: string;
+      note: string | null;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 新增同步配置入参 */
+    interface OptionConfigCreate {
+      symbol: string;
+      broker_symbol?: string | null;
+      option_name: string;
+      end_month?: string | null;
+      underlying_symbol?: string | null;
+      und_key?: string | null;
+      is_enabled?: number;
+      note?: string | null;
+    }
+
+    /** 期权行情（`bds_option_market`，按日快照） */
+    interface OptionMarket {
+      id: number;
+      symbol: string;
+      broker_symbol: string | null;
+      /** 行情日期（交易日，非同步日） */
+      trade_date: string;
+      underlying_symbol: string;
+      und_key: string;
+      /** call / put */
+      option_type: string;
+      price_strike: number;
+      delisted_date: string | null;
+      days_left: number | null;
+      multiplier: number;
+      /** 最新价：盘中实时 / 盘后收盘 */
+      price: number | null;
+      /** 前结算价（三种品种都有） */
+      pre_settle: number | null;
+      /** 结算价：**仅商品期权可得**，股指/ETF 恒为 null（接口不提供，不是数据缺失） */
+      settle: number | null;
+      /** 标的价（同步时点的标的现价，非该交易日收盘） */
+      price_ud: number | null;
+      /** 内在价值 */
+      value_i: number | null;
+      /** 时间价值 */
+      value_t: number | null;
+      /** delta：仅商品期权可得，认沽为负 */
+      delta_opt: number | null;
+      /** 成交量：ETF 接口的「数量」列恒等于行数，不可信 ⇒ 恒 null */
+      volume: number | null;
+      /** 持仓量：ETF 恒 null */
+      open_interest: number | null;
+      /** 接口返回的行情时点（ETF 带完整时间戳） */
+      quote_time: string | null;
+      source: string;
+      sync_time: string;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 期权行情查询参数 */
+    interface OptionMarketQueryParams {
+      und_key?: string | null;
+      option_name?: string | null;
+      end_month?: string | null;
+      option_type?: string | null;
+      symbol?: string | null;
+      trade_date?: string | null;
+      limit?: number;
+      offset?: number;
+    }
+
+    /** 同步前置确认信息（点「行情同步」弹窗） */
+    interface OptionSyncPlan {
+      /** 启用配置的合约张数 */
+      symbol_count: number;
+      /** 品种×到期月组合数（= 接口请求次数，进度按组报） */
+      group_count: number;
+      option_names: string[];
+      groups: { option_name: string; end_month: string }[];
+    }
+
+    /** 最新行情日期与各品种行数 */
+    interface OptionMarketLatestDate {
+      latest_trade_date: string | null;
+      by_und: Record<string, number>;
+      sync_time: string | null;
+    }
+
+    /** 期权下拉选项 */
+    interface OptionMarketFilters {
+      option_names: string[];
+      end_months: string[];
+      und_keys: string[];
+    }
+
+    /** 从持仓导入配置的结果 */
+    interface OptionConfigImportResult {
+      imported: number;
+      skipped: number;
+      failed: { symbol: string; reason: string }[];
+    }
   }
 }

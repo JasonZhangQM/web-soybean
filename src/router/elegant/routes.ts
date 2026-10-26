@@ -226,6 +226,17 @@ export const generatedRoutes = [
         ]
       },
       {
+        name: 'bds_option-market',
+        path: '/bds/option-market',
+        component: 'view.bds_option-market',
+        meta: {
+          title: 'bds_option-market',
+          i18nKey: 'route.bds_option-market',
+          order: 4,
+          constant: true
+        }
+      },
+      {
         name: 'bds_symbol-infos',
         path: '/bds/symbol-infos',
         component: 'view.bds_symbol-infos',

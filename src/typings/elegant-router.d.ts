@@ -38,6 +38,7 @@ declare module "@elegant-router/types" {
     "bds_market-data_daily-mktvalues": "/bds/market-data/daily-mktvalues";
     "bds_market-data_daily-valuations": "/bds/market-data/daily-valuations";
     "bds_market-data_index-histories": "/bds/market-data/index-histories";
+    "bds_option-market": "/bds/option-market";
     "bds_symbol-infos": "/bds/symbol-infos";
     "bds_trade-dates": "/bds/trade-dates";
     "bills": "/bills";
@@ -133,6 +134,7 @@ declare module "@elegant-router/types" {
     | "bds_market-data_daily-mktvalues"
     | "bds_market-data_daily-valuations"
     | "bds_market-data_index-histories"
+    | "bds_option-market"
     | "bds_symbol-infos"
     | "bds_trade-dates"
     | "bills_bills"
