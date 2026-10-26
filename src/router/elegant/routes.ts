@@ -222,19 +222,18 @@ export const generatedRoutes = [
               i18nKey: 'route.bds_market-data_index-histories',
               constant: true
             }
+          },
+          {
+            name: 'bds_market-data_option-market',
+            path: '/bds/market-data/option-market',
+            component: 'view.bds_market-data_option-market',
+            meta: {
+              title: 'bds_market-data_option-market',
+              i18nKey: 'route.bds_market-data_option-market',
+              constant: true
+            }
           }
         ]
-      },
-      {
-        name: 'bds_option-market',
-        path: '/bds/option-market',
-        component: 'view.bds_option-market',
-        meta: {
-          title: 'bds_option-market',
-          i18nKey: 'route.bds_option-market',
-          order: 4,
-          constant: true
-        }
       },
       {
         name: 'bds_symbol-infos',

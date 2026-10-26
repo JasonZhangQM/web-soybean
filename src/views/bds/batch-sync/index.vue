@@ -245,13 +245,16 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
 }
 
 /**
- * 不属于卡片 1 的 scope：各有自己的卡片接管
+ * 不属于卡片 1 的 scope：各有自己的卡片/页面接管
  * - index_backfill：卡片 2（指数成分股同步）
  * - index_valuation：卡片 3（指数估值重算）
  * - macro_sync：卡片 4（宏观与基础数据同步，自己拉 latest）
+ * - option_market：期权行情页自带的「行情同步」（`/bds/option-market/sync`），
+ *   任务在那边轮询；这里漏掉它会把 `scope='option_market'` + `tables=['option-market']`
+ *   塞进批量同步表单（下拉无此选项），之后点「启动」还会被后端判「未知 scope」
  * 漏掉任意一个都会被卡片 1 抢走并误填表单（一键同步任务的 tables 是段名、不是表名）
  */
-const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync'];
+const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync', 'option_market'];
 
 async function loadBatchTask(id?: number) {
   try {
@@ -818,7 +821,9 @@ onMounted(async () => {
       }
     } else if (data.scope === 'macro_sync') {
       // 卡片 4（宏观与基础数据同步）在组件内自行拉 latest 并接管，这里什么都不做
-    } else {
+    } else if (!NON_BATCH_SCOPES.includes(data.scope)) {
+      // 用「不在排除清单」而不是逐个列举：以后再加属于别的页面的 scope，
+      // 只要进 NON_BATCH_SCOPES 就自动不被卡片 1 认领，不用回来改这里
       task.value = data;
       // 运行中锁定 form
       if (isRunning.value) {

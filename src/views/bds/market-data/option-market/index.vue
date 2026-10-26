@@ -328,11 +328,13 @@ function onSyncFinished(task: Api.Bds.SyncTask) {
     fetchData();
     return;
   }
+  // 口径：本任务的 success_count = 写入行数，与批量同步页「段内项数」不是一回事，
+  // 所以每个数字后面都带「行」，避免被读成项数
   const parts = [
     `成功 ${r.group_ok ?? 0}/${r.group_total ?? 0} 组`,
-    `新增 ${r.row_insert ?? 0}`,
-    `更新 ${r.row_update ?? 0}`,
-    `跳过 ${r.row_skip ?? 0}`
+    `新增 ${r.row_insert ?? 0} 行`,
+    `更新 ${r.row_update ?? 0} 行`,
+    `跳过 ${r.row_skip ?? 0} 行`
   ];
   const skipDetail = Object.entries(r.per_group || {})
     .flatMap(([, g]: any) => (g.skip_reasons ? Object.entries(g.skip_reasons) : []))
@@ -630,10 +632,14 @@ onUnmounted(stopPolling);
         <div class="mt-4px text-12px" style="color: #888">
           {{ syncProgressText }}
           <span v-if="syncTask.result && !syncRunning">
-            · 新增 {{ (syncTask.result as any).row_insert ?? 0 }} · 更新
-            {{ (syncTask.result as any).row_update ?? 0 }} · 跳过
-            {{ (syncTask.result as any).row_skip ?? 0 }}
+            · 新增 {{ (syncTask.result as any).row_insert ?? 0 }} 行 · 更新
+            {{ (syncTask.result as any).row_update ?? 0 }} 行 · 跳过 {{ (syncTask.result as any).row_skip ?? 0 }} 行
           </span>
+        </div>
+        <div class="mt-4px text-12px" style="color: #999">
+          进度按「组」（一个品种×到期月 = 一次接口请求）报，条数按
+          <b>行</b>
+          报——两者不同口径，别看混。
         </div>
       </div>
 
