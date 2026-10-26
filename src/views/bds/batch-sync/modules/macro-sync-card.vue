@@ -9,8 +9,8 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 六个同步段；执行顺序由后端固定为 trade_date → symbol_info → index_history → wscn → daily → gold */
-type StageKey = 'trade_date' | 'symbol_info' | 'index_history' | 'wscn' | 'daily' | 'gold';
+/** 七个同步段；执行顺序由后端固定为 trade_date → symbol_info → index_history → option_market → wscn → daily → gold */
+type StageKey = 'trade_date' | 'symbol_info' | 'index_history' | 'option_market' | 'wscn' | 'daily' | 'gold';
 
 interface StageOption {
   label: string;
@@ -24,7 +24,8 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
     options: [
       { label: '交易日历', value: 'trade_date' },
       { label: '证券信息', value: 'symbol_info' },
-      { label: '指数行情', value: 'index_history' }
+      { label: '指数行情', value: 'index_history' },
+      { label: '期权行情', value: 'option_market' }
     ]
   },
   {
@@ -40,12 +41,13 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
 const STAGE_OPTIONS: StageOption[] = STAGE_GROUPS.flatMap(g => g.options);
 
 /**
- * 默认勾选四段。
+ * 默认勾选五段。
  * - 不勾「交易日历」：insert_trade_date_em_sql 只在跨年时才真写库，一年手动跑一次足够
  * - 不勾「黄金储备」：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
  *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），默认勾上等于每次启动都白等
+ * - 勾「期权行情」：3 组约 5s，属于每日都要更新的行情数据，代价可接受
  */
-const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'wscn', 'daily'];
+const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_market', 'wscn', 'daily'];
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 
@@ -269,8 +271,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div style="margin-top: 6px; font-size: 12px; color: #999; line-height: 1.6">
-      固定顺序：交易日历 → 证券信息 → 指数行情 → 经济指标 → 美债收益率 →
-      黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。后台任务，关页面/刷新不影响执行。默认不勾交易日历（仅跨年才真写库）与黄金储备（IMF
+      固定顺序：交易日历 → 证券信息 → 指数行情 → 期权行情 → 经济指标 → 美债收益率 →
+      黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。后台任务，关页面/刷新不影响执行。默认不勾交易日历（仅跨年才真写库）与黄金储备（IMF
       接口当前返回 502，勾上会白等约 5.5 分钟且 20 国全失败）。
     </div>
 
