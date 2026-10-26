@@ -667,7 +667,7 @@ onUnmounted(stopPolling);
       />
     </NCard>
 
-    <NDrawer v-model:show="configDrawer" :width="960" placement="right">
+    <NDrawer v-model:show="configDrawer" :width="1100" placement="right">
       <NDrawerContent closable>
         <template #header>
           <div class="flex w-full items-center justify-between pr-16px">
