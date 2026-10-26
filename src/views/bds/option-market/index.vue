@@ -219,6 +219,16 @@ const columns = [
 /** scroll-x 必须 ≥ 列宽和，否则 naive-ui 会压缩列导致折行（§4.11） */
 const scrollX = computed(() => columns.reduce((sum, c) => sum + (c.width || 0), 0));
 
+/** 行键：主键即唯一（表有 uk(symbol, trade_date)，id 稳定） */
+function marketRowKey(r: Api.Bds.OptionMarket) {
+  return r.id;
+}
+
+/** 配置行键 */
+function configRowKey(r: Api.Bds.OptionConfig) {
+  return r.id;
+}
+
 // ===================== 查询 =====================
 
 async function fetchData() {
@@ -650,7 +660,7 @@ onUnmounted(stopPolling);
         :loading="loading"
         remote
         :pagination="pagination"
-        :row-key="(r: Api.Bds.OptionMarket) => r.id"
+        :row-key="marketRowKey"
         :scroll-x="scrollX"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
@@ -679,7 +689,7 @@ onUnmounted(stopPolling);
           :columns="configColumns"
           :data="configRows"
           :loading="configLoading"
-          :row-key="(r: Api.Bds.OptionConfig) => r.id"
+          :row-key="configRowKey"
           :scroll-x="1050"
           size="small"
         />
