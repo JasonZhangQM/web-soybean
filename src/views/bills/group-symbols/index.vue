@@ -485,26 +485,29 @@ onMounted(async () => {
           </NButton>
         </NFormItem>
       </NForm>
+
+      <!--
+        合约归属说明行（对齐 /bds/option-info：搜索卡内 NForm 下方 12px 灰字）。
+        「未归属」标签可点击：直接筛出可操作清单。
+      -->
+      <div class="mt-8px flex flex-wrap items-center gap-8px text-12px" style="color: #999">
+        <span>合约归属</span>
+        <NTag size="small" type="success" :bordered="false">已归属 {{ coverage.mapped }}</NTag>
+        <NTag
+          size="small"
+          :type="coverage.unmapped > 0 ? 'warning' : 'default'"
+          :bordered="false"
+          style="cursor: pointer"
+          @click="filterUnmapped"
+        >
+          未归属 {{ coverage.unmapped }}
+        </NTag>
+        <span>
+          资金流水行 {{ coverage.excluded }} 行（RZRQ/CRJ/SYFY/cash/理财）不参与归属； 共 {{ coverage.total }} 行
+        </span>
+      </div>
     </NCard>
     <NCard :bordered="false" class="card-wrapper">
-      <template #header>
-        <div class="flex flex-wrap items-center gap-8px">
-          <span>合约归属</span>
-          <NTag size="small" type="success" :bordered="false">已归属 {{ coverage.mapped }}</NTag>
-          <NTag
-            size="small"
-            :type="coverage.unmapped > 0 ? 'warning' : 'default'"
-            :bordered="false"
-            style="cursor: pointer"
-            @click="filterUnmapped"
-          >
-            未归属 {{ coverage.unmapped }}
-          </NTag>
-          <span class="text-12px text-gray-400">
-            资金流水行 {{ coverage.excluded }} 行（RZRQ/CRJ/SYFY/cash/理财）不参与归属； 共 {{ coverage.total }} 行
-          </span>
-        </div>
-      </template>
       <NDataTable
         :columns="columns"
         :data="tableData"

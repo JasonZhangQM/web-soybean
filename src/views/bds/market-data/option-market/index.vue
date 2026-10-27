@@ -174,6 +174,45 @@ const columns = [
     align: 'right' as const,
     render: (r: Api.Bds.OptionMarket) => fmtPx(r.value_t)
   },
+  // ---- 以下 5 列为衍生字段（2026-10-27 新增，钩子落库时计算）----
+  // 都由 price_ud 派生：标的价缺失（如盘前同步的历史行）时整组为空，属正常现象。
+  // 年化 = 对应 % × 365 ÷ 剩余自然天，仅剩 0 天时置 0（防除零）。
+  {
+    title: '平值(%)',
+    key: 'atm_i',
+    width: 88,
+    align: 'right' as const,
+    // 行权价相对标的价的偏移：正 = 行权价在标的上方（对 put 是虚值方向）
+    render: (r: Api.Bds.OptionMarket) => fmtMissing(r.atm_i, '平值(%)（标的价缺失时为空）', 2)
+  },
+  {
+    title: '时间(%)',
+    key: 'ratio_t',
+    width: 88,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionMarket) => fmtMissing(r.ratio_t, '时间价值占行权价 %（标的价缺失时为空）', 2)
+  },
+  {
+    title: '内在(%)',
+    key: 'ratio_i',
+    width: 88,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionMarket) => fmtMissing(r.ratio_i, '内在价值占行权价 %（标的价缺失时为空）', 2)
+  },
+  {
+    title: '时间(%Y)',
+    key: 'ratio_t_y',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionMarket) => fmtMissing(r.ratio_t_y, '时间(%) 年化 = ×365÷剩余自然天', 2)
+  },
+  {
+    title: '内在(%Y)',
+    key: 'ratio_i_y',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionMarket) => fmtMissing(r.ratio_i_y, '内在(%) 年化 = ×365÷剩余自然天', 2)
+  },
   {
     title: 'delta',
     key: 'delta_opt',

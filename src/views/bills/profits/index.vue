@@ -88,29 +88,70 @@ function renderAmount(row: Api.Bills.Profit, key: keyof Api.Bills.Profit) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 单元格不换行：超出列宽截断，悬停 tooltip 显示全量；表格总宽超出容器时横向滚动
+const ellipsis = { tooltip: true };
+
 const columns = [
-  { title: '交易时间', key: 'trade_time', width: 160 },
-  { title: '代码', key: 'symbol', width: 150 },
-  { title: '名称', key: 'name', width: 120 },
-  { title: '多头持仓', key: 'p_long', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long') },
-  { title: '空头持仓', key: 'p_short', width: 100, render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short') },
+  { title: '交易时间', key: 'trade_time', width: 160, ellipsis },
+  { title: '代码', key: 'symbol', width: 150, ellipsis },
+  { title: '名称', key: 'name', width: 120, ellipsis },
+  {
+    title: '多头持仓',
+    key: 'p_long',
+    width: 100,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long')
+  },
+  {
+    title: '空头持仓',
+    key: 'p_short',
+    width: 100,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short')
+  },
   {
     title: '多头成本',
     key: 'cost_t_long',
     width: 120,
+    ellipsis,
     render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_long')
   },
   {
     title: '空头成本',
     key: 'cost_t_short',
     width: 120,
+    ellipsis,
     render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short')
   },
-  { title: '平仓盈亏l', key: 'pl_long', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long') },
-  { title: '平仓盈亏s', key: 'pl_short', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short') },
-  { title: '其他损益', key: 'pl_other', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_other') },
-  { title: '入金净额', key: 'diff_dw', width: 120, render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw') },
-  { title: '账户', key: 'account', width: 100 }
+  {
+    title: '平仓盈亏l',
+    key: 'pl_long',
+    width: 120,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long')
+  },
+  {
+    title: '平仓盈亏s',
+    key: 'pl_short',
+    width: 120,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short')
+  },
+  {
+    title: '其他损益',
+    key: 'pl_other',
+    width: 120,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_other')
+  },
+  {
+    title: '入金净额',
+    key: 'diff_dw',
+    width: 120,
+    ellipsis,
+    render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw')
+  },
+  { title: '账户', key: 'account', width: 100, ellipsis }
 ];
 
 onMounted(() => {
@@ -169,6 +210,7 @@ onMounted(() => {
         :columns="columns"
         :data="tableData"
         :loading="loading"
+        :scroll-x="1450"
         remote
         :pagination="pagination"
         @update:page="handlePageChange"

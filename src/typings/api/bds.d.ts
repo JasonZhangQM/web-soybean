@@ -1170,10 +1170,20 @@ declare namespace Api {
       settle: number | null;
       /** 标的价（同步时点的标的现价，非该交易日收盘） */
       price_ud: number | null;
-      /** 内在价值 */
+      /** 内在价值（钩子落库时计算） */
       value_i: number | null;
-      /** 时间价值 */
+      /** 时间价值（钩子落库时计算，可为负） */
       value_t: number | null;
+      /** 平值(%) = (行权价/标的价−1)×100（钩子落库时计算） */
+      atm_i: number | null;
+      /** 时间(%) = 时间价值/行权价×100（钩子落库时计算） */
+      ratio_t: number | null;
+      /** 内在(%) = 内在价值/行权价×100（钩子落库时计算） */
+      ratio_i: number | null;
+      /** 时间(%Y) = ratio_t×365/剩余天（钩子落库时计算） */
+      ratio_t_y: number | null;
+      /** 内在(%Y) = ratio_i×365/剩余天（钩子落库时计算） */
+      ratio_i_y: number | null;
       /** delta：仅商品期权可得，认沽为负 */
       delta_opt: number | null;
       /** 成交量：ETF 接口的「数量」列恒等于行数，不可信 ⇒ 恒 null */
