@@ -74,12 +74,6 @@ const latest = ref<Api.Bds.OptionMarketLatestDate>({
   sync_time: null
 });
 
-const UND_LABEL: Record<string, string> = {
-  csi300: '沪深300股指',
-  csi500etf: '500ETF',
-  au: '沪金'
-};
-
 const optionNameOptions = computed(() => filters.value.option_names.map(n => ({ label: n, value: n })));
 const endMonthOptions = computed(() =>
   filters.value.end_months.map(m => ({ label: `${m.slice(0, 4)}-${m.slice(4)}`, value: m }))
@@ -119,6 +113,7 @@ function fmtMissing(v: unknown, title: string, digits = 4) {
 }
 
 const columns = [
+  { title: '行情日期', key: 'trade_date', width: 110 },
   {
     title: '合约ID',
     key: 'contract_id',
@@ -126,30 +121,6 @@ const columns = [
     // 唯一身份：三品种写法统一（IO2611-P-4000 / au2612P840 / 10012562）。
     // 交易所标准码不在本页展示 —— 行情表既不存也不返回它，要看去「合约字典」。
     render: (r: Api.Bds.OptionMarket) => h('span', { style: 'font-family: monospace' }, r.contract_id)
-  },
-  {
-    title: '券商码',
-    key: 'broker_symbol',
-    width: 145,
-    render: (r: Api.Bds.OptionMarket) =>
-      r.broker_symbol || h('span', { style: 'color: #bbb', title: '仅 ETF 期权有券商柜台码' }, '-')
-  },
-  {
-    title: '品种',
-    key: 'und_key',
-    width: 100,
-    render: (r: Api.Bds.OptionMarket) => UND_LABEL[r.und_key] || r.und_key
-  },
-  {
-    title: '类型',
-    key: 'option_type',
-    width: 70,
-    render: (r: Api.Bds.OptionMarket) =>
-      h(
-        'span',
-        { style: r.option_type === 'put' ? 'color:#2f9e6e' : 'color:#d03050' },
-        r.option_type === 'put' ? '认沽' : '认购'
-      )
   },
   {
     title: '行权价',
@@ -230,8 +201,7 @@ const columns = [
     align: 'right' as const,
     render: (r: Api.Bds.OptionMarket) =>
       r.open_interest == null ? dash('该品种接口不提供持仓量') : String(r.open_interest)
-  },
-  { title: '行情日期', key: 'trade_date', width: 110 }
+  }
 ];
 
 /** scroll-x 必须 ≥ 列宽和，否则 naive-ui 会压缩列导致折行（§4.11） */
@@ -659,12 +629,14 @@ const configColumns = [
   },
   {
     // 券商码：**本页唯一的可编辑派生业务键**（另一个可编辑列是启用开关）。
-    // 190 宽是为了放下 19 字符的 CFFEX.IO2611-P-4000 且带下拉箭头不折行。
+    // 240 宽（10-27 由 190 加宽）：19 字符的 CFFEX.IO2611-P-4000 之外，
+    // 还要放下拉箭头 + 「（账单里查不到）」这条兜底选项的后缀 —— NSelect 的
+    // 下拉面板默认跟随触发器宽度，190 时后缀会被截断，正是最需要看清的那一行。
     // 候选来自 bills 的账单标的表 —— 选不到不存在的码，10-26 那次「手拼码多 6 位」
     // 那类错在结构上不可能再发生。
     title: '券商码',
     key: 'broker_symbol',
-    width: 190,
+    width: 240,
     render: (r: Api.Bds.OptionConfig) => renderBrokerSymbol(r)
   },
   { title: '品种', key: 'option_name', width: 150 },
@@ -673,6 +645,14 @@ const configColumns = [
     key: 'end_month',
     width: 90,
     render: (r: Api.Bds.OptionConfig) => (r.end_month === 'ALL' ? '全部月份' : r.end_month || '-')
+  },
+  {
+    // 到期日：join 字典的 last_trade_date（权威值），纯只读派生（2026-10-27 五次变更加回）。
+    // 到期月 YYYYMM 看不出「具体哪天到期、还剩几天」，续月决策需要日粒度。
+    title: '到期日',
+    key: 'expiry_date',
+    width: 110,
+    render: (r: Api.Bds.OptionConfig) => r.expiry_date || dash('字典里查不到该合约，先刷新合约字典')
   },
   {
     title: '启用',
@@ -686,7 +666,9 @@ const configColumns = [
   //    ②该列末尾的保证金族（margin_type）压根不来自字典，是品种级派生（`margin_type_of`），
   //    标题「来自合约字典」名不副实。后端响应里的 cp/strike/multiplier/margin_type/
   //    expiry_date 五个字段也随之删除，本清单只回答「同步什么、怎么拉」。
-  { title: '备注', key: 'note', width: 200, render: (r: Api.Bds.OptionConfig) => r.note || '-' },
+  // 🔴 2026-10-27 四次变更：「备注」列删除（同时后端删掉 source / note 两列）。
+  //    note 恒为「从持仓导入（券商码）」的复述、source 恒 holding，都是 import-holding
+  //    下线后的残留；券商码本身已可内联编辑，这两个字段没有任何信息增量。
   {
     title: '操作',
     key: 'actions',
@@ -712,6 +694,10 @@ const configColumns = [
       ])
   }
 ];
+
+/** scroll-x 必须 ≥ 列宽和，否则 naive-ui 会压缩列导致折行（§4.11）。
+ *  清单列宽以后会随字段增减变动，改成按列宽和现算，不再手抄一个固定数字。 */
+const configScrollX = computed(() => configColumns.reduce((sum, c) => sum + (c.width || 0), 0));
 
 onMounted(() => {
   loadMeta();
@@ -893,7 +879,7 @@ onUnmounted(stopPolling);
           :loading="configLoading"
           :row-key="configRowKey"
           :pagination="configPagination"
-          :scroll-x="1000"
+          :scroll-x="configScrollX"
         />
       </NDrawerContent>
     </NDrawer>

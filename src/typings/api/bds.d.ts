@@ -1047,12 +1047,13 @@ declare namespace Api {
        * 只按 product_id 筛会把 510050 与 510500 混在一起。
        */
       option_name?: string | null;
+      /** 标的合约ID，**模糊匹配**：5105 → 510500，IO26 → IO2611 */
       underlying_contract_id?: string | null;
-      /** 到期年月 YYYYMM */
+      /** 到期年月 YYYYMM，**模糊匹配**：2612 → 202612 */
       expire_year_month?: string | null;
       cp?: string | null;
       is_listed?: number | null;
-      /** 模糊搜 合约ID / 标准码 / 合约名称（支持直接粘 8 位券商码） */
+      /** 全域模糊搜：合约ID / 标准码 / 合约名称 / 标的 / 品种ID / 交易所（台账中文名如「股指/黄金」也命中） */
       keyword?: string | null;
       limit?: number;
       offset?: number;
@@ -1103,9 +1104,11 @@ declare namespace Api {
       end_month: string | null;
       /** 1=参与一键同步 */
       is_enabled: number;
-      /** manual=手工 / holding=从持仓导入（历史标记） */
-      source: string;
-      note: string | null;
+      /** 到期日（YYYY-MM-DD）【只读派生：字典 last_trade_date，权威值】；null=字典里查不到 */
+      expiry_date: string | null;
+      // 🔴 2026-10-27 四次变更：source / note 已从表与响应体一并删除
+      //    （import-holding 下线后的残留，恒为 holding + 券商码复述）。
+      //    本清单可编辑的只有 broker_symbol 与 is_enabled 两个人字段。
       create_time: string;
       update_time: string;
     }
@@ -1127,7 +1130,6 @@ declare namespace Api {
       end_month?: string | null;
       broker_symbol?: string | null;
       is_enabled?: number;
-      note?: string | null;
     }
 
     /** 修改同步配置：只能改人工列，别的什么都改不了 */
@@ -1135,7 +1137,6 @@ declare namespace Api {
       /** 券商账单代码（对账用，不参与计算）；**传空串 '' 表示清空**，不传=不改 */
       broker_symbol?: string | null;
       is_enabled?: number | null;
-      note?: string | null;
     }
 
     /** 期权行情（`bds_option_market`，按日快照） */

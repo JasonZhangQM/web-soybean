@@ -52,14 +52,13 @@ const pagination = createTablePagination();
 const searchParams = reactive<{
   option_name?: string | null;
   exchange?: string | null;
-  underlying_contract_id?: string | null;
   expire_year_month?: string | null;
   cp?: string | null;
   is_listed?: number | null;
   keyword?: string | null;
 }>({
-  // 默认只看在挂：25,910 行里退市合约会越积越多，默认全量反而找不到当天的
-  is_listed: 1
+  // 状态留空 = 全部（在挂+退市）；要看当天合约直接选「在挂」
+  is_listed: null
 });
 usePageState({ searchParams, pagination });
 
@@ -105,9 +104,8 @@ const cpOptions = [
 ];
 
 const listedOptions = [
-  { label: '仅在挂', value: 1 },
-  { label: '仅退市', value: 0 },
-  { label: '全部', value: -1 }
+  { label: '在挂', value: 1 },
+  { label: '退市', value: 0 }
 ];
 
 /** 行权价：整数不带小数（4000 / 6.25） */
@@ -241,11 +239,10 @@ async function fetchData() {
     const { data, error } = await fetchOptionInfo({
       option_name: searchParams.option_name || undefined,
       exchange: searchParams.exchange || undefined,
-      underlying_contract_id: searchParams.underlying_contract_id || undefined,
       expire_year_month: searchParams.expire_year_month || undefined,
       cp: searchParams.cp || undefined,
-      // -1 是前端「全部」哨兵，不能发给后端（后端只认 0/1）
-      is_listed: searchParams.is_listed === -1 ? undefined : (searchParams.is_listed ?? undefined),
+      // 留空 = 全部（不传后端就不筛）
+      is_listed: searchParams.is_listed ?? undefined,
       keyword: searchParams.keyword || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -278,10 +275,9 @@ function handleSearch() {
 function handleReset() {
   searchParams.option_name = null;
   searchParams.exchange = null;
-  searchParams.underlying_contract_id = null;
   searchParams.expire_year_month = null;
   searchParams.cp = null;
-  searchParams.is_listed = 1;
+  searchParams.is_listed = null;
   searchParams.keyword = null;
   pagination.page = 1;
   fetchData();
@@ -402,20 +398,11 @@ onMounted(() => {
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="标的">
-          <NInput
-            v-model:value="searchParams.underlying_contract_id"
-            clearable
-            placeholder="如 510500 / IO2611"
-            style="width: 175px"
-            @keyup.enter="handleSearch"
-          />
-        </NFormItem>
         <NFormItem label="到期月">
           <NInput
             v-model:value="searchParams.expire_year_month"
             clearable
-            placeholder="如 202612"
+            placeholder="模糊，如 2612"
             style="width: 130px"
             @keyup.enter="handleSearch"
           />
@@ -434,6 +421,8 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.is_listed"
             :options="listedOptions"
+            clearable
+            placeholder="全部"
             style="width: 115px"
             @update:value="handleSearch"
           />
@@ -442,7 +431,7 @@ onMounted(() => {
           <NInput
             v-model:value="searchParams.keyword"
             clearable
-            placeholder="合约ID / 标准码 / 名称，可直接粘 8 位券商码"
+            placeholder="模糊搜：合约ID / 标准码 / 名称 / 标的 / 交易所"
             style="width: 300px"
             @keyup.enter="handleSearch"
           />
