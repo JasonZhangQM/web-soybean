@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue';
-import { useMessage } from 'naive-ui';
+import { NSelect, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import {
   deleteOptionConfig,
+  fetchGroupSymbolOptions,
   fetchOptionConfigs,
   fetchOptionMarket,
   fetchOptionMarketFilters,
@@ -479,10 +480,133 @@ async function loadConfigs() {
   }
 }
 
+// ---------------- 券商码内联编辑（跨模块只读调 bills） ----------------
+//
+// `broker_symbol` 是「认领实盘持仓」的唯一钥匙：`risk_scenario.load_context()` 用
+// `{broker_symbol: cfg}` 去匹配账单 `bills_group.symbol`，匹配不上**直接 raise**，
+// 整个 `/bills/risk-scenario` 返回 500 —— 不是少算一条。所以这个字段要么填对，
+// 要么明确留空，不能靠手打。
+//
+// 候选来自 bills：`GET /bills/group-symbols/symbol-options`（服务端已去重、剔除
+// 资金流水占位码、持仓中优先）。**接口放 bills 是刻意的**——「有哪些合法账单码」
+// 属于账单事实，bds 后端一行 import 都不加（规则 4.12 依赖只能向下），
+// 写入仍走 `PUT /bds/option-config/{id}`。
+
+/** 券商码候选（一次拉全，81 个，不分页） */
+const brokerCodes = ref<Api.Bills.GroupSymbolCode[]>([]);
+/** 正在写库的行 id（行级 loading，防止同一行连点并发） */
+const brokerSaving = ref<number | null>(null);
+/**
+ * 受控组件的重绘触发器。
+ *
+ * NSelect 的 value 绑的是 `row.broker_symbol`。用户在确认框里点了「取消」时 row 没变，
+ * Vue 认为 props 没变化不会重渲染，NSelect 会停在新选的值上（显示与数据不一致）。
+ * 取消时把这个数 +1，拼进 NSelect 的 key，强制重建，值就回弹到真实值。
+ */
+const brokerResetKey = ref(0);
+
+async function loadBrokerCodes() {
+  if (brokerCodes.value.length) return; // 候选几乎不变，一次会话拉一次就够
+  const { data, error } = await fetchGroupSymbolOptions();
+  if (!error && data) brokerCodes.value = data;
+}
+
+/**
+ * 每行一份下拉选项。**必须是 per-row**，不能用全局一份：
+ *
+ * 1. **被别的行占用的码要 disabled** —— `bds_option_config.broker_symbol` 没有唯一约束，
+ *    两行填同一个码会让 `risk_scenario` 的字典静默「后写覆盖先写」，不报错但算错人。
+ *    内联编辑会把这种误操作从「偶尔」变成「随手」，所以必须在选项层面堵住。
+ * 2. **当前值不在候选里时要补一条** —— 比如该合约的账单成交已不在库里，或码是历史手填的。
+ *    不补的话 NSelect 显示空白，用户以为没填，随手选一个就把原本正确的值改掉了。
+ * 3. 持仓中的码加「持仓中」后缀：81 个候选里真正在用的只有几张，不标就得一个个找。
+ */
+const brokerOptionsByRow = computed(() => {
+  const usedBy = new Map<string, number>(); // symbol -> 占用它的 config 行 id
+  for (const r of configRows.value) {
+    if (r.broker_symbol) usedBy.set(r.broker_symbol, r.id);
+  }
+  const known = new Set(brokerCodes.value.map(c => c.symbol));
+  const map = new Map<number, Array<{ label: string; value: string; disabled?: boolean }>>();
+  for (const r of configRows.value) {
+    const opts = brokerCodes.value.map(c => ({
+      label: Number(c.value_total ?? 0) !== 0 ? `${c.symbol}（持仓中）` : c.symbol,
+      value: c.symbol,
+      // 自己占用自己不算冲突：`?? r.id` 让「没被任何人占用」与「被自己占用」同样放行
+      disabled: (usedBy.get(c.symbol) ?? r.id) !== r.id
+    }));
+    if (r.broker_symbol && !known.has(r.broker_symbol)) {
+      opts.unshift({ label: `${r.broker_symbol}（账单里查不到）`, value: r.broker_symbol, disabled: false });
+    }
+    map.set(r.id, opts);
+  }
+  return map;
+});
+
+/**
+ * 写券商码（只发这一个字段，后端对 None 视为「不改」，空串才是清空）。
+ *
+ * 成功后才写回 row：这样接口失败时 UI 自动回弹到旧值，不会出现「界面显示改了、库里没改」。
+ */
+async function saveBrokerSymbol(row: Api.Bds.OptionConfig, next: string) {
+  brokerSaving.value = row.id;
+  try {
+    const { error } = await updateOptionConfig(row.id, { broker_symbol: next });
+    if (error) {
+      message.error('券商码更新失败');
+      brokerResetKey.value += 1; // 失败也要回弹，否则界面停在没生效的新值上
+      return;
+    }
+    row.broker_symbol = next || null;
+    message.success(next ? `券商码已改为 ${next}` : `已清空 ${row.contract_id} 的券商码`);
+  } finally {
+    brokerSaving.value = null;
+  }
+}
+
+async function handleBrokerChange(row: Api.Bds.OptionConfig, val: string | null) {
+  const next = (val ?? '').trim();
+  if ((row.broker_symbol ?? '') === next) return;
+
+  if (!next) {
+    // 清空不是「少个备注」：该合约会退出风险情景推演（匹配不上直接 raise 500）
+    dialog?.warning({
+      title: '清空券商码',
+      content:
+        `清空 ${row.contract_id} 的券商码后，该合约将**退出风险情景推演**` +
+        '（系统靠券商码认领账单持仓，匹配不上会直接报错，不是少算一条）。确定清空？',
+      positiveText: '确定清空',
+      negativeText: '取消',
+      onPositiveClick: () => saveBrokerSymbol(row, ''),
+      onNegativeClick: () => {
+        brokerResetKey.value += 1; // 取消：强制回弹到库里的值
+      }
+    });
+    return;
+  }
+  await saveBrokerSymbol(row, next);
+}
+
+/** 券商码列：下拉即改，选了就落库；空值显示占位而不是 '-' */
+function renderBrokerSymbol(row: Api.Bds.OptionConfig) {
+  return h(NSelect, {
+    key: `broker-${row.id}-${brokerResetKey.value}`,
+    value: row.broker_symbol ?? null,
+    options: brokerOptionsByRow.value.get(row.id) ?? [],
+    clearable: true,
+    filterable: true,
+    size: 'small',
+    placeholder: '未填（点此选账单码）',
+    loading: brokerSaving.value === row.id,
+    'onUpdate:value': (v: string | null) => handleBrokerChange(row, v)
+  });
+}
+
 function openConfigDrawer() {
   configDrawer.value = true;
   configPagination.page = 1;
   loadConfigs();
+  loadBrokerCodes();
 }
 
 /** 规格唯一来源是合约字典：跳过去刷新（本页不再提供补全入口） */
@@ -534,10 +658,14 @@ const configColumns = [
     render: (r: Api.Bds.OptionConfig) => h('span', { style: 'font-family:monospace' }, r.contract_id)
   },
   {
+    // 券商码：**本页唯一的可编辑派生业务键**（另一个可编辑列是启用开关）。
+    // 190 宽是为了放下 19 字符的 CFFEX.IO2611-P-4000 且带下拉箭头不折行。
+    // 候选来自 bills 的账单标的表 —— 选不到不存在的码，10-26 那次「手拼码多 6 位」
+    // 那类错在结构上不可能再发生。
     title: '券商码',
     key: 'broker_symbol',
-    width: 140,
-    render: (r: Api.Bds.OptionConfig) => r.broker_symbol || '-'
+    width: 190,
+    render: (r: Api.Bds.OptionConfig) => renderBrokerSymbol(r)
   },
   { title: '品种', key: 'option_name', width: 150 },
   {
@@ -725,7 +853,11 @@ onUnmounted(stopPolling);
       />
     </NCard>
 
-    <NDrawer v-model:show="configDrawer" width="66%" placement="right">
+    <!--
+ after-leave 刷主表：券商码在主表也有一列（来自 config join），
+         抽屉里改完不重拉的话那一列会停在旧值，核账时容易看错 
+-->
+    <NDrawer v-model:show="configDrawer" width="66%" placement="right" @after-leave="fetchData">
       <NDrawerContent closable>
         <template #header>
           <div class="flex w-full items-center justify-between pr-16px">
@@ -748,6 +880,12 @@ onUnmounted(stopPolling);
           <b>合约字典</b>
           页（本页 10-27 起不再重复展示）。 新增合约也从字典里选，不再手打代码。
           商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月， 填实际月份会让人以为只拉了一个月。
+          <br />
+          <b>券商码可直接点开下拉改</b>
+          （候选来自账单标的表，已按持仓中优先排序、剔除资金流水占位码；已被别的合约占用的码
+          灰掉不可选）。清空会让该合约
+          <b style="color: #d03050">退出风险情景推演</b>
+          ——系统靠它认领账单持仓，匹配不上是直接报错。
         </div>
         <NDataTable
           :columns="configColumns"
@@ -755,7 +893,7 @@ onUnmounted(stopPolling);
           :loading="configLoading"
           :row-key="configRowKey"
           :pagination="configPagination"
-          :scroll-x="950"
+          :scroll-x="1000"
         />
       </NDrawerContent>
     </NDrawer>

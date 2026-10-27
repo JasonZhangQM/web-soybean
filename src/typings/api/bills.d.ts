@@ -324,6 +324,23 @@ declare namespace Api {
       total: number;
     }
 
+    /**
+     * 券商码候选（对应 GroupSymbolCodeOut，`GET /bills/group-symbols/symbol-options`）
+     *
+     * 服务端已按 symbol 去重、剔除资金流水占位码、持仓中的排前面。
+     * 唯一消费者是 bds「期权行情同步清单」的券商码内联下拉（跨模块只读调用）。
+     */
+    interface GroupSymbolCode {
+      /** 账单口径代码（如 SHQQ.10012562 / CFFEX.IO2611-P-4000） */
+      symbol: string;
+      /** 交易分类（期权交易 / 期货交易 / 证券交易） */
+      category: string;
+      /** 持仓量（跨分类取最大） */
+      p_total: number | null;
+      /** 当前市值（跨分类求和；非 0 即在持仓中） */
+      value_total: number | null;
+    }
+
     /** 年度收益（对应 ProfitYearOut，共 14 字段） */
     interface ProfitYear {
       /** 年度 */

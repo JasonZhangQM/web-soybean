@@ -133,6 +133,26 @@ export function fetchGroupSymbolsCoverage() {
   });
 }
 
+/**
+ * 券商码候选（`GET /bills/group-symbols/symbol-options`）
+ *
+ * 给「期权行情同步清单」的券商码内联下拉当选项源——这是 bds 页面跨模块调 bills 的
+ * **唯一正道**：`bds_option_config.broker_symbol` 该填什么值是账单事实，权威在 bills，
+ * 所以接口放 bills，bds 后端不加任何 import（规则 4.12 依赖只能向下）。
+ * 写入不在这里，仍走 `updateOptionConfig(id, { broker_symbol })`。
+ *
+ * 服务端已按 symbol 去重、剔除资金流水占位码、持仓中的排前面，前端直接铺进下拉即可。
+ *
+ * @param category 交易分类，默认「期权交易」（期权持仓只会落在这一类）；传 `*` 不限
+ */
+export function fetchGroupSymbolOptions(category = '期权交易') {
+  return request<Api.Bills.GroupSymbolCode[]>({
+    url: '/api/v1/bills/group-symbols/symbol-options',
+    method: 'get',
+    params: { category }
+  });
+}
+
 /** 归属参数（vm_symbol 传 null = 清空归属） */
 export interface GroupSymbolVmParams {
   vm_symbol: string | null;
