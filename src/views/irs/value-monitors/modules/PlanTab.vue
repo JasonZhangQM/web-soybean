@@ -123,7 +123,7 @@ function openEdit(p: Api.Irs.VmPlan) {
 }
 
 async function handleSave() {
-  // 自由输入的唯一风险是粘进来带空格/换行，落库前清掉（大小写不能动：SHEX.au2612P880 有大写有小写）
+  // 自由输入的唯一风险是粘进来带空格/换行，落库前清掉（大小写不能动：SHFE.au2612P880 有大写有小写）
   const tradeSymbol = (form.trade_symbol ?? '').trim();
   if (!tradeSymbol) {
     window.$message?.warning('请填实际下单的合约代码');
@@ -335,7 +335,7 @@ watch(
               :options="tradeSymbolOptions"
               :render-label="renderTradeSymbolLabel"
               clearable
-              placeholder="直接输入合约代码，如 SHEX.au2612 / CFFEX.IO2612-P-4000"
+              placeholder="直接输入合约代码，如 SHFE.au2612 / CFFEX.IO2612-P-4000"
               style="width: 100%"
             />
             <div class="mt-4px text-12px text-gray-400">

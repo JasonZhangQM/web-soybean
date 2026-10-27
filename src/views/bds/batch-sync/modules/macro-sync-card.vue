@@ -9,8 +9,16 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 七个同步段；执行顺序由后端固定为 trade_date → symbol_info → index_history → option_market → wscn → daily → gold */
-type StageKey = 'trade_date' | 'symbol_info' | 'index_history' | 'option_market' | 'wscn' | 'daily' | 'gold';
+/** 八个同步段；执行顺序由后端固定为 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold */
+type StageKey =
+  | 'trade_date'
+  | 'symbol_info'
+  | 'index_history'
+  | 'option_info'
+  | 'option_market'
+  | 'wscn'
+  | 'daily'
+  | 'gold';
 
 interface StageOption {
   label: string;
@@ -25,6 +33,9 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
       { label: '交易日历', value: 'trade_date' },
       { label: '证券信息', value: 'symbol_info' },
       { label: '指数行情', value: 'index_history' },
+      // 🔴 必须排在「期权行情」之前：行情同步要从字典取逐合约乘数与权威到期日，
+      // 当天新挂牌的合约若还没进字典就会被跳过（后端也固定这个顺序）
+      { label: '期权合约字典', value: 'option_info' },
       { label: '期权行情', value: 'option_market' }
     ]
   },
@@ -41,13 +52,14 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
 const STAGE_OPTIONS: StageOption[] = STAGE_GROUPS.flatMap(g => g.options);
 
 /**
- * 默认勾选五段。
+ * 默认勾选六段。
  * - 不勾「交易日历」：insert_trade_date_em_sql 只在跨年时才真写库，一年手动跑一次足够
  * - 不勾「黄金储备」：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
  *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），默认勾上等于每次启动都白等
+ * - 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s；它是「期权行情」的上游
  * - 勾「期权行情」：3 组约 5s，属于每日都要更新的行情数据，代价可接受
  */
-const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_market', 'wscn', 'daily'];
+const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_info', 'option_market', 'wscn', 'daily'];
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 

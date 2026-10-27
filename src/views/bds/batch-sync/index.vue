@@ -252,9 +252,11 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
  * - option_market：期权行情页自带的「行情同步」（`/bds/option-market/sync`），
  *   任务在那边轮询；这里漏掉它会把 `scope='option_market'` + `tables=['option-market']`
  *   塞进批量同步表单（下拉无此选项），之后点「启动」还会被后端判「未知 scope」
+ * - option_info：期权合约字典页自带的「刷新字典」（`/bds/option-info/sync`），
+ *   同上；它是 `option_market` 的上游，必须一起排除，否则会被卡片 1 误认领
  * 漏掉任意一个都会被卡片 1 抢走并误填表单（一键同步任务的 tables 是段名、不是表名）
  */
-const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync', 'option_market'];
+const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync', 'option_info', 'option_market'];
 
 async function loadBatchTask(id?: number) {
   try {

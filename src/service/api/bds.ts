@@ -391,15 +391,21 @@ export interface MacroSyncRequest {
    * - trade_date: 交易日历（仅在跨年时才真写库）
    * - symbol_info: 证券信息（东财 Excel + gm 两条通道）
    * - index_history: 指数行情（按 Config.INDEX_CODE 逐指数增量）
+   * - option_info: 期权合约字典（openctp 全量刷新 25,910 行，累积不删）
    * - option_market: 期权行情（按「品种 × 到期月」逐组，范围由「期权同步清单」决定）
    * - wscn: 经济指标（华尔街见闻）
    * - daily: 美债收益率（FRED，含 2 项信用利差）
    * - gold: 黄金储备（IMF）
    *
-   * 后端**固定按 trade_date → symbol_info → index_history → option_market → wscn → daily → gold 顺序执行**，
-   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + index_history + option_market + wscn + daily）
+   * 后端**固定按 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold 顺序执行**，
+   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + index_history + option_info + option_market + wscn + daily）
+   *
+   * 🔴 option_info 必须排在 option_market **之前**：行情同步要从字典取逐合约乘数与权威
+   * 到期日，当天新挂牌的合约若还没进字典就会被跳过。
    */
-  stages?: Array<'trade_date' | 'symbol_info' | 'index_history' | 'option_market' | 'wscn' | 'daily' | 'gold'>;
+  stages?: Array<
+    'trade_date' | 'symbol_info' | 'index_history' | 'option_info' | 'option_market' | 'wscn' | 'daily' | 'gold'
+  >;
 }
 
 /** 启动一键同步（后台任务，返回 task 供轮询；与批量同步共用 bds_sync_task） */
@@ -550,6 +556,54 @@ export function fetchIndexConstituentSyncStatus() {
 }
 
 // ============================================================================
+// 期权合约字典（bds_option_info）
+// ============================================================================
+
+/**
+ * 分页查询合约字典（25,910 行，必须服务端分页）
+ *
+ * ⚠️ 标准码 `symbol` **不是全局唯一**：ETF 沿用交易所「合约简称」口径、不含标的 6 位，
+ * 9 个 ETF 标的的行权价区间大量重叠 ⇒ 按代码搜跨标的会返回多行。展示时要带标的名。
+ */
+export function fetchOptionInfo(params?: Api.Bds.OptionInfoQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.OptionInfo>>({
+    url: '/api/v1/bds/option-info',
+    method: 'get',
+    params
+  });
+}
+
+/** 字典品种下拉（只含台账已登记的品种，带中文名） */
+export function fetchOptionInfoProducts() {
+  return request<Api.Bds.OptionInfoProduct[]>({
+    url: '/api/v1/bds/option-info/products',
+    method: 'get'
+  });
+}
+
+/** 字典新鲜度：最近拉取日期 / 总行数 / 在挂张数 / 写入时刻 */
+export function fetchOptionInfoLatestDate() {
+  return request<Api.Bds.OptionInfoLatestDate>({
+    url: '/api/v1/bds/option-info/latest-date',
+    method: 'get'
+  });
+}
+
+/**
+ * 刷新合约字典（后台任务，立即返回 task）
+ *
+ * 累积不删：本次未出现的合约保留、只把 `is_listed` 置 0；且拉取行数低于哨兵
+ * （20,000）时连置 0 都跳过，防止一次残缺拉取把两万多张在挂合约误标退市。
+ * 停止沿用 `stopBatchSync(taskId)`。
+ */
+export function syncOptionInfo() {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/option-info/sync',
+    method: 'post'
+  });
+}
+
+// ============================================================================
 // 期权行情（bds_option_market）与同步清单（bds_option_config）
 // ============================================================================
 
@@ -616,7 +670,13 @@ export function fetchOptionConfigs(params?: { is_enabled?: number }) {
   });
 }
 
-/** 新增同步配置（symbol 会被后端归一化：去账单前缀 / 去 ETF 标的数字前缀） */
+/**
+ * 新增同步配置。
+ *
+ * 🔴 合约必须能在合约字典（`bds_option_info`）里解析到，否则后端 400。
+ * 优先传 `contract_id`（全表唯一）；用 `symbol` 时 ETF 必须带 `option_name`
+ * —— ETF 标准码不含标的 6 位，跨标的存在大量同码。
+ */
 export function createOptionConfig(data: Api.Bds.OptionConfigCreate) {
   return request<Api.Bds.OptionConfig>({
     url: '/api/v1/bds/option-config',
@@ -625,19 +685,13 @@ export function createOptionConfig(data: Api.Bds.OptionConfigCreate) {
   });
 }
 
-/** 修改配置的人工列（启用开关 / 备注 / 合约规格）；**只发要改的字段**，后端对 null 视为不改 */
-export function updateOptionConfig(
-  id: number,
-  data: {
-    is_enabled?: number;
-    note?: string | null;
-    cp?: string | null;
-    strike?: number | null;
-    multiplier?: number | null;
-    margin_type?: string | null;
-    expiry_date?: string | null;
-  }
-) {
+/**
+ * 修改配置的**人工列**（启用开关 / 备注）。
+ *
+ * 规格字段已物理删除，权威源是合约字典，PUT 改不了——要修只能刷新字典。
+ * **只发要改的字段**，后端对 null 视为不改。
+ */
+export function updateOptionConfig(id: number, data: Api.Bds.OptionConfigUpdate) {
   return request<Api.Bds.OptionConfig>({
     url: `/api/v1/bds/option-config/${id}`,
     method: 'put',
@@ -650,18 +704,5 @@ export function deleteOptionConfig(id: number) {
   return request<{ status: string; message: string }>({
     url: `/api/v1/bds/option-config/${id}`,
     method: 'delete'
-  });
-}
-
-/**
- * 从行情快照补全清单里为空的合约规格（兜底路径）。
- *
- * 常态无需调用：行情同步时会自动回填。本接口用于「清单行是后来手工加的、
- * 而行情早已同步过」的场景。只填空值，不覆盖已有值。
- */
-export function backfillOptionConfigSpec() {
-  return request<Api.Bds.OptionConfigBackfillResult>({
-    url: '/api/v1/bds/option-config/backfill-spec',
-    method: 'post'
   });
 }

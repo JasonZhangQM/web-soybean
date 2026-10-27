@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue';
 import { useMessage } from 'naive-ui';
+import { useRouter } from 'vue-router';
 import {
   deleteOptionConfig,
   fetchOptionConfigs,
@@ -9,7 +10,6 @@ import {
   fetchOptionMarketLatestDate,
   fetchOptionSyncPlan,
   fetchSyncTask,
-  backfillOptionConfigSpec,
   syncOptionMarket,
   updateOptionConfig
 } from '@/service/api';
@@ -35,9 +35,14 @@ defineOptions({ name: 'OptionMarketPage' });
  * ⚠️ symbol 三品种三种写法：IO 是 `IO2611-P-4000`、au 是 `au2612P840`（去账单前缀即可），
  * 但 ETF 的券商码 `SHQQ.10012562` 与交易所码 `P2611M06250` **没有任何字符串关系**，
  * 所以单独显示「券商码」列，对账时才不会对不上。
+ *
+ * 🔴 2026-10-27 起，清单里的**合约规格是只读派生值**（来自 `bds_option_info`），
+ * 本页不再提供任何规格编辑或「补全规格」入口 —— 规格的权威在交易所字典，
+ * 要更新只有一条路：去「合约字典」页点刷新。
  */
 
 const message = useMessage();
+const router = useRouter();
 // 项目惯例：dialog 走 window.$dialog（AppProvider 在 provider 内部注册），
 // 页面里直接 useDialog() 拿不到 provider 上下文
 const dialog = window.$dialog;
@@ -423,7 +428,6 @@ const syncProgressText = computed(() => {
 const configDrawer = ref(false);
 const configLoading = ref(false);
 const configRows = ref<Api.Bds.OptionConfig[]>([]);
-const backfilling = ref(false);
 
 async function loadConfigs() {
   configLoading.value = true;
@@ -438,6 +442,12 @@ async function loadConfigs() {
 function openConfigDrawer() {
   configDrawer.value = true;
   loadConfigs();
+}
+
+/** 规格唯一来源是合约字典：跳过去刷新（本页不再提供补全入口） */
+function goOptionInfo() {
+  configDrawer.value = false;
+  router.push({ name: 'bds_market-data_option-info' });
 }
 
 async function toggleConfig(row: Api.Bds.OptionConfig, enabled: boolean) {
@@ -468,26 +478,6 @@ function removeConfig(row: Api.Bds.OptionConfig) {
   });
 }
 
-async function backfillSpec() {
-  backfilling.value = true;
-  try {
-    const { data, error } = await backfillOptionConfigSpec();
-    if (error || !data) {
-      message.error('补全失败');
-      return;
-    }
-    const noData = data.no_data.length;
-    if (noData) {
-      message.warning(`补全 ${data.filled} 条，跳过 ${data.skipped} 条，${noData} 条无行情快照`);
-    } else {
-      message.success(`补全 ${data.filled} 条，跳过 ${data.skipped} 条`);
-    }
-    loadConfigs();
-  } finally {
-    backfilling.value = false;
-  }
-}
-
 const configColumns = [
   { title: '代码', key: 'symbol', width: 160 },
   {
@@ -511,21 +501,20 @@ const configColumns = [
       h('span', { style: `color:${r.is_enabled ? '#2f9e6e' : '#bbb'}` }, r.is_enabled ? '是' : '否')
   },
   {
-    title: '规格',
+    title: '规格（来自合约字典）',
     key: 'spec',
-    width: 130,
+    width: 230,
     render: (r: Api.Bds.OptionConfig) => {
-      const gaps = [
-        !r.cp && '方向',
-        !r.strike && 'K',
-        !r.multiplier && '乘数',
-        !r.margin_type && '保证金族',
-        !r.expiry_date && '到期日'
-      ].filter(Boolean);
-      if (gaps.length) {
-        return h('span', { style: 'color:#d03050' }, `缺 ${gaps.join('/')}`);
+      // 规格是 join bds_option_info 的**只读派生值**：全 null 说明字典里查不到这个合约，
+      // 此时不是「待补全」，而是「要刷新字典」——口径必须区分，否则会误导成手工可填。
+      if (!r.cp || r.multiplier == null) {
+        return h('span', { style: 'color:#d03050', title: '字典里查不到该合约，去「合约字典」页刷新' }, '字典无此合约');
       }
-      return h('span', { style: 'color:#666' }, `${r.cp} ${r.strike} ×${r.multiplier}`);
+      const k = r.strike == null ? '?' : Number(r.strike);
+      return h('span', { style: 'color:#666' }, [
+        `${r.cp} ${k} ×${r.multiplier}`,
+        h('span', { style: 'color:#aaa' }, ` · ${r.expiry_date || '?'} · ${r.margin_type || '?'}`)
+      ]);
     }
   },
   { title: '备注', key: 'note', width: 200, render: (r: Api.Bds.OptionConfig) => r.note || '-' },
@@ -697,25 +686,32 @@ onUnmounted(stopPolling);
           <div class="flex w-full items-center justify-between pr-16px">
             <span>期权行情同步清单</span>
             <NSpace>
-              <NButton size="small" :loading="backfilling" @click="backfillSpec">
-                <template #icon><SvgIcon icon="mdi:refresh" /></template>
-                补全规格
+              <NButton size="small" @click="goOptionInfo">
+                <template #icon><SvgIcon icon="mdi:book-open-variant" /></template>
+                合约字典
               </NButton>
               <NButton size="small" :loading="configLoading" @click="loadConfigs">刷新</NButton>
             </NSpace>
           </div>
         </template>
         <div class="mb-8px text-12px" style="color: #999">
-          这张清单既是「行情同步」的范围，也是合约规格（方向/行权价/乘数/保证金族/到期日）的唯一来源。
-          规格留空没关系——行情同步会自动补全，也可点「补全规格」手工触发；但风险计算要求规格齐全，缺了会拒绝估算。
-          商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月，填实际月份会让人以为只拉了一个月。
+          这张清单只决定「
+          <b>要同步哪些合约、怎么拉</b>
+          」（代码 / 券商码 / 品种 / 到期月 / 启用）。
+          <b>合约规格（方向 / 行权价 / 乘数 / 保证金族 / 到期日）不在本表</b>
+          ——它是 join「合约字典」的只读派生值，权威在交易所。要更新规格只有一条路： 去
+          <b>合约字典</b>
+          页点刷新（16 秒拉全量 25,910 行），本清单一律不可编辑规格。
+          <span style="color: #d03050">显示「字典无此合约」</span>
+          表示字典里查不到，不是待补全。新增合约也从字典里选，不再手打代码。
+          商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月， 填实际月份会让人以为只拉了一个月。
         </div>
         <NDataTable
           :columns="configColumns"
           :data="configRows"
           :loading="configLoading"
           :row-key="configRowKey"
-          :scroll-x="1100"
+          :scroll-x="1210"
           size="small"
         />
       </NDrawerContent>

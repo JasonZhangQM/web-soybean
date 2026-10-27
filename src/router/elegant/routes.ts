@@ -224,6 +224,16 @@ export const generatedRoutes = [
             }
           },
           {
+            name: 'bds_market-data_option-info',
+            path: '/bds/market-data/option-info',
+            component: 'view.bds_market-data_option-info',
+            meta: {
+              title: 'bds_market-data_option-info',
+              i18nKey: 'route.bds_market-data_option-info',
+              constant: true
+            }
+          },
+          {
             name: 'bds_market-data_option-market',
             path: '/bds/market-data/option-market',
             component: 'view.bds_market-data_option-market',

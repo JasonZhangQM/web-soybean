@@ -986,26 +986,116 @@ declare namespace Api {
       /** 现表内成分行数：为 0 但 checked_to 有值 ⇒ 成分行被手工删过（如上证指数） */
       current_rows: number;
     }
-    /** 期权行情同步清单（`bds_option_config`） */
+    /**
+     * 期权合约字典（`bds_option_info`）：openctp 静态合约表本地副本。
+     *
+     * 回答「合约是什么」——乘数、权威到期日、A 类调整行权价。
+     * 与 `OptionConfig`（要同步哪些合约）、`OptionMarket`（多少价）职责不重叠。
+     */
+    interface OptionInfo {
+      id: number;
+      /** openctp 原生合约ID；ETF 为 8 位码，正好等于券商码去掉 `SHQQ.` 前缀 */
+      contract_id: string;
+      /**
+       * 系统标准码（派生值）。
+       * ⚠️ **只在「品种 + 标的」内唯一**：ETF 沿用交易所「合约简称」口径、不含标的 6 位，
+       * 9 个 ETF 标的行权价区间大量重叠 ⇒ 跨标的会返回多行（实测 422 组），不是数据错误。
+       */
+      symbol: string;
+      /** 数据源原始名称（通常与合约ID相同；ETF 是中文简称如「500ETF沽11月6250」） */
+      contract_name: string;
+      exchange: string;
+      /** 品种ID：IO / HO / MO / au_o / ETF_O / ...（92 个） */
+      product_id: string;
+      /** 标的合约ID：IO2611 / 510500 / au2612 */
+      underlying_contract_id: string;
+      /** C=认购 P=认沽 */
+      cp: string;
+      /** 行权价（交易所原始值；A 类是调整后的 7.367，不是名义的 7.500） */
+      strike: number;
+      /** 名义行权价（生成标准码用）：7.367 × 10180 ÷ 10000 = 7.500 */
+      nominal_strike: number;
+      /** 合约乘数；A 类为 10180 而非 10000，**必须与 strike 成对使用**，混用差 1.8% 市值 */
+      multiplier: number;
+      tick_size: number | null;
+      list_date: string | null;
+      /** 最后交易日（权威到期日，取代自研推算） */
+      last_trade_date: string;
+      delivery_date: string | null;
+      /** 期权到期年月 YYYYMM（由 last_trade_date 派生，**不是**数据源的交割月） */
+      expire_year_month: string;
+      /** 1=最近一次全量拉取仍挂牌 0=已退市 */
+      is_listed: number;
+      /** 最后一次出现在数据源的日期（判退市唯一依据，`合约状态` 字段恒为 1 用不了） */
+      last_seen_date: string;
+      sync_time: string;
+      create_time: string;
+      update_time: string;
+    }
+
+    /** 合约字典查询参数（25,910 行，必须服务端分页） */
+    interface OptionInfoQueryParams {
+      /** 品种ID */
+      product_id?: string | null;
+      /**
+       * 中文品种名。**ETF 建议用它而不是 product_id**：同一 `ETF_O` 覆盖 9 个标的，
+       * 只按 product_id 筛会把 510050 与 510500 混在一起。
+       */
+      option_name?: string | null;
+      underlying_contract_id?: string | null;
+      /** 到期年月 YYYYMM */
+      expire_year_month?: string | null;
+      cp?: string | null;
+      is_listed?: number | null;
+      /** 模糊搜 合约ID / 标准码 / 合约名称（支持直接粘 8 位券商码） */
+      keyword?: string | null;
+      limit?: number;
+      offset?: number;
+    }
+
+    /** 字典品种下拉项（只含台账已登记的品种） */
+    interface OptionInfoProduct {
+      option_name: string;
+      und_key: string;
+      product_id: string;
+      /** 标的 6 位码；ETF 必有，股指/商品为 null */
+      ctp_underlying: string | null;
+    }
+
+    /** 字典新鲜度 */
+    interface OptionInfoLatestDate {
+      latest_seen_date: string | null;
+      rows: number;
+      listed_rows: number;
+      sync_time: string | null;
+    }
+
+    /**
+     * 期权行情同步清单（`bds_option_config`）
+     *
+     * ⚠️ 2026-10-27 瘦身后本表只剩「同步意图」7 列。下面标 **[只读派生]** 的字段
+     * 物理上不存在于表里，是后端 join `bds_option_info` / 品种台账后现算返回的，
+     * **PUT 改不了**——要修只能刷新合约字典。
+     */
     interface OptionConfig {
       id: number;
       /** 交易所标准期权代码（IO2611-P-4000 / P2611M06250 / au2612P840） */
       symbol: string;
       /** 券商账单代码（ETF 才有，如 SHQQ.10012562；与交易所码无字符串关系） */
       broker_symbol: string | null;
-      /** 标的代码 */
-      underlying_symbol: string;
-      /** 情景分组键: csi300 / csi500etf / au */
-      und_key: string;
-      /** C=认购 P=认沽；null 表示规格尚未补全（观察型合约可只填代码与品种） */
+      /** 标的代码【只读派生】 */
+      underlying_symbol: string | null;
+      /** 情景分组键 csi300 / csi500etf / au【只读派生】 */
+      und_key: string | null;
+      /** C=认购 P=认沽【只读派生】；null = 字典里查不到该合约 */
       cp: string | null;
-      /** 行权价（统一本位，ETF 为 6.25 而非 6250） */
+      /** 行权价（统一本位，ETF 为 6.25 而非 6250）【只读派生】 */
       strike: number | null;
-      /** 合约乘数 */
+      /** 合约乘数（A 类调整合约为 10180）【只读派生】 */
       multiplier: number | null;
-      /** 保证金公式族：cffex / etf / shex */
+      /** 保证金公式族：cffex / etf / shex【只读派生】 */
       margin_type: string | null;
-      /** 到期日 YYYY-MM-DD */
+      /** 到期日 YYYY-MM-DD【只读派生】 */
       expiry_date: string | null;
       /** akshare 品种名 */
       option_name: string;
@@ -1020,21 +1110,29 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 新增同步配置入参 */
+    /**
+     * 新增同步配置入参
+     *
+     * 🔴 不再接受手工拼码：合约必须能在合约字典里解析到，否则 400。
+     * `contract_id` 优先（全表唯一）；用 `symbol` 时 ETF 必须带 `option_name`，
+     * 因为 ETF 标准码不含标的 6 位、跨标的存在同码。
+     */
     interface OptionConfigCreate {
-      symbol: string;
-      broker_symbol?: string | null;
+      /** 合约字典主键（openctp「合约ID」，ETF 即券商码数字部分）——推荐 */
+      contract_id?: string | null;
+      /** 交易所标准码（须能在字典中查到） */
+      symbol?: string | null;
       option_name: string;
+      /** 留空按字典的到期年月推导；商品期权恒 ALL */
       end_month?: string | null;
-      underlying_symbol?: string | null;
-      und_key?: string | null;
-      /** 以下规格可留空，同步或「补全规格」会自动回填 */
-      cp?: string | null;
-      strike?: number | null;
-      multiplier?: number | null;
-      margin_type?: string | null;
-      expiry_date?: string | null;
+      broker_symbol?: string | null;
       is_enabled?: number;
+      note?: string | null;
+    }
+
+    /** 修改同步配置：只能改人工列，别的什么都改不了 */
+    interface OptionConfigUpdate {
+      is_enabled?: number | null;
       note?: string | null;
     }
 
@@ -1113,16 +1211,6 @@ declare namespace Api {
       option_names: string[];
       end_months: string[];
       und_keys: string[];
-    }
-
-    /** 从持仓导入配置的结果 */
-    interface OptionConfigBackfillResult {
-      /** 补全条数 */
-      filled: number;
-      /** 规格已齐全、跳过的条数 */
-      skipped: number;
-      /** 无行情快照、无法补全的合约 */
-      no_data: { symbol: string; reason: string }[];
     }
   }
 }
