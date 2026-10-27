@@ -447,7 +447,7 @@ function openConfigDrawer() {
 /** 规格唯一来源是合约字典：跳过去刷新（本页不再提供补全入口） */
 function goOptionInfo() {
   configDrawer.value = false;
-  router.push({ name: 'bds_market-data_option-info' });
+  router.push({ name: 'bds_option-info' });
 }
 
 async function toggleConfig(row: Api.Bds.OptionConfig, enabled: boolean) {

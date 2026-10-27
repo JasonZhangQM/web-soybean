@@ -17,10 +17,17 @@ import { createTablePagination, setPaginationTotal } from '@/hooks/common/table'
 defineOptions({ name: 'OptionInfoPage' });
 
 /**
- * 期权合约字典（`bds_option_info`）—— openctp 静态合约表本地副本。
+ * 期权合约（`bds_option_info`）—— openctp 静态合约表本地副本。
  *
  * 回答「合约是什么」：乘数、权威到期日、A 类调整行权价。与「期权行情」页互补：
  * 字典管合约属性，行情页管价格。
+ *
+ * 菜单挂在「数据」一级（`/bds/option-info`），**不放在「行情数据」组下**：
+ * 它是合约属性的权威源、行情只是消费者，层级上不该被当成行情的一种。
+ * 排序靠 `routes.ts` 里手补的 `order: 5.5`（紧跟「证券信息」的 5）——用小数是必须的：
+ * 生成器按目录字母序排，`option-info` 天然落在 `symbol-infos` 之前，
+ * 同 order 只能靠数组顺序，而数组顺序每次 `pnpm build` 都会重排。
+ * ⚠️ 这个注释不能写进 `router/elegant/routes.ts`：那是生成文件，build 时整块重写、注释必丢。
  *
  * 三条必须先知道的展示口径：
  *
@@ -550,3 +557,18 @@ onUnmounted(stopPolling);
     </NCard>
   </div>
 </template>
+
+<style scoped>
+/*
+ * 单元格一律不换行，宁可整表横向滚动。
+ *
+ * naive-ui 默认 `white-space: normal`，列宽不足时把「标准码/合约名称」折成两行 ——
+ * 16 列的字号本身很小，折行后行高忽高忽低、数字列错位难对。
+ * 配 `table-layout: auto` 的效果是：nowrap 让内容撑开列宽（`width` 只是基准值），
+ * 总宽超过容器由 `scroll-x` 兜住横向滚动，不会出现截断或省略号。
+ */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+</style>
