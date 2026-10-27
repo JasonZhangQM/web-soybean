@@ -63,6 +63,16 @@ const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_info
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 
+/** 全选：勾选全部同步段（全选 = 全部 8 段，默认不勾的交易日历/黄金储备也包含在内） */
+function selectAllStages() {
+  selectedStages.value = STAGE_OPTIONS.map(o => o.value);
+}
+
+/** 清空勾选 */
+function clearStages() {
+  selectedStages.value = [];
+}
+
 // ===================== 任务状态 =====================
 
 const starting = ref(false);
@@ -280,6 +290,8 @@ onBeforeUnmount(() => {
           </NSpace>
         </div>
       </NCheckboxGroup>
+      <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllStages">全选</NButton>
+      <NButton size="tiny" secondary :disabled="isRunning" @click="clearStages">清空</NButton>
     </div>
 
     <div style="margin-top: 6px; font-size: 12px; color: #999; line-height: 1.6">
