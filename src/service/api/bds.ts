@@ -590,18 +590,12 @@ export function fetchOptionInfoLatestDate() {
 }
 
 /**
- * 刷新合约字典（后台任务，立即返回 task）
+ * ~~刷新合约字典（独立端点）~~ —— 2026-10-27 晚已下线，函数一并删除。
  *
- * 累积不删：本次未出现的合约保留、只把 `is_listed` 置 0；且拉取行数低于哨兵
- * （20,000）时连置 0 都跳过，防止一次残缺拉取把两万多张在挂合约误标退市。
- * 停止沿用 `stopBatchSync(taskId)`。
+ * 后端 `POST /bds/option-info/sync` 已移除：批量同步的 `option_info` 段调的是同一个
+ * `option_info.fetch_and_store()`，要单刷字典走 `startMacroSync({ stages: ['option_info'] })`
+ * 即可。任务化 / 全局互斥 / 行数哨兵在那边同样生效。
  */
-export function syncOptionInfo() {
-  return request<Api.Bds.SyncTask>({
-    url: '/api/v1/bds/option-info/sync',
-    method: 'post'
-  });
-}
 
 // ============================================================================
 // 期权行情（bds_option_market）与同步清单（bds_option_config）

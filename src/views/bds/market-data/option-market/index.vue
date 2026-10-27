@@ -31,9 +31,14 @@ defineOptions({ name: 'OptionMarketPage' });
  * 2. `delta_opt` 同理，只有商品期权有（认沽为负）。
  * 3. `volume` / `open_interest` 对 ETF 恒为 null：接口的「数量」列实测恒等于返回行数
  *    （26 行全是 26），不是成交量，宁缺勿造。
+ * 4. **日期是「起始日」不是「精确日」**（2026-10-27 改）：不填=全部历史（按 trade_date
+ *    倒序），填了=从该日起筛到最新。表按日累积成时间序列，精确单日筛法会让「最近几天」
+ *    这种最常见的核账动作变成反复改日期。
  *
- * ⚠️ symbol 三品种三种写法：IO 是 `IO2611-P-4000`、au 是 `au2612P840`（去账单前缀即可），
- * 但 ETF 的券商码 `SHQQ.10012562` 与交易所码 `P2611M06250` **没有任何字符串关系**，
+ * ⚠️ 清单（行情表与同步清单）的唯一身份都是 `contract_id`（openctp 合约ID），
+ * 交易所标准码**不在本页展示**（行情表既不存也不返回，要看去「合约字典」）。
+ * contract_id 三品种三种写法：IO 是 `IO2611-P-4000`、au 是 `au2612P840`（去账单前缀即可）、
+ * ETF 是 8 位数字 `10012562`，而券商码是 `SHQQ.10012562` —— 两者前缀不同，
  * 所以单独显示「券商码」列，对账时才不会对不上。
  *
  * 🔴 2026-10-27 起，清单里的**合约规格是只读派生值**（来自 `bds_option_info`），
@@ -56,7 +61,7 @@ const searchParams = reactive<{
   option_name?: string | null;
   end_month?: string | null;
   option_type?: string | null;
-  symbol?: string | null;
+  contract_id?: string | null;
   trade_date?: string | null;
 }>({});
 usePageState({ searchParams, pagination });
@@ -113,7 +118,14 @@ function fmtMissing(v: unknown, title: string, digits = 4) {
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 175 },
+  {
+    title: '合约ID',
+    key: 'contract_id',
+    width: 160,
+    // 唯一身份：三品种写法统一（IO2611-P-4000 / au2612P840 / 10012562）。
+    // 交易所标准码不在本页展示 —— 行情表既不存也不返回它，要看去「合约字典」。
+    render: (r: Api.Bds.OptionMarket) => h('span', { style: 'font-family: monospace' }, r.contract_id)
+  },
   {
     title: '券商码',
     key: 'broker_symbol',
@@ -224,7 +236,7 @@ const columns = [
 /** scroll-x 必须 ≥ 列宽和，否则 naive-ui 会压缩列导致折行（§4.11） */
 const scrollX = computed(() => columns.reduce((sum, c) => sum + (c.width || 0), 0));
 
-/** 行键：主键即唯一（表有 uk(symbol, trade_date)，id 稳定） */
+/** 行键：主键即唯一（表有 uk(contract_id, trade_date)，id 稳定） */
 function marketRowKey(r: Api.Bds.OptionMarket) {
   return r.id;
 }
@@ -243,7 +255,7 @@ async function fetchData() {
       option_name: searchParams.option_name || undefined,
       end_month: searchParams.end_month || undefined,
       option_type: searchParams.option_type || undefined,
-      symbol: searchParams.symbol || undefined,
+      contract_id: searchParams.contract_id || undefined,
       trade_date: searchParams.trade_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -275,7 +287,7 @@ function handleReset() {
   searchParams.option_name = null;
   searchParams.end_month = null;
   searchParams.option_type = null;
-  searchParams.symbol = null;
+  searchParams.contract_id = null;
   searchParams.trade_date = null;
   pagination.page = 1;
   fetchData();
@@ -429,6 +441,34 @@ const configDrawer = ref(false);
 const configLoading = ref(false);
 const configRows = ref<Api.Bds.OptionConfig[]>([]);
 
+/**
+ * 清单表分页：**本地分页**（`bds_option_config` 一次全量拉回，量级只有几十行，
+ * 不值得为它做服务端 offset/limit）。
+ *
+ * 不用 `createTablePagination()`：那个是给远程列表页配的，`itemCount` 强制初始化为 0
+ * 且由 `setPaginationTotal` 回填；本地分页必须**不传 itemCount**，naive-ui 才会按
+ * `data.length` 自己算总数。
+ *
+ * pageSize 与项目其他列表页一致（20），所以表格高度也一致 —— 超过 20 行自动翻页，
+ * 不会随配置条数无限变长。
+ */
+const configPagination = reactive({
+  page: 1,
+  pageSize: 20,
+  pageSizes: [10, 20, 50],
+  showSizePicker: true,
+  // prefix 的入参里 itemCount 是 `number | undefined`（本地分页由 naive-ui 按
+  // data.length 现算，类型上仍放宽为可选），所以这里要兜 0，别直接拼。
+  prefix: (info: { itemCount?: number }) => `共 ${info.itemCount ?? 0} 条`,
+  onUpdatePage: (p: number) => {
+    configPagination.page = p;
+  },
+  onUpdatePageSize: (s: number) => {
+    configPagination.pageSize = s;
+    configPagination.page = 1;
+  }
+});
+
 async function loadConfigs() {
   configLoading.value = true;
   try {
@@ -441,6 +481,7 @@ async function loadConfigs() {
 
 function openConfigDrawer() {
   configDrawer.value = true;
+  configPagination.page = 1;
   loadConfigs();
 }
 
@@ -457,13 +498,15 @@ async function toggleConfig(row: Api.Bds.OptionConfig, enabled: boolean) {
     return;
   }
   row.is_enabled = enabled ? 1 : 0;
-  message.success(enabled ? `已启用 ${row.symbol}` : `已停用 ${row.symbol}`);
+  // 提示统一用 contract_id：清单与行情表都以它为唯一身份，标准码不在本页展示
+  const label = row.contract_id;
+  message.success(enabled ? `已启用 ${label}` : `已停用 ${label}`);
 }
 
 function removeConfig(row: Api.Bds.OptionConfig) {
   dialog?.warning({
     title: '删除同步配置',
-    content: `删除 ${row.symbol} 的同步配置？已同步的行情不会被删（行情是事实数据，删配置只影响后续同步范围）。`,
+    content: `删除 ${row.contract_id} 的同步配置？已同步的行情不会被删（行情是事实数据，删配置只影响后续同步范围）。`,
     positiveText: '删除',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -479,7 +522,17 @@ function removeConfig(row: Api.Bds.OptionConfig) {
 }
 
 const configColumns = [
-  { title: '代码', key: 'symbol', width: 160 },
+  {
+    // 唯一身份：ETF 的标准码跨标的会撞（`C2612M01350` 同属 588000/588080），
+    // 只有合约ID 能唯一指定一行。
+    // 🔴 2026-10-27：`bds_option_config` 已无 `symbol` 物理列，标准码是 join 字典的
+    //    派生值 ⇒ 「代码」列整列删除。要看标准码去「合约字典」页，本薄清单只留
+    //    「要同步什么、怎么拉」。
+    title: '合约ID',
+    key: 'contract_id',
+    width: 130,
+    render: (r: Api.Bds.OptionConfig) => h('span', { style: 'font-family:monospace' }, r.contract_id)
+  },
   {
     title: '券商码',
     key: 'broker_symbol',
@@ -500,23 +553,11 @@ const configColumns = [
     render: (r: Api.Bds.OptionConfig) =>
       h('span', { style: `color:${r.is_enabled ? '#2f9e6e' : '#bbb'}` }, r.is_enabled ? '是' : '否')
   },
-  {
-    title: '规格（来自合约字典）',
-    key: 'spec',
-    width: 230,
-    render: (r: Api.Bds.OptionConfig) => {
-      // 规格是 join bds_option_info 的**只读派生值**：全 null 说明字典里查不到这个合约，
-      // 此时不是「待补全」，而是「要刷新字典」——口径必须区分，否则会误导成手工可填。
-      if (!r.cp || r.multiplier == null) {
-        return h('span', { style: 'color:#d03050', title: '字典里查不到该合约，去「合约字典」页刷新' }, '字典无此合约');
-      }
-      const k = r.strike == null ? '?' : Number(r.strike);
-      return h('span', { style: 'color:#666' }, [
-        `${r.cp} ${k} ×${r.multiplier}`,
-        h('span', { style: 'color:#aaa' }, ` · ${r.expiry_date || '?'} · ${r.margin_type || '?'}`)
-      ]);
-    }
-  },
+  // 🔴 2026-10-27 三次变更：「规格（来自合约字典）」列整列删除。
+  //    原因：①方向/行权价/乘数/到期日只是把字典里的值抄到这一页，要看得去「合约字典」页；
+  //    ②该列末尾的保证金族（margin_type）压根不来自字典，是品种级派生（`margin_type_of`），
+  //    标题「来自合约字典」名不副实。后端响应里的 cp/strike/multiplier/margin_type/
+  //    expiry_date 五个字段也随之删除，本清单只回答「同步什么、怎么拉」。
   { title: '备注', key: 'note', width: 200, render: (r: Api.Bds.OptionConfig) => r.note || '-' },
   {
     title: '操作',
@@ -586,22 +627,22 @@ onUnmounted(stopPolling);
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="代码">
+        <NFormItem label="合约ID">
           <NInput
-            v-model:value="searchParams.symbol"
+            v-model:value="searchParams.contract_id"
             clearable
             placeholder="模糊匹配，回车搜索"
             style="width: 180px"
             @keyup.enter="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="行情日期">
+        <NFormItem label="起始日期">
           <NDatePicker
             v-model:formatted-value="searchParams.trade_date"
             type="date"
             value-format="yyyy-MM-dd"
             clearable
-            placeholder="默认最新"
+            placeholder="不选=全部"
             style="width: 150px"
             @update:formatted-value="handleSearch"
           />
@@ -654,7 +695,11 @@ onUnmounted(stopPolling);
         最新行情日：
         <b>{{ latest.latest_trade_date || '（暂无数据）' }}</b>
         <template v-if="latest.sync_time">· 最近同步 {{ latest.sync_time }}</template>
-        · 数据由「
+        ·
+        <b>不填「起始日期」= 全部历史</b>
+        （按交易日倒序，最新在前）；填了则
+        <b>从该日起筛到最新</b>
+        ，不是只看那一天。 · 数据由「
         <b>同步清单</b>
         」驱动，点「行情同步」一次拉完（后台任务，进度按组显示）。 「到期月」按
         <b>到期日所在月</b>
@@ -680,7 +725,7 @@ onUnmounted(stopPolling);
       />
     </NCard>
 
-    <NDrawer v-model:show="configDrawer" :width="1200" placement="right">
+    <NDrawer v-model:show="configDrawer" width="66%" placement="right">
       <NDrawerContent closable>
         <template #header>
           <div class="flex w-full items-center justify-between pr-16px">
@@ -697,13 +742,11 @@ onUnmounted(stopPolling);
         <div class="mb-8px text-12px" style="color: #999">
           这张清单只决定「
           <b>要同步哪些合约、怎么拉</b>
-          」（代码 / 券商码 / 品种 / 到期月 / 启用）。
-          <b>合约规格（方向 / 行权价 / 乘数 / 保证金族 / 到期日）不在本表</b>
-          ——它是 join「合约字典」的只读派生值，权威在交易所。要更新规格只有一条路： 去
+          」（合约ID / 券商码 / 品种 / 到期月 / 启用）。
+          <b>合约规格（方向 / 行权价 / 乘数 / 到期日 / 保证金族）不在这张清单里</b>
+          ——权威是交易所合约字典，要看规格去
           <b>合约字典</b>
-          页点刷新（16 秒拉全量 25,910 行），本清单一律不可编辑规格。
-          <span style="color: #d03050">显示「字典无此合约」</span>
-          表示字典里查不到，不是待补全。新增合约也从字典里选，不再手打代码。
+          页（本页 10-27 起不再重复展示）。 新增合约也从字典里选，不再手打代码。
           商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月， 填实际月份会让人以为只拉了一个月。
         </div>
         <NDataTable
@@ -711,8 +754,8 @@ onUnmounted(stopPolling);
           :data="configRows"
           :loading="configLoading"
           :row-key="configRowKey"
-          :scroll-x="1210"
-          size="small"
+          :pagination="configPagination"
+          :scroll-x="950"
         />
       </NDrawerContent>
     </NDrawer>

@@ -1038,6 +1038,11 @@ declare namespace Api {
       /** 品种ID */
       product_id?: string | null;
       /**
+       * 交易所ID：CFFEX / SHFE / DCE / CZCE / INE / GFEX / SSE / SZSE。
+       * 是「品种」的上一级（同一品种只属于一个交易所），后端按原值大写精确匹配。
+       */
+      exchange?: string | null;
+      /**
        * 中文品种名。**ETF 建议用它而不是 product_id**：同一 `ETF_O` 覆盖 9 个标的，
        * 只按 product_id 筛会把 510050 与 510500 混在一起。
        */
@@ -1079,24 +1084,19 @@ declare namespace Api {
      */
     interface OptionConfig {
       id: number;
-      /** 交易所标准期权代码（IO2611-P-4000 / P2611M06250 / au2612P840） */
-      symbol: string;
+      /** openctp 合约ID（唯一身份，与 bds_option_info.contract_id 1:1） */
+      contract_id: string;
+      /** 交易所标准期权代码（IO2611-P-4000 / P2611M06250 / au2612P840）【只读派生：字典表】 */
+      symbol: string | null;
       /** 券商账单代码（ETF 才有，如 SHQQ.10012562；与交易所码无字符串关系） */
       broker_symbol: string | null;
       /** 标的代码【只读派生】 */
       underlying_symbol: string | null;
       /** 情景分组键 csi300 / csi500etf / au【只读派生】 */
       und_key: string | null;
-      /** C=认购 P=认沽【只读派生】；null = 字典里查不到该合约 */
-      cp: string | null;
-      /** 行权价（统一本位，ETF 为 6.25 而非 6250）【只读派生】 */
-      strike: number | null;
-      /** 合约乘数（A 类调整合约为 10180）【只读派生】 */
-      multiplier: number | null;
-      /** 保证金公式族：cffex / etf / shex【只读派生】 */
-      margin_type: string | null;
-      /** 到期日 YYYY-MM-DD【只读派生】 */
-      expiry_date: string | null;
+      // 🔴 2026-10-27 三次变更：cp / strike / multiplier / margin_type / expiry_date
+      //    五个规格字段已从响应体删除（前端「规格（来自合约字典）」列整列下线）。
+      //    要看规格去「合约字典」页（GET /option-info），本清单只答「同步什么、怎么拉」。
       /** akshare 品种名 */
       option_name: string;
       /** 到期年月 YYYYMM；商品期权为 ALL（接口一次返回全部月份） */
@@ -1120,7 +1120,7 @@ declare namespace Api {
     interface OptionConfigCreate {
       /** 合约字典主键（openctp「合约ID」，ETF 即券商码数字部分）——推荐 */
       contract_id?: string | null;
-      /** 交易所标准码（须能在字典中查到） */
+      /** 交易所标准码，仅作查询入口（后端落库前会兑换成 contract_id） */
       symbol?: string | null;
       option_name: string;
       /** 留空按字典的到期年月推导；商品期权恒 ALL */
@@ -1132,6 +1132,8 @@ declare namespace Api {
 
     /** 修改同步配置：只能改人工列，别的什么都改不了 */
     interface OptionConfigUpdate {
+      /** 券商账单代码（对账用，不参与计算）；**传空串 '' 表示清空**，不传=不改 */
+      broker_symbol?: string | null;
       is_enabled?: number | null;
       note?: string | null;
     }
@@ -1139,18 +1141,26 @@ declare namespace Api {
     /** 期权行情（`bds_option_market`，按日快照） */
     interface OptionMarket {
       id: number;
-      symbol: string;
+      /** openctp 合约ID（唯一身份；后端已按它 join 字典表算派生字段） */
+      contract_id: string;
       broker_symbol: string | null;
       /** 行情日期（交易日，非同步日） */
       trade_date: string;
+      /** 标的代码【后端派生：品种台账】 */
       underlying_symbol: string;
+      /** 情景分组键【后端派生：品种台账】 */
       und_key: string;
-      /** call / put */
+      /** call / put【后端派生：info.cp】 */
       option_type: string;
       price_strike: number;
+      /** 到期日【后端派生：info.last_trade_date】 */
       delisted_date: string | null;
+      /** 剩余自然日 = 到期日 − 行情日【后端派生】 */
       days_left: number | null;
+      /** 合约乘数（A 类 10180）【后端派生：info.multiplier】 */
       multiplier: number;
+      /** 字典缺该合约时为 true ⇒ 上面几个派生字段全部为空（正常不会出现） */
+      info_missing?: boolean;
       /** 最新价：盘中实时 / 盘后收盘 */
       price: number | null;
       /** 前结算价（三种品种都有） */
@@ -1183,7 +1193,9 @@ declare namespace Api {
       option_name?: string | null;
       end_month?: string | null;
       option_type?: string | null;
-      symbol?: string | null;
+      /** 合约ID（openctp），模糊匹配；标准码已不在行情表返回 */
+      contract_id?: string | null;
+      /** **起始**行情日期 YYYY-MM-DD（筛到最新）；不传=全部历史，按交易日倒序 */
       trade_date?: string | null;
       limit?: number;
       offset?: number;

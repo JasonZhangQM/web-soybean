@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue';
+import { ref, reactive, computed, onMounted, h } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   createOptionConfig,
   fetchOptionConfigs,
   fetchOptionInfo,
   fetchOptionInfoLatestDate,
-  fetchOptionInfoProducts,
-  fetchSyncTask,
-  syncOptionInfo
+  fetchOptionInfoProducts
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
@@ -53,6 +51,7 @@ const pagination = createTablePagination();
 // 筛选条件（searchParams 必须在 pagination 之前声明，反序会报 TS2448）
 const searchParams = reactive<{
   option_name?: string | null;
+  exchange?: string | null;
   underlying_contract_id?: string | null;
   expire_year_month?: string | null;
   cp?: string | null;
@@ -78,6 +77,27 @@ const productOptions = computed(() =>
     value: p.option_name
   }))
 );
+
+/**
+ * 交易所下拉：值是 openctp `交易所ID` 原值（全大写，后端按大写精确匹配）。
+ *
+ * 为什么固定写死 8 个而不从接口动态取：字典里 `exchange` 就这 8 个取值
+ * （2026-10-27 实测：DCE 7978 / SHFE 5630 / CZCE 5108 / GFEX 4386 /
+ * INE 784 / CFFEX 712 / SSE 692 / SZSE 620，合计 25,910），
+ * 起一个新交易所的概率远低于多加一次请求的成本。⚠️ 将来真加交易所要同步改这里。
+ *
+ * 交易所是「品种」的上一级：一个品种只属于一个交易所，所以这个筛选比品种更粗。
+ */
+const exchangeOptions = [
+  { label: '中金所（CFFEX）', value: 'CFFEX' },
+  { label: '上期所（SHFE）', value: 'SHFE' },
+  { label: '大商所（DCE）', value: 'DCE' },
+  { label: '郑商所（CZCE）', value: 'CZCE' },
+  { label: '上期能源（INE）', value: 'INE' },
+  { label: '广期所（GFEX）', value: 'GFEX' },
+  { label: '上交所（SSE）', value: 'SSE' },
+  { label: '深交所（SZSE）', value: 'SZSE' }
+];
 
 const cpOptions = [
   { label: '认购', value: 'C' },
@@ -220,6 +240,7 @@ async function fetchData() {
   try {
     const { data, error } = await fetchOptionInfo({
       option_name: searchParams.option_name || undefined,
+      exchange: searchParams.exchange || undefined,
       underlying_contract_id: searchParams.underlying_contract_id || undefined,
       expire_year_month: searchParams.expire_year_month || undefined,
       cp: searchParams.cp || undefined,
@@ -256,6 +277,7 @@ function handleSearch() {
 
 function handleReset() {
   searchParams.option_name = null;
+  searchParams.exchange = null;
   searchParams.underlying_contract_id = null;
   searchParams.expire_year_month = null;
   searchParams.cp = null;
@@ -337,90 +359,16 @@ async function addToConfig() {
   loadExisting();
 }
 
-// ===================== 字典刷新（任务化） =====================
-
-const syncLoading = ref(false);
-const syncTask = ref<Api.Bds.SyncTask | null>(null);
-const syncRunning = computed(() => ['pending', 'running'].includes(syncTask.value?.status || ''));
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-}
-
-function startPolling(taskId: number) {
-  stopPolling();
-  pollTimer = setInterval(async () => {
-    const { data, error } = await fetchSyncTask(taskId);
-    if (error || !data) return;
-    syncTask.value = data;
-    if (!['pending', 'running'].includes(data.status)) {
-      stopPolling();
-      syncLoading.value = false;
-      onSyncFinished(data);
-    }
-  }, 2000);
-}
-
-/** 收尾提示：新增/更新/置退市三个数讲清楚；哨兵跳过与撞码要显式告警 */
-function onSyncFinished(task: Api.Bds.SyncTask) {
-  const r = (task.result || {}) as any;
-  if (task.status === 'failed') {
-    message.error(`刷新失败：${task.errors?.[0]?.message || '未知错误'}`);
-    return;
-  }
-  if (task.status === 'stopped') {
-    message.warning('已停止（已写入的批次已入库）');
-    loadMeta();
-    fetchData();
-    return;
-  }
-  const text = [
-    `拉取 ${r.fetch_rows ?? 0} 行`,
-    `新增 ${r.insert ?? 0}`,
-    `更新 ${r.update ?? 0}`,
-    `置退市 ${r.delisted ?? 0}`
-  ].join('，');
-  // 哨兵与撞码是「看着成功其实有问题」的两类，必须走 warning 而不是 success
-  const warns: string[] = Array.isArray(r.warnings) ? r.warnings : [];
-  if (warns.length) {
-    message.warning(`${text}；注意：${warns.join('；')}`);
-  } else {
-    message.success(text);
-  }
-  loadMeta();
-  fetchData();
-}
-
-async function doSync() {
-  syncLoading.value = true;
-  try {
-    const { data, error } = await syncOptionInfo();
-    if (error || !data) {
-      message.error((error as any)?.message || '启动刷新失败');
-      syncLoading.value = false;
-      return;
-    }
-    syncTask.value = data;
-    startPolling(data.id);
-  } catch {
-    syncLoading.value = false;
-    message.error('启动刷新失败');
-  }
-}
-
-const syncProgressText = computed(() => {
-  const t = syncTask.value;
-  if (!t) return '';
-  if (t.status === 'running') return `刷新中… ${t.progress ?? 0}%（约 25,910 行，通常 20 秒内）`;
-  if (t.status === 'done') return '刷新完成';
-  if (t.status === 'stopped') return '已停止';
-  if (t.status === 'failed') return '刷新失败';
-  return '';
-});
+// ===================== 字典刷新（已下线） =====================
+//
+// 2026-10-27 移除页面上的「刷新字典」按钮及其轮询逻辑；随后后端
+// `POST /bds/option-info/sync` 与 `syncOptionInfo()` 也一并删除——那是同一段逻辑的第二层包装。
+//
+// 单刷字典改走批量同步：`startMacroSync({ stages: ['option_info'] })`（后端 `POST /bds/sync/macro`），
+// 调的是同一个 `option_info.fetch_and_store()`，任务化 / 全局互斥 / 行数哨兵一样生效。
+// 正常情况由「宏观与基础数据同步」卡片按需勾选，本页不参与触发。
+//
+// 因此本页现在只读 + 「加入同步清单」，`fetchSyncTask` / `syncOptionInfo` 已从 import 移除。
 
 onMounted(() => {
   loadMeta();
@@ -428,14 +376,22 @@ onMounted(() => {
   loadExisting();
   fetchData();
 });
-
-onUnmounted(stopPolling);
 </script>
 
 <template>
   <div class="h-full flex flex-col gap-16px">
     <NCard :bordered="false" class="card-wrapper">
       <NForm label-placement="left" :show-feedback="false" class="flex flex-wrap gap-y-12px">
+        <NFormItem label="交易所">
+          <NSelect
+            v-model:value="searchParams.exchange"
+            :options="exchangeOptions"
+            clearable
+            placeholder="全部交易所"
+            style="width: 165px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
         <NFormItem label="品种">
           <NSelect
             v-model:value="searchParams.option_name"
@@ -498,30 +454,19 @@ onUnmounted(stopPolling);
           </NSpace>
         </NFormItem>
 
-        <!-- 字典刷新 / 加入清单：搜索区的**批量按钮**（不针对某一行、刷新走任务化、有审计） -->
+        <!--
+ 加入清单：搜索区的**批量按钮**（不针对某一行）。
+             字典刷新按钮 10-27 已下线（后端接口也已删），刷新改由批量同步的 option_info 段负责 
+-->
         <NFormItem class="ml-auto">
           <NSpace align="center">
             <NButton :disabled="!checkedSupported.length" :loading="adding" @click="addToConfig">
               <template #icon><SvgIcon icon="mdi:playlist-plus" /></template>
               加入同步清单{{ checkedSupported.length ? `（${checkedSupported.length}）` : '' }}
             </NButton>
-            <NButton type="primary" :loading="syncLoading || syncRunning" @click="doSync">
-              <template #icon><SvgIcon icon="mdi:database-refresh" /></template>
-              刷新字典
-            </NButton>
           </NSpace>
         </NFormItem>
       </NForm>
-
-      <div v-if="syncTask" class="mt-8px">
-        <NProgress
-          type="line"
-          :percentage="Number(syncTask.progress || 0)"
-          :status="syncTask.status === 'failed' ? 'error' : syncTask.status === 'stopped' ? 'warning' : undefined"
-          :processing="syncRunning"
-        />
-        <div class="mt-4px text-12px" style="color: #888">{{ syncProgressText }}</div>
-      </div>
 
       <div class="mt-8px text-12px" style="color: #999">
         字典更新于
