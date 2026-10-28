@@ -451,6 +451,12 @@ export interface BatchSyncRequest {
   trading_status?: 'trading' | 'delisted' | 'all';
   /** 最多处理几只 symbol: 0=不限 */
   max_symbols?: number;
+  /**
+   * 是否跳过「已是最新报告期」预判，默认 false
+   * - true: 财务四张表不比对 latest_rpt_date，强制调 gm 接口
+   * - false: 库内 MAX(rpt_date) 已追平则直接跳过，省 gm 请求
+   */
+  skip_latest_rpt_check?: boolean;
 }
 
 /** 启动批量同步任务（后台线程异步执行，立即返回 task 对象） */

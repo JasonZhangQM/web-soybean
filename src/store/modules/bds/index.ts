@@ -23,6 +23,8 @@ export interface BatchSyncFormState {
   /** 退市口径: trading=仅在市/delisted=仅退市/all=全部（仅作用于 all/industry/index） */
   trading_status: string;
   max_symbols: number;
+  /** 是否跳过「已是最新报告期」预判（true=财务四张表强制调 gm 接口） */
+  skip_latest_rpt_check: boolean;
 }
 
 /** 指数估值重算（卡片 3）表单快照 */

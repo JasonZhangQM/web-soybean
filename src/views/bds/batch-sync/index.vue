@@ -107,7 +107,9 @@ function buildInitialForm() {
     // 会话内存里可能残留旧的 boolean 值，只接受字符串日期
     exclude_synced_since: typeof stored?.exclude_synced_since === 'string' ? stored.exclude_synced_since : null,
     trading_status: stored && tsValues.includes(stored.trading_status) ? stored.trading_status : 'trading',
-    max_symbols: stored?.max_symbols ?? 0
+    max_symbols: stored?.max_symbols ?? 0,
+    // 消费型开关：默认不跳过（跳过会让财务四张表无条件调 gm，批量耗时显著变长）
+    skip_latest_rpt_check: stored?.skip_latest_rpt_check ?? false
   };
 }
 
@@ -188,7 +190,8 @@ async function handleStart() {
       mark_synced: form.mark_synced,
       exclude_synced_since: form.exclude_synced_since,
       trading_status: form.trading_status as BatchSyncRequest['trading_status'],
-      max_symbols: form.max_symbols
+      max_symbols: form.max_symbols,
+      skip_latest_rpt_check: form.skip_latest_rpt_check
     };
     if (form.scope === 'index') payload.index_codes = [...form.index_codes];
     if (form.scope === 'industry') payload.industry = form.industry;
@@ -242,6 +245,8 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
   form.exclude_synced_since = data.exclude_synced_since ?? null;
   form.max_symbols = data.max_symbols;
   form.trading_status = data.trading_status || 'trading';
+  // 该开关存在 scope_params（后端未新增表列），历史任务缺键 ⇒ 按 false 还原
+  form.skip_latest_rpt_check = p.skip_latest_rpt_check === true;
 }
 
 /**
@@ -929,6 +934,18 @@ onBeforeUnmount(() => {
         <NFormItem label="标记同步" label-width="80px">
           <NSwitch v-model:value="form.mark_synced" />
           <!-- <span style="margin-left: 6px; font-size: 12px; color: #999">写 sync_at</span> -->
+        </NFormItem>
+        <NFormItem label="跳过报告期校验" label-width="120px">
+          <NSwitch v-model:value="form.skip_latest_rpt_check" />
+          <NTooltip trigger="hover" :style="{ maxWidth: '380px' }">
+            <template #trigger>
+              <span style="margin-left: 6px; font-size: 12px; color: #999; cursor: help">为何？</span>
+            </template>
+            开启后，财务四张表（资产负债表 / 利润表 / 现金流量表 / 财务指标）不再比对
+            bds_symbol_info.latest_rpt_date，即使库内报告期已追平也会强制调用 gm 接口（用于快报转正式、
+            财报更正回补或怀疑漏数时强刷）。代价是每只标的多 4 次 gm 请求，批量同步会明显变慢； 行情表（每日估值 /
+            每日市值）不受此开关影响。
+          </NTooltip>
         </NFormItem>
         <NFormItem label="跳过已同步" label-width="110px">
           <NDatePicker
