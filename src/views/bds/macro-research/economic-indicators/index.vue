@@ -146,8 +146,9 @@ onMounted(() => {
             :options="indicatorOptions"
             filterable
             clearable
-            placeholder="输入指标名称搜索"
+            placeholder="全部"
             style="width: 200px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <!-- 类别：NSelect 单选精确匹配，filterable 支持输入过滤 -->
@@ -157,8 +158,9 @@ onMounted(() => {
             :options="categoryOptions"
             filterable
             clearable
-            placeholder="选择类别"
+            placeholder="全部"
             style="width: 140px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <!-- 国别：NSelect 单选精确匹配，filterable 支持输入过滤 -->
@@ -168,18 +170,19 @@ onMounted(() => {
             :options="countryOptions"
             filterable
             clearable
-            placeholder="选择国别"
+            placeholder="全部"
             style="width: 140px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
+          <NButton :loading="wscnSyncLoading" @click="handleWscnSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             wscn同步
           </NButton>

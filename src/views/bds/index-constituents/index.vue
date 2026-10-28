@@ -64,6 +64,7 @@ function handleReset() {
   queryForm.trade_date = null;
   queryForm.dedup = false;
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
 }
 
@@ -100,8 +101,9 @@ onMounted(async () => {
             v-model:value="queryForm.index_code"
             :options="indexCodeOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="成分股代码">
@@ -115,6 +117,7 @@ onMounted(async () => {
             placeholder="输入代码或名称搜索"
             style="width: 260px"
             @search="handleSymbolSearch"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="交易日期">
@@ -125,14 +128,15 @@ onMounted(async () => {
             :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
+            @update:formatted-value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="去重">
-          <NCheckbox v-model:checked="queryForm.dedup"></NCheckbox>
+          <NCheckbox v-model:checked="queryForm.dedup" @update:checked="handleSearch"></NCheckbox>
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>

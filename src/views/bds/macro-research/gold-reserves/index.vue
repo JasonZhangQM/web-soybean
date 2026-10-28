@@ -140,8 +140,9 @@ onMounted(() => {
             multiple
             clearable
             filterable
-            placeholder="选择国家"
+            placeholder="全部"
             style="width: 220px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <!-- 日期范围：NDatePicker daterange，含今年/近一月/近一季等快速定位选项 -->
@@ -152,11 +153,12 @@ onMounted(() => {
             clearable
             :shortcuts="dateRangeShortcuts"
             style="width: 280px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
@@ -171,11 +173,11 @@ onMounted(() => {
               placeholder="选择同步国家"
               style="width: 200px"
             />
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <NButton :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>
-            <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
+            <NButton :loading="allSyncLoading" @click="handleAllSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               全量同步
             </NButton>

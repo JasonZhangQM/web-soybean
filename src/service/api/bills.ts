@@ -8,8 +8,10 @@ interface GroupQueryParams {
   category?: string | null;
   /** 证券代码（模糊） */
   symbol?: string;
-  /** 仅返回当前市值不为 0 的记录 */
-  value_only?: boolean;
+  /** 合并搜索：代码模糊，或名称模糊命中对应代码（OR） */
+  keyword?: string;
+  /** 市值筛选（与 0 比较）：gt=>0，lt=<0，eq==0，ne!=0 */
+  value_filter?: 'gt' | 'lt' | 'eq' | 'ne';
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -35,6 +37,8 @@ interface BillQueryParams {
   symbol?: string;
   /** 证券名称 / 合约简称（模糊） */
   name?: string;
+  /** 合并搜索：代码或名称任一模糊命中（OR） */
+  keyword?: string;
   /** 归属标的（精确，经 bills_group_symbol 关联） */
   vm_symbol?: string;
   /** 每页条数 */
@@ -54,12 +58,12 @@ export function fetchBills(params?: BillQueryParams) {
 
 /** 账单收益查询参数 */
 interface ProfitQueryParams {
-  /** 账户（多选精确匹配） */
-  account?: string[];
-  /** 类别（多选精确匹配） */
-  category?: string[];
-  /** 证券代码（模糊） */
-  symbol?: string;
+  /** 账户（单选精确匹配） */
+  account?: string | null;
+  /** 类别（单选精确匹配） */
+  category?: string | null;
+  /** 代码/名称合并模糊搜索（OR） */
+  keyword?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -79,8 +83,8 @@ export function fetchProfits(params?: ProfitQueryParams) {
 interface GroupAccQueryParams {
   /** 账户（单选精确匹配） */
   account?: string | null;
-  /** 仅显示账户净值不为 0 的记录 */
-  acc_aset_only?: boolean;
+  /** 账户价值筛选（与 0 比较）：gt=>0，lt=<0，eq==0，ne!=0 */
+  acc_aset_filter?: 'gt' | 'lt' | 'eq' | 'ne';
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */

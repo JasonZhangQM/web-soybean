@@ -592,6 +592,7 @@ onMounted(async () => {
             placeholder="代码搜索"
             style="width: 240px"
             @search="handleSearchSymbolSearch"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="主题">
@@ -601,7 +602,7 @@ onMounted(async () => {
             multiple
             clearable
             filterable
-            placeholder="可多选"
+            placeholder="全部"
             style="width: 220px"
             @update:value="handleSearch"
           />
@@ -618,21 +619,21 @@ onMounted(async () => {
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" ghost @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
           <NSpace>
-            <NButton type="primary" ghost :loading="syncYearLoading" @click="handleSyncYear">
+            <NButton :loading="syncYearLoading" @click="handleSyncYear">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               年度
             </NButton>
-            <NButton type="primary" ghost :loading="syncLoading" @click="handleSync">
+            <NButton :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               行情
             </NButton>
-            <NButton type="primary" ghost @click="handleAdd">
+            <NButton @click="handleAdd">
               <template #icon><SvgIcon icon="mdi:plus" /></template>
               新增
             </NButton>
@@ -800,7 +801,7 @@ onMounted(async () => {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="handleCancel">取消</NButton>
-          <NButton type="primary" ghost :loading="submitLoading" @click="handleSubmit">
+          <NButton ghost :loading="submitLoading" @click="handleSubmit">
             {{ editingId === null ? '确定' : '修改' }}
           </NButton>
           <NButton v-if="editingId !== null" type="error" ghost :loading="submitLoading" @click="handleDelete">

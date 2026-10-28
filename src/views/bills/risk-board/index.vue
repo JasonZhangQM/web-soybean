@@ -164,7 +164,7 @@ onMounted(fetchData);
           <NSelect v-model:value="query.account" :options="accountOptions" style="width: 140px" />
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="runLoading" @click="handleRun">
+          <NButton :loading="runLoading" @click="handleRun">
             <template #icon><SvgIcon icon="mdi:calculator-variant" /></template>
             重算落库
           </NButton>
@@ -181,7 +181,7 @@ onMounted(fetchData);
       <NResult status="error" title="无法计算风险看板" :description="blockMsg">
         <template #footer>
           <NSpace justify="center">
-            <NButton type="primary" @click="router.push({ name: 'irs_option-quote' })">去同步期权行情</NButton>
+            <NButton @click="router.push({ name: 'irs_option-quote' })">去同步期权行情</NButton>
             <NButton @click="fetchData">重新计算</NButton>
           </NSpace>
         </template>

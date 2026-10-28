@@ -29,8 +29,13 @@ const tableData = ref<Api.Bills.Profit[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account/category 多选精确匹配，symbol NAutoComplete 支持直接输入提交
-const searchParams = reactive<{ account?: string[]; category?: string[]; symbol?: string }>({});
+// 筛选参数：account/category 单选精确匹配，变更即搜索；
+// keyword 为合并搜索框——代码与名称任一模糊命中即可（后端 OR），回车立即搜索、清空立即重搜
+const searchParams = reactive<{
+  account?: string | null;
+  category?: string | null;
+  keyword?: string;
+}>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
@@ -41,10 +46,14 @@ const accountOptions = computed(() => billsStore.getAccountOptions());
 async function fetchData() {
   loading.value = true;
   try {
+    // 显式列出字段而不是展开 searchParams：会话记忆里可能残留旧版本字段（symbol），
+    // 展开会把它们一并传给后端，导致筛选条件被隐藏地叠加
     const { data, error } = await fetchProfits({
-      ...searchParams,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
-      symbol: searchParams.symbol || undefined,
+      account: searchParams.account || undefined,
+      category: searchParams.category || undefined,
+      // 合并搜索框清空返回空串
+      keyword: searchParams.keyword || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -64,11 +73,22 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.account = [];
-  searchParams.category = [];
-  searchParams.symbol = '';
+  searchParams.account = null;
+  searchParams.category = null;
+  searchParams.keyword = '';
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
+}
+
+/**
+ * 合并搜索框输入变化：同步刷新代码候选下拉；清空时立即重新搜索
+ * （输入过程中不搜索，避免每敲一个字就打一次接口，回车才搜）
+ */
+function handleKeywordChange(value: string | null) {
+  const keyword = value ?? '';
+  handleSymbolSearch(keyword);
+  if (!keyword) handleSearch();
 }
 
 function handlePageChange(page: number) {
@@ -88,71 +108,31 @@ function renderAmount(row: Api.Bills.Profit, key: keyof Api.Bills.Profit) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
-// 单元格不换行：超出列宽截断，悬停 tooltip 显示全量；表格总宽超出容器时横向滚动
-const ellipsis = { tooltip: true };
+// 单元格不换行，列宽按实测最长内容放宽，超出容器的部分交给表格横向滚动。
+// 刻意不用 column.ellipsis.tooltip：NDataTable 会给每个单元格包一层带
+// ResizeObserver 的 Tooltip 容器，20 行 × 12 列 = 240 个实例，是渲染卡顿的主因。
+// 本页字段都是短内容（时间 19 字符、代码/名称/数值均更短），放宽列宽即可完整显示。
+function renderAmountCol(key: keyof Api.Bills.Profit) {
+  return (row: Api.Bills.Profit) => renderAmount(row, key);
+}
 
 const columns = [
-  { title: '交易时间', key: 'trade_time', width: 160, ellipsis },
-  { title: '代码', key: 'symbol', width: 150, ellipsis },
-  { title: '名称', key: 'name', width: 120, ellipsis },
-  {
-    title: '多头持仓',
-    key: 'p_long',
-    width: 100,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'p_long')
-  },
-  {
-    title: '空头持仓',
-    key: 'p_short',
-    width: 100,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'p_short')
-  },
-  {
-    title: '多头成本',
-    key: 'cost_t_long',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_long')
-  },
-  {
-    title: '空头成本',
-    key: 'cost_t_short',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'cost_t_short')
-  },
-  {
-    title: '平仓盈亏l',
-    key: 'pl_long',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_long')
-  },
-  {
-    title: '平仓盈亏s',
-    key: 'pl_short',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_short')
-  },
-  {
-    title: '其他损益',
-    key: 'pl_other',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'pl_other')
-  },
-  {
-    title: '入金净额',
-    key: 'diff_dw',
-    width: 120,
-    ellipsis,
-    render: (row: Api.Bills.Profit) => renderAmount(row, 'diff_dw')
-  },
-  { title: '账户', key: 'account', width: 100, ellipsis }
+  { title: '交易时间', key: 'trade_time', width: 180 },
+  { title: '代码', key: 'symbol', width: 120 },
+  { title: '名称', key: 'name', width: 130 },
+  { title: '多头持仓', key: 'p_long', width: 100, render: renderAmountCol('p_long') },
+  { title: '空头持仓', key: 'p_short', width: 100, render: renderAmountCol('p_short') },
+  { title: '多头成本', key: 'cost_t_long', width: 120, render: renderAmountCol('cost_t_long') },
+  { title: '空头成本', key: 'cost_t_short', width: 120, render: renderAmountCol('cost_t_short') },
+  { title: '平仓盈亏l', key: 'pl_long', width: 120, render: renderAmountCol('pl_long') },
+  { title: '平仓盈亏s', key: 'pl_short', width: 120, render: renderAmountCol('pl_short') },
+  { title: '其他损益', key: 'pl_other', width: 120, render: renderAmountCol('pl_other') },
+  { title: '入金净额', key: 'diff_dw', width: 120, render: renderAmountCol('diff_dw') },
+  { title: '账户', key: 'account', width: 90 }
 ];
+
+// 表格总宽 = 列宽之和，避免硬编码与列宽脱节
+const scrollX = columns.reduce((sum, col) => sum + col.width, 0);
 
 onMounted(() => {
   fetchData();
@@ -170,36 +150,37 @@ onMounted(() => {
           <NSelect
             v-model:value="searchParams.account"
             :options="accountOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="全部"
             style="width: 110px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="类别">
           <NSelect
             v-model:value="searchParams.category"
             :options="categoryOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="代码">
+        <NFormItem label="代码/名称">
           <NAutoComplete
-            v-model:value="searchParams.symbol"
+            v-model:value="searchParams.keyword"
             :options="symbolOptions"
             :render-label="renderSymbolLabel"
             clearable
-            placeholder="输入代码或名称搜索"
+            placeholder="代码或名称，回车搜索"
             style="width: 200px"
-            @update:value="handleSymbolSearch"
+            @update:value="handleKeywordChange"
+            @keyup.enter="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
@@ -210,7 +191,7 @@ onMounted(() => {
         :columns="columns"
         :data="tableData"
         :loading="loading"
-        :scroll-x="1450"
+        :scroll-x="scrollX"
         remote
         :pagination="pagination"
         @update:page="handlePageChange"
@@ -219,3 +200,14 @@ onMounted(() => {
     </NCard>
   </div>
 </template>
+
+<style scoped>
+/*
+ * 单元格一律不折行：列宽已按实测最长内容放宽，超出容器的部分由表格横向滚动接管。
+ * :deep() 是必须的：th/td 由 NDataTable 子组件渲染，scoped 属性加不到它们身上。
+ */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+</style>

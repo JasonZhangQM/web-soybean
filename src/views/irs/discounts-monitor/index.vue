@@ -150,8 +150,9 @@ onMounted(() => {
             :options="symbolTypeOptions"
             filterable
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="连续周期">
@@ -160,8 +161,9 @@ onMounted(() => {
             :options="conNameOptions"
             filterable
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="是否主力">
@@ -169,23 +171,24 @@ onMounted(() => {
             v-model:value="searchParams.is_main"
             :options="isMainOptions"
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 100px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
           <NSpace>
-            <NButton type="primary" :loading="syncCodeLoading" @click="handleSyncCode">
+            <NButton :loading="syncCodeLoading" @click="handleSyncCode">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               代码
             </NButton>
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <NButton :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               行情
             </NButton>

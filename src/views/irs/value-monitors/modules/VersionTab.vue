@@ -301,7 +301,7 @@ const columns = [
         <NInput v-model:value="form.note" placeholder="为什么调：如 三季报后下调中枢" />
       </NFormItem>
       <NFormItem>
-        <NButton type="primary" :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
+        <NButton :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
       </NFormItem>
     </NForm>
     <div class="text-12px" :class="hitVersion ? 'text-orange-500' : 'text-gray-400'">{{ dateHint }}</div>

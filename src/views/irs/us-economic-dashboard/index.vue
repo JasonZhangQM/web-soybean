@@ -281,7 +281,7 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" :loading="loading" @click="handleRefresh">
+          <NButton :loading="loading" @click="handleRefresh">
             <template #icon><SvgIcon icon="mdi:refresh" /></template>
             刷新
           </NButton>
@@ -289,7 +289,7 @@ onMounted(() => {
         <!-- 同步区域：整体靠右，wscn同步 + 日频指标同步 + 全量同步 -->
         <NFormItem class="ml-auto">
           <NSpace>
-            <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
+            <NButton :loading="wscnSyncLoading" @click="handleWscnSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               wscn同步
             </NButton>
@@ -301,11 +301,11 @@ onMounted(() => {
               placeholder="选择日频指标"
               style="width: 180px"
             />
-            <NButton type="primary" :loading="yieldSyncLoading" @click="handleYieldSync">
+            <NButton :loading="yieldSyncLoading" @click="handleYieldSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               日频同步
             </NButton>
-            <NButton type="primary" :loading="yieldAllSyncLoading" @click="handleYieldAllSync">
+            <NButton :loading="yieldAllSyncLoading" @click="handleYieldAllSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               日频全量同步
             </NButton>

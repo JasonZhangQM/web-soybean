@@ -462,7 +462,7 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
       <NTag v-if="logicWeakenedCount" size="small" :bordered="false" type="warning">减弱 {{ logicWeakenedCount }}</NTag>
       <NTag v-if="logicBrokenCount" size="small" :bordered="false" type="error">破坏 {{ logicBrokenCount }}</NTag>
       <span class="text-12px text-gray-400">状态在表格里直接改，点一下即存；基调是 2-4 条，超了不拦</span>
-      <NButton size="tiny" type="primary" ghost class="ml-auto" @click="openLogicNew">新增逻辑</NButton>
+      <NButton size="tiny" ghost class="ml-auto" @click="openLogicNew">新增逻辑</NButton>
     </div>
     <VmDataTable :columns="logicColumns" :data="logic" :page-size="10" />
 
@@ -472,7 +472,7 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
       <span class="font-500">证伪条件（{{ invalidate.length }} 条）</span>
       <NTag v-if="invTriggeredCount" size="small" :bordered="false" type="error">已触发 {{ invTriggeredCount }}</NTag>
       <span class="text-12px text-gray-400">纲领要求 ≥3 条且覆盖研究报告第五章每条；只登记，不自动计算触发</span>
-      <NButton size="tiny" type="primary" ghost class="ml-auto" @click="openInvNew">新增证伪</NButton>
+      <NButton size="tiny" ghost class="ml-auto" @click="openInvNew">新增证伪</NButton>
     </div>
     <VmDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
     <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" />
@@ -524,7 +524,7 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showLogicModal = false">取消</NButton>
-          <NButton type="primary" :loading="saving" @click="saveLogic">保存</NButton>
+          <NButton :loading="saving" @click="saveLogic">保存</NButton>
         </NSpace>
       </template>
     </NModal>
@@ -598,7 +598,7 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showInvModal = false">取消</NButton>
-          <NButton type="primary" :loading="saving" @click="saveInv">保存</NButton>
+          <NButton :loading="saving" @click="saveInv">保存</NButton>
         </NSpace>
       </template>
     </NModal>

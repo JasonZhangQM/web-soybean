@@ -425,20 +425,9 @@ onMounted(async () => {
             v-model:value="searchParams.category"
             :options="categoryOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 150px"
             @update:value="handleSearch"
-          />
-        </NFormItem>
-        <NFormItem label="代码">
-          <NAutoComplete
-            v-model:value="searchParams.symbol"
-            :options="symbolOptions"
-            :render-label="renderSymbolLabel"
-            clearable
-            placeholder="输入代码或名称搜索"
-            style="width: 200px"
-            @update:value="handleSymbolSearch"
           />
         </NFormItem>
         <NFormItem label="持仓">
@@ -472,14 +461,25 @@ onMounted(async () => {
             @update:value="handleVmSymbolChange"
           />
         </NFormItem>
+        <NFormItem label="代码/名称">
+          <NAutoComplete
+            v-model:value="searchParams.symbol"
+            :options="symbolOptions"
+            :render-label="renderSymbolLabel"
+            clearable
+            placeholder="输入代码或名称搜索"
+            style="width: 200px"
+            @update:value="handleSymbolSearch"
+          />
+        </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+          <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             行情
           </NButton>

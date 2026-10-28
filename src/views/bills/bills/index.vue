@@ -43,15 +43,14 @@ const tableData = ref<Api.Bills.Bill[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account/category 单选精确匹配，symbol NAutoComplete 支持直接输入提交，
-// name 为标的中文名 / 合约简称的模糊匹配（独立输入框，不依赖代码候选），
+// 筛选参数：account/category 单选精确匹配，变更即搜索；
+// keyword 为合并搜索框——代码与名称任一模糊命中即可（后端 OR），回车立即搜索、清空立即重搜；
 // vm_symbol 按归属标的精确筛选（一条流水归属哪个标的由 (category, symbol) 决定，
 // 见 bills_group_symbol；所以筛出来的是「这个标的名下的全部流水」）
 const searchParams = reactive<{
   account?: string | null;
   category?: string | null;
-  symbol?: string;
-  name?: string;
+  keyword?: string;
   vm_symbol?: string | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -78,14 +77,14 @@ async function loadVmOptions() {
 async function fetchData() {
   loading.value = true;
   try {
+    // 显式列出字段而不是展开 searchParams：会话记忆里可能残留旧版本字段（symbol/name），
+    // 展开会把它们一并传给后端，导致筛选条件被隐藏地叠加
     const { data, error } = await fetchBills({
-      ...searchParams,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       account: searchParams.account || undefined,
       category: searchParams.category || undefined,
-      // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
-      symbol: searchParams.symbol || undefined,
-      name: searchParams.name || undefined,
+      // 合并搜索框清空返回空串
+      keyword: searchParams.keyword || undefined,
       vm_symbol: searchParams.vm_symbol || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -108,11 +107,21 @@ function handleSearch() {
 function handleReset() {
   searchParams.account = null;
   searchParams.category = null;
-  searchParams.symbol = '';
-  searchParams.name = '';
+  searchParams.keyword = '';
   searchParams.vm_symbol = null;
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
+}
+
+/**
+ * 合并搜索框输入变化：同步刷新代码候选下拉；清空时立即重新搜索
+ * （输入过程中不搜索，避免每敲一个字就打一次接口，回车才搜）
+ */
+function handleKeywordChange(value: string | null) {
+  const keyword = value ?? '';
+  handleSymbolSearch(keyword);
+  if (!keyword) handleSearch();
 }
 
 // 触发后端账单批量导入（executeSync 内置进度条/防重复/结果通知）
@@ -539,8 +548,9 @@ onMounted(() => {
             v-model:value="searchParams.account"
             :options="accountOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 110px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="类别">
@@ -548,28 +558,9 @@ onMounted(() => {
             v-model:value="searchParams.category"
             :options="categoryOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 150px"
-          />
-        </NFormItem>
-        <NFormItem label="代码">
-          <NAutoComplete
-            v-model:value="searchParams.symbol"
-            :options="symbolOptions"
-            :render-label="renderSymbolLabel"
-            clearable
-            placeholder="输入代码（可输名称找候选）"
-            style="width: 200px"
-            @update:value="handleSymbolSearch"
-          />
-        </NFormItem>
-        <NFormItem label="名称">
-          <NInput
-            v-model:value="searchParams.name"
-            clearable
-            placeholder="模糊匹配，回车搜索"
-            style="width: 170px"
-            @keyup.enter="handleSearch"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="归属标的">
@@ -583,14 +574,26 @@ onMounted(() => {
             @update:value="handleSearch"
           />
         </NFormItem>
+        <NFormItem label="代码/名称">
+          <NAutoComplete
+            v-model:value="searchParams.keyword"
+            :options="symbolOptions"
+            :render-label="renderSymbolLabel"
+            clearable
+            placeholder="代码或名称，回车搜索"
+            style="width: 260px"
+            @update:value="handleKeywordChange"
+            @keyup.enter="handleSearch"
+          />
+        </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="info" :loading="importLoading" @click="handleImport">导入</NButton>
+          <NButton :loading="importLoading" @click="handleImport">导入</NButton>
         </NFormItem>
       </NForm>
     </NCard>
@@ -747,7 +750,7 @@ onMounted(() => {
           <NButton type="error" ghost :loading="deleteLoading" @click="handleDelete">删除</NButton>
           <NSpace>
             <NButton @click="handleCancel">取消</NButton>
-            <NButton type="primary" :loading="submitLoading" @click="handleSubmit">保存</NButton>
+            <NButton :loading="submitLoading" @click="handleSubmit">保存</NButton>
           </NSpace>
         </NSpace>
       </template>

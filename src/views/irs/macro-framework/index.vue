@@ -174,13 +174,13 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" :loading="loading" @click="handleRefresh">
+          <NButton :loading="loading" @click="handleRefresh">
             <template #icon><SvgIcon icon="mdi:refresh" /></template>
             刷新
           </NButton>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="wscnSyncLoading" @click="handleWscnSync">
+          <NButton :loading="wscnSyncLoading" @click="handleWscnSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             wscn同步
           </NButton>

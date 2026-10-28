@@ -88,8 +88,8 @@ export function syncSymbolInfo() {
 
 /** 指数历史行情查询参数 */
 interface IndexHistoryQueryParams {
-  /** 代码（多选精确匹配） */
-  symbol?: string[];
+  /** 代码（单选精确匹配） */
+  symbol?: string;
   /** 开始日期（YYYY-MM-DD） */
   start_date?: string;
   /** 每页条数 */

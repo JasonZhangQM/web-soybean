@@ -137,9 +137,7 @@ const groupColumns = [
       <NTag v-if="reviewOverdue" size="small" :bordered="false" type="error">
         复核已到期（{{ latestResearch?.next_review }}）
       </NTag>
-      <NButton size="tiny" text type="primary" class="ml-auto" @click="emit('goto', 'research')">
-        去研究 Tab 维护
-      </NButton>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'research')">去研究 Tab 维护</NButton>
     </div>
 
     <!--
@@ -212,7 +210,7 @@ const groupColumns = [
         证伪 {{ detail.invalidate.length }} 条（已触发 {{ invStat['已触发'] }}）
       </NTag>
       <NTag v-if="invUnquantified" size="small" :bordered="false" type="warning">不可量化 {{ invUnquantified }}</NTag>
-      <NButton size="tiny" text type="primary" class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
     </div>
 
     <!-- 档位摘要 -->
@@ -224,9 +222,7 @@ const groupColumns = [
         待生效 {{ pendingVersion.effective_date }}（当前不生效）
       </NTag>
       <span class="text-12px text-gray-400">共 {{ detail.versions.length }} 版</span>
-      <NButton size="tiny" text type="primary" class="ml-auto" @click="emit('goto', 'version')">
-        去档位 Tab 维护
-      </NButton>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
     </div>
 
     <NDescriptions v-if="currentVersion" :column="5" label-placement="top" bordered size="small" class="mb-16px">
@@ -248,7 +244,7 @@ const groupColumns = [
       <NTag v-if="planCount['已放弃']" size="small" :bordered="false" type="error">
         已放弃 {{ planCount['已放弃'] }}
       </NTag>
-      <NButton size="tiny" text type="primary" class="ml-auto" @click="emit('goto', 'plan')">去计划与成交 Tab</NButton>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去计划与成交 Tab</NButton>
     </div>
 
     <!-- 计划委托明细（只读）：10 条/页 -->
@@ -266,12 +262,12 @@ const groupColumns = [
       <span class="text-12px text-gray-400">
         {{ detail.groups.length }} 个合约行 / {{ tradeTotal }} 笔成交（融资融券不计）
       </span>
-      <NButton size="tiny" text type="primary" class="ml-auto" @click="gotoGroupSymbols">去合约页维护归属</NButton>
+      <NButton size="tiny" text class="ml-auto" @click="gotoGroupSymbols">去合约页维护归属</NButton>
     </div>
     <VmDataTable :columns="groupColumns" :data="detail.groups" :page-size="10" />
     <div v-if="!detail.groups.length" class="mt-8px text-12px text-gray-400">
       还没有任何合约行归属到这个标的——到
-      <NButton text type="primary" size="tiny" @click="gotoGroupSymbols">合约页</NButton>
+      <NButton text size="tiny" @click="gotoGroupSymbols">合约页</NButton>
       把对应合约行的「归属标的」选上。
     </div>
   </div>

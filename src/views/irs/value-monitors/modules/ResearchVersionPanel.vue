@@ -267,7 +267,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <span class="text-12px text-gray-400">
         选新日期 = 新建一版，选已有日期 = 改那一版；列表页的「结论」取 ≤今天 的最新一版
       </span>
-      <NButton size="tiny" type="primary" ghost class="ml-auto" @click="startNew">新建一版</NButton>
+      <NButton size="tiny" ghost class="ml-auto" @click="startNew">新建一版</NButton>
     </div>
     <VmDataTable :columns="columns" :data="research" :page-size="10" />
     <NEmpty v-if="!research.length" size="small" description="还没有研究版本" class="my-8px" />
@@ -379,14 +379,12 @@ function countClass(k: keyof typeof LIMITS, v: string) {
         <NTag v-if="logicShort" size="small" :bordered="false" type="warning">逻辑不足 2 条</NTag>
         <NTag v-if="invShort" size="small" :bordered="false" type="warning">证伪不足 3 条</NTag>
         <NTag v-if="invUnquantified" size="small" :bordered="false" type="error">不可量化 {{ invUnquantified }}</NTag>
-        <NButton size="tiny" type="primary" ghost class="ml-auto" @click="emit('goto', 'logic')">
-          去登记逻辑与证伪
-        </NButton>
+        <NButton size="tiny" ghost class="ml-auto" @click="emit('goto', 'logic')">去登记逻辑与证伪</NButton>
       </div>
     </NAlert>
 
     <NSpace>
-      <NButton type="primary" :loading="saving" @click="doSave()">保存</NButton>
+      <NButton :loading="saving" @click="doSave()">保存</NButton>
       <NButton v-if="hit" type="error" ghost :loading="deleting" @click="handleDelete">删除该版</NButton>
     </NSpace>
   </div>

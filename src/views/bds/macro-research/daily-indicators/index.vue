@@ -126,13 +126,14 @@ onMounted(() => {
             :options="indicatorOptions"
             filterable
             clearable
-            placeholder="选择指标"
+            placeholder="全部"
             style="width: 240px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
@@ -147,11 +148,11 @@ onMounted(() => {
               placeholder="选择指标"
               style="width: 160px"
             />
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <NButton :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>
-            <NButton type="primary" :loading="allSyncLoading" @click="handleAllSync">
+            <NButton :loading="allSyncLoading" @click="handleAllSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               全量同步
             </NButton>

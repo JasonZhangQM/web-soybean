@@ -48,6 +48,7 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.dateRange = null;
+  pagination.page = 1;
   fetchData();
 }
 
@@ -89,16 +90,17 @@ onMounted(() => fetchData());
             :shortcuts="dateRangeShortcuts"
             clearable
             style="width: 320px"
+            @update:formatted-value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+          <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             同步
           </NButton>

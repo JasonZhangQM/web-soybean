@@ -98,6 +98,7 @@ function handleReset() {
   searchParams.syncStatus = null;
   searchParams.tradingStatus = null;
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
 }
 
@@ -171,6 +172,7 @@ onMounted(() => fetchData());
             placeholder="输入代码或名称搜索"
             style="width: 260px"
             @search="handleSymbolSearch"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="行业">
@@ -179,8 +181,9 @@ onMounted(() => fetchData());
             :options="industryOptions"
             filterable
             clearable
-            placeholder="行业精确匹配"
+            placeholder="全部"
             style="width: 120px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="市场">
@@ -188,8 +191,9 @@ onMounted(() => fetchData());
             v-model:value="searchParams.market"
             :options="marketOptions"
             clearable
-            placeholder="市场"
+            placeholder="全部"
             style="width: 90px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="板块">
@@ -197,8 +201,9 @@ onMounted(() => fetchData());
             v-model:value="searchParams.board"
             :options="boardOptions"
             clearable
-            placeholder="板块"
+            placeholder="全部"
             style="width: 90px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="退市">
@@ -211,6 +216,7 @@ onMounted(() => fetchData());
             clearable
             placeholder="全部"
             style="width: 90px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="同步">
@@ -223,6 +229,7 @@ onMounted(() => fetchData());
             clearable
             placeholder="全部"
             style="width: 110px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>

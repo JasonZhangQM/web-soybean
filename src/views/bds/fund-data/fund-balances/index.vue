@@ -72,12 +72,13 @@ function handleSearch() {
   fetchData();
 }
 
-// 重置搜索条件并刷新
+// 重置搜索条件并刷新（页码必须回到 1，否则重置后停在第 N 页可能为空页）
 function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
   searchParams.start_date = null;
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
 }
 
@@ -190,6 +191,7 @@ onMounted(() => fetchData());
             placeholder="输入代码或名称搜索"
             style="width: 280px"
             @search="handleSymbolSearch"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="报表类型">
@@ -197,8 +199,9 @@ onMounted(() => fetchData());
             v-model:value="searchParams.rpt_type"
             :options="rptTypeOptions"
             clearable
-            placeholder="单选"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="报告起始日">
@@ -209,11 +212,12 @@ onMounted(() => fetchData());
             :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
+            @update:formatted-value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
@@ -231,7 +235,7 @@ onMounted(() => fetchData());
               style="width: 260px"
               @search="handleSyncSearch"
             />
-            <NButton type="primary" :loading="syncLoading" @click="handleSync">
+            <NButton :loading="syncLoading" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               同步
             </NButton>

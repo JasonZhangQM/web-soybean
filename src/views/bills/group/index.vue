@@ -32,13 +32,17 @@ const tableData = ref<Api.Bills.Group[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account/category 单选精确匹配，symbol NAutoComplete 支持直接输入提交
+// 筛选参数：account/category 单选精确匹配，变更即搜索；
+// keyword 为合并搜索框——代码或名称任一模糊命中即可（后端 OR），回车立即搜索、清空立即重搜；
+// value_filter 为市值筛选（与 0 比较），默认 ne = 不为 0，清空 = 全部
+type ValueFilter = 'gt' | 'lt' | 'eq' | 'ne';
+
 const searchParams = reactive<{
   account?: string | null;
   category?: string | null;
-  symbol?: string;
-  value_only?: boolean;
-}>({ value_only: true });
+  keyword?: string;
+  value_filter?: ValueFilter | null;
+}>({ value_filter: 'ne' });
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
@@ -46,18 +50,27 @@ usePageState({ searchParams, pagination });
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
 const accountOptions = computed(() => billsStore.getAccountOptions());
 
+// 市值筛选：按 value_total 与 0 比较，与后端 value_filter 取值一一对应
+const valueFilterOptions: Array<{ label: string; value: ValueFilter }> = [
+  { label: '大于0', value: 'gt' },
+  { label: '小于0', value: 'lt' },
+  { label: '等于0', value: 'eq' },
+  { label: '不为0', value: 'ne' }
+];
+
 async function fetchData() {
   loading.value = true;
   try {
+    // 显式列出字段而不是展开 searchParams：会话记忆里可能残留旧版本字段（symbol），
+    // 展开会把它们一并传给后端，导致筛选条件被隐藏地叠加
     const { data, error } = await fetchGroups({
-      ...searchParams,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       account: searchParams.account || undefined,
       category: searchParams.category || undefined,
-      // NAutoComplete 清空返回空串，转为 undefined 避免传给后端
-      symbol: searchParams.symbol || undefined,
-      // 仅在选中"不为0"时传递该参数
-      value_only: searchParams.value_only === true ? true : undefined,
+      // 合并搜索框清空返回空串
+      keyword: searchParams.keyword || undefined,
+      // 市值筛选（与 0 比较）
+      value_filter: searchParams.value_filter || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -79,10 +92,22 @@ function handleSearch() {
 function handleReset() {
   searchParams.account = null;
   searchParams.category = null;
-  searchParams.symbol = '';
-  searchParams.value_only = false;
+  searchParams.keyword = '';
+  // 市值筛选默认「不为0」
+  searchParams.value_filter = 'ne';
   clearSymbolOptions();
+  pagination.page = 1;
   fetchData();
+}
+
+/**
+ * 合并搜索框输入变化：同步刷新代码候选下拉；清空时立即重新搜索
+ * （输入过程中不搜索，避免每敲一个字就打一次接口，回车才搜）
+ */
+function handleKeywordChange(value: string | null) {
+  const keyword = value ?? '';
+  handleSymbolSearch(keyword);
+  if (!keyword) handleSearch();
 }
 
 function handlePageChange(page: number) {
@@ -245,8 +270,9 @@ onMounted(() => {
             v-model:value="searchParams.account"
             :options="accountOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 110px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="类别">
@@ -254,35 +280,41 @@ onMounted(() => {
             v-model:value="searchParams.category"
             :options="categoryOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="代码">
+        <NFormItem label="市值">
+          <NSelect
+            v-model:value="searchParams.value_filter"
+            :options="valueFilterOptions"
+            clearable
+            placeholder="全部"
+            style="width: 110px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
+        <NFormItem label="代码/名称">
           <NAutoComplete
-            v-model:value="searchParams.symbol"
+            v-model:value="searchParams.keyword"
             :options="symbolOptions"
             :render-label="renderSymbolLabel"
             clearable
-            placeholder="输入代码或名称搜索"
-            style="width: 200px"
-            @update:value="handleSymbolSearch"
+            placeholder="代码或名称，回车搜索"
+            style="width: 260px"
+            @update:value="handleKeywordChange"
+            @keyup.enter="handleSearch"
           />
-        </NFormItem>
-        <NFormItem label="当前市值">
-          <NRadioGroup v-model:value="searchParams.value_only">
-            <NRadio :value="false">全部</NRadio>
-            <NRadio :value="true">不为0</NRadio>
-          </NRadioGroup>
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+          <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             行情
           </NButton>
@@ -336,7 +368,7 @@ onMounted(() => {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="handleCancel">取消</NButton>
-          <NButton type="primary" :loading="submitLoading" @click="handleSubmit">保存</NButton>
+          <NButton :loading="submitLoading" @click="handleSubmit">保存</NButton>
         </NSpace>
       </template>
     </NModal>

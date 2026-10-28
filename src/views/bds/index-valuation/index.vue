@@ -289,7 +289,7 @@ onMounted(() => fetchData());
             clearable
             filterable
             :options="indexOptions"
-            placeholder="不选=全部"
+            placeholder="全部"
             style="min-width: 300px"
             max-tag-count="responsive"
             @update:value="handleSearch"

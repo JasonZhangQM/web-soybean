@@ -293,6 +293,11 @@ function handleSearch() {
   fetchData();
 }
 
+// 合约ID 输入框：仅清空时立即重搜（输入过程保持回车触发，避免每敲一个字都请求）
+function handleContractInput(value: string | null) {
+  if (!value || !value.trim()) handleSearch();
+}
+
 function handleReset() {
   searchParams.option_name = null;
   searchParams.end_month = null;
@@ -755,7 +760,7 @@ onUnmounted(stopPolling);
             v-model:value="searchParams.option_name"
             :options="optionNameOptions"
             clearable
-            placeholder="不选=全部"
+            placeholder="全部"
             style="width: 170px"
             @update:value="handleSearch"
           />
@@ -765,7 +770,7 @@ onUnmounted(stopPolling);
             v-model:value="searchParams.end_month"
             :options="endMonthOptions"
             clearable
-            placeholder="不选=全部"
+            placeholder="全部"
             style="width: 130px"
             @update:value="handleSearch"
           />
@@ -780,6 +785,17 @@ onUnmounted(stopPolling);
             @update:value="handleSearch"
           />
         </NFormItem>
+        <NFormItem label="起始日期">
+          <NDatePicker
+            v-model:formatted-value="searchParams.trade_date"
+            type="date"
+            value-format="yyyy-MM-dd"
+            clearable
+            placeholder="全部"
+            style="width: 150px"
+            @update:formatted-value="handleSearch"
+          />
+        </NFormItem>
         <NFormItem label="合约ID">
           <NInput
             v-model:value="searchParams.contract_id"
@@ -787,17 +803,7 @@ onUnmounted(stopPolling);
             placeholder="模糊匹配，回车搜索"
             style="width: 180px"
             @keyup.enter="handleSearch"
-          />
-        </NFormItem>
-        <NFormItem label="起始日期">
-          <NDatePicker
-            v-model:formatted-value="searchParams.trade_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            clearable
-            placeholder="不选=全部"
-            style="width: 150px"
-            @update:formatted-value="handleSearch"
+            @update:value="handleContractInput"
           />
         </NFormItem>
         <NFormItem>
@@ -814,7 +820,7 @@ onUnmounted(stopPolling);
               <template #icon><SvgIcon icon="mdi:format-list-checks" /></template>
               同步清单
             </NButton>
-            <NButton type="primary" :loading="syncLoading || syncRunning" @click="handleSync">
+            <NButton :loading="syncLoading || syncRunning" @click="handleSync">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               行情同步
             </NButton>

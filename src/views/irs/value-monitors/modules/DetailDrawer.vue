@@ -111,9 +111,7 @@ function goTab(name: string) {
           <NTag v-for="t in headerTags" :key="t.text" size="small" :bordered="false" :type="t.type">
             {{ t.text }}
           </NTag>
-          <NButton v-if="row" size="tiny" text type="primary" class="ml-8px" @click="emit('edit', row)">
-            编辑标的信息
-          </NButton>
+          <NButton v-if="row" size="tiny" text class="ml-8px" @click="emit('edit', row)">编辑标的信息</NButton>
         </div>
       </template>
 

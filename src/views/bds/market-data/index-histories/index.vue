@@ -23,9 +23,9 @@ const tableData = ref<Api.Bds.IndexHistory[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 多选精确匹配，start_date 开始日期
+// 搜索参数：symbol 单选精确匹配，start_date 开始日期
 const searchParams = reactive<{
-  symbol?: string[];
+  symbol?: string | null;
   start_date?: string | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -36,7 +36,8 @@ async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchIndexHistories({
-      symbol: searchParams.symbol,
+      // NSelect 清空返回 null，转为 undefined 避免传给后端
+      symbol: searchParams.symbol || undefined,
       start_date: searchParams.start_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -58,8 +59,9 @@ function handleSearch() {
 
 // 重置搜索条件并刷新
 function handleReset() {
-  searchParams.symbol = [];
+  searchParams.symbol = null;
   searchParams.start_date = null;
+  pagination.page = 1;
   fetchData();
 }
 
@@ -108,10 +110,10 @@ onMounted(() => fetchData());
           <NSelect
             v-model:value="searchParams.symbol"
             :options="symbolOptions"
-            multiple
             clearable
-            placeholder="多选精确匹配"
+            placeholder="单选精确匹配"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="交易起始日">
@@ -122,16 +124,17 @@ onMounted(() => fetchData());
             :shortcuts="dateShortcuts"
             clearable
             style="width: 150px"
+            @update:formatted-value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+          <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             同步
           </NButton>

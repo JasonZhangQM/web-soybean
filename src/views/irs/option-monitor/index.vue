@@ -76,6 +76,14 @@ function handleReset() {
   fetchData();
 }
 
+/**
+ * 期权代码输入变化：清空时立即重新搜索
+ * （输入过程中不搜索，避免每敲一个字就打一次接口，回车才搜）
+ */
+function handleSymbolInput(value: string) {
+  if (!value) handleSearch();
+}
+
 function handlePageChange(page: number) {
   pagination.page = page;
   fetchData();
@@ -161,8 +169,9 @@ onMounted(() => {
             :options="underlyingSymbolOptions"
             filterable
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 200px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="到期月">
@@ -170,8 +179,9 @@ onMounted(() => {
             v-model:value="searchParams.end_month"
             type="month"
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="期权类型">
@@ -179,16 +189,24 @@ onMounted(() => {
             v-model:value="searchParams.option_type"
             :options="optionTypeOptions"
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 120px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="期权代码">
-          <NInput v-model:value="searchParams.symbol" clearable placeholder="请输入代码" style="width: 160px" />
+          <NInput
+            v-model:value="searchParams.symbol"
+            clearable
+            placeholder="代码，回车搜索"
+            style="width: 160px"
+            @update:value="handleSymbolInput"
+            @keyup.enter="handleSearch"
+          />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>

@@ -267,8 +267,9 @@ onMounted(() => {
             :options="underlyingSymbolOptions"
             filterable
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 200px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="到期月">
@@ -276,12 +277,13 @@ onMounted(() => {
             v-model:value="searchParams.end_month"
             type="month"
             clearable
-            placeholder="请选择"
+            placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem>
-          <NButton type="primary" @click="handleSearch">搜索</NButton>
+          <NButton @click="handleSearch">搜索</NButton>
         </NFormItem>
         <NFormItem v-if="delistedInfo">
           <span class="text-14px">
@@ -293,18 +295,17 @@ onMounted(() => {
         <!-- 操作按钮区：整体靠右 -->
         <NFormItem class="ml-auto">
           <NSpace>
+            <NButton :loading="cleanLoading" @click="handleClean">
+              <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
+              代码
+            </NButton>
             <NButton
-              type="primary"
               :loading="syncLoading"
               :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
               @click="handleSync"
             >
               <template #icon><SvgIcon icon="mdi:sync" /></template>
               行情
-            </NButton>
-            <NButton type="primary" :loading="cleanLoading" @click="handleClean">
-              <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
-              代码
             </NButton>
           </NSpace>
         </NFormItem>

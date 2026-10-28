@@ -18,23 +18,35 @@ const tableData = ref<Api.Bills.GroupAcc[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 筛选参数：account 单选精确匹配，acc_aset_only 控制账户价值不为0
-const searchParams = reactive<{ account?: string | null; acc_aset_only?: boolean }>({ acc_aset_only: true });
+type ValueFilter = 'gt' | 'lt' | 'eq' | 'ne';
+
+// 筛选参数：account 单选精确匹配，变更即搜索；
+// acc_aset_filter 为账户价值筛选（与 0 比较），默认 ne = 不为 0，清空 = 全部
+const searchParams = reactive<{ account?: string | null; acc_aset_filter?: ValueFilter | null }>({
+  acc_aset_filter: 'ne'
+});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
 // 账户下拉选项（从全局 store 获取）
 const accountOptions = computed(() => billsStore.getAccountOptions());
 
+// 账户价值筛选：按 acc_aset 与 0 比较，与后端 acc_aset_filter 取值一一对应
+const accAsetFilterOptions: Array<{ label: string; value: ValueFilter }> = [
+  { label: '大于0', value: 'gt' },
+  { label: '小于0', value: 'lt' },
+  { label: '等于0', value: 'eq' },
+  { label: '不为0', value: 'ne' }
+];
+
 async function fetchData() {
   loading.value = true;
   try {
+    // 显式列出字段，避免会话记忆里残留的旧参数被一并传出
     const { data, error } = await fetchGroupAccs({
-      ...searchParams,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       account: searchParams.account || undefined,
-      // 仅在选中"不为0"时传递该参数
-      acc_aset_only: searchParams.acc_aset_only === true ? true : undefined,
+      acc_aset_filter: searchParams.acc_aset_filter || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -55,7 +67,9 @@ function handleSearch() {
 
 function handleReset() {
   searchParams.account = null;
-  searchParams.acc_aset_only = false;
+  // 账户价值筛选默认「不为0」
+  searchParams.acc_aset_filter = 'ne';
+  pagination.page = 1;
   fetchData();
 }
 
@@ -156,24 +170,29 @@ onMounted(() => {
             v-model:value="searchParams.account"
             :options="accountOptions"
             clearable
-            placeholder="单选精确匹配"
+            placeholder="全部"
             style="width: 110px"
+            @update:value="handleSearch"
           />
         </NFormItem>
         <NFormItem label="账户价值">
-          <NRadioGroup v-model:value="searchParams.acc_aset_only">
-            <NRadio :value="false">全部</NRadio>
-            <NRadio :value="true">不为0</NRadio>
-          </NRadioGroup>
+          <NSelect
+            v-model:value="searchParams.acc_aset_filter"
+            :options="accAsetFilterOptions"
+            clearable
+            placeholder="全部"
+            style="width: 110px"
+            @update:value="handleSearch"
+          />
         </NFormItem>
         <NFormItem>
           <NSpace>
-            <NButton type="primary" @click="handleSearch">搜索</NButton>
+            <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
         <NFormItem class="ml-auto">
-          <NButton type="primary" :loading="syncLoading" @click="handleSync">
+          <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
             行情
           </NButton>

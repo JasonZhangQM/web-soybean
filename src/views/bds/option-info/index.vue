@@ -272,6 +272,11 @@ function handleSearch() {
   fetchData();
 }
 
+// 模糊输入框：仅清空时立即重搜（输入过程仍由回车触发，避免每敲一个字都请求）
+function handleFuzzyInput(value: string | null) {
+  if (!value || !value.trim()) handleSearch();
+}
+
 function handleReset() {
   searchParams.option_name = null;
   searchParams.exchange = null;
@@ -405,6 +410,7 @@ onMounted(() => {
             placeholder="模糊，如 2612"
             style="width: 130px"
             @keyup.enter="handleSearch"
+            @update:value="handleFuzzyInput"
           />
         </NFormItem>
         <NFormItem label="类型">
@@ -434,6 +440,7 @@ onMounted(() => {
             placeholder="模糊搜：合约ID / 标准码 / 名称 / 标的 / 交易所"
             style="width: 300px"
             @keyup.enter="handleSearch"
+            @update:value="handleFuzzyInput"
           />
         </NFormItem>
         <NFormItem>

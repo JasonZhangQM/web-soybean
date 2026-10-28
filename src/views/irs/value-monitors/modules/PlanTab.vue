@@ -308,7 +308,7 @@ watch(
       <span class="text-12px text-gray-400">
         触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随；写死价格则以写死为准
       </span>
-      <NButton size="tiny" type="primary" ghost class="ml-auto" @click="openNew">新增计划</NButton>
+      <NButton size="tiny" ghost class="ml-auto" @click="openNew">新增计划</NButton>
     </div>
     <VmDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
     <NEmpty v-if="!plans.length" size="small" description="还没有计划委托" class="my-8px" />
@@ -408,7 +408,7 @@ watch(
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showModal = false">取消</NButton>
-          <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
+          <NButton :loading="saving" @click="handleSave">保存</NButton>
         </NSpace>
       </template>
     </NModal>

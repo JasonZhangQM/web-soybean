@@ -267,9 +267,7 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card">
     <template #header>宏观与基础数据同步</template>
     <template #header-extra>
-      <NButton type="primary" ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
-        启动
-      </NButton>
+      <NButton ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
