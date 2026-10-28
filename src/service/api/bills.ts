@@ -382,3 +382,30 @@ export function updateGroup(id: number, params: GroupUpdateParams) {
     data: params
   });
 }
+
+/** 风险看板查询参数 */
+export interface RiskBoardQueryParams {
+  /** 时点口径：now=即期 / expiry=到期 */
+  horizon?: 'now' | 'expiry';
+  /** IV 冲击倍数 */
+  iv_mult?: number;
+  /** 是否返回逐仓情景明细（保证金结构图用） */
+  detail?: boolean;
+}
+
+/** 风险看板实时计算（GET /bills/risk-board，只读） */
+export function fetchRiskBoard(params?: RiskBoardQueryParams) {
+  return request<Api.Bills.RiskBoard>({
+    url: '/api/v1/bills/risk-board',
+    method: 'get',
+    params
+  });
+}
+
+/** 风险看板日终重算并落库（POST /bills/run/risk-board） */
+export function runRiskBoard() {
+  return request<Api.Bills.RiskBoardRunResult>({
+    url: '/api/v1/bills/run/risk-board',
+    method: 'post'
+  });
+}

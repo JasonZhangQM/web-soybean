@@ -43,6 +43,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   bills_group: () => import("@/views/bills/group/index.vue"),
   "bills_profit-years": () => import("@/views/bills/profit-years/index.vue"),
   bills_profits: () => import("@/views/bills/profits/index.vue"),
+  "bills_risk-board": () => import("@/views/bills/risk-board/index.vue"),
   home: () => import("@/views/home/index.vue"),
   "irs_discounts-monitor": () => import("@/views/irs/discounts-monitor/index.vue"),
   "irs_index-valuation": () => import("@/views/irs/index-valuation/index.vue"),

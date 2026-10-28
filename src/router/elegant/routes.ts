@@ -341,6 +341,16 @@ export const generatedRoutes = [
           i18nKey: 'route.bills_profits',
           constant: true
         }
+      },
+      {
+        name: 'bills_risk-board',
+        path: '/bills/risk-board',
+        component: 'view.bills_risk-board',
+        meta: {
+          title: 'bills_risk-board',
+          i18nKey: 'route.bills_risk-board',
+          constant: true
+        }
       }
     ]
   },

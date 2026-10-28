@@ -388,5 +388,181 @@ declare namespace Api {
       /** 各步骤结果 */
       steps: SyncStepResult[];
     }
+
+    /** 风险看板-账户风险卡 */
+    interface RiskBoardAccount {
+      /** 基准净值（模型盯市修正后） */
+      net0: number;
+      /** 融资余额 */
+      fin: number;
+      /** 客户权益 = net0 + 融资 */
+      eq: number;
+      /** 保证金占用 */
+      margin: number;
+      /** 真实风险度 = 保证金 / 净资产 */
+      real: number | null;
+      /** 交易所风险度 = 保证金 / 客户权益 */
+      exch: number | null;
+      /** 自有资金保证金覆盖率 = 净资产 / 保证金 */
+      coverage: number | null;
+      /** 是否已触发追保（交易所口径）；账户卡不返回，仅情景行提供 */
+      breached?: boolean;
+    }
+
+    /** 风险看板-逐仓持仓 */
+    interface RiskBoardPosition {
+      /** 账户 */
+      acct: string;
+      /** 交易代码 */
+      symbol: string;
+      /** 品种：fut / call / put / sec */
+      kind: string;
+      /** 情景分组键 */
+      und_key: string | null;
+      /** 持仓数量 */
+      qty: number;
+      /** 名义市值 */
+      nominal: number;
+      /** 最大亏损；null=卖认购理论上行无上限 */
+      max_loss: number | null;
+      /** 标的变动 1% 的盈亏敏感度 */
+      drop1_loss: number;
+      /** 当前保证金 */
+      margin_now: number;
+      /** C=认购 / P=认沽（仅期权） */
+      cp: string | null;
+      /** long=买方 / short=卖方（仅期权） */
+      side: string | null;
+      /** 行权价（仅期权） */
+      strike: number | null;
+      /** 到期日 ISO 字符串（仅期权） */
+      expiry: string | null;
+      /** 剩余天数（仅期权） */
+      days: number | null;
+      /** 盯市单价（仅期权） */
+      px: number | null;
+      /** 隐含波动率（仅期权） */
+      sigma: number | null;
+      /** delta（仅期权） */
+      delta: number | null;
+    }
+
+    /** 风险看板-单情景逐仓明细 */
+    interface RiskBoardDetail {
+      /** 交易代码 */
+      name: string;
+      /** 账户 */
+      acct: string;
+      /** 品种：fut / call / put / sec */
+      kind: string;
+      /** 保证金公式族：cffex / etf / shex */
+      mtype: string | null;
+      /** 情景分组键 */
+      und_key: string | null;
+      /** 该情景下的保证金 */
+      margin: number;
+      /** 该情景下的盈亏（正=亏） */
+      loss: number;
+    }
+
+    /** 风险看板-单情景 × 账户 */
+    interface RiskBoardScenario {
+      /** 组合亏损（正=亏，负=盈） */
+      loss: number;
+      /** 剩余净值 */
+      net: number;
+      /** 保证金占用 */
+      margin: number;
+      /** 真实风险度 */
+      real: number | null;
+      /** 交易所风险度 */
+      exch: number | null;
+      /** 是否追保 */
+      breached: boolean;
+      /** 逐仓明细（仅 ALL 行且 detail=true） */
+      detail: RiskBoardDetail[] | null;
+    }
+
+    /** 风险看板-追保临界点 */
+    interface RiskBoardFirstCall {
+      /** 账户 */
+      account: string;
+      /** 临界跌幅；负数=上涨侧触发 */
+      drop: number;
+      /** down / up / now */
+      direction: string;
+      /** 临界点剩余净值 */
+      net: number | null;
+      /** 临界点保证金 */
+      margin: number | null;
+    }
+
+    /** 风险看板完整响应（GET /bills/risk-board） */
+    interface RiskBoard {
+      /** 引擎版本 */
+      engine_ver: string;
+      /** 计算日 */
+      calc_date: string;
+      /** 期权行情快照日 */
+      data_as_of: string | null;
+      /** 行情滞后交易日数（0=当日，1=T−1） */
+      stale_days: number;
+      /** now=即期 / expiry=到期 */
+      horizon: string;
+      /** IV 冲击倍数 */
+      iv_mult: number;
+      /** 组合净资产 */
+      net_total: number;
+      /** 组合保证金 */
+      margin_total: number;
+      /** 组合真实风险度 */
+      real_total: number | null;
+      /** 数学最大亏损合计（不含无上限合约） */
+      max_exposure: number;
+      /** 是否存在理论上行无上限的卖认购 */
+      max_exposure_unbounded: boolean;
+      /** 分账户风险卡 */
+      accounts: Record<string, RiskBoardAccount>;
+      /** 逐仓明细 */
+      positions: RiskBoardPosition[];
+      /** [mode][drop_pct][account] */
+      grid: Record<string, Record<string, Record<string, RiskBoardScenario>>>;
+      /** [mode] 最近追保点 */
+      first_call: Record<string, RiskBoardFirstCall | null>;
+      /** [mode][account] 追保点 */
+      first_call_all: Record<string, Record<string, RiskBoardFirstCall | null>>;
+      /** 情景模式中文名 */
+      mode_names: Record<string, string>;
+      /** 情景档位（负数=涨幅） */
+      steps: number[];
+      /** 上行情景档位（负数=涨幅） */
+      upside_steps: number[];
+      /** 数据降级/兜底提示 */
+      warnings: string[];
+    }
+
+    /** 风险看板重算结果（POST /bills/run/risk-board） */
+    interface RiskBoardRunResult {
+      /** 执行状态 */
+      status: string;
+      /** 引擎版本 */
+      engine_ver: string;
+      /** 计算日 */
+      calc_date: string;
+      /** 写入行数 */
+      rows_upserted: number;
+      /** 本次停用的过期合约 */
+      disabled_contracts: string[];
+      /** 组合净资产 */
+      net_total: number;
+      /** 组合保证金 */
+      margin_total: number;
+      /** 组合真实风险度 */
+      real_total: number | null;
+      /** [mode] 最近追保点 */
+      first_call: Record<string, RiskBoardFirstCall | null>;
+      /** 数据降级/兜底提示 */
+      warnings: string[];
+    }
   }
 }
