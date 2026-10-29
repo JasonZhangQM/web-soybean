@@ -297,10 +297,10 @@ export function deleteBill(id: number) {
   });
 }
 
-/** 成交笔记类型（后端 kind 字段，只能这两个值） */
-export type BillNoteKind = '想法' | '复盘';
+/** 成交笔记类型（后端 kind 字段；复盘已上移到标的层，这里只剩「想法」） */
+export type BillNoteKind = '想法';
 
-/** 查询某笔成交的全部笔记（想法/复盘，最多两条） */
+/** 查询某笔成交的全部笔记（想法，最多一条） */
 export function fetchBillNotes(id: number) {
   return request<Api.Bills.BillNote[]>({
     url: `/api/v1/bills/${id}/note`,

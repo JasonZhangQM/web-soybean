@@ -472,12 +472,8 @@ function renderIdea(row: Api.Bills.Bill) {
               )
             : null
         ]),
-      // 全文 + 复盘是否存在，一次 tooltip 说清
-      default: () =>
-        h('div', { style: 'white-space: pre-wrap' }, [
-          h('div', null, txt),
-          row.note_review ? h('div', { style: 'margin-top:8px;color:#999' }, `【复盘】${row.note_review}`) : null
-        ])
+      // 全文一次 tooltip 说清
+      default: () => h('div', { style: 'white-space: pre-wrap' }, txt)
     }
   );
 }
@@ -735,7 +731,7 @@ onMounted(() => {
           </NCollapseItem>
 
           <!-- 交易笔记：走独立端点，不随下面的「保存」一起提交 -->
-          <NCollapseItem title="交易笔记（想法 / 复盘）" name="note">
+          <NCollapseItem title="交易笔记（想法）" name="note">
             <BillNotePanel
               :key="editingId ?? 0"
               :bill-id="editingId"

@@ -7,7 +7,7 @@
  *    自动跟随——有效触发价 = `trigger_price ?? 当前档位值`，由后端算好放在
  *    `effective_trigger` / `trigger_ref_value` 里，前端只显示不重算。
  * 2. **状态是派生的**：暂停 / 生效，不要在前端另算一套。
- * 3. 成交行的「想法/复盘」来自 `bills_bill_note`，一行 = 一笔成交（后端已压掉 1:N）。
+ * 3. 成交行的「想法」来自 `bills_bill_note`，一行 = 一笔成交（后端已压掉 1:N）。
  */
 import { ref, reactive, computed, h, watch } from 'vue';
 import { NButton, NTag } from 'naive-ui';
@@ -273,13 +273,6 @@ const tradeColumns = [
     ellipsis: { tooltip: true },
     render: (t: VmTrade) => (t.note_idea ? t.note_idea.replace(/\s*\n\s*/g, ' ') : '-')
   },
-  {
-    title: '复盘',
-    key: 'note_review',
-    width: 180,
-    ellipsis: { tooltip: true },
-    render: (t: VmTrade) => (t.note_review ? t.note_review.replace(/\s*\n\s*/g, ' ') : '-')
-  },
   { title: '账户', key: 'account', width: 60 }
 ];
 
@@ -311,7 +304,7 @@ watch(
 
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">归属成交（{{ trades.length }} 笔）</span>
-      <span class="text-12px text-gray-400">融资融券不计入；想法/复盘在账单明细里写，这里只读</span>
+      <span class="text-12px text-gray-400">融资融券不计入；想法在账单明细里写，复盘在「复盘」tab 写，这里只读</span>
     </div>
     <VmDataTable :columns="tradeColumns" :data="trades" :page-size="PAGE_SIZE" />
     <NEmpty v-if="!trades.length" size="small" description="这个标的还没有归属的成交" class="my-8px" />

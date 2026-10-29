@@ -135,7 +135,7 @@ export interface ValueMonitorDetail {
   invalidate: Api.Irs.VmInvalidate[];
 }
 
-/** 标的页成交行（一行 = 一笔成交，笔记已压成四列） */
+/** 标的页成交行（一行 = 一笔成交，笔记已压成两列） */
 export interface VmTrade {
   id: number;
   trade_time: string;
@@ -151,8 +151,19 @@ export interface VmTrade {
   vm_symbol: string;
   note_idea: string | null;
   note_idea_at: string | null;
-  note_review: string | null;
-  note_review_at: string | null;
+}
+
+/** 复盘（标的层，锚定一版研究 irs_vm_research；review_date 由后端填） */
+export interface VmReview {
+  id: number;
+  symbol: string;
+  /** 锚定的研究版本 irs_vm_research.id */
+  research_id: number;
+  content: string;
+  /** 落笔日期（后端填，前端不可传） */
+  review_date: string;
+  create_time: string;
+  update_time: string;
 }
 
 /** 查询标的详情（主表 + 当前档位 + 研究 + 计划 + 归属合约 + 成交） */
@@ -163,7 +174,7 @@ export function fetchValueMonitorDetail(id: number) {
   });
 }
 
-/** 查询标的的全部成交（含两条交易笔记；融资融券不在其中） */
+/** 查询标的的全部成交（含「想法」笔记；融资融券不在其中） */
 export function fetchValueMonitorTrades(id: number, limit = 500) {
   return request<{ items: VmTrade[] }>({
     url: `/api/v1/irs/value-monitors/${id}/trades`,
@@ -281,6 +292,48 @@ export function deleteVmResearch(id: number, researchDate: string) {
     url: `/api/v1/irs/value-monitors/${id}/research`,
     method: 'delete',
     params: { research_date: researchDate }
+  });
+}
+
+// ---------------------------------------------------------------- 复盘（锚定研究版本）
+/** 查询该标的全部复盘（review_date 倒序） */
+export function fetchVmReviews(id: number) {
+  return request<VmReview[]>({
+    url: `/api/v1/irs/value-monitors/${id}/reviews`,
+    method: 'get'
+  });
+}
+
+/** 复盘保存参数（review_date 由后端填，前端不可传） */
+export interface VmReviewSaveParams {
+  /** 锚定的研究版本 irs_vm_research.id */
+  research_id: number;
+  content: string;
+}
+
+/** 新建一条复盘（同一研究版本可多次复盘） */
+export function createVmReview(id: number, params: VmReviewSaveParams) {
+  return request<VmReview>({
+    url: `/api/v1/irs/value-monitors/${id}/reviews`,
+    method: 'post',
+    data: params
+  });
+}
+
+/** 改写一条复盘（锚定的研究版本可换） */
+export function updateVmReview(reviewId: number, params: VmReviewSaveParams) {
+  return request<VmReview>({
+    url: `/api/v1/irs/reviews/${reviewId}`,
+    method: 'put',
+    data: params
+  });
+}
+
+/** 删除一条复盘 */
+export function deleteVmReview(reviewId: number) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/irs/reviews/${reviewId}`,
+    method: 'delete'
   });
 }
 

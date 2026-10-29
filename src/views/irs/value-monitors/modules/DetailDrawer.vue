@@ -14,6 +14,7 @@ import { NButton, NTag } from 'naive-ui';
 import { fetchValueMonitorDetail, type ValueMonitorDetail } from '@/service/api';
 import OverviewTab from './OverviewTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
+import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
 import LogicTab from './LogicTab.vue';
 import PlanTab from './PlanTab.vue';
@@ -138,6 +139,9 @@ function goTab(name: string) {
               @refresh="refresh"
               @goto="goTab"
             />
+          </NTabPane>
+          <NTabPane name="review" tab="复盘">
+            <ReviewTab v-if="tab === 'review'" :vm-id="detail.vm.id" :symbol="detail.vm.symbol" />
           </NTabPane>
           <NTabPane name="version" tab="档位">
             <VersionTab

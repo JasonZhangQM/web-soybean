@@ -147,10 +147,6 @@ declare namespace Api {
       note_idea: string | null;
       /** 「想法」落笔时间（晚于 trade_time = 事后补写） */
       note_idea_at: string | null;
-      /** 「复盘」正文 */
-      note_review: string | null;
-      /** 「复盘」落笔时间 */
-      note_review_at: string | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
@@ -167,7 +163,7 @@ declare namespace Api {
       bill_id: number | null;
       /** 业务指纹（account|trade_time|symbol|exec_type|amount_act|id_agree|cash 的 md5） */
       biz_key: string;
-      /** 笔记类型：想法 / 复盘 */
+      /** 笔记类型：想法（复盘已上移到标的层，不再挂在成交上） */
       kind: string;
       /** 正文 */
       content: string;
