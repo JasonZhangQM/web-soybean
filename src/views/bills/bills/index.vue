@@ -143,9 +143,11 @@ function handlePageSizeChange(pageSize: number) {
 // ===== 编辑弹窗 =====
 
 const editingId = ref<number | null>(null);
-// 当前编辑行的归属标的：给「交易笔记」面板显示「这笔在赌什么」
-const editingVmSymbol = ref<string | null>(null);
 const showModal = ref(false);
+// 笔记独立弹窗：想法 + 关联剧本，和「编辑账单」彻底分开——
+// 账单保存是 PATCH 全字段宽口子，笔记是独立端点，两者混在一个弹窗容易被「保存」冲成 NULL
+const showNoteModal = ref(false);
+const noteRow = ref<Api.Bills.Bill | null>(null);
 const submitLoading = ref(false);
 const deleteLoading = ref(false);
 const formRef = ref();
@@ -287,7 +289,6 @@ function toNum(v: unknown): number | null {
 function handleEdit(row: Api.Bills.Bill) {
   resetForm();
   editingId.value = row.id;
-  editingVmSymbol.value = row.vm_symbol ?? null;
   // trade_time 格式：去掉 'T' 换成空格，截取到秒
   formData.trade_time = row.trade_time ? row.trade_time.replace('T', ' ').slice(0, 19) : null;
   formData.symbol = row.symbol ?? '';
@@ -434,10 +435,10 @@ function lateDaysAt(noteAt: string | null, tradeTime: string | null) {
   return days >= 1 ? days : null;
 }
 
-/** 点开弹窗并把「交易笔记」这组展开 */
+/** 打开独立的「记一笔」弹窗（不改账单字段） */
 function openNote(row: Api.Bills.Bill) {
-  handleEdit(row);
-  if (!expandedNames.value.includes('note')) expandedNames.value = [...expandedNames.value, 'note'];
+  noteRow.value = row;
+  showNoteModal.value = true;
 }
 
 function renderIdea(row: Api.Bills.Bill) {
@@ -729,16 +730,6 @@ onMounted(() => {
               <NInput v-model:value="formData.account" />
             </NFormItem>
           </NCollapseItem>
-
-          <!-- 交易笔记：走独立端点，不随下面的「保存」一起提交 -->
-          <NCollapseItem title="交易笔记（想法）" name="note">
-            <BillNotePanel
-              :key="editingId ?? 0"
-              :bill-id="editingId"
-              :trade-time="formData.trade_time"
-              :vm-symbol="editingVmSymbol"
-            />
-          </NCollapseItem>
         </NCollapse>
       </NForm>
       <template #footer>
@@ -748,6 +739,33 @@ onMounted(() => {
             <NButton @click="handleCancel">取消</NButton>
             <NButton :loading="submitLoading" @click="handleSubmit">保存</NButton>
           </NSpace>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- 记一笔：想法 + 关联剧本（独立弹窗，只走笔记端点，不碰账单字段） -->
+    <NModal
+      v-model:show="showNoteModal"
+      preset="card"
+      title="记一笔：想法与剧本"
+      class="w-640px"
+      :mask-closable="false"
+      @after-leave="fetchData"
+    >
+      <div v-if="noteRow" class="mb-12px text-12px text-gray-500">
+        {{ noteRow.trade_time?.slice(0, 19).replace('T', ' ') ?? '-' }}
+        · {{ noteRow.name }}（{{ noteRow.symbol }}） · {{ noteRow.b_s }}{{ noteRow.o_c ?? '' }}
+        <span v-if="noteRow.vm_symbol">· 归属 {{ noteRow.vm_symbol }}</span>
+      </div>
+      <BillNotePanel
+        :key="`note-${noteRow?.id ?? 0}`"
+        :bill-id="noteRow?.id ?? null"
+        :trade-time="noteRow?.trade_time ?? null"
+        :vm-symbol="noteRow?.vm_symbol ?? null"
+      />
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showNoteModal = false">关闭</NButton>
         </NSpace>
       </template>
     </NModal>
