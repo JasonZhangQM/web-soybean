@@ -6,9 +6,15 @@
  * 系统只存「决策与执行状态」（摘要 ≤800 字、单条逻辑/风险 ≤200 字、研究过程 ≤2000 字），
  * 报告正文留在知识库——所以这里的字段全是短的，长文请写进 research_note 指向知识库。
  */
-import { ref, reactive, computed, watch, h } from 'vue';
+import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { saveVmResearch, deleteVmResearch } from '@/service/api';
+import {
+  saveVmResearch,
+  deleteVmResearch,
+  fetchVmStateLog,
+  fetchAttributionByPlan,
+  fetchAllPlans
+} from '@/service/api';
 import VmDataTable from './VmDataTable.vue';
 
 defineOptions({ name: 'VmResearchVersionPanel' });
@@ -251,6 +257,102 @@ const columns = [
   }
 ];
 
+// ---------------- 复盘视图：状态演化 + 剧本盈亏归因 ----------------
+const stateLog = ref<Api.Irs.VmStateLog[]>([]);
+const attribution = ref<Api.Bills.AttributionByPlan | null>(null);
+const allPlans = ref<Api.Irs.VmPlan[]>([]);
+const attributionLoading = ref(false);
+
+function subjectLabel(t: string) {
+  return t === 'logic' ? '逻辑' : '证伪';
+}
+
+/** 状态演化：本标的逻辑/证伪的 append-only 日志，正序回放「首次 → 当前」 */
+async function loadStateLog() {
+  const { data } = await fetchVmStateLog(props.vmId);
+  if (data) stateLog.value = data;
+}
+
+/** 剧本盈亏归因：全局（读 note.plan_id），跨标的聚合，plan_id → 剧本名靠 /irs/plans 映射 */
+async function loadAttribution() {
+  attributionLoading.value = true;
+  try {
+    const [attr, plans] = await Promise.all([fetchAttributionByPlan(), fetchAllPlans()]);
+    if (!attr.error && attr.data) attribution.value = attr.data;
+    if (!plans.error && plans.data) allPlans.value = plans.data;
+  } finally {
+    attributionLoading.value = false;
+  }
+}
+
+const planMap = computed(() => {
+  const m = new Map<number, Api.Irs.VmPlan>();
+  for (const p of allPlans.value) m.set(p.id, p);
+  return m;
+});
+
+type AttributionRow = Api.Bills.AttributionPlan & { plan_label: string };
+
+/** 归因行：把裸 plan_id 补成「标的 合约」可读名 */
+const attributionRows = computed<AttributionRow[]>(() => {
+  if (!attribution.value) return [];
+  return attribution.value.items.map(it => {
+    const p = planMap.value.get(it.plan_id);
+    return { plan_label: p ? `${p.vm_symbol} ${p.trade_symbol}` : `#${it.plan_id}`, ...it };
+  });
+});
+
+/** 正负号格式化盈亏；null 显示 — */
+function fmtPl(v: number | null | undefined) {
+  if (v == null) return '-';
+  const n = Number(v);
+  return (n > 0 ? '+' : '') + n.toFixed(2);
+}
+
+const attributionColumns = [
+  {
+    title: '剧本（标的 合约）',
+    key: 'plan_label',
+    width: 220,
+    ellipsis: { tooltip: true }
+  },
+  { title: '执行次数', key: 'exec_count', width: 90, align: 'right' as const },
+  {
+    title: '累计平仓盈亏',
+    key: 'total_pl',
+    width: 120,
+    align: 'right' as const,
+    render: (r: AttributionRow) => fmtPl(r.total_pl)
+  },
+  {
+    title: '胜率',
+    key: 'win_rate',
+    width: 80,
+    align: 'right' as const,
+    render: (r: AttributionRow) => `${(Number(r.win_rate) * 100).toFixed(0)}%`
+  },
+  {
+    title: '平均盈亏',
+    key: 'avg_pl',
+    width: 100,
+    align: 'right' as const,
+    render: (r: AttributionRow) => fmtPl(r.avg_pl)
+  },
+  {
+    title: '最近成交',
+    key: 'last_trade_time',
+    width: 130,
+    render: (r: AttributionRow) => (r.last_trade_time ? r.last_trade_time.slice(0, 10) : '-')
+  }
+];
+
+const attributionScrollX = attributionColumns.reduce((s, c) => s + Number(c.width || 0), 0);
+
+onMounted(() => {
+  loadStateLog();
+  loadAttribution();
+});
+
 // 字数提示：接近上限时变黄，超了变红
 function countClass(k: keyof typeof LIMITS, v: string) {
   const max = LIMITS[k];
@@ -387,5 +489,50 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <NButton :loading="saving" @click="doSave()">保存</NButton>
       <NButton v-if="hit" type="error" ghost :loading="deleting" @click="handleDelete">删除该版</NButton>
     </NSpace>
+
+    <NDivider />
+
+    <!-- 复盘视图：状态演化（P2-3）+ 剧本盈亏归因（P3-3） -->
+    <div class="mb-8px flex flex-wrap items-center gap-8px">
+      <span class="font-500">状态演化</span>
+      <span class="text-12px text-gray-400">逻辑 state / 证伪 status 的追加日志，改一次记一条，不复写旧值</span>
+    </div>
+    <NEmpty v-if="!stateLog.length" size="small" description="还没有状态变更记录" class="my-8px" />
+    <NTimeline v-else class="mt-8px">
+      <NTimelineItem
+        v-for="l in stateLog"
+        :key="l.id"
+        :type="
+          l.to_state === '破坏' || l.to_state === '已触发' ? 'error' : l.to_state === '减弱' ? 'warning' : 'success'
+        "
+        :title="`${subjectLabel(l.subject_type)}：${l.from_state ?? '（首次登记）'} → ${l.to_state}`"
+        :time="l.changed_at"
+      >
+        {{ l.note || '' }}
+      </NTimelineItem>
+    </NTimeline>
+
+    <NDivider />
+
+    <div class="mb-8px flex flex-wrap items-center gap-8px">
+      <span class="font-500">剧本盈亏归因</span>
+      <span class="text-12px text-gray-400">读 bills_bill_note.plan_id 按剧本聚合；未归因成交显式标注</span>
+    </div>
+    <NSpin :show="attributionLoading">
+      <NDataTable
+        v-if="attributionRows.length"
+        :columns="attributionColumns"
+        :data="attributionRows"
+        size="small"
+        :scroll-x="attributionScrollX"
+      />
+      <NEmpty v-else-if="!attributionLoading" size="small" description="还没有带剧本标记的成交" class="my-8px" />
+    </NSpin>
+    <NAlert v-if="attribution" type="info" :bordered="false" class="mt-8px">
+      未归因成交
+      <b>{{ attribution.unattributed.exec_count }}</b>
+      笔，累计平仓盈亏
+      <b>{{ fmtPl(attribution.unattributed.total_pl) }}</b>
+    </NAlert>
   </div>
 </template>

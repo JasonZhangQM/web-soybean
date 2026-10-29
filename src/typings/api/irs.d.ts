@@ -39,48 +39,6 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 期权监测合并（对应 OptionMonitorOut，共 19 字段，合并配置与监测） */
-    interface OptionMonitor {
-      /** 标的代码 */
-      underlying_symbol: string;
-      /** 行权价 */
-      price_strike: number;
-      /** 行权日 */
-      delisted_date: string;
-      /** 剩余天数 */
-      days_left: number | null;
-      /** 期权乘数 */
-      multiplier: number;
-      /** 期权代码 */
-      symbol: string;
-      /** 期权类型(call/put) */
-      option_type: string;
-      /** 标的现价 */
-      price_ud: number | null;
-      /** 期权现价 */
-      price: number | null;
-      /** 时间价值 */
-      value_t: number | null;
-      /** 内在价值 */
-      value_i: number | null;
-      /** 平值(%) */
-      atm_i: number | null;
-      /** 时间(%) */
-      ratio_t: number | null;
-      /** 内在(%) */
-      ratio_i: number | null;
-      /** 时间(%Y) */
-      ratio_t_y: number | null;
-      /** 内在(%Y) */
-      ratio_i_y: number | null;
-      /** 主键 */
-      id: number;
-      /** 创建时间 */
-      create_time: string;
-      /** 更新时间 */
-      update_time: string;
-    }
-
     /** 同步结果（{status, message}） */
     interface SyncResult {
       /** 同步状态 */
@@ -141,6 +99,12 @@ declare namespace Api {
       pv_h_y: number | null;
       /** 极高(y%) */
       pv_eh_y: number | null;
+      /** 派生：当前所处档位区间（带语义：极低~低 / 低~中 …，左闭右开） */
+      zone: string | null;
+      /** 派生：当前档位对应 PE 分位（pct_10y，仅指数标的有效，其余 null） */
+      pe_pct: number | null;
+      /** 派生：当前档位对应 PB 分位（pct_10y，仅指数标的有效，其余 null） */
+      pb_pct: number | null;
       /** 派生：当前生效档位版本日期 */
       pp_effective_date: string | null;
       /** 派生：档位版本总数 */
@@ -233,6 +197,8 @@ declare namespace Api {
       trade_symbol: string;
       /** 序号（同标的同 seq 覆盖） */
       seq: number;
+      /** 剧本=长期有效的档位动作；委托=一次性，有 qty/有效期 */
+      kind: string;
       /** 买 / 卖 */
       b_s: string;
       /** 开 / 平 */
@@ -288,6 +254,10 @@ declare namespace Api {
       signal: string;
       source: string | null;
       action: string | null;
+      /** 判定类别：price / percentile / discount / manual */
+      judge: string | null;
+      /** 判据表达式（如 price<=3900、pe_pct>=0.8） */
+      judge_expr: string | null;
       status: string;
       triggered_at: string | null;
       create_time: string;
@@ -312,6 +282,62 @@ declare namespace Api {
       count: number | null;
       pf_total: number | null;
       bill_rows: number | null;
+    }
+
+    /** 状态变更审计日志行（append-only，复盘回放） */
+    interface VmStateLog {
+      id: number;
+      /** logic=逻辑；invalidate=证伪 */
+      subject_type: 'logic' | 'invalidate';
+      subject_id: number;
+      symbol: string;
+      from_state: string | null;
+      to_state: string;
+      changed_at: string;
+      note: string | null;
+    }
+
+    /** 标的级目标仓位（决策层，占总资产比例 %） */
+    interface VmTarget {
+      id: number;
+      symbol: string;
+      target_pct: number | null;
+      note: string | null;
+    }
+
+    /** 今日页命中的计划（纯聚合） */
+    interface TodayPlanHit {
+      seq: number;
+      kind: string;
+      trade_symbol: string;
+      b_s: string;
+      o_c: string | null;
+      reason: string | null;
+      effective_trigger: number | null;
+    }
+
+    /** 今日页单标的行（GET /irs/today 返回项） */
+    interface TodayItem {
+      symbol: string;
+      name: string | null;
+      theme: string | null;
+      price: number | null;
+      zone: string | null;
+      /** 距最近档位 %（负值=档位在下方） */
+      nearest_level_pct: number | null;
+      pe_pct: number | null;
+      pb_pct: number | null;
+      hit_plans: TodayPlanHit[];
+      logic_total: number;
+      logic_weak: number;
+      invalidate_triggered: number;
+      has_position: boolean;
+      review_due: boolean;
+      naked: boolean;
+      target_pct: number | null;
+      current_pct: number | null;
+      drift: number | null;
+      priority: number;
     }
   }
 }

@@ -22,6 +22,8 @@ const emit = defineEmits<{ (e: 'refresh'): void }>();
 
 const saving = ref(false);
 const deletingId = ref<number | null>(null);
+/** P2-4 档位分位校验告警：保存后若后端返回 warnings，显示红标 */
+const warnings = ref<Array<{ level: string; pb_pct: number; message: string }>>([]);
 
 /** 今天（YYYY-MM-DD），NDatePicker 与后端都按日粒度 */
 function today() {
@@ -113,6 +115,8 @@ function doSave(force = false) {
           unchanged: '五档没变，未新建版本'
         };
         window.$message?.success(map[data?.action ?? ''] ?? '已保存');
+        // P2-4：捕获后端返回的档位分位校验告警
+        warnings.value = (data?.warnings as Array<{ level: string; pb_pct: number; message: string }>) ?? [];
         // 保存后清掉 note，但保留日期与五档，方便连续微调
         form.note = '';
         emit('refresh');
@@ -305,5 +309,22 @@ const columns = [
       </NFormItem>
     </NForm>
     <div class="text-12px" :class="hitVersion ? 'text-orange-500' : 'text-gray-400'">{{ dateHint }}</div>
+
+    <!-- P2-4 档位分位校验告警（只提示，绝不自动改档位） -->
+    <NAlert
+      v-if="warnings.length"
+      type="warning"
+      :bordered="false"
+      class="mt-8px"
+      title="档位分位校验提示（只提示，不自动改档位）"
+    >
+      <ul class="mt-4px pl-16px text-12px leading-5">
+        <li v-for="(w, i) in warnings" :key="i">{{ w.message }}</li>
+      </ul>
+      <div class="mt-4px text-12px text-gray-500">
+        这是系统基于当前 PB 10y 分位做的极端值粗粒度提示，档位（手填价格锚）和分位（统计位置）口径不同，
+        最终是否需要调档由研究报告结论决定。
+      </div>
+    </NAlert>
   </div>
 </template>

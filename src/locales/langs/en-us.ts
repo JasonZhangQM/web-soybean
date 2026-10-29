@@ -261,10 +261,10 @@ const local: App.I18n.Schema = {
     'bills_group-symbols': 'Group Symbols',
     'bills_profit-years': 'Profit Years',
     'bills_risk-board': 'Risk Board',
+    irs_today: 'Today',
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_index-valuation': 'Index Valuation Percentile',
     'irs_value-monitors': 'Value Monitors',
-    'irs_option-monitor': 'Option Monitor',
     'irs_option-quote': 'Option Quote',
     'irs_macro-framework': 'China Macro',
     'irs_us-economic-dashboard': 'US Macro'

@@ -425,22 +425,23 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_option-monitor',
-        path: '/irs/option-monitor',
-        component: 'view.irs_option-monitor',
-        meta: {
-          title: 'irs_option-monitor',
-          i18nKey: 'route.irs_option-monitor',
-          constant: true
-        }
-      },
-      {
         name: 'irs_option-quote',
         path: '/irs/option-quote',
         component: 'view.irs_option-quote',
         meta: {
           title: 'irs_option-quote',
           i18nKey: 'route.irs_option-quote',
+          constant: true
+        }
+      },
+      {
+        name: 'irs_today',
+        path: '/irs/today',
+        component: 'view.irs_today',
+        meta: {
+          title: 'irs_today',
+          i18nKey: 'route.irs_today',
+          order: 1,
           constant: true
         }
       },

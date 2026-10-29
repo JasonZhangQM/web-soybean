@@ -173,6 +173,10 @@ declare namespace Api {
       content: string;
       /** 落笔时间（后端写，前端不可传） */
       content_at: string;
+      /** manual=成交当日或次日写；backfill=事后补录（>3 天） */
+      source: string;
+      /** 执行的剧本 irs_vm_plan.id（裸 ID，无外键；未归因为 null） */
+      plan_id: number | null;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
@@ -563,6 +567,38 @@ declare namespace Api {
       first_call: Record<string, RiskBoardFirstCall | null>;
       /** 数据降级/兜底提示 */
       warnings: string[];
+    }
+
+    /** 剧本盈亏归因-单剧本行（读 bills_bill_note.plan_id，group by 剧本） */
+    interface AttributionPlan {
+      /** 剧本 irs_vm_plan.id（裸 ID） */
+      plan_id: number;
+      /** 执行笔数（每笔成交只取一条带 plan_id 的笔记，去重） */
+      exec_count: number;
+      /** 累计平仓盈亏（正=盈利） */
+      total_pl: number;
+      /** 盈利笔数（pl > 0） */
+      win_count: number;
+      /** 胜率 0~1 */
+      win_rate: number;
+      /** 平均盈亏 */
+      avg_pl: number;
+      /** 最近一次成交日 */
+      last_trade_time: string | null;
+    }
+
+    /** 剧本盈亏归因-未归因残差 */
+    interface AttributionUnattributed {
+      /** 未归因成交笔数 */
+      exec_count: number;
+      /** 未归因累计平仓盈亏 */
+      total_pl: number;
+    }
+
+    /** 剧本盈亏归因完整响应（GET /bills/attribution/by-plan） */
+    interface AttributionByPlan {
+      items: AttributionPlan[];
+      unattributed: AttributionUnattributed;
     }
   }
 }

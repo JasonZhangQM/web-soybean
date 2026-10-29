@@ -1,79 +1,73 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchOptionMonitors, fetchOptionUnderlyings, syncOptionMonitor, cleanOptionMonitor } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useMessage } from 'naive-ui';
+import { fetchOptionMarket, fetchOptionMarketFilters, syncOptionMarket, fetchSyncTask } from '@/service/api';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsOptionQuotePage' });
 
+/**
+ * 期权 T 型报价（数据源：bds 期权行情 `bds_option_market`，2026-10-29 起替代 irs_option_monitor）
+ *
+ * - 查询走 `GET /bds/option-market?latest_only=true`：只取当前筛选范围内最新交易日的快照
+ *   （品种级最新，某品种当日漏同步也不会因全局最新日而查空）；
+ * - 「行情」同步走 bds 一键全量任务（POST /bds/option-market/sync，后台任务 + 轮询），
+ *   同步对象是同步清单里全部启用合约，与当前页面筛选无关；
+ * - 结算价/delta 只有商品期权有、ETF 无量数据等口径详见 bds 行情页，本页只展示 T 型所需字段。
+ */
+
+const message = useMessage();
+
 // T 型报价行结构：同一行权价对应的 call/put 合约及中心轴字段
 interface OptionQuoteRow {
   price_strike: number;
-  call: Api.Irs.OptionMonitor | null;
-  put: Api.Irs.OptionMonitor | null;
-  // 中心轴字段（从 call 或 put 取）
+  call: Api.Bds.OptionMarket | null;
+  put: Api.Bds.OptionMarket | null;
+  // 中心轴字段（从 call 或 put 取；行级取值，混月时各行显示自己的到期信息）
   atm_i: number | null;
   price_ud: number | null;
+  delisted_date: string | null;
+  days_left: number | null;
 }
 
 const loading = ref(false);
-// 原始期权监测数据
-const rawData = ref<Api.Irs.OptionMonitor[]>([]);
+// 原始期权行情数据（最新交易日快照）
+const rawData = ref<Api.Bds.OptionMarket[]>([]);
 // T 型报价行数据（按行权价降序）
 const tableData = ref<OptionQuoteRow[]>([]);
 
-// 默认参数：标的为沪深300股指期权，到期月为当前月份 1 号时间戳
-const buildDefaultEndMonth = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+// 默认参数：品种为沪深300股指期权；到期月默认空（用户按需选择，避免误看错月份）
 const searchParams = reactive({
-  underlying_symbol: 'SHSE.000300' as string,
-  end_month: buildDefaultEndMonth() as number | null
+  option_name: '沪深300股指期权' as string | null,
+  end_month: null as string | null
 });
 
-// 标的代码下拉选项（从后端 Config 动态拉取）
-const underlyingSymbolOptions = ref<{ label: string; value: string }[]>([]);
+// 下拉选项（品种 / 到期月，均来自 bds 行情表真实数据，选了就有结果）
+const optionNameOptions = ref<{ label: string; value: string }[]>([]);
+const endMonthOptions = ref<{ label: string; value: string }[]>([]);
 
-// 同步行情专用 loading
+// 同步行情专用 loading（任务化：发起 + 轮询期间保持）
 const syncLoading = ref(false);
-// 清理代码专用 loading
-const cleanLoading = ref(false);
 
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
-// 到期日、剩余天数、标的现价（同一标的+月份下所有合约相同，取首条记录）
-const delistedInfo = computed(() => {
-  const first = rawData.value[0];
-  if (!first) return null;
-  return {
-    delisted_date: first.delisted_date ? first.delisted_date.slice(0, 10) : '-',
-    days_left: first.days_left,
-    price_ud: first.price_ud
-  };
-});
-
 // 数值字段统一保留两位小数，空值显示 '-'（ORM Decimal 序列化为字符串，Number() 兼容）
 const fmt = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');
 // 期权现价、时间价值、内在价值保留四位小数
 const fmt4 = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(4) : '-');
 
-// 将时间戳格式化为 YYYYMM 字符串
-function formatEndMonth(timestamp: number): string {
-  const d = new Date(timestamp);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${year}${month}`;
-}
-
-// 拉取期权监测列表（一次性拉取全量，前端分页展示）
+// 拉取期权行情（latest_only 只取筛选范围内最新交易日快照，一次拉全后前端分页）
 async function fetchData() {
   loading.value = true;
   try {
-    const { data, error } = await fetchOptionMonitors({
-      underlying_symbol: searchParams.underlying_symbol || undefined,
-      end_month: searchParams.end_month ? formatEndMonth(searchParams.end_month) : undefined,
+    const { data, error } = await fetchOptionMarket({
+      option_name: searchParams.option_name || undefined,
+      end_month: searchParams.end_month || undefined,
+      latest_only: true,
       limit: 500,
       offset: 0
     });
@@ -95,7 +89,7 @@ const pagedData = computed(() => {
 });
 
 // 平值行：行权价与标的现价绝对价差最小（基于全量数据）
-// 使用 price_ud 而非派生字段 atm_i，gm 降级时只要 price_ud 有缓存值仍可识别
+// 使用 price_ud 而非派生字段 atm_i，行情源缺标的价时只要有缓存值仍可识别
 const minAtmStrike = computed(() => {
   const valid = tableData.value.filter(r => r.price_ud != null);
   if (!valid.length) return null;
@@ -122,16 +116,20 @@ function handlePageSizeChange(pageSize: number) {
   pagination.page = 1;
 }
 
-// 拉取下拉选项（标的代码，从 Config.OPTIONS_MARCH 取数）
+// 拉取下拉选项：品种 + 到期月（bds 行情表里真有数据的月份，保证选了就有结果）
 async function fetchOptions() {
-  const { data, error } = await fetchOptionUnderlyings();
+  const { data, error } = await fetchOptionMarketFilters();
   if (!error && data) {
-    underlyingSymbolOptions.value = data.underlying_symbols;
+    optionNameOptions.value = data.option_names.map(n => ({ label: n, value: n }));
+    endMonthOptions.value = data.end_months.map(m => ({
+      label: `${m.slice(0, 4)}-${m.slice(4)}`,
+      value: m
+    }));
   }
 }
 
-// 将原始期权监测数据转换为 T 型报价行：按行权价分组，call/put 配对
-function transformToQuoteRows(items: Api.Irs.OptionMonitor[]): OptionQuoteRow[] {
+// 将原始行情数据转换为 T 型报价行：按行权价分组，call/put 配对
+function transformToQuoteRows(items: Api.Bds.OptionMarket[]): OptionQuoteRow[] {
   const groupMap = new Map<number, OptionQuoteRow>();
   for (const item of items) {
     let row = groupMap.get(item.price_strike);
@@ -141,7 +139,9 @@ function transformToQuoteRows(items: Api.Irs.OptionMonitor[]): OptionQuoteRow[] 
         call: null,
         put: null,
         atm_i: null,
-        price_ud: null
+        price_ud: null,
+        delisted_date: null,
+        days_left: null
       };
       groupMap.set(item.price_strike, row);
     }
@@ -154,6 +154,8 @@ function transformToQuoteRows(items: Api.Irs.OptionMonitor[]): OptionQuoteRow[] 
     // 中心轴字段从 call 或 put 取（优先 call）
     row.atm_i = row.call?.atm_i ?? row.put?.atm_i ?? null;
     row.price_ud = row.call?.price_ud ?? row.put?.price_ud ?? null;
+    row.delisted_date = (row.call ?? row.put)?.delisted_date?.slice(0, 10) ?? null;
+    row.days_left = (row.call ?? row.put)?.days_left ?? null;
   }
   // 按行权价降序排列
   return Array.from(groupMap.values()).sort((a, b) => b.price_strike - a.price_strike);
@@ -163,29 +165,68 @@ function handleSearch() {
   fetchData();
 }
 
-// 从 underlyingSymbolOptions 中根据 value(underlying_symbol) 查找 label(option_name)
-function getOptionNameByValue(value: string): string | undefined {
-  return underlyingSymbolOptions.value.find(o => o.value === value)?.label;
+// ===================== 行情同步（bds 任务化：一键全量 + 轮询） =====================
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 }
 
-// 触发同步行情（复用搜索栏的标的和到期月值）
+function startPolling(taskId: number) {
+  stopPolling();
+  pollTimer = setInterval(async () => {
+    const { data, error } = await fetchSyncTask(taskId);
+    if (error || !data) return;
+    if (!['pending', 'running'].includes(data.status)) {
+      stopPolling();
+      syncLoading.value = false;
+      onSyncFinished(data);
+    }
+  }, 2000);
+}
+
+/** 收尾提示（简化版：只报组级成败，明细看 bds 行情页的任务审计） */
+function onSyncFinished(task: Api.Bds.SyncTask) {
+  if (task.status === 'failed') {
+    message.error(`同步失败：${task.errors?.[0]?.message || '未知错误'}`);
+    return;
+  }
+  if (task.status === 'stopped') {
+    message.warning('同步已停止（已完成的部分已入库）');
+    fetchData();
+    return;
+  }
+  const r = (task.result || {}) as any;
+  const text = `同步完成：${r.group_ok ?? 0}/${r.group_total ?? 0} 组`;
+  if (task.status === 'done' && (r.group_failed ?? 0) > 0) {
+    message.warning(`${text}，${r.group_failed} 组失败，详见 bds 行情页任务审计`);
+  } else {
+    message.success(text);
+  }
+  fetchData();
+}
+
+// 触发行情同步（同步清单内全部启用合约，与当前页面筛选无关）
 async function handleSync() {
-  if (!searchParams.underlying_symbol || !searchParams.end_month) return;
-  const optionName = getOptionNameByValue(searchParams.underlying_symbol);
-  if (!optionName) return;
-  const endMonth = formatEndMonth(searchParams.end_month);
-  await executeSync(() => syncOptionMonitor({ option_name: optionName, end_month: endMonth }), syncLoading, fetchData);
-}
-
-// 清理已到期期权数据（days_left <= 0）
-async function handleClean() {
-  await executeSync(cleanOptionMonitor, cleanLoading, fetchData);
+  if (syncLoading.value) return;
+  syncLoading.value = true;
+  const { data, error } = await syncOptionMarket();
+  if (error || !data) {
+    syncLoading.value = false;
+    message.error((error as any)?.message || '发起同步失败（清单为空时请先在 bds 行情页配置）');
+    return;
+  }
+  startPolling(data.id);
 }
 
 // 生成认购侧列（取 row.call 的字段），formatter/className 可选
 function makeCallColumn(
   title: string,
-  field: keyof Api.Irs.OptionMonitor,
+  field: keyof Api.Bds.OptionMarket,
   key: string,
   width = 90,
   formatter = fmt,
@@ -196,14 +237,14 @@ function makeCallColumn(
     key,
     width,
     className,
-    render: (row: OptionQuoteRow) => formatter(row.call?.[field])
+    render: (row: OptionQuoteRow) => formatter(row.call?.[field] as number | null)
   };
 }
 
 // 生成认沽侧列（取 row.put 的字段），formatter/className 可选
 function makePutColumn(
   title: string,
-  field: keyof Api.Irs.OptionMonitor,
+  field: keyof Api.Bds.OptionMarket,
   key: string,
   width = 90,
   formatter = fmt,
@@ -214,11 +255,11 @@ function makePutColumn(
     key,
     width,
     className,
-    render: (row: OptionQuoteRow) => formatter(row.put?.[field])
+    render: (row: OptionQuoteRow) => formatter(row.put?.[field] as number | null)
   };
 }
 
-// 中心轴列（行权价、平值%、标的现价），加粗突出
+// 中心轴列（行权价、标的现价、平值%），加粗突出
 function makeAxisColumn(title: string, field: keyof OptionQuoteRow, width = 90) {
   return {
     title,
@@ -226,6 +267,17 @@ function makeAxisColumn(title: string, field: keyof OptionQuoteRow, width = 90) 
     width,
     className: 'font-bold',
     render: (row: OptionQuoteRow) => fmt(row[field] as number | null)
+  };
+}
+
+// 到期日(剩余天数)列：日期字符串 + 括号天数，不走数值 fmt
+function makeExpiryColumn() {
+  return {
+    title: '到期日(天数)',
+    key: 'delisted_date',
+    width: 130,
+    className: 'font-bold',
+    render: (row: OptionQuoteRow) => `${row.delisted_date ?? '-'}（${row.days_left ?? '-'}）`
   };
 }
 
@@ -238,9 +290,11 @@ const columns = [
   makeCallColumn('时间(%)', 'ratio_t', 'call_ratio_t'),
   makeCallColumn('时间价值', 'value_t', 'call_value_t', 100, fmt4),
   makeCallColumn('期权现价', 'price', 'call_price', 100, fmt4),
-  // 中心轴（2 列）
+  // 中心轴（4 列）：行权价 → 标的现价 → 平值(%) → 到期日(剩余天数)
   makeAxisColumn('行权价', 'price_strike'),
+  makeAxisColumn('标的现价', 'price_ud'),
   makeAxisColumn('平值(%)', 'atm_i', 90),
+  makeExpiryColumn(),
   // 认沽侧（7 列，从左到右）
   makePutColumn('期权现价', 'price', 'put_price', 100, fmt4),
   makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
@@ -255,16 +309,18 @@ onMounted(() => {
   fetchOptions();
   fetchData();
 });
+
+onUnmounted(stopPolling);
 </script>
 
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
-        <NFormItem label="标的">
+        <NFormItem label="品种">
           <NSelect
-            v-model:value="searchParams.underlying_symbol"
-            :options="underlyingSymbolOptions"
+            v-model:value="searchParams.option_name"
+            :options="optionNameOptions"
             filterable
             clearable
             placeholder="全部"
@@ -273,9 +329,9 @@ onMounted(() => {
           />
         </NFormItem>
         <NFormItem label="到期月">
-          <NDatePicker
+          <NSelect
             v-model:value="searchParams.end_month"
-            type="month"
+            :options="endMonthOptions"
             clearable
             placeholder="全部"
             style="width: 150px"
@@ -285,29 +341,12 @@ onMounted(() => {
         <NFormItem>
           <NButton @click="handleSearch">搜索</NButton>
         </NFormItem>
-        <NFormItem v-if="delistedInfo">
-          <span class="text-14px">
-            标的现价 {{ fmt(delistedInfo.price_ud) }}　到期日 {{ delistedInfo.delisted_date }}（{{
-              delistedInfo.days_left
-            }}）
-          </span>
-        </NFormItem>
         <!-- 操作按钮区：整体靠右 -->
         <NFormItem class="ml-auto">
-          <NSpace>
-            <NButton :loading="cleanLoading" @click="handleClean">
-              <template #icon><SvgIcon icon="mdi:trash-can-outline" /></template>
-              代码
-            </NButton>
-            <NButton
-              :loading="syncLoading"
-              :disabled="!searchParams.underlying_symbol || !searchParams.end_month"
-              @click="handleSync"
-            >
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              行情
-            </NButton>
-          </NSpace>
+          <NButton :loading="syncLoading" @click="handleSync">
+            <template #icon><SvgIcon icon="mdi:sync" /></template>
+            行情
+          </NButton>
         </NFormItem>
       </NForm>
     </NCard>
@@ -325,3 +364,11 @@ onMounted(() => {
     </NCard>
   </div>
 </template>
+
+<style scoped>
+/* 表格单元格不换行：18 列的 T 型报价换行会撑高行、破坏紧凑对照布局 */
+:deep(.n-data-table .n-data-table-th),
+:deep(.n-data-table .n-data-table-td) {
+  white-space: nowrap;
+}
+</style>

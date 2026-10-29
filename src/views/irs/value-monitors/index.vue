@@ -466,6 +466,40 @@ const columns = [
       row.research_conclusion ? row.research_conclusion : h('span', { class: 'text-gray-300' }, '未填')
   },
   {
+    // 档位带（P0-1）：现价所在区间带语义；口径唯一在后端，这里只显示
+    title: '档位带',
+    key: 'zone',
+    width: 110,
+    render: (row: Api.Irs.ValueMonitor) =>
+      row.zone
+        ? h(NTag, { size: 'tiny', bordered: false, type: 'info' }, { default: () => row.zone })
+        : h('span', { class: 'text-gray-300' }, '—')
+  },
+  {
+    // PE 分位（P2-1，来源 bds 指数估值，标 10y）：只对 000300/000905/SPX 有效，其余 —
+    title: 'PE 分位(10y)',
+    key: 'pe_pct',
+    width: 100,
+    render: (row: Api.Irs.ValueMonitor) => {
+      const pe = row.pe_pct;
+      return pe != null
+        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${(pe * 100).toFixed(1)}%` })
+        : h('span', { class: 'text-gray-300' }, '—');
+    }
+  },
+  {
+    // PB 分位（P2-1）：与 PE 分位同源，用不同底色与手填档位区隔
+    title: 'PB 分位(10y)',
+    key: 'pb_pct',
+    width: 100,
+    render: (row: Api.Irs.ValueMonitor) => {
+      const pb = row.pb_pct;
+      return pb != null
+        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${(pb * 100).toFixed(1)}%` })
+        : h('span', { class: 'text-gray-300' }, '—');
+    }
+  },
+  {
     // 计划：待执行 / 已执行。待执行 > 0 用橙色，提示"这里有等你动手的事"
     title: '计划',
     key: 'plan',
@@ -565,7 +599,7 @@ const columns = [
 /**
  * 横向滚动宽度 = 各列 width 之和（铁律 4.11：**列宽一改必须重算**，否则
  * scroll-x 偏小会让浏览器压缩列、内容被迫折行——正是「换行」的根源）。
- * 当前 130+100+220+100+115+100+150+140+140+190×5+75 = 2220。
+ * 当前 130+100+220+110+100+100+100+115+100+150+140+140+190×5+75 = 2530。
  * 总宽超出容器时由 NDataTable 内部横向滚动接管，页面本身不出现横向滚动条。
  */
 const scrollX = columns.reduce((sum, col) => sum + ((col.width as number) ?? 0), 0);

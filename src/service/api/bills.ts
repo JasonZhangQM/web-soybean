@@ -316,7 +316,7 @@ export function fetchBillNotes(id: number) {
  * - 独立端点，不走 PATCH /bills/{id}：那是 36 字段的宽口子，
  *   一旦有人给它加「回写全列」，笔记会被静默冲成 NULL
  */
-export function saveBillNote(id: number, kind: BillNoteKind, content: string) {
+export function saveBillNote(id: number, kind: BillNoteKind, content: string, planId?: number | null) {
   return request<{
     status: string;
     /** created=新建 / updated=改写 / deleted=空串即删除 / noop=本来就没有 */
@@ -327,7 +327,16 @@ export function saveBillNote(id: number, kind: BillNoteKind, content: string) {
   }>({
     url: `/api/v1/bills/${id}/note/${encodeURIComponent(kind)}`,
     method: 'put',
-    data: { content }
+    // plan_id 仅在显式传入时回填（执行剧本后挂接）；不传则不碰已回填值
+    data: planId != null ? { content, plan_id: planId } : { content }
+  });
+}
+
+/** 剧本盈亏归因（读 bills_bill_note.plan_id，group by 剧本；剧本名前端按 plan_id 映射） */
+export function fetchAttributionByPlan() {
+  return request<Api.Bills.AttributionByPlan>({
+    url: '/api/v1/bills/attribution/by-plan',
+    method: 'get'
   });
 }
 

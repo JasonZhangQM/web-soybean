@@ -18,6 +18,9 @@ export const OP_LABEL: Record<string, string> = { lte: '≤', gte: '≥' };
 
 /** 计划状态 → NTag type。状态是后端派生的（已放弃 > 已执行 > 已过期 > 待执行），前端不另算 */
 export const STATUS_TYPE: Record<string, 'warning' | 'success' | 'default' | 'error'> = {
+  // 剧本（长期有效）只用「生效 / 暂停」；委托才走下面四态
+  生效: 'success',
+  暂停: 'default',
   待执行: 'warning',
   已执行: 'success',
   已过期: 'default',

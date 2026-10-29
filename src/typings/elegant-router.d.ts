@@ -56,8 +56,8 @@ declare module "@elegant-router/types" {
     "irs_discounts-monitor": "/irs/discounts-monitor";
     "irs_index-valuation": "/irs/index-valuation";
     "irs_macro-framework": "/irs/macro-framework";
-    "irs_option-monitor": "/irs/option-monitor";
     "irs_option-quote": "/irs/option-quote";
+    "irs_today": "/irs/today";
     "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
     "irs_value-monitors": "/irs/value-monitors";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
@@ -151,8 +151,8 @@ declare module "@elegant-router/types" {
     | "irs_discounts-monitor"
     | "irs_index-valuation"
     | "irs_macro-framework"
-    | "irs_option-monitor"
     | "irs_option-quote"
+    | "irs_today"
     | "irs_us-economic-dashboard"
     | "irs_value-monitors"
   >;

@@ -11,7 +11,14 @@
  */
 import { ref, reactive, computed, h, watch } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { saveVmPlan, deleteVmPlan, type VmTrade } from '@/service/api';
+import {
+  saveVmPlan,
+  deleteVmPlan,
+  fetchVmBillCandidates,
+  executeVmPlan,
+  type VmTrade,
+  type VmBillCandidate
+} from '@/service/api';
 import VmDataTable from './VmDataTable.vue';
 import { REF_LABEL, STATUS_TYPE, triggerText } from './planFormat';
 
@@ -32,6 +39,7 @@ const deletingSeq = ref<number | null>(null);
 
 const form = reactive<{
   seq: number;
+  kind: '剧本' | '委托';
   trade_symbol: string;
   b_s: string;
   o_c: string | null;
@@ -44,6 +52,7 @@ const form = reactive<{
   is_cancelled: boolean;
 }>({
   seq: 1,
+  kind: '剧本',
   trade_symbol: '',
   b_s: '买',
   o_c: '开',
@@ -90,9 +99,10 @@ function renderTradeSymbolLabel(option: { display?: string; label?: string }) {
   return option.display || option.label || '';
 }
 
-function openNew() {
+function openNew(kind: '剧本' | '委托' = '剧本') {
   const maxSeq = props.plans.reduce((m, p) => Math.max(m, p.seq), 0);
   form.seq = maxSeq + 1;
+  form.kind = kind;
   // 只有唯一一个历史合约才预填。≥2 个时预填第一个等于替你猜，猜错了保存前也看不出来。
   form.trade_symbol = tradeSymbolOptions.value.length === 1 ? tradeSymbolOptions.value[0].label : '';
   form.b_s = '买';
@@ -109,6 +119,7 @@ function openNew() {
 
 function openEdit(p: Api.Irs.VmPlan) {
   form.seq = p.seq;
+  form.kind = p.kind === '委托' ? '委托' : '剧本';
   form.trade_symbol = p.trade_symbol;
   form.b_s = p.b_s;
   form.o_c = p.o_c;
@@ -139,6 +150,7 @@ async function handleSave() {
   try {
     const { error } = await saveVmPlan(props.vmId, {
       seq: form.seq,
+      kind: form.kind,
       trade_symbol: form.trade_symbol,
       b_s: form.b_s,
       o_c: form.o_c || null,
@@ -181,6 +193,90 @@ function handleDelete(p: Api.Irs.VmPlan) {
   });
 }
 
+// ---------------- 剧本 / 委托分两段 ----------------
+/** 剧本：长期有效的档位动作（存量迁移后 kind 默认「剧本」） */
+const playbooks = computed(() => props.plans.filter(p => p.kind === '剧本'));
+/** 委托：一次性，有 qty/有效期，每天看 */
+const orders = computed(() => props.plans.filter(p => p.kind === '委托'));
+
+// ---------------- 标记已执行（仅委托） ----------------
+const showExecuteModal = ref(false);
+const execLoading = ref(false);
+const executingBillId = ref<number | null>(null);
+const execPlan = ref<Api.Irs.VmPlan | null>(null);
+const execCandidates = ref<VmBillCandidate[]>([]);
+
+const execColumns = [
+  {
+    title: '成交时间',
+    key: 'trade_time',
+    width: 160,
+    render: (b: VmBillCandidate) => b.trade_time?.slice(0, 19).replace('T', ' ') ?? '-'
+  },
+  {
+    title: '合约',
+    key: 'symbol',
+    width: 180,
+    render: (b: VmBillCandidate) => h('span', { style: 'user-select: text' }, b.symbol)
+  },
+  { title: '方向', key: 'dir', width: 80, render: (b: VmBillCandidate) => `${b.b_s ?? ''}${b.o_c ?? ''}` },
+  {
+    title: '成交价',
+    key: 'price',
+    width: 100,
+    align: 'right' as const,
+    render: (b: VmBillCandidate) => Number(b.price).toFixed(4)
+  },
+  { title: '数量', key: 'vol', width: 80, align: 'right' as const },
+  {
+    title: '操作',
+    key: 'action',
+    width: 90,
+    render: (b: VmBillCandidate) =>
+      h(
+        NButton,
+        {
+          text: true,
+          size: 'tiny',
+          type: 'primary',
+          loading: executingBillId.value === b.id,
+          onClick: () => confirmExecute(b)
+        },
+        { default: () => '回填' }
+      )
+  }
+];
+
+const execScrollX = execColumns.reduce((sum, c) => sum + Number(c.width || 0), 0);
+
+async function openExecute(p: Api.Irs.VmPlan) {
+  execPlan.value = p;
+  execCandidates.value = [];
+  showExecuteModal.value = true;
+  execLoading.value = true;
+  try {
+    const { data, error } = await fetchVmBillCandidates(props.vmId, p.seq);
+    if (!error && data) execCandidates.value = data.items;
+  } finally {
+    execLoading.value = false;
+  }
+}
+
+async function confirmExecute(b: VmBillCandidate) {
+  if (!execPlan.value) return;
+  executingBillId.value = b.id;
+  try {
+    const { error } = await executeVmPlan(props.vmId, execPlan.value.seq, b.id);
+    if (!error) {
+      window.$message?.success('已回填成交，状态变为「已执行」');
+      showExecuteModal.value = false;
+      emit('refresh');
+    }
+  } finally {
+    executingBillId.value = null;
+  }
+}
+
 // ---------------- 分页 ----------------
 /**
  * 计划、成交都 10 条/页（2026-10-23 用户定）—— 与列表页默认页大小一致，
@@ -193,6 +289,12 @@ const PAGE_SIZE = 10;
 
 const planColumns = [
   { title: '序', key: 'seq', width: 50 },
+  {
+    title: '类型',
+    key: 'kind',
+    width: 60,
+    render: (p: Api.Irs.VmPlan) => p.kind
+  },
   {
     title: '合约',
     key: 'trade_symbol',
@@ -226,9 +328,17 @@ const planColumns = [
   {
     title: '操作',
     key: 'action',
-    width: 120,
+    width: 170,
     render: (p: Api.Irs.VmPlan) =>
       h('div', { class: 'flex gap-8px' }, [
+        // 委托且待执行才有「标记已执行」入口；剧本多次执行走 note.plan_id 归因，不在此列
+        p.kind === '委托' && p.status === '待执行'
+          ? h(
+              NButton,
+              { text: true, size: 'tiny', type: 'success', onClick: () => openExecute(p) },
+              { default: () => '执行' }
+            )
+          : null,
         h(
           NButton,
           { text: true, size: 'tiny', type: 'primary', onClick: () => openEdit(p) },
@@ -304,14 +414,24 @@ watch(
 <template>
   <div>
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">计划委托（{{ plans.length }}）</span>
+      <span class="font-500">剧本（{{ playbooks.length }}）</span>
       <span class="text-12px text-gray-400">
-        触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随；写死价格则以写死为准
+        长期有效的档位动作，季度看一次；触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随
       </span>
-      <NButton size="tiny" ghost class="ml-auto" @click="openNew">新增计划</NButton>
+      <NButton size="tiny" ghost class="ml-auto" @click="openNew('剧本')">新增剧本</NButton>
     </div>
-    <VmDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
-    <NEmpty v-if="!plans.length" size="small" description="还没有计划委托" class="my-8px" />
+    <VmDataTable :columns="planColumns" :data="playbooks" :page-size="PAGE_SIZE" />
+    <NEmpty v-if="!playbooks.length" size="small" description="还没有剧本" class="my-8px" />
+
+    <NDivider />
+
+    <div class="mb-8px flex flex-wrap items-center gap-8px">
+      <span class="font-500">委托（{{ orders.length }}）</span>
+      <span class="text-12px text-gray-400">一次性，有 qty/有效期，每天看；到价后在「执行」里回填成交</span>
+      <NButton size="tiny" ghost class="ml-auto" @click="openNew('委托')">新增委托</NButton>
+    </div>
+    <VmDataTable :columns="planColumns" :data="orders" :page-size="PAGE_SIZE" />
+    <NEmpty v-if="!orders.length" size="small" description="今天没有委托" class="my-8px" />
 
     <NDivider />
 
@@ -322,8 +442,34 @@ watch(
     <VmDataTable :columns="tradeColumns" :data="trades" :page-size="PAGE_SIZE" />
     <NEmpty v-if="!trades.length" size="small" description="这个标的还没有归属的成交" class="my-8px" />
 
+    <!-- 标记已执行：弹候选成交回填 bill_id（仅委托） -->
+    <NModal v-model:show="showExecuteModal" preset="card" title="标记已执行" class="w-760px" :mask-closable="false">
+      <NAlert type="info" :bordered="false" class="mb-12px">
+        {{ execPlan ? `回填 ${execPlan.trade_symbol} 第 ${execPlan.seq} 条的成交，回填后状态变「已执行」` : '' }}
+      </NAlert>
+      <NSpin :show="execLoading">
+        <NEmpty
+          v-if="!execLoading && !execCandidates.length"
+          size="small"
+          description="该计划建立以来没有可归属的成交候选"
+        />
+        <NDataTable v-else :columns="execColumns" :data="execCandidates" size="small" :scroll-x="execScrollX" />
+      </NSpin>
+    </NModal>
+
     <NModal v-model:show="showModal" preset="card" title="计划委托" class="w-640px" :mask-closable="false">
       <NForm label-placement="left" label-width="90px" :show-feedback="false">
+        <NFormItem label="类型">
+          <NSelect
+            v-model:value="form.kind"
+            :options="[
+              { label: '剧本（长期有效）', value: '剧本' },
+              { label: '委托（一次性）', value: '委托' }
+            ]"
+            style="width: 170px"
+          />
+          <span class="ml-8px text-12px text-gray-400">剧本只用「生效/暂停」；委托才有「已执行」</span>
+        </NFormItem>
         <NFormItem label="序号">
           <NInputNumber v-model:value="form.seq" :precision="0" :min="1" style="width: 120px" />
           <span class="ml-8px text-12px text-gray-400">同标的下序号唯一，保存会覆盖同序号那条</span>
@@ -400,9 +546,15 @@ watch(
         <NFormItem label="理由">
           <NInput v-model:value="form.reason" placeholder="为什么在这个点位做这个动作" />
         </NFormItem>
-        <NFormItem label="已放弃">
+        <NFormItem :label="form.kind === '剧本' ? '暂停' : '已放弃'">
           <NSwitch v-model:value="form.is_cancelled" />
-          <span class="ml-8px text-12px text-gray-400">放弃比删除好：留下"当时想过但没做"的证据</span>
+          <span class="ml-8px text-12px text-gray-400">
+            {{
+              form.kind === '剧本'
+                ? '暂停剧本（暂停比删除好：留下「当时想过但暂时不做」）'
+                : '放弃比删除好：留下"当时想过但没做"的证据'
+            }}
+          </span>
         </NFormItem>
       </NForm>
       <template #footer>

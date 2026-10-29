@@ -1208,6 +1208,8 @@ declare namespace Api {
       contract_id?: string | null;
       /** **起始**行情日期 YYYY-MM-DD（筛到最新）；不传=全部历史，按交易日倒序 */
       trade_date?: string | null;
+      /** 只取当前筛选范围内最新交易日的快照（T 型报价页用，品种级最新） */
+      latest_only?: boolean;
       limit?: number;
       offset?: number;
     }

@@ -55,6 +55,13 @@ const headerTags = computed(() => {
   if (!v) return [];
   const tags: Array<{ text: string; type: 'default' | 'info' | 'warning' | 'error' | 'success' }> = [];
   if (v.theme) tags.push({ text: v.theme, type: 'info' });
+  // 档位带（P0-1）+ 当前档位对应的 PE/PB 分位（P0-4 纠偏，仅指数标的有值）
+  if (v.zone) tags.push({ text: v.zone, type: 'info' });
+  if (v.pe_pct != null || v.pb_pct != null) {
+    const pe = v.pe_pct != null ? (v.pe_pct * 100).toFixed(1) : '—';
+    const pb = v.pb_pct != null ? (v.pb_pct * 100).toFixed(1) : '—';
+    tags.push({ text: `PE 分位 ${pe}% / PB 分位 ${pb}%`, type: 'warning' });
+  }
   const latest = detail.value?.research?.[0];
   if (latest?.conclusion) tags.push({ text: latest.conclusion, type: 'success' });
   else tags.push({ text: '未做研究', type: 'warning' });

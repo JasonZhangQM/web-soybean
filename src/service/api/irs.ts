@@ -217,7 +217,13 @@ export interface VmVersionSaveParams {
  * 返回 action=created|updated|unchanged，前端据此提示「将新建 X 日 / 将覆盖 X 日」。
  */
 export function saveVmVersion(id: number, params: VmVersionSaveParams) {
-  return request<{ status: string; action: 'created' | 'updated' | 'unchanged'; effective_date: string }>({
+  return request<{
+    status: string;
+    action: 'created' | 'updated' | 'unchanged';
+    effective_date: string;
+    /** 档位分位校验告警（P2-4：level/pb_pct/message） */
+    warnings?: Array<{ level: string; pb_pct: number; message: string }>;
+  }>({
     url: `/api/v1/irs/value-monitors/${id}/versions`,
     method: 'post',
     data: params
@@ -290,6 +296,8 @@ export function fetchVmPlans(id: number) {
 /** 计划保存参数（按 seq upsert，同标的同 seq 覆盖） */
 export interface VmPlanSaveParams {
   seq: number;
+  /** 剧本=长期有效的档位动作；委托=一次性，有 qty/有效期（默认「剧本」） */
+  kind?: string;
   /** 实际下单合约代码（真实代码，不是"沪深300"这种） */
   trade_symbol: string;
   b_s: string;
@@ -385,6 +393,10 @@ export interface VmInvalidateSaveParams {
   logic_id?: number | null;
   source?: string | null;
   action?: string | null;
+  /** 判定类别：price / percentile / discount / manual */
+  judge?: string | null;
+  /** 判据表达式（如 price<=3900、pe_pct>=0.8） */
+  judge_expr?: string | null;
   status?: string;
   triggered_at?: string | null;
 }
@@ -402,6 +414,86 @@ export function saveVmInvalidate(id: number, params: VmInvalidateSaveParams) {
 export function deleteVmInvalidate(id: number, seq: number) {
   return request<{ status: string; message: string }>({
     url: `/api/v1/irs/value-monitors/${id}/invalidate/${seq}`,
+    method: 'delete'
+  });
+}
+
+// ---------------------------------------------------------------- 今日页 / 横切
+/** 今日页单标的（GET /irs/today 返回裸数组，无 items 包裹） */
+export function fetchToday() {
+  return request<Api.Irs.TodayItem[]>({
+    url: '/api/v1/irs/today',
+    method: 'get'
+  });
+}
+
+/** 全量计划（跨标的），供归因表 plan_id → 剧本名/标的映射 */
+export function fetchAllPlans() {
+  return request<Api.Irs.VmPlan[]>({
+    url: '/api/v1/irs/plans',
+    method: 'get'
+  });
+}
+
+/** 「标记已执行」候选成交行（自计划建立以来的归属成交） */
+export interface VmBillCandidate {
+  id: number;
+  trade_time: string;
+  category: string;
+  symbol: string;
+  name: string;
+  b_s: string | null;
+  o_c: string | null;
+  price: number;
+  vol: number;
+}
+
+/** 查询某条计划「标记已执行」的候选成交 */
+export function fetchVmBillCandidates(id: number, seq: number) {
+  return request<{ items: VmBillCandidate[]; count: number }>({
+    url: `/api/v1/irs/value-monitors/${id}/plans/${seq}/bill-candidates`,
+    method: 'get'
+  });
+}
+
+/** 回填 bill_id 标记「已执行」；返回回填后的派生状态 */
+export function executeVmPlan(id: number, seq: number, billId: number) {
+  return request<{ status: string; message: string; plan_status: string }>({
+    url: `/api/v1/irs/value-monitors/${id}/plans/${seq}/execute`,
+    method: 'put',
+    params: { bill_id: billId }
+  });
+}
+
+/** 某标的状态演化时间轴（逻辑 state + 证伪 status 的 append-only 日志） */
+export function fetchVmStateLog(id: number) {
+  return request<Api.Irs.VmStateLog[]>({
+    url: `/api/v1/irs/value-monitors/${id}/state-log`,
+    method: 'get'
+  });
+}
+
+/** 全部标的的目标仓位（决策层） */
+export function fetchVmTargets() {
+  return request<Api.Irs.VmTarget[]>({
+    url: '/api/v1/irs/targets',
+    method: 'get'
+  });
+}
+
+/** 保存目标仓位（按 symbol upsert，target_pct=null 表示未设定） */
+export function saveVmTarget(symbol: string, targetPct: number | null, note?: string | null) {
+  return request<{ status: string; action: string; id: number }>({
+    url: '/api/v1/irs/targets',
+    method: 'put',
+    data: { symbol, target_pct: targetPct, note }
+  });
+}
+
+/** 删除一个标的的目标仓位 */
+export function deleteVmTarget(symbol: string) {
+  return request<{ status: string; message: string }>({
+    url: `/api/v1/irs/targets/${symbol}`,
     method: 'delete'
   });
 }
@@ -445,45 +537,6 @@ export function fetchDiscountOptions() {
   });
 }
 
-/** 期权监测合并查询参数 */
-interface OptionMonitorQueryParams {
-  /** 标的代码（精确匹配） */
-  underlying_symbol?: string;
-  /** 期权类型（精确匹配） */
-  option_type?: string;
-  /** 期权代码（模糊匹配） */
-  symbol?: string;
-  /** 到期月(YYYYMM)，按 delisted_date 所在月范围筛选 */
-  end_month?: string;
-  /** 每页条数 */
-  limit?: number;
-  /** 偏移量 */
-  offset?: number;
-}
-
-/** 查询期权监测合并列表 */
-export function fetchOptionMonitors(params?: OptionMonitorQueryParams) {
-  return request<Api.Common.PageResponse<Api.Irs.OptionMonitor>>({
-    url: '/api/v1/irs/option-monitors',
-    method: 'get',
-    params
-  });
-}
-
-/** 期权标的下拉选项（标的代码列表） */
-interface OptionUnderlyingsResponse {
-  /** 标的代码选项列表 */
-  underlying_symbols: Array<{ label: string; value: string }>;
-}
-
-/** 获取期权标地下拉选项（从 Config.OPTIONS_MARCH 取数，无数据库查询） */
-export function fetchOptionUnderlyings() {
-  return request<OptionUnderlyingsResponse>({
-    url: '/api/v1/irs/option-underlyings',
-    method: 'get'
-  });
-}
-
 /** irs 同步目标类型 */
 type IrsSyncTarget = 'discount-symbol' | 'discount-monitor' | 'value-monitor-hlc' | 'value-monitor';
 
@@ -491,32 +544,6 @@ type IrsSyncTarget = 'discount-symbol' | 'discount-monitor' | 'value-monitor-hlc
 export function syncIrs(target: IrsSyncTarget) {
   return request<Api.Irs.SyncResult>({
     url: `/api/v1/irs/sync/${target}`,
-    method: 'post'
-  });
-}
-
-/** 期权行情同步参数 */
-interface OptionMonitorSyncParams {
-  /** 期权品种名称（如"沪深300股指期权"） */
-  option_name: string;
-  /** 到期年月，格式 YYYYMM（如"202608"） */
-  end_month: string;
-}
-
-/** 同步期权行情（akshare 获取期权行情 + gm 获取标的现价） */
-export function syncOptionMonitor(params: OptionMonitorSyncParams) {
-  return request<Api.Irs.SyncResult>({
-    url: '/api/v1/irs/sync/option-monitor',
-    method: 'post',
-    params,
-    timeout: 3 * 60 * 1000 // 3分钟超时，akshare + gm 调用耗时较长
-  });
-}
-
-/** 清理已到期期权数据（删除剩余天数 days_left <= 0 的记录） */
-export function cleanOptionMonitor() {
-  return request<Api.Irs.SyncResult>({
-    url: '/api/v1/irs/clean/option-monitor',
     method: 'post'
   });
 }
