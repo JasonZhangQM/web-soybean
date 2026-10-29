@@ -41,6 +41,8 @@ interface BillQueryParams {
   keyword?: string;
   /** 归属标的（精确，经 bills_group_symbol 关联） */
   vm_symbol?: string;
+  /** 关联剧本（精确匹配笔记的 plan_id） */
+  plan_id?: number;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -309,9 +311,9 @@ export function fetchBillNotes(id: number) {
 }
 
 /**
- * 写一笔成交的笔记（PUT /bills/bills/{id}/note/{kind}）
+ * 整体保存一笔成交的笔记（PUT /bills/bills/{id}/note/{kind}）
  *
- * - content 传空串 = 删除该条（不留空壳）
+ * - 正文与剧本都为空 = 删除该条；只选剧本时正文可为空
  * - content_at 由后端在首次写入时打，前端不可传——否则「当时写的」可以被伪造
  * - 独立端点，不走 PATCH /bills/{id}：那是 36 字段的宽口子，
  *   一旦有人给它加「回写全列」，笔记会被静默冲成 NULL

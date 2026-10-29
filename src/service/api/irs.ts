@@ -122,17 +122,21 @@ export interface ValueMonitorDetail {
   versions: Api.Irs.VmVersion[];
   research: Api.Irs.VmResearch[];
   plans: Api.Irs.VmPlan[];
-  /** 归属到本标的的合约行 */
-  groups: Array<{
-    category: string;
-    symbol: string;
-    count: number | null;
-    pf_total: number | null;
-    bill_rows: number | null;
-  }>;
+  /** 归属到本标的的合约行（首屏给全量，概览表另走分页接口） */
+  groups: VmGroup[];
   trades: VmTrade[];
   logic: Api.Irs.VmLogic[];
   invalidate: Api.Irs.VmInvalidate[];
+}
+
+/** 归属合约行（对应交易代码） */
+export interface VmGroup {
+  id: number;
+  category: string;
+  symbol: string;
+  count: number | null;
+  pf_total: number | null;
+  bill_rows: number | null;
 }
 
 /** 标的页成交行（一行 = 一笔成交，笔记已压成两列） */
@@ -151,6 +155,8 @@ export interface VmTrade {
   vm_symbol: string;
   note_idea: string | null;
   note_idea_at: string | null;
+  /** 该想法关联的剧本 irs_vm_plan.id（未关联为 null） */
+  plan_id: number | null;
 }
 
 /** 复盘（标的层，锚定一版研究 irs_vm_research；review_date 由后端填） */
@@ -174,12 +180,44 @@ export function fetchValueMonitorDetail(id: number) {
   });
 }
 
-/** 查询标的的全部成交（含「想法」笔记；融资融券不在其中） */
-export function fetchValueMonitorTrades(id: number, limit = 500) {
-  return request<{ items: VmTrade[] }>({
+/** 分页查询标的的对应交易代码（id 倒序；分类精确、合约模糊） */
+export function fetchVmGroups(
+  id: number,
+  opts: { page?: number; pageSize?: number; category?: string | null; symbol?: string | null } = {}
+) {
+  return request<{ items: VmGroup[]; total: number; page: number; page_size: number }>({
+    url: `/api/v1/irs/value-monitors/${id}/groups`,
+    method: 'get',
+    params: {
+      page: opts.page ?? 1,
+      page_size: opts.pageSize ?? 10,
+      category: opts.category ?? undefined,
+      symbol: opts.symbol ?? undefined
+    }
+  });
+}
+
+/** 分页查询标的成交（含「想法」笔记与关联剧本；融资融券不在其中） */
+export function fetchValueMonitorTrades(
+  id: number,
+  opts: {
+    page?: number;
+    pageSize?: number;
+    planId?: number | null;
+    account?: string | null;
+    symbol?: string | null;
+  } = {}
+) {
+  return request<{ items: VmTrade[]; total: number; page: number; page_size: number }>({
     url: `/api/v1/irs/value-monitors/${id}/trades`,
     method: 'get',
-    params: { limit }
+    params: {
+      page: opts.page ?? 1,
+      page_size: opts.pageSize ?? 20,
+      plan_id: opts.planId ?? undefined,
+      account: opts.account ?? undefined,
+      symbol: opts.symbol ?? undefined
+    }
   });
 }
 

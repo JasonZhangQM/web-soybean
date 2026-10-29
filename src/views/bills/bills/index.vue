@@ -8,6 +8,7 @@ import {
   updateBill,
   deleteBill,
   fetchValueMonitors,
+  fetchAllPlans,
   type BillUpdateParams
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
@@ -52,6 +53,7 @@ const searchParams = reactive<{
   category?: string | null;
   keyword?: string;
   vm_symbol?: string | null;
+  plan_id?: number | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
@@ -86,6 +88,7 @@ async function fetchData() {
       // 合并搜索框清空返回空串
       keyword: searchParams.keyword || undefined,
       vm_symbol: searchParams.vm_symbol || undefined,
+      plan_id: searchParams.plan_id ?? undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -109,6 +112,7 @@ function handleReset() {
   searchParams.category = null;
   searchParams.keyword = '';
   searchParams.vm_symbol = null;
+  searchParams.plan_id = null;
   clearSymbolOptions();
   pagination.page = 1;
   fetchData();
@@ -148,6 +152,11 @@ const showModal = ref(false);
 // 账单保存是 PATCH 全字段宽口子，笔记是独立端点，两者混在一个弹窗容易被「保存」冲成 NULL
 const showNoteModal = ref(false);
 const noteRow = ref<Api.Bills.Bill | null>(null);
+/** 笔记面板：保存逻辑在面板内，弹窗只负责把「保存」按钮接到它 */
+const notePanelRef = ref<InstanceType<typeof BillNotePanel> | null>(null);
+/** 剧本 id → 简称（前端聚合，bills 不跨模块查 irs 表；未加载到时回退「剧本 #id」） */
+const planLabelMap = ref<Record<number, string>>({});
+const planOptions = ref<{ label: string; value: number }[]>([]);
 const submitLoading = ref(false);
 const deleteLoading = ref(false);
 const formRef = ref();
@@ -395,7 +404,26 @@ function renderAmount(row: Api.Bills.Bill, key: string) {
 }
 
 // ---------------- 归属标的 ----------------
-const RZRQ = '融资融券';
+/**
+ * 可归属判定 —— 与后端 bills/constants.py::is_attachable 同一口径。
+ * 纯粹按 category 判断：只有 TRADE_CATS 三类真交易行才谈得上归属标的。
+ * 不可归属的 6 类（理财/融资融券/收益费用/出入金/-/cash）统一显示「—」，
+ * 不是「未归属」——「未归属」= 应该有但还没选；「—」= 压根不参与归属。
+ */
+const TRADE_CATS = ['证券交易', '期货交易', '期权交易'];
+
+const NON_ATTACHABLE_HINTS: Record<string, string> = {
+  理财: '理财类（国债逆回购/OTC/TTB 等），不是证券交易',
+  融资融券: '融资融券：融资行为本身，不归属任何标的',
+  收益费用: '收益费用流水：利息/手续费，不归属任何标的',
+  出入金: '出入金流水：资金进出，不归属任何标的',
+  '-': '无代码操作（配股权证/申购配号等），不参与归属',
+  cash: '现金行：资金头寸，不归属任何标的'
+};
+
+function isAttachable(category: string | undefined | null) {
+  return category != null && TRADE_CATS.includes(category);
+}
 
 /** 跳标的档案页并自动开抽屉（该页读 ?vm=SYMBOL） */
 function gotoValueMonitor(symbol: string) {
@@ -403,11 +431,12 @@ function gotoValueMonitor(symbol: string) {
 }
 
 function renderVmSymbol(row: Api.Bills.Bill) {
-  // 融资融券：融资行为本身，不归属任何标的——显示「—」而不是「未归属」，两者不是一回事
-  if (row.category === RZRQ) {
+  // 不可归属类别：显示「—」，附 tooltip 说明原因
+  if (!isAttachable(row.category)) {
+    const hint = NON_ATTACHABLE_HINTS[row.category ?? ''] ?? '非交易类别，不参与标的归属';
     return h(NTooltip, null, {
       trigger: () => h('span', { class: 'text-gray-400', style: 'cursor: help' }, '—'),
-      default: () => '融资融券：融资行为本身，不归属任何标的'
+      default: () => hint
     });
   }
   if (!row.vm_symbol) {
@@ -441,6 +470,12 @@ function openNote(row: Api.Bills.Bill) {
   showNoteModal.value = true;
 }
 
+/** 弹窗内「保存」：想法与剧本一次性提交，成功即关闭 */
+async function handleNoteSave() {
+  const ok = await notePanelRef.value?.save();
+  if (ok) showNoteModal.value = false;
+}
+
 function renderIdea(row: Api.Bills.Bill) {
   const txt = row.note_idea;
   if (!txt) {
@@ -451,30 +486,69 @@ function renderIdea(row: Api.Bills.Bill) {
     );
   }
   const flat = txt.replace(/\s*\n\s*/g, ' ').trim();
-  const short = flat.length > 30 ? `${flat.slice(0, 30)}…` : flat;
   const late = lateDaysAt(row.note_idea_at, row.trade_time);
+  // 单元格只放一行，超出用 CSS 省略号；完整正文 + 落笔时间放 tooltip
   return h(
     NTooltip,
-    { trigger: 'hover', placement: 'bottom-start', style: 'max-width: 480px' },
+    { trigger: 'hover', placement: 'bottom-start', style: 'max-width: 460px' },
     {
       trigger: () =>
-        h('div', { class: 'cursor-pointer whitespace-nowrap overflow-hidden', onClick: () => openNote(row) }, [
-          h('span', { class: 'text-12px' }, short),
-          late !== null
-            ? h(
-                NTag,
-                {
-                  size: 'tiny',
-                  type: late >= 7 ? 'warning' : 'default',
-                  bordered: false,
-                  style: 'margin-left: 4px'
-                },
-                { default: () => `+${late}d` }
-              )
-            : null
-        ]),
-      // 全文一次 tooltip 说清
-      default: () => h('div', { style: 'white-space: pre-wrap' }, txt)
+        h(
+          'div',
+          {
+            class: 'flex cursor-pointer items-center gap-4px overflow-hidden whitespace-nowrap',
+            onClick: () => openNote(row)
+          },
+          [
+            h('span', { class: 'min-w-0 flex-1 overflow-hidden text-ellipsis text-12px' }, flat),
+            late !== null
+              ? h(
+                  NTag,
+                  {
+                    size: 'tiny',
+                    type: late >= 7 ? 'warning' : 'default',
+                    bordered: false,
+                    class: 'shrink-0'
+                  },
+                  { default: () => `+${late}d` }
+                )
+              : null
+          ]
+        ),
+      default: () =>
+        h('div', { style: 'white-space: pre-wrap' }, [
+          flat,
+          row.note_idea_at ? `\n落笔 ${row.note_idea_at.replace('T', ' ').slice(0, 16)}` : ''
+        ])
+    }
+  );
+}
+
+/** 剧本列：显示关联剧本的「代码 买卖开平」，悬停出完整标题；点击同样进入「记一笔」 */
+function renderPlan(row: Api.Bills.Bill) {
+  if (row.plan_id == null) {
+    return h(
+      NButton,
+      { text: true, size: 'tiny', class: 'opacity-60', onClick: () => openNote(row) },
+      { default: () => '未关联' }
+    );
+  }
+  const full = planLabelMap.value[row.plan_id];
+  const short = full ?? `剧本 #${row.plan_id}`;
+  return h(
+    NTooltip,
+    { trigger: 'hover', placement: 'bottom-start', style: 'max-width: 460px' },
+    {
+      trigger: () =>
+        h(
+          'div',
+          {
+            class: 'cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis text-12px',
+            onClick: () => openNote(row)
+          },
+          short
+        ),
+      default: () => h('div', { style: 'white-space: pre-wrap' }, `剧本 #${row.plan_id}\n${full ?? '（剧本已不存在）'}`)
     }
   );
 }
@@ -503,9 +577,10 @@ const columns = [
     render: (row: Api.Bills.Bill) => h('span', { style: 'user-select: text' }, row.symbol)
   },
   { title: '名称', key: 'name', width: 185 },
-  // 归属标的与想法放在左侧：这两列才是本页的「想法载体」，右侧留给行情数字
+  // 归属标的、剧本、想法放在左侧：这几列才是本页的「决策载体」，右侧留给行情数字
   { title: '归属标的', key: 'vm_symbol', width: 130, render: (row: Api.Bills.Bill) => renderVmSymbol(row) },
-  { title: '想法', key: 'note_idea', width: 260, render: (row: Api.Bills.Bill) => renderIdea(row) },
+  { title: '剧本', key: 'plan_id', width: 130, render: (row: Api.Bills.Bill) => renderPlan(row) },
+  { title: '想法', key: 'note_idea', width: 180, render: (row: Api.Bills.Bill) => renderIdea(row) },
   { title: '总分类', key: 'category', width: 90 },
   { title: '一级分类', key: 'category1', width: 90 },
   { title: '买/卖', key: 'b_s', width: 70 },
@@ -524,12 +599,27 @@ const columns = [
   { title: '账户', key: 'account', width: 70 }
 ];
 
-// 横向滚动宽度 = 各列宽之和（现 1910）：scroll-x 必须 ≥ 该值，小于它会反向压缩列宽、把内容挤成两行
+// 横向滚动宽度 = 各列宽之和：scroll-x 必须 ≥ 该值，小于它会反向压缩列宽、把内容挤成两行
 const scrollX = columns.reduce((sum, col) => sum + (col.width as number), 0);
+
+/** 拉取剧本简称用于列表展示；失败不影响页面，只是回退成「剧本 #id」 */
+async function loadPlanLabels() {
+  const { data, error } = await fetchAllPlans();
+  if (error || !data) return;
+  const map: Record<number, string> = {};
+  const opts: { label: string; value: number }[] = [];
+  for (const p of data) {
+    map[p.id] = `${p.trade_symbol} ${p.b_s}${p.o_c || ''}`;
+    opts.push({ label: map[p.id], value: p.id });
+  }
+  planLabelMap.value = map;
+  planOptions.value = opts;
+}
 
 onMounted(() => {
   fetchData();
   loadVmOptions();
+  loadPlanLabels();
   // 确保类别/账户列表已加载（全局 store 会自动去重）
   billsStore.loadCategories();
   billsStore.loadAccounts();
@@ -571,6 +661,17 @@ onMounted(() => {
             @update:value="handleSearch"
           />
         </NFormItem>
+        <NFormItem label="剧本">
+          <NSelect
+            v-model:value="searchParams.plan_id"
+            :options="planOptions"
+            clearable
+            filterable
+            placeholder="全部"
+            style="width: 170px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
         <NFormItem label="代码/名称">
           <NAutoComplete
             v-model:value="searchParams.keyword"
@@ -602,6 +703,7 @@ onMounted(() => {
         remote
         :pagination="pagination"
         :scroll-x="scrollX"
+        table-layout="fixed"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />
@@ -758,14 +860,15 @@ onMounted(() => {
         <span v-if="noteRow.vm_symbol">· 归属 {{ noteRow.vm_symbol }}</span>
       </div>
       <BillNotePanel
+        ref="notePanelRef"
         :key="`note-${noteRow?.id ?? 0}`"
         :bill-id="noteRow?.id ?? null"
         :trade-time="noteRow?.trade_time ?? null"
-        :vm-symbol="noteRow?.vm_symbol ?? null"
       />
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showNoteModal = false">关闭</NButton>
+          <NButton type="primary" @click="handleNoteSave">保存</NButton>
         </NSpace>
       </template>
     </NModal>
@@ -775,13 +878,17 @@ onMounted(() => {
 <style scoped>
 /*
  * 单元格一律不折行：列宽已按实测最长内容放宽，超出容器的部分由表格横向滚动接管
- * （scroll-x = 列宽之和 1910）。
+ * （scroll-x = 列宽之和）。
+ *
+ * 为什么必须 table-layout="fixed"：Naive 默认 table-layout 是 auto，列的 width 只是
+ * 「建议值」，内容一长就会把列撑开——表现为「剧本/想法列设了 180 却没变窄」。
+ * 固定布局后 width 才是硬约束，超出部分由单元格内的 overflow-hidden 裁掉。
  *
  * 为什么必须用 :deep()：NDataTable 的 th/td 由子组件渲染，scoped 属性加不到它们身上，
  * 直接写 .n-data-table-td 无效且不报错，表现为「改了没反应」。
  *
- * 为什么不用 ellipsis 一刀切：「想法」列本身已 whitespace-nowrap + 截断 + tooltip，
- * 其余列都是短字段（最长 19 字符），放宽 width 就能完整显示，加 ellipsis 反而看不到全文。
+ * 为什么不用列级 ellipsis：它会附带列内文本省略样式，但本列已自行截断 + tooltip；
+ * 其余短字段靠固定宽度即可完整显示。
  */
 :deep(.n-data-table-th),
 :deep(.n-data-table-td) {

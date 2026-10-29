@@ -252,26 +252,33 @@ function renderPrice(row: Api.Bills.GroupSymbol) {
 /**
  * 可归属判定 —— 与后端 `app/bills/constants.py::is_attachable` 同一口径。
  *
- * 资金流水行（RZRQ 融资融券 / CRJ 出入金 / SYFY 收益费用 / cash 现金）以及理财逆回购，
- * symbol 只是流水占位代码而非证券。给它们挂标的既不会产生「该标的的成交」，
- * 还会让「未归属」计数永远挂着选不完的行。所以这类行统一显示 `—` 且禁用下拉。
+ * 纯粹按交易类别（category）判断。只有三类真交易行才谈得上
+ * 「这笔交易围绕哪个标的」：证券交易、期货交易、期权交易。
+ *
+ * 不可归属的类别共 6 类：理财、融资融券、收益费用、出入金、'-'、cash。
+ * 之前版本用 category + symbol 双重判断，但实际数据中这些不可归属类别的
+ * symbol 不会出现在交易类别里，symbol 检查是冗余的。
  *
  * ⚠️ 改动这里必须同步后端 constants.py，否则前端能选、后端 400，表现为「选了弹回」。
  */
 const TRADE_CATS = ['证券交易', '期货交易', '期权交易'];
-const VIRTUAL_SYMBOLS = ['RZRQ', 'SYFY', 'CRJ', 'cash'];
 
 function isAttachable(row: Api.Bills.GroupSymbol) {
-  return TRADE_CATS.includes(row.category) && !VIRTUAL_SYMBOLS.includes(row.symbol);
+  return TRADE_CATS.includes(row.category);
 }
 
-// 不可归属行的说明文案（按分类给具体原因，比统一一句「不参与归属」有用）
+// 不可归属行的说明文案（按 category 给具体原因，比统一一句「不参与归属」有用）
+const NON_ATTACHABLE_HINTS: Record<string, string> = {
+  理财: '理财类（国债逆回购/OTC/TTB 等），不是证券交易',
+  融资融券: '融资融券：融资行为本身，不归属任何标的',
+  收益费用: '收益费用流水：利息/手续费，不归属任何标的',
+  出入金: '出入金流水：资金进出，不归属任何标的',
+  '-': '无代码操作（配股权证/申购配号等），不参与归属',
+  cash: '现金行：资金头寸，不归属任何标的'
+};
+
 function nonAttachableHint(row: Api.Bills.GroupSymbol) {
-  if (row.symbol === 'RZRQ') return '融资融券：融资行为本身，不归属任何标的';
-  if (row.symbol === 'CRJ') return '出入金流水：资金进出，不归属任何标的';
-  if (row.symbol === 'SYFY') return '收益费用流水：利息/手续费，不归属任何标的';
-  if (row.symbol === 'cash') return '现金行：资金头寸，不归属任何标的';
-  return `${row.category}：资金流水/理财，不是证券交易，不参与标的归属`;
+  return NON_ATTACHABLE_HINTS[row.category] ?? `${row.category}：非交易类别，不参与标的归属`;
 }
 
 const vmSaving = ref<number | null>(null);

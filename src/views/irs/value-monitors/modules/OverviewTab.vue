@@ -6,10 +6,10 @@
  * 决策卡 8 项的数据源是**最新一条 `irs_vm_research`**，不是主表的 13 列
  * ——主表只留五档，叙述归研究版本。
  */
-import { computed, h } from 'vue';
+import { computed, h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag } from 'naive-ui';
-import type { ValueMonitorDetail } from '@/service/api';
+import { fetchVmGroups, type VmGroup, type ValueMonitorDetail } from '@/service/api';
 import VmDataTable from './VmDataTable.vue';
 import { STATUS_TYPE, triggerText } from './planFormat';
 
@@ -42,8 +42,63 @@ const planCount = computed(() => {
   return { active, paused };
 });
 
-/** 归属合约的成交合计 */
-const tradeTotal = computed(() => props.detail.trades.length);
+// ---- 对应交易代码：服务端分页（10 条/页，id 倒序）+ 分类精确 / 合约模糊 ----
+const groups = ref<VmGroup[]>(props.detail.groups);
+const groupTotal = ref(props.detail.groups.length);
+const groupPage = ref(1);
+const groupPageSize = ref(10);
+const categoryFilter = ref<string | null>(null);
+const symbolFilter = ref('');
+const categoryOptions = computed(() => {
+  const set = new Set(props.detail.groups.map(g => g.category));
+  return [...set].sort().map(c => ({ label: c, value: c }));
+});
+const hasGroupFilter = computed(() => categoryFilter.value != null || !!symbolFilter.value.trim());
+
+async function loadGroups(targetPage = groupPage.value) {
+  const { data, error } = await fetchVmGroups(props.detail.vm.id, {
+    page: targetPage,
+    pageSize: groupPageSize.value,
+    category: categoryFilter.value,
+    symbol: symbolFilter.value.trim()
+  });
+  if (error || !data) return;
+  if (!data.items.length && targetPage > 1) {
+    await loadGroups(1);
+    return;
+  }
+  groups.value = data.items;
+  groupTotal.value = data.total;
+}
+
+function searchGroupsFromFirst() {
+  groupPage.value = 1;
+  loadGroups(1);
+}
+
+function handleGroupPageChange(p: number) {
+  groupPage.value = p;
+  loadGroups(p);
+}
+
+function handleGroupPageSizeChange(size: number) {
+  groupPageSize.value = size;
+  groupPage.value = 1;
+  loadGroups(1);
+}
+
+/** 合约是输入框：回车 / 清空才触发，避免每敲一个字就打一次接口 */
+function handleSymbolInput(value: string) {
+  if (!value) searchGroupsFromFirst();
+}
+
+function resetGroupFilters() {
+  categoryFilter.value = null;
+  symbolFilter.value = '';
+  searchGroupsFromFirst();
+}
+
+onMounted(() => loadGroups(1));
 
 /**
  * 逻辑 / 证伪摘要（方案 A 第 1 条：概览要能看出"档案更没更新"）。
@@ -72,8 +127,8 @@ function fmtNum(v: number | null | undefined) {
 }
 
 function gotoGroupSymbols() {
-  // 合约页读 ?symbol= 精确筛该合约（映射的编辑入口在合约页，不在标的页）
-  router.push({ name: 'bills_group-symbols', query: { symbol: props.detail.vm.symbol } });
+  // 纯跳转：不带 query，合约页保持它自己的默认筛选
+  router.push({ name: 'bills_group-symbols' });
 }
 
 /**
@@ -119,8 +174,7 @@ const groupColumns = [
     key: 'pf_total',
     width: 120,
     align: 'right' as const,
-    render: (row: ValueMonitorDetail['groups'][number]) =>
-      row.pf_total != null ? Number(row.pf_total).toFixed(2) : '-'
+    render: (row: VmGroup) => (row.pf_total != null ? Number(row.pf_total).toFixed(2) : '-')
   }
 ];
 </script>
@@ -187,6 +241,8 @@ const groupColumns = [
       这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究」Tab 按日期新建一版。
     </NAlert>
 
+    <NDivider />
+
     <!--
       逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
       纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
@@ -213,6 +269,8 @@ const groupColumns = [
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
     </div>
 
+    <NDivider />
+
     <!-- 档位摘要 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">当前档位</span>
@@ -233,6 +291,8 @@ const groupColumns = [
       <NDescriptionsItem label="极高">{{ fmtNum(currentVersion.pp_eh) }}</NDescriptionsItem>
     </NDescriptions>
 
+    <NDivider />
+
     <!-- 剧本计数 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">剧本</span>
@@ -250,17 +310,55 @@ const groupColumns = [
       class="mb-8px"
     />
 
+    <NDivider />
+
     <!-- 对应交易代码（只读）：映射的编辑入口在合约页，这里只展示 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">对应交易代码</span>
-      <span class="text-12px text-gray-400">
-        {{ detail.groups.length }} 个合约行 / {{ tradeTotal }} 笔成交（融资融券不计）
-      </span>
+      <NSelect
+        v-model:value="categoryFilter"
+        :options="categoryOptions"
+        clearable
+        size="small"
+        placeholder="按分类筛选"
+        style="width: 150px"
+        @update:value="searchGroupsFromFirst"
+      />
+      <NInput
+        v-model:value="symbolFilter"
+        clearable
+        size="small"
+        placeholder="合约代码模糊筛选，回车"
+        style="width: 200px"
+        @update:value="handleSymbolInput"
+        @keyup.enter="searchGroupsFromFirst"
+      />
+      <NButton size="small" @click="searchGroupsFromFirst">搜索</NButton>
+      <NButton size="small" @click="resetGroupFilters">重置</NButton>
+      <span class="text-12px text-gray-400">共 {{ groupTotal }} 个合约行（融资融券不计）</span>
       <NButton size="tiny" text class="ml-auto" @click="gotoGroupSymbols">去合约页维护归属</NButton>
     </div>
-    <VmDataTable :columns="groupColumns" :data="detail.groups" :page-size="10" />
-    <div v-if="!detail.groups.length" class="mt-8px text-12px text-gray-400">
-      还没有任何合约行归属到这个标的——到
+    <VmDataTable :columns="groupColumns" :data="groups" :page-size="0" />
+    <div class="mt-8px flex justify-end">
+      <NPagination
+        :page="groupPage"
+        :page-size="groupPageSize"
+        :item-count="groupTotal"
+        :page-sizes="[10, 20, 50, 100]"
+        :prefix="() => `共 ${groupTotal} 个合约行`"
+        show-size-picker
+        @update:page="handleGroupPageChange"
+        @update:page-size="handleGroupPageSizeChange"
+      />
+    </div>
+    <NEmpty
+      v-if="!groups.length"
+      size="small"
+      :description="hasGroupFilter ? '没有符合筛选条件的合约行' : '还没有任何合约行归属到这个标的'"
+      class="my-8px"
+    />
+    <div v-if="!groups.length && !hasGroupFilter" class="mt-8px text-12px text-gray-400">
+      到
       <NButton text size="tiny" @click="gotoGroupSymbols">合约页</NButton>
       把对应合约行的「归属标的」选上。
     </div>

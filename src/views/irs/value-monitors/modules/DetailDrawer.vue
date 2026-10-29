@@ -111,7 +111,8 @@ function goTab(name: string) {
     宽度用百分比：档位/计划/成交三个表加起来最宽 1210px，固定 1080 会把列挤到换行；
     66% 在 1920 屏上约 1267px，宽屏刚好不滚、窄屏走横向滚动。
   -->
-  <NDrawer v-model:show="visible" width="66%" placement="right" :mask-closable="true">
+  <!-- 只能点右上角关闭按钮退出：ESC 与点遮罩都不关闭（抽屉内有表单，误退会丢输入） -->
+  <NDrawer v-model:show="visible" width="66%" placement="right" :mask-closable="false" :close-on-esc="false">
     <NDrawerContent :title="title" closable :native-scrollbar="false">
       <template #header>
         <div class="flex flex-wrap items-center gap-8px">

@@ -10,7 +10,8 @@
  *    笔记会被静默冲成 NULL。
  * 2. **`content_at` 只读**：后端在首次写入时打，前端不可传。否则「当时写的」可以被
  *    伪造，反自欺就失效了。这里也据此算出「晚 N 天补写」并标黄。
- * 3. **空串 = 删除**：清空后保存会把这条笔记删掉，不留空壳。
+ * 3. **整体保存**：想法与剧本随弹窗「保存」一次性提交；两项都空 = 删除笔记，
+ *    只选剧本时正文可为空。
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { NAlert } from 'naive-ui';
@@ -18,17 +19,33 @@ import { fetchBillNotes, saveBillNote, fetchAllPlans } from '@/service/api';
 
 defineOptions({ name: 'BillNotePanel' });
 
+/** 剧本下拉的数据形态：账单页自己拉全量，标的页直接传该标的已有的剧本 */
+type PlanLite = {
+  id: number;
+  vm_symbol: string;
+  trade_symbol: string;
+  b_s: string;
+  o_c?: string | null;
+  is_cancelled?: boolean;
+  reason?: string | null;
+  trigger_op?: string | null;
+};
+
 const props = defineProps<{
   /** 成交 ID；null = 弹窗还没选中行 */
   billId: number | null;
   /** 成交时间（yyyy-MM-dd HH:mm:ss），用于判断笔记是不是事后补写 */
   tradeTime?: string | null;
-  /** 归属标的（显示在标题里，让「这笔在赌什么」一眼可见） */
-  vmSymbol?: string | null;
+  /**
+   * 可关联的剧本。传入时只用这份（标的页只允许选本标的的剧本）；
+   * 不传则回落到全量剧本列表（账单页跨标的记账）。
+   */
+  plans?: PlanLite[];
 }>();
 
 const KIND = '想法' as const;
-const PLACEHOLDER = '下单当时在想什么：赌的是哪个逻辑、为什么是这个价位和这个张数。用当时的原话，不做事后润色。';
+const PLACEHOLDER =
+  '可留空。想写就写下单当时在想什么：赌的是哪个逻辑、为什么是这个价位和这个张数。用当时的原话，不做事后润色。';
 
 const loading = ref(false);
 const saving = ref(false);
@@ -36,26 +53,40 @@ const saving = ref(false);
 const stored = ref<Api.Bills.BillNote | null>(null);
 /** 编辑中的「想法」正文 */
 const draft = ref('');
-/** 是否有未保存的改动（用于提示） */
-const hasDirty = computed(() => draft.value !== (stored.value?.content ?? ''));
 
 /** 全量剧本下拉选项（未暂停） */
 const planOptions = ref<Array<{ label: string; value: number }>>([]);
 /** 选中的剧本 id（null=未关联）；回显自「想法」note 的 plan_id */
 const selectedPlanId = ref<number | null>(null);
 
+/** 是否有未保存的改动：想法与剧本两项都算 */
+const hasDirty = computed(() => {
+  return (
+    draft.value.trim() !== (stored.value?.content ?? '').trim() ||
+    selectedPlanId.value !== (stored.value?.plan_id ?? null)
+  );
+});
+
+/** 下拉选项：传入 plans 时只映射这份，保证不跨标的 */
+function buildOptions(list: PlanLite[]) {
+  planOptions.value = list
+    .filter(p => !p.is_cancelled)
+    .map(p => ({
+      value: p.id,
+      label: `${p.vm_symbol} ${p.trade_symbol} ${p.b_s}${p.o_c || ''} — ${(p.reason || p.trigger_op || '').slice(0, 14)}`
+    }));
+}
+
 async function loadPlans() {
-  const { data, error } = await fetchAllPlans();
-  if (!error && data) {
-    planOptions.value = data
-      .filter(p => !p.is_cancelled)
-      .map(p => ({
-        value: p.id,
-        label: `${p.vm_symbol} ${p.trade_symbol} ${p.b_s}${p.o_c || ''} — ${(p.reason || p.trigger_op).slice(0, 14)}`
-      }));
+  if (props.plans) {
+    buildOptions(props.plans);
+    return;
   }
+  const { data, error } = await fetchAllPlans();
+  if (!error && data) buildOptions(data);
 }
 onMounted(loadPlans);
+watch(() => props.plans, loadPlans);
 
 async function load() {
   if (props.billId == null) {
@@ -98,43 +129,30 @@ const lateDays = computed<number | null>(() => {
   return days >= 1 ? days : null;
 });
 
-async function handleSave() {
-  if (props.billId == null) return;
+/**
+ * 整体保存「想法 + 剧本关联」，由外层弹窗的「保存」按钮调用。
+ * 返回是否保存成功，外层据此决定是否关闭弹窗。
+ *
+ * 两项都为空时后端会删除该条笔记；只选剧本时允许正文为空。
+ */
+async function save(): Promise<boolean> {
+  if (props.billId == null) return false;
   saving.value = true;
   try {
-    // 空串即删除（后端语义），不要在前端「改成不传」——那是两回事
     const { data, error } = await saveBillNote(props.billId, KIND, draft.value, selectedPlanId.value);
-    if (!error) {
-      window.$message?.success(data?.action === 'deleted' ? '已删除想法' : '想法已保存');
-      await load();
-    }
+    if (error) return false;
+    window.$message?.success(data?.action === 'deleted' ? '已清空该笔笔记' : '已保存');
+    return true;
   } finally {
     saving.value = false;
   }
 }
 
-/** 切换剧本关联：已有「想法」文本时即时落库，否则等写想法时随「保存想法」一并提交 */
-async function handlePlanChange(value: number | null) {
-  selectedPlanId.value = value;
-  if (!draft.value) return;
-  if (value === (stored.value?.plan_id ?? null)) return;
-  saving.value = true;
-  try {
-    const { error } = await saveBillNote(props.billId as number, KIND, draft.value, value);
-    if (!error) await load();
-  } finally {
-    saving.value = false;
-  }
-}
+defineExpose({ save });
 </script>
 
 <template>
   <div>
-    <div v-if="vmSymbol" class="mb-8px text-12px text-gray-500">
-      归属标的：
-      <span class="text-primary">{{ vmSymbol }}</span>
-    </div>
-    <div class="mb-8px text-12px text-gray-400">复盘已移到标的层（标的档案 → 复盘），这里只记成交当时的想法</div>
     <div class="mb-12px flex items-center gap-8px">
       <span class="shrink-0 text-12px text-gray-500">执行剧本</span>
       <NSelect
@@ -144,28 +162,18 @@ async function handlePlanChange(value: number | null) {
         filterable
         size="small"
         class="flex-1"
-        @update:value="handlePlanChange"
+        @update:value="selectedPlanId = $event"
       />
     </div>
     <NSpin :show="loading">
       <div class="mb-12px">
         <div class="mb-4px flex flex-wrap items-center gap-8px">
           <span class="font-500">想法</span>
+          <span class="text-12px text-gray-400">可留空</span>
           <span v-if="atText" class="text-12px text-gray-400">落笔 {{ atText }}</span>
           <NTag v-if="lateDays !== null" size="tiny" :type="lateDays >= 7 ? 'warning' : 'default'" :bordered="false">
             晚 {{ lateDays }} 天补写
           </NTag>
-          <NButton
-            size="tiny"
-            type="primary"
-            ghost
-            class="ml-auto"
-            :loading="saving"
-            :disabled="!hasDirty"
-            @click="handleSave"
-          >
-            保存想法
-          </NButton>
         </div>
         <NInput
           v-model:value="draft"
@@ -175,7 +183,7 @@ async function handlePlanChange(value: number | null) {
         />
       </div>
       <NAlert v-if="hasDirty" type="warning" :bordered="false" :show-icon="false">
-        有未保存的笔记改动：笔记不随「保存」按钮一起提交，请点上面的「保存想法」。
+        有未保存的改动：想法与剧本不会自动提交，请点下方「保存」。
       </NAlert>
     </NSpin>
   </div>

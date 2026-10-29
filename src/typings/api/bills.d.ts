@@ -147,6 +147,8 @@ declare namespace Api {
       note_idea: string | null;
       /** 「想法」落笔时间（晚于 trade_time = 事后补写） */
       note_idea_at: string | null;
+      /** 该笔记执行的剧本 irs_vm_plan.id（裸 ID，无外键；未关联为 null） */
+      plan_id: number | null;
       /** 主键 */
       id: number;
       /** 创建时间 */

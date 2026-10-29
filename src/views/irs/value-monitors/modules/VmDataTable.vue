@@ -103,6 +103,7 @@ const scrollX = computed(() => {
     :pagination="effPageSize > 0 ? pagination : false"
     :bordered="false"
     :scroll-x="scrollX"
+    table-layout="fixed"
     class="vm-data-table"
   />
 </template>

@@ -9,9 +9,11 @@
  * 2. **状态是派生的**：暂停 / 生效，不要在前端另算一套。
  * 3. 成交行的「想法」来自 `bills_bill_note`，一行 = 一笔成交（后端已压掉 1:N）。
  */
-import { ref, reactive, computed, h, watch } from 'vue';
-import { NButton, NTag } from 'naive-ui';
-import { saveVmPlan, deleteVmPlan, type VmTrade } from '@/service/api';
+import { ref, reactive, computed, h, watch, onMounted } from 'vue';
+import { NButton, NTag, NTooltip } from 'naive-ui';
+import { saveVmPlan, deleteVmPlan, fetchValueMonitorTrades, type VmTrade } from '@/service/api';
+import BillNotePanel from '@/views/bills/bills/modules/BillNotePanel.vue';
+import { useBillsStore } from '@/store/modules/bills';
 import VmDataTable from './VmDataTable.vue';
 import { REF_LABEL, STATUS_TYPE, triggerText } from './planFormat';
 
@@ -266,15 +268,179 @@ const tradeColumns = [
   },
   { title: '数量', key: 'vol', width: 80, align: 'right' as const },
   {
+    title: '剧本',
+    key: 'plan_id',
+    width: 130,
+    render: (t: VmTrade) => renderPlan(t)
+  },
+  {
     title: '想法',
     key: 'note_idea',
-    // 同「触发条件」：width 而非 minWidth，scroll-x 需要精确列宽和
-    width: 260,
-    ellipsis: { tooltip: true },
-    render: (t: VmTrade) => (t.note_idea ? t.note_idea.replace(/\s*\n\s*/g, ' ') : '-')
+    width: 180,
+    render: (t: VmTrade) => renderIdea(t)
   },
   { title: '账户', key: 'account', width: 60 }
 ];
+
+/** 剧本 id → 简称（与 /bills/bills 一致：代码 + 买卖开平） */
+const planLabelMap = computed(() => {
+  const m = new Map<number, string>();
+  for (const p of props.plans) m.set(p.id, `${p.trade_symbol} ${p.b_s}${p.o_c || ''}`);
+  return m;
+});
+
+/** 剧本列：点击进入「记一笔」，可改关联剧本；未关联时也提供入口 */
+function renderPlan(t: VmTrade) {
+  if (t.plan_id == null) {
+    return h(
+      NButton,
+      { text: true, size: 'tiny', class: 'opacity-60', onClick: () => openNote(t) },
+      { default: () => '未关联' }
+    );
+  }
+  const full = planLabelMap.value.get(t.plan_id) ?? `剧本 #${t.plan_id}`;
+  return h(
+    NTooltip,
+    { trigger: 'hover', placement: 'bottom-start', style: 'max-width: 460px' },
+    {
+      trigger: () =>
+        h(
+          'div',
+          {
+            class: 'cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis text-12px',
+            onClick: () => openNote(t)
+          },
+          full
+        ),
+      default: () => h('div', { style: 'white-space: pre-wrap' }, `剧本 #${t.plan_id}\n${full}`)
+    }
+  );
+}
+
+/** 想法列：单行省略 + 悬停全文；点击进入「记一笔」 */
+function renderIdea(t: VmTrade) {
+  if (!t.note_idea) {
+    return h(
+      NButton,
+      { text: true, size: 'tiny', class: 'opacity-60', onClick: () => openNote(t) },
+      { default: () => '写想法' }
+    );
+  }
+  const flat = t.note_idea.replace(/\s*\n\s*/g, ' ').trim();
+  return h(
+    NTooltip,
+    { trigger: 'hover', placement: 'bottom-start', style: 'max-width: 460px' },
+    {
+      trigger: () =>
+        h(
+          'div',
+          {
+            class: 'cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis text-12px',
+            onClick: () => openNote(t)
+          },
+          flat
+        ),
+      default: () =>
+        h('div', { style: 'white-space: pre-wrap' }, [
+          flat,
+          t.note_idea_at ? `\n落笔 ${t.note_idea_at.replace('T', ' ').slice(0, 16)}` : ''
+        ])
+    }
+  );
+}
+
+// ---- 成交分页 + 剧本 / 账户 / 合约筛选（全部服务端，避免只在前 50 笔里筛） ----
+const billsStore = useBillsStore();
+const planFilter = ref<number | null>(null);
+const accountFilter = ref<string | null>(null);
+const symbolFilter = ref('');
+const trades = ref<VmTrade[]>(props.trades);
+const tradeTotal = ref<number | null>(null);
+const page = ref(1);
+/** 归属成交默认 10 条/页（与概览合约行、剧本表、列表页默认页大小一致） */
+const pageSize = ref(10);
+const planFilterOptions = computed(() => props.plans.map(p => ({ label: `#${p.id} ${p.trade_symbol}`, value: p.id })));
+const accountOptions = computed(() => billsStore.getAccountOptions());
+const hasFilter = computed(() => planFilter.value != null || !!accountFilter.value || !!symbolFilter.value.trim());
+
+/** 拉取指定页；页码越界（如删了数据）时回退到第 1 页 */
+async function loadTrades(targetPage = page.value) {
+  const { data, error } = await fetchValueMonitorTrades(props.vmId, {
+    page: targetPage,
+    pageSize: pageSize.value,
+    planId: planFilter.value,
+    account: accountFilter.value,
+    symbol: symbolFilter.value.trim()
+  });
+  if (error || !data) return;
+  if (!data.items.length && targetPage > 1) {
+    // 当前页已空（筛选条件变化或数据被删），回第 1 页
+    await loadTrades(1);
+    return;
+  }
+  trades.value = data.items;
+  tradeTotal.value = data.total;
+}
+
+function handlePageChange(p: number) {
+  page.value = p;
+  loadTrades(p);
+}
+
+function handlePageSizeChange(size: number) {
+  pageSize.value = size;
+  page.value = 1;
+  loadTrades(1);
+}
+
+/** 条件变化一律从第 1 页重查 */
+function searchFromFirst() {
+  page.value = 1;
+  loadTrades(1);
+}
+
+watch([planFilter, accountFilter], searchFromFirst);
+// 合约是输入框：回车 / 清空才触发，避免每敲一个字就打一次接口
+function handleSymbolFilterInput(value: string) {
+  if (!value) searchFromFirst();
+}
+
+function resetFilters() {
+  planFilter.value = null;
+  accountFilter.value = null;
+  symbolFilter.value = '';
+  searchFromFirst();
+}
+// 抽屉刷新（如新关联剧本）后，按当前筛选与页码重拉
+watch(
+  () => props.trades,
+  () => loadTrades(page.value)
+);
+
+onMounted(() => {
+  // 账户选项复用账单 store 的全局缓存（首次拉取后不再重复请求）
+  billsStore.loadAccounts();
+  loadTrades(1);
+});
+
+// ---- 记一笔弹窗（与账单页同一个面板：想法 + 剧本整体保存） ----
+const showNoteModal = ref(false);
+const noteTrade = ref<VmTrade | null>(null);
+const notePanelRef = ref<InstanceType<typeof BillNotePanel> | null>(null);
+
+function openNote(t: VmTrade) {
+  noteTrade.value = t;
+  showNoteModal.value = true;
+}
+
+async function handleNoteSave() {
+  const ok = await notePanelRef.value?.save();
+  if (ok) {
+    showNoteModal.value = false;
+    await loadTrades(page.value);
+    emit('refresh');
+  }
+}
 
 // 编辑已有剧本时，「有效触发价」跟着档位变化：这里只提示，不重算
 watch(
@@ -291,7 +457,7 @@ watch(
 <template>
   <div>
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">剧本（{{ plans.length }}）</span>
+      <span class="font-500">剧本({{ plans.length }})</span>
       <span class="text-12px text-gray-400">
         长期有效的档位动作，可反复执行；触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随
       </span>
@@ -303,11 +469,58 @@ watch(
     <NDivider />
 
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">归属成交（{{ trades.length }} 笔）</span>
-      <span class="text-12px text-gray-400">融资融券不计入；想法在账单明细里写，复盘在「复盘」tab 写，这里只读</span>
+      <span class="font-500">归属成交({{ tradeTotal ?? trades.length }}笔)</span>
+      <NSelect
+        v-model:value="planFilter"
+        :options="planFilterOptions"
+        clearable
+        filterable
+        size="small"
+        placeholder="按剧本筛选"
+        style="width: 190px"
+      />
+      <NSelect
+        v-model:value="accountFilter"
+        :options="accountOptions"
+        clearable
+        size="small"
+        placeholder="按账户筛选"
+        style="width: 130px"
+      />
+      <NInput
+        v-model:value="symbolFilter"
+        clearable
+        size="small"
+        placeholder="合约模糊筛选，回车"
+        style="width: 200px"
+        @update:value="handleSymbolFilterInput"
+        @keyup.enter="searchFromFirst"
+      />
+      <NButton size="small" @click="searchFromFirst">搜索</NButton>
+      <NButton size="small" @click="resetFilters">重置</NButton>
+      <span class="text-12px text-gray-400">
+        融资融券不计入；点「剧本」或「想法」可关联剧本、写想法；复盘在「复盘」tab 写
+      </span>
     </div>
-    <VmDataTable :columns="tradeColumns" :data="trades" :page-size="PAGE_SIZE" />
-    <NEmpty v-if="!trades.length" size="small" description="这个标的还没有归属的成交" class="my-8px" />
+    <VmDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
+    <div class="mt-8px flex justify-end">
+      <NPagination
+        :page="page"
+        :page-size="pageSize"
+        :item-count="tradeTotal ?? trades.length"
+        :page-sizes="[10, 20, 50, 100]"
+        :prefix="() => `共 ${tradeTotal ?? trades.length} 笔`"
+        show-size-picker
+        @update:page="handlePageChange"
+        @update:page-size="handlePageSizeChange"
+      />
+    </div>
+    <NEmpty
+      v-if="!trades.length"
+      size="small"
+      :description="hasFilter ? '没有符合筛选条件的成交' : '这个标的还没有归属的成交'"
+      class="my-8px"
+    />
 
     <NModal v-model:show="showModal" preset="card" title="剧本" class="w-640px" :mask-closable="false">
       <NForm label-placement="left" label-width="90px" :show-feedback="false">
@@ -387,6 +600,33 @@ watch(
         <NSpace justify="end">
           <NButton @click="showModal = false">取消</NButton>
           <NButton :loading="saving" @click="handleSave">保存</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- 记一笔：想法 + 剧本（与账单页同一个面板） -->
+    <NModal
+      v-model:show="showNoteModal"
+      preset="card"
+      title="记一笔：想法与剧本"
+      class="w-640px"
+      :mask-closable="false"
+    >
+      <div v-if="noteTrade" class="mb-8px text-12px text-gray-500">
+        {{ noteTrade.trade_time?.slice(0, 16).replace('T', ' ') }} · {{ noteTrade.name }} ({{ noteTrade.symbol }}) ·
+        {{ noteTrade.b_s }}{{ noteTrade.o_c }}
+      </div>
+      <BillNotePanel
+        ref="notePanelRef"
+        :key="`note-${noteTrade?.id ?? 0}`"
+        :bill-id="noteTrade?.id ?? null"
+        :trade-time="noteTrade?.trade_time ?? null"
+        :plans="plans"
+      />
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showNoteModal = false">关闭</NButton>
+          <NButton type="primary" @click="handleNoteSave">保存</NButton>
         </NSpace>
       </template>
     </NModal>
