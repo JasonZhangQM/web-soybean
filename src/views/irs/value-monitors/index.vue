@@ -573,21 +573,13 @@ const columns = [
     key: 'pp_eh',
     width: 190,
     render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y)
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 75,
-    fixed: 'right' as const,
-    render: (row: Api.Irs.ValueMonitor) =>
-      h(NButton, { text: true, size: 'tiny', onClick: () => handleEdit(row) }, { default: () => '编辑' })
   }
 ];
 
 /**
  * 横向滚动宽度 = 各列 width 之和（铁律 4.11：**列宽一改必须重算**，否则
  * scroll-x 偏小会让浏览器压缩列、内容被迫折行——正是「换行」的根源）。
- * 当前 130+100+220+110+100+100+100+115+100+150+140+140+190×5+75 = 2530。
+ * 当前 130+100+220+110+100+100+100+115+100+150+140+140+190×5 = 2455。
  * 总宽超出容器时由 NDataTable 内部横向滚动接管，页面本身不出现横向滚动条。
  */
 const scrollX = columns.reduce((sum, col) => sum + ((col.width as number) ?? 0), 0);
