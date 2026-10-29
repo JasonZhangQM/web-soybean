@@ -102,10 +102,10 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(2)}%`;
 }
 
-/** 0~1 的分位值（pe_pct / pb_pct），转百分比显示 */
+/** 百分制分位值（pe_pct / pb_pct，后端已返回 0~100），直接补 % */
 function fmtPct100(v: number | null | undefined) {
   if (v == null) return '—';
-  return `${(Number(v) * 100).toFixed(1)}%`;
+  return `${Number(v).toFixed(1)}%`;
 }
 
 /** 漂移标色：±2% 黄、±5% 红（P3-2 超阈标色） */
@@ -219,7 +219,6 @@ function cardClass(it: Api.Irs.TodayItem) {
             <div v-if="it.hit_plans.length" class="mt-4px">
               <div class="mb-4px text-12px text-gray-500">命中剧本</div>
               <div v-for="(p, i) in it.hit_plans" :key="i" class="mb-4px text-12px">
-                <NTag size="tiny" :bordered="false" type="warning">{{ p.kind }}</NTag>
                 {{ p.trade_symbol }} {{ p.b_s }}{{ p.o_c || '' }}
                 <span class="text-gray-400">@ {{ fmtPrice(p.effective_trigger) }}</span>
                 <div v-if="p.reason" class="text-11px text-gray-400">{{ p.reason }}</div>

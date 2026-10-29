@@ -1,5 +1,5 @@
 /**
- * 计划委托的显示口径 —— 「计划与成交」Tab 与「概览」Tab 共用。
+ * 剧本的显示口径 —— 「剧本与成交」Tab 与「概览」Tab 共用。
  *
  * 为什么单独抽出来：触发条件的文案（「随档位『低』现 3.62」）一旦两处各写一套，
  * 迟早有一处改了另一处忘改，同一份数据在两个 Tab 里读出两种意思。
@@ -16,15 +16,10 @@ export const REF_LABEL: Record<string, string> = {
 /** 触发方向符号 */
 export const OP_LABEL: Record<string, string> = { lte: '≤', gte: '≥' };
 
-/** 计划状态 → NTag type。状态是后端派生的（已放弃 > 已执行 > 已过期 > 待执行），前端不另算 */
+/** 剧本状态 → NTag type。状态是后端派生的（生效 / 暂停），前端不另算 */
 export const STATUS_TYPE: Record<string, 'warning' | 'success' | 'default' | 'error'> = {
-  // 剧本（长期有效）只用「生效 / 暂停」；委托才走下面四态
   生效: 'success',
-  暂停: 'default',
-  待执行: 'warning',
-  已执行: 'success',
-  已过期: 'default',
-  已放弃: 'error'
+  暂停: 'default'
 };
 
 /** 去尾零的数值显示（档位值可能是 3.6200 这种） */

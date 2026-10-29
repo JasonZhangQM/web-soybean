@@ -10,9 +10,9 @@
  *    伪造，反自欺就失效了。这里也据此算出「晚 N 天补写」并标黄。
  * 3. **空串 = 删除**：清空后保存会把这条笔记删掉，不留空壳。
  */
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { NAlert } from 'naive-ui';
-import { fetchBillNotes, saveBillNote, type BillNoteKind } from '@/service/api';
+import { fetchBillNotes, saveBillNote, fetchAllPlans, type BillNoteKind } from '@/service/api';
 
 defineOptions({ name: 'BillNotePanel' });
 
@@ -50,11 +50,30 @@ const dirty = ref<Record<string, boolean>>({ 想法: false, 复盘: false });
 
 const hasDirty = computed(() => Object.values(dirty.value).some(Boolean));
 
+/** 全量剧本下拉选项（未暂停） */
+const planOptions = ref<Array<{ label: string; value: number }>>([]);
+/** 选中的剧本 id（null=未关联）；回显自「想法」note 的 plan_id */
+const selectedPlanId = ref<number | null>(null);
+
+async function loadPlans() {
+  const { data, error } = await fetchAllPlans();
+  if (!error && data) {
+    planOptions.value = data
+      .filter(p => !p.is_cancelled)
+      .map(p => ({
+        value: p.id,
+        label: `${p.vm_symbol} ${p.trade_symbol} ${p.b_s}${p.o_c || ''} — ${(p.reason || p.trigger_op).slice(0, 14)}`
+      }));
+  }
+}
+onMounted(loadPlans);
+
 async function load() {
   if (props.billId == null) {
     stored.value = {};
     drafts.value = { 想法: '', 复盘: '' };
     dirty.value = { 想法: false, 复盘: false };
+    selectedPlanId.value = null;
     return;
   }
   loading.value = true;
@@ -67,6 +86,8 @@ async function load() {
     stored.value = map;
     drafts.value = { 想法: map['想法']?.content ?? '', 复盘: map['复盘']?.content ?? '' };
     dirty.value = { 想法: false, 复盘: false };
+    // 剧本关联回显（只读「想法」= 决策笔记的 plan_id）
+    selectedPlanId.value = map['想法']?.plan_id ?? null;
   } finally {
     loading.value = false;
   }
@@ -99,13 +120,30 @@ async function handleSave(kind: BillNoteKind) {
   if (props.billId == null) return;
   savingKind.value = kind;
   try {
+    // 剧本关联只随「想法」落库（决策笔记）；复盘不归因，不传 plan_id
+    const planId = kind === '想法' ? selectedPlanId.value : undefined;
     // 空串即删除（后端语义），不要在前端「改成不传」——那是两回事
-    const { data, error } = await saveBillNote(props.billId, kind, drafts.value[kind] ?? '');
+    const { data, error } = await saveBillNote(props.billId, kind, drafts.value[kind] ?? '', planId);
     if (!error) {
       window.$message?.success(data?.action === 'deleted' ? `已删除${kind}` : `${kind}已保存`);
       dirty.value[kind] = false;
       await load();
     }
+  } finally {
+    savingKind.value = null;
+  }
+}
+
+/** 切换剧本关联：已有「想法」文本时即时落库，否则等写想法时随「保存想法」一并提交 */
+async function handlePlanChange(value: number | null) {
+  selectedPlanId.value = value;
+  const content = drafts.value['想法'];
+  if (!content) return;
+  if (value === (stored.value['想法']?.plan_id ?? null)) return;
+  savingKind.value = '想法';
+  try {
+    const { error } = await saveBillNote(props.billId as number, '想法', content, value);
+    if (!error) await load();
   } finally {
     savingKind.value = null;
   }
@@ -124,6 +162,18 @@ defineExpose({ hasDirty });
     <div v-if="vmSymbol" class="mb-8px text-12px text-gray-500">
       归属标的：
       <span class="text-primary">{{ vmSymbol }}</span>
+    </div>
+    <div class="mb-12px flex items-center gap-8px">
+      <span class="shrink-0 text-12px text-gray-500">执行剧本</span>
+      <NSelect
+        :value="selectedPlanId"
+        :options="planOptions"
+        placeholder="这条笔记执行了哪条剧本（可选）"
+        filterable
+        size="small"
+        class="flex-1"
+        @update:value="handlePlanChange"
+      />
     </div>
     <NSpin :show="loading">
       <div v-for="item in KINDS" :key="item.kind" class="mb-12px">

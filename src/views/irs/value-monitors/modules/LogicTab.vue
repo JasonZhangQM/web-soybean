@@ -53,6 +53,17 @@ const STATUS_OPTIONS = [
 ];
 
 /**
+ * P2-2 证伪自动判定：judge 字段决定类型，judge_expr 写判据表达式。
+ * 格式约定 {metric}{op}{value}，如 price<=3800 / pb_pct>=0.7
+ * 手动判定的证伪用 judge=manual 或不填，机器不碰。
+ */
+const JUDGE_OPTIONS = [
+  { value: 'manual', label: '手动判定（不自动）' },
+  { value: 'price', label: '价格类（price<=XXX）' },
+  { value: 'percentile', label: '分位类（pb_pct>=XXX）' }
+];
+
+/**
  * 与后端同一正则（router 里读的时候用它算 `quantified`）。
  * 前端只用它做"填的时候就知道会不可量化"的实时提示，不参与保存判断。
  */
@@ -189,6 +200,8 @@ const invForm = reactive<{
   action: string;
   status: string;
   triggered_at: string | null;
+  judge: string | null;
+  judge_expr: string;
 }>({
   seq: 1,
   proposition: '',
@@ -197,7 +210,9 @@ const invForm = reactive<{
   source: '',
   action: '',
   status: '未触发',
-  triggered_at: null
+  triggered_at: null,
+  judge: null,
+  judge_expr: ''
 });
 
 /** 可量化实时提示（不阻断） */
@@ -221,6 +236,8 @@ function openInvNew() {
   invForm.action = '';
   invForm.status = '未触发';
   invForm.triggered_at = null;
+  invForm.judge = null;
+  invForm.judge_expr = '';
   showInvModal.value = true;
 }
 
@@ -233,6 +250,8 @@ function openInvEdit(row: Api.Irs.VmInvalidate) {
   invForm.action = row.action ?? '';
   invForm.status = row.status;
   invForm.triggered_at = row.triggered_at;
+  invForm.judge = (row as any).judge ?? null;
+  invForm.judge_expr = (row as any).judge_expr ?? '';
   showInvModal.value = true;
 }
 
@@ -255,7 +274,9 @@ async function saveInv() {
       source: invForm.source.trim() || null,
       action: invForm.action.trim() || null,
       status: invForm.status,
-      triggered_at: invForm.triggered_at
+      triggered_at: invForm.triggered_at,
+      judge: invForm.judge || null,
+      judge_expr: invForm.judge_expr.trim() || null
     });
     if (!error) {
       if (data?.warning) window.$message?.warning(data.warning);
@@ -370,9 +391,29 @@ const invalidateColumns = [
     render: (r: Api.Irs.VmInvalidate) =>
       h('div', { class: 'flex items-center gap-6px' }, [
         h('span', { class: r.quantified ? '' : 'text-red-500' }, r.signal),
-        // 没有数字阈值 = 没填。用标签而不是只标红，是因为"红字"常常被当成配色
         r.quantified ? null : h(NTag, { size: 'tiny', bordered: false, type: 'error' }, { default: () => '不可量化' })
       ])
+  },
+  {
+    title: '自动判定',
+    key: 'auto_judged',
+    width: 200,
+    render: (r: Api.Irs.VmInvalidate & { auto_judged?: any }) => {
+      const aj = r.auto_judged;
+      if (!aj) return h('span', { class: 'text-gray-300' }, '—');
+      if (aj.candidate) {
+        // 候选触发：红色 + 当前值 vs 阈值
+        return h('div', { class: 'flex items-center gap-4px' }, [
+          h(NTag, { size: 'tiny', bordered: false, type: 'error', round: true }, { default: () => '候选触发' }),
+          h('span', { class: 'text-12px text-red-500' }, `${aj.metric} ${aj.current_value} ${aj.op} ${aj.threshold}`)
+        ]);
+      }
+      // 未触发但可算：绿色小标签 + 当前值
+      return h('div', { class: 'flex items-center gap-4px' }, [
+        h(NTag, { size: 'tiny', bordered: false, type: 'success', round: true }, { default: () => '安全' }),
+        h('span', { class: 'text-12px text-gray-500' }, `${aj.metric}=${aj.current_value}${aj.op}${aj.threshold}`)
+      ]);
+    }
   },
   {
     title: '对应逻辑',
@@ -475,7 +516,7 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
       <NButton size="tiny" ghost class="ml-auto" @click="openInvNew">新增证伪</NButton>
     </div>
     <VmDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
-    <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" />
+    <!-- <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" /> -->
 
     <!-- 逻辑弹窗 -->
     <NModal v-model:show="showLogicModal" preset="card" title="投资逻辑" class="w-640px" :mask-closable="false">
@@ -580,6 +621,28 @@ const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status =
         </NFormItem>
         <NFormItem label="动作">
           <NInput v-model:value="invForm.action" :maxlength="32" placeholder="触发后做什么：减仓 / 清仓 / 重估" />
+        </NFormItem>
+        <!-- P2-2 自动判定：judge + judge_expr（只写候选，不改 status） -->
+        <NFormItem label="自动判定">
+          <div class="flex w-full items-center gap-8px">
+            <NSelect
+              v-model:value="invForm.judge"
+              :options="JUDGE_OPTIONS"
+              clearable
+              placeholder="不自动判定"
+              style="width: 170px"
+            />
+            <NInput
+              v-model:value="invForm.judge_expr"
+              :maxlength="64"
+              placeholder="判据表达式，如 price<=3800"
+              style="flex: 1"
+            />
+          </div>
+          <div v-if="invForm.judge && invForm.judge !== 'manual'" class="mt-4px text-12px text-gray-400">
+            机器会每日按此表达式判定候选触发（只在表格标红，**绝不自动改状态**）。 格式约定
+            {metric}{op}{value}：价格类写 price ≤ XXX，分位类写 pb_pct ≥ 0.7（仅指数标的有效）
+          </div>
         </NFormItem>
         <NFormItem label="状态">
           <NSelect v-model:value="invForm.status" :options="STATUS_OPTIONS" style="width: 160px" />

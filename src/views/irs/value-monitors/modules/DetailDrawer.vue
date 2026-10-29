@@ -58,8 +58,8 @@ const headerTags = computed(() => {
   // 档位带（P0-1）+ 当前档位对应的 PE/PB 分位（P0-4 纠偏，仅指数标的有值）
   if (v.zone) tags.push({ text: v.zone, type: 'info' });
   if (v.pe_pct != null || v.pb_pct != null) {
-    const pe = v.pe_pct != null ? (v.pe_pct * 100).toFixed(1) : '—';
-    const pb = v.pb_pct != null ? (v.pb_pct * 100).toFixed(1) : '—';
+    const pe = v.pe_pct != null ? Number(v.pe_pct).toFixed(1) : '—';
+    const pb = v.pb_pct != null ? Number(v.pb_pct).toFixed(1) : '—';
     tags.push({ text: `PE 分位 ${pe}% / PB 分位 ${pb}%`, type: 'warning' });
   }
   const latest = detail.value?.research?.[0];
@@ -157,7 +157,7 @@ function goTab(name: string) {
               @refresh="refresh"
             />
           </NTabPane>
-          <NTabPane name="plan" tab="计划与成交">
+          <NTabPane name="plan" tab="剧本与成交">
             <PlanTab
               v-if="tab === 'plan'"
               :vm-id="detail.vm.id"

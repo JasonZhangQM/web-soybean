@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 概览 Tab：决策卡 + 档位摘要 + 计划委托（只读，10 条/页）+ 归属合约
+ * 概览 Tab：决策卡 + 档位摘要 + 剧本（只读，10 条/页）+ 归属合约
  *
  * 数据全部来自 `GET /value-monitors/{id}/detail`（一次给全，不在 Tab 内再打请求）。
  * 决策卡 8 项的数据源是**最新一条 `irs_vm_research`**，不是主表的 13 列
@@ -35,11 +35,11 @@ const reviewOverdue = computed(() => {
   return !!d && d < today;
 });
 
-/** 计划计数：待执行 / 已执行 / 已放弃 / 已过期 */
+/** 剧本计数：生效 / 暂停（暂停 = is_cancelled） */
 const planCount = computed(() => {
-  const c = { 待执行: 0, 已执行: 0, 已放弃: 0, 已过期: 0 } as Record<string, number>;
-  for (const p of props.detail.plans) c[p.status] = (c[p.status] ?? 0) + 1;
-  return c;
+  const active = props.detail.plans.filter(p => !p.is_cancelled).length;
+  const paused = props.detail.plans.filter(p => p.is_cancelled).length;
+  return { active, paused };
 });
 
 /** 归属合约的成交合计 */
@@ -77,7 +77,7 @@ function gotoGroupSymbols() {
 }
 
 /**
- * 概览里的计划委托表 —— 只读摘要。
+ * 概览里的剧本表 —— 只读摘要。
  *
  * 页大小 10 条：与抽屉内其他表、列表页默认值统一（原先单独取 6 是为了省高度，
  * 但多一个不一样的数字，用户每换一张表都要重新适应；统一后只看一次就记住了）。
@@ -99,7 +99,7 @@ const planColumns = [
     width: 240,
     render: (p: Api.Irs.VmPlan) => h('span', { class: 'text-12px' }, triggerText(p))
   },
-  { title: '数量', key: 'qty', width: 70, align: 'right' as const, render: (p: Api.Irs.VmPlan) => p.qty ?? '-' },
+  { title: '每次手数', key: 'qty', width: 70, align: 'right' as const, render: (p: Api.Irs.VmPlan) => p.qty ?? '-' },
   {
     title: '状态',
     key: 'status',
@@ -233,21 +233,15 @@ const groupColumns = [
       <NDescriptionsItem label="极高">{{ fmtNum(currentVersion.pp_eh) }}</NDescriptionsItem>
     </NDescriptions>
 
-    <!-- 计划计数 -->
+    <!-- 剧本计数 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">计划委托</span>
-      <NTag size="small" :bordered="false" type="warning">待执行 {{ planCount['待执行'] ?? 0 }}</NTag>
-      <NTag size="small" :bordered="false" type="success">已执行 {{ planCount['已执行'] ?? 0 }}</NTag>
-      <NTag v-if="planCount['已过期']" size="small" :bordered="false" type="default">
-        已过期 {{ planCount['已过期'] }}
-      </NTag>
-      <NTag v-if="planCount['已放弃']" size="small" :bordered="false" type="error">
-        已放弃 {{ planCount['已放弃'] }}
-      </NTag>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去计划与成交 Tab</NButton>
+      <span class="font-500">剧本</span>
+      <NTag size="small" :bordered="false" type="success">生效 {{ planCount.active }}</NTag>
+      <NTag size="small" :bordered="false" type="default">暂停 {{ planCount.paused }}</NTag>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去剧本与成交 Tab</NButton>
     </div>
 
-    <!-- 计划委托明细（只读）：10 条/页 -->
+    <!-- 剧本明细（只读）：10 条/页 -->
     <VmDataTable
       v-if="detail.plans.length"
       :columns="planColumns"

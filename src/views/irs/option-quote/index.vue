@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useMessage } from 'naive-ui';
-import { fetchOptionMarket, fetchOptionMarketFilters, syncOptionMarket, fetchSyncTask } from '@/service/api';
+import {
+  fetchOptionMarket,
+  fetchOptionMarketFilters,
+  syncOptionMarket,
+  fetchSyncTask,
+  fetchGroupSymbols
+} from '@/service/api';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
@@ -50,6 +56,21 @@ const endMonthOptions = ref<{ label: string; value: string }[]>([]);
 // 同步行情专用 loading（任务化：发起 + 轮询期间保持）
 const syncLoading = ref(false);
 
+// 持仓映射：券商码 → 持仓量（来自 bills 标的汇总 p_total）。
+// 行情行的 broker_symbol 由同步清单（bds_option_config）带出，与标的汇总的 symbol 同构，
+// 已实测 CFFEX.IO2611-P-4000 / SHQQ.10012562 / SHFE.au2612P840 三类码 100% 可 join。
+const positionMap = ref<Map<string, number>>(new Map());
+
+// 拉取标的汇总，只保留持仓量非 0 的行（无持仓/未配券商码 ⇒ 不显示括号）
+async function fetchPositions() {
+  const { data, error } = await fetchGroupSymbols({ limit: 1000 });
+  if (!error && data) {
+    positionMap.value = new Map(
+      data.items.filter(it => (it.p_total ?? 0) !== 0).map(it => [it.symbol, Number(it.p_total)])
+    );
+  }
+}
+
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -59,6 +80,12 @@ usePageState({ searchParams, pagination });
 const fmt = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');
 // 期权现价、时间价值、内在价值保留四位小数
 const fmt4 = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(4) : '-');
+// 去尾零格式化：现价/持仓量通用（123.4000 → 123.4；0.0000 → 0；持仓 12345.0000 → 12345）
+const fmtTrim = (v: string | number | null | undefined) => {
+  if (v == null) return '-';
+  const s = Number(v).toString();
+  return s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+};
 
 // 拉取期权行情（latest_only 只取筛选范围内最新交易日快照，一次拉全后前端分页）
 async function fetchData() {
@@ -281,6 +308,23 @@ function makeExpiryColumn() {
   };
 }
 
+// 期权现价列：合约有持仓（标的汇总 p_total 非 0）显示 现价(持仓量)，否则只显示现价；均去尾零
+function makePriceColumn(side: 'call' | 'put') {
+  const isCall = side === 'call';
+  return {
+    title: '期权现价',
+    key: isCall ? 'call_price' : 'put_price',
+    width: 130,
+    render: (row: OptionQuoteRow) => {
+      const c = isCall ? row.call : row.put;
+      if (!c) return '-';
+      const price = fmtTrim(c.price);
+      const pos = c.broker_symbol ? positionMap.value.get(c.broker_symbol) : undefined;
+      return pos ? `${price}(${fmtTrim(pos)})` : price;
+    }
+  };
+}
+
 const columns = [
   // 认购侧（7 列，从左到右）
   makeCallColumn('内在(%Y)', 'ratio_i_y', 'call_ratio_i_y', 90, fmt, 'font-bold'),
@@ -289,14 +333,14 @@ const columns = [
   makeCallColumn('时间(%Y)', 'ratio_t_y', 'call_ratio_t_y', 90, fmt, 'font-bold'),
   makeCallColumn('时间(%)', 'ratio_t', 'call_ratio_t'),
   makeCallColumn('时间价值', 'value_t', 'call_value_t', 100, fmt4),
-  makeCallColumn('期权现价', 'price', 'call_price', 100, fmt4),
+  makePriceColumn('call'),
   // 中心轴（4 列）：行权价 → 标的现价 → 平值(%) → 到期日(剩余天数)
   makeAxisColumn('行权价', 'price_strike'),
   makeAxisColumn('标的现价', 'price_ud'),
   makeAxisColumn('平值(%)', 'atm_i', 90),
   makeExpiryColumn(),
   // 认沽侧（7 列，从左到右）
-  makePutColumn('期权现价', 'price', 'put_price', 100, fmt4),
+  makePriceColumn('put'),
   makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
   makePutColumn('时间(%)', 'ratio_t', 'put_ratio_t'),
   makePutColumn('时间(%Y)', 'ratio_t_y', 'put_ratio_t_y', 90, fmt, 'font-bold'),
@@ -308,6 +352,7 @@ const columns = [
 onMounted(() => {
   fetchOptions();
   fetchData();
+  fetchPositions();
 });
 
 onUnmounted(stopPolling);

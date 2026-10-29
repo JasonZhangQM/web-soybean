@@ -293,11 +293,9 @@ export function fetchVmPlans(id: number) {
   });
 }
 
-/** 计划保存参数（按 seq upsert，同标的同 seq 覆盖） */
+/** 剧本保存参数（按 seq upsert，同标的同 seq 覆盖） */
 export interface VmPlanSaveParams {
   seq: number;
-  /** 剧本=长期有效的档位动作；委托=一次性，有 qty/有效期（默认「剧本」） */
-  kind?: string;
   /** 实际下单合约代码（真实代码，不是"沪深300"这种） */
   trade_symbol: string;
   b_s: string;
@@ -308,10 +306,9 @@ export interface VmPlanSaveParams {
   /** 引用档位字段：pp_el / pp_l / pp_m / pp_h / pp_eh */
   trigger_ref?: string | null;
   trigger_price2?: number | null;
+  /** 每次执行手数（空=到价再定量） */
   qty?: number | null;
-  valid_until?: string | null;
   reason?: string | null;
-  bill_id?: number | null;
   is_cancelled?: boolean;
 }
 
@@ -432,36 +429,6 @@ export function fetchAllPlans() {
   return request<Api.Irs.VmPlan[]>({
     url: '/api/v1/irs/plans',
     method: 'get'
-  });
-}
-
-/** 「标记已执行」候选成交行（自计划建立以来的归属成交） */
-export interface VmBillCandidate {
-  id: number;
-  trade_time: string;
-  category: string;
-  symbol: string;
-  name: string;
-  b_s: string | null;
-  o_c: string | null;
-  price: number;
-  vol: number;
-}
-
-/** 查询某条计划「标记已执行」的候选成交 */
-export function fetchVmBillCandidates(id: number, seq: number) {
-  return request<{ items: VmBillCandidate[]; count: number }>({
-    url: `/api/v1/irs/value-monitors/${id}/plans/${seq}/bill-candidates`,
-    method: 'get'
-  });
-}
-
-/** 回填 bill_id 标记「已执行」；返回回填后的派生状态 */
-export function executeVmPlan(id: number, seq: number, billId: number) {
-  return request<{ status: string; message: string; plan_status: string }>({
-    url: `/api/v1/irs/value-monitors/${id}/plans/${seq}/execute`,
-    method: 'put',
-    params: { bill_id: billId }
   });
 }
 

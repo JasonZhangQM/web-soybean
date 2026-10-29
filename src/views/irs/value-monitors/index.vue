@@ -365,7 +365,7 @@ async function handleDelete() {
       研究版本: data.research.length,
       投资逻辑: data.logic.length,
       证伪条件: data.invalidate.length,
-      计划委托: data.plans.length
+      剧本: data.plans.length
     };
     const hasChild = Object.values(counts).some(n => n > 0);
     const detailText = Object.entries(counts)
@@ -483,7 +483,7 @@ const columns = [
     render: (row: Api.Irs.ValueMonitor) => {
       const pe = row.pe_pct;
       return pe != null
-        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${(pe * 100).toFixed(1)}%` })
+        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${Number(pe).toFixed(1)}%` })
         : h('span', { class: 'text-gray-300' }, '—');
     }
   },
@@ -495,31 +495,19 @@ const columns = [
     render: (row: Api.Irs.ValueMonitor) => {
       const pb = row.pb_pct;
       return pb != null
-        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${(pb * 100).toFixed(1)}%` })
+        ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${Number(pb).toFixed(1)}%` })
         : h('span', { class: 'text-gray-300' }, '—');
     }
   },
   {
-    // 计划：待执行 / 已执行。待执行 > 0 用橙色，提示"这里有等你动手的事"
-    title: '计划',
+    // 剧本：生效剧本数。> 0 用橙色，提示"这里有等你动手的事"
+    title: '剧本',
     key: 'plan',
     width: 100,
     render: (row: Api.Irs.ValueMonitor) => {
-      const pending = row.plan_pending ?? 0;
-      const done = row.plan_done ?? 0;
-      if (!pending && !done) return h('span', { class: 'text-gray-300' }, '-');
-      return h('span', null, [
-        pending
-          ? h(
-              NTag,
-              { size: 'tiny', bordered: false, type: 'warning', style: 'margin-right:4px' },
-              {
-                default: () => `待 ${pending}`
-              }
-            )
-          : null,
-        done ? h('span', { class: 'text-12px text-gray-500' }, `已 ${done}`) : null
-      ]);
+      const active = row.plan_active ?? 0;
+      if (!active) return h('span', { class: 'text-gray-300' }, '-');
+      return h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `剧本 ${active}` });
     }
   },
   {

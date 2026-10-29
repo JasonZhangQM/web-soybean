@@ -117,10 +117,8 @@ declare namespace Api {
       research_conclusion: string | null;
       /** 派生：下次复核日 */
       next_review: string | null;
-      /** 派生：待执行计划数 */
-      plan_pending: number | null;
-      /** 派生：已执行计划数 */
-      plan_done: number | null;
+      /** 派生：生效剧本数（未暂停的数量） */
+      plan_active: number | null;
       /** 主键（会漂移，关联键一律用 symbol） */
       id: number;
       /** 创建时间 */
@@ -188,7 +186,7 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 计划委托（对应 VmPlanOut，用真实合约代码 + 点位） */
+    /** 剧本（对应 VmPlanOut，用真实合约代码 + 点位；长期有效、可反复执行） */
     interface VmPlan {
       id: number;
       /** 归属标的（irs_value_monitor.symbol） */
@@ -197,8 +195,6 @@ declare namespace Api {
       trade_symbol: string;
       /** 序号（同标的同 seq 覆盖） */
       seq: number;
-      /** 剧本=长期有效的档位动作；委托=一次性，有 qty/有效期 */
-      kind: string;
       /** 买 / 卖 */
       b_s: string;
       /** 开 / 平 */
@@ -210,13 +206,11 @@ declare namespace Api {
       /** 引用档位字段：pp_el / pp_l / pp_m / pp_h / pp_eh */
       trigger_ref: string | null;
       trigger_price2: number | null;
+      /** 每次执行手数（空=到价再定量） */
       qty: number | null;
-      valid_until: string | null;
       reason: string | null;
-      /** 实际执行的成交 ID */
-      bill_id: number | null;
       is_cancelled: boolean;
-      /** 派生：已放弃 > 已执行 > 已过期 > 待执行 */
+      /** 派生：生效 / 暂停 */
       status: string;
       /** 派生：有效触发价 = trigger_price ?? 当前档位值 */
       effective_trigger: number | null;
@@ -305,10 +299,9 @@ declare namespace Api {
       note: string | null;
     }
 
-    /** 今日页命中的计划（纯聚合） */
+    /** 今日页命中的剧本（纯聚合） */
     interface TodayPlanHit {
       seq: number;
-      kind: string;
       trade_symbol: string;
       b_s: string;
       o_c: string | null;
