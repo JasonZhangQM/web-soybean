@@ -15,9 +15,11 @@
  * `[><≥≤=]\s*\d` 或 `\d+\s*%` 判定，判定不过的整行标红——"分位偏高"这类说法不算填了。
  * 前端照抄同一条正则做实时提示，但**不阻断保存**：先登记、后补数字是正常节奏。
  */
-import { ref, reactive, computed, h } from 'vue';
+import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
 import {
+  fetchVmLogic,
+  fetchVmInvalidate,
   saveVmLogic,
   deleteVmLogic,
   saveVmInvalidate,
@@ -28,12 +30,24 @@ import VmDataTable from './VmDataTable.vue';
 
 defineOptions({ name: 'VmLogicTab' });
 
-const props = defineProps<{
-  vmId: number;
-  logic: Api.Irs.VmLogic[];
-  invalidate: Api.Irs.VmInvalidate[];
-}>();
-const emit = defineEmits<{ (e: 'refresh'): void }>();
+const props = defineProps<{ vmId: number; symbol: string }>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
+
+// 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
+const logic = ref<Api.Irs.VmLogic[]>([]);
+const invalidate = ref<Api.Irs.VmInvalidate[]>([]);
+
+async function loadLogic() {
+  const { data, error } = await fetchVmLogic(props.vmId);
+  if (!error && data) logic.value = data;
+}
+async function loadInvalidate() {
+  const { data, error } = await fetchVmInvalidate(props.vmId);
+  if (!error && data) invalidate.value = data;
+}
+onMounted(async () => {
+  await Promise.all([loadLogic(), loadInvalidate()]);
+});
 
 /** 状态取值以 `models.VmLogic.STATE_CHOICES` 为准；这里曾写成「受损」，会让按 state 聚合漏数 */
 const STATE_OPTIONS = [
@@ -93,7 +107,7 @@ const logicForm = reactive<{
 }>({ seq: 1, content: '', pricing: null, state: '完好', evidence: '' });
 
 function openLogicNew() {
-  const maxSeq = props.logic.reduce((m, l) => Math.max(m, l.seq), 0);
+  const maxSeq = logic.value.reduce((m, l) => Math.max(m, l.seq), 0);
   logicForm.seq = maxSeq + 1;
   logicForm.content = '';
   logicForm.pricing = null;
@@ -130,7 +144,8 @@ async function saveLogic() {
       if (data?.warning) window.$message?.warning(data.warning);
       else window.$message?.success(data?.action === 'created' ? '已新增一条逻辑' : '已保存');
       showLogicModal.value = false;
-      emit('refresh');
+      await loadLogic();
+      emit('dirty');
     }
   } finally {
     saving.value = false;
@@ -156,14 +171,15 @@ async function changeLogicState(row: Api.Irs.VmLogic, state: string) {
       return;
     }
     window.$message?.success(`第 ${row.seq} 条状态改为「${state}」`);
-    emit('refresh');
+    await loadLogic();
+    emit('dirty');
   } finally {
     stateSavingSeq.value = null;
   }
 }
 
 function handleDeleteLogic(row: Api.Irs.VmLogic) {
-  const refs = props.invalidate.filter(i => i.logic_id === row.id).map(i => i.seq);
+  const refs = invalidate.value.filter(i => i.logic_id === row.id).map(i => i.seq);
   const content = refs.length
     ? `第 ${refs.join('、')} 条证伪条件引用了这条逻辑，删除后这些证伪的「对应逻辑」会变成空引用。` +
       `如果只是这条逻辑坏了，把状态改成「破坏」比删除好。`
@@ -179,7 +195,8 @@ function handleDeleteLogic(row: Api.Irs.VmLogic) {
         const { error } = await deleteVmLogic(props.vmId, row.seq);
         if (!error) {
           window.$message?.success('已删除');
-          emit('refresh');
+          await loadLogic();
+          emit('dirty');
         }
       } finally {
         deletingLogicSeq.value = null;
@@ -220,14 +237,14 @@ const signalQuantified = computed(() => QUANTIFIED_RE.test(invForm.signal || '')
 
 /** 「对应逻辑」下拉：label 带序号和截断内容，选中后 v-model 拿的是 value（= logic.id） */
 const logicOptions = computed(() =>
-  props.logic.map(l => ({
+  logic.value.map(l => ({
     value: l.id,
     label: `第${l.seq}条 ${l.content.length > 20 ? `${l.content.slice(0, 20)}…` : l.content}`
   }))
 );
 
 function openInvNew() {
-  const maxSeq = props.invalidate.reduce((m, i) => Math.max(m, i.seq), 0);
+  const maxSeq = invalidate.value.reduce((m, i) => Math.max(m, i.seq), 0);
   invForm.seq = maxSeq + 1;
   invForm.proposition = '';
   invForm.signal = '';
@@ -282,7 +299,8 @@ async function saveInv() {
       if (data?.warning) window.$message?.warning(data.warning);
       else window.$message?.success(data?.action === 'created' ? '已新增一条证伪' : '已保存');
       showInvModal.value = false;
-      emit('refresh');
+      await loadInvalidate();
+      emit('dirty');
     }
   } finally {
     saving.value = false;
@@ -301,7 +319,8 @@ function handleDeleteInv(row: Api.Irs.VmInvalidate) {
         const { error } = await deleteVmInvalidate(props.vmId, row.seq);
         if (!error) {
           window.$message?.success('已删除');
-          emit('refresh');
+          await loadInvalidate();
+          emit('dirty');
         }
       } finally {
         deletingInvalidateSeq.value = null;
@@ -420,7 +439,7 @@ const invalidateColumns = [
     key: 'logic_id',
     width: 100,
     render: (r: Api.Irs.VmInvalidate) => {
-      const l = props.logic.find(x => x.id === r.logic_id);
+      const l = logic.value.find(x => x.id === r.logic_id);
       return l ? `第${l.seq}条` : '-';
     }
   },
@@ -486,9 +505,9 @@ const invalidateColumns = [
 ];
 
 /** 状态标签用（逻辑表的 state 现在是下拉，这里只保留给摘要复用） */
-const logicBrokenCount = computed(() => props.logic.filter(l => l.state === '破坏').length);
-const logicWeakenedCount = computed(() => props.logic.filter(l => l.state === '减弱').length);
-const invTriggeredCount = computed(() => props.invalidate.filter(i => i.status === '已触发').length);
+const logicBrokenCount = computed(() => logic.value.filter(l => l.state === '破坏').length);
+const logicWeakenedCount = computed(() => logic.value.filter(l => l.state === '减弱').length);
+const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status === '已触发').length);
 </script>
 
 <template>

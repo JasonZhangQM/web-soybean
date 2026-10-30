@@ -9,6 +9,7 @@
 import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import {
+  fetchVmResearch,
   saveVmResearch,
   deleteVmResearch,
   fetchVmStateLog,
@@ -21,15 +22,22 @@ defineOptions({ name: 'VmResearchVersionPanel' });
 
 const props = defineProps<{
   vmId: number;
-  research: Api.Irs.VmResearch[];
-  /** 仅用于完成度提示：研究定稿时应该已经有 ≥3 条证伪陪着 */
-  logic: Api.Irs.VmLogic[];
-  invalidate: Api.Irs.VmInvalidate[];
+  symbol: string;
+  /** 概览透传的轻量计数（软校验完成度提示用，不需要全量列表） */
+  logicCount: number;
+  invalidateCount: number;
 }>();
-const emit = defineEmits<{ (e: 'refresh'): void; (e: 'goto', tab: string): void }>();
+const emit = defineEmits<{ (e: 'dirty'): void; (e: 'goto', tab: string): void }>();
 
 const saving = ref(false);
 const deleting = ref(false);
+
+// 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
+const research = ref<Api.Irs.VmResearch[]>([]);
+async function loadResearch() {
+  const { data, error } = await fetchVmResearch(props.vmId);
+  if (!error && data) research.value = data;
+}
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -70,7 +78,7 @@ const form = reactive<{
 });
 
 /** 当前日期命中的已有版本 */
-const hit = computed(() => props.research.find(r => r.research_date === form.research_date) ?? null);
+const hit = computed(() => research.value.find(r => r.research_date === form.research_date) ?? null);
 
 const dateHint = computed(() => {
   if (!form.research_date) return '请选择研究定稿日';
@@ -96,7 +104,7 @@ function loadVersion(r: Api.Irs.VmResearch) {
 
 // 打开时若有最新一版，直接载入，省一次点击
 watch(
-  () => props.research,
+  () => research.value,
   list => {
     if (list.length && !form.thesis && !form.conclusion) loadVersion(list[0]);
   },
@@ -139,8 +147,8 @@ function doSave(force = false, skipSoft = false) {
   // 软校验：纲领要求证伪 ≥3 条且覆盖第五章每条。**只提示不阻断**——
   // 研究与证伪是两个 Tab，硬拦会让人为了能保存去凑三条废话证伪，比缺着更糟。
   const soft =
-    props.invalidate.length < 3
-      ? `本标的目前只有 ${props.invalidate.length} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
+    props.invalidateCount < 3
+      ? `本标的目前只有 ${props.invalidateCount} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
       : null;
   if (soft && !skipSoft) {
     window.$dialog?.warning({
@@ -169,7 +177,8 @@ function doSave(force = false, skipSoft = false) {
       });
       if (!error) {
         window.$message?.success(data?.action === 'created' ? '已新建一版研究' : '已改写该日研究');
-        emit('refresh');
+        await loadResearch();
+        emit('dirty');
       }
     } finally {
       saving.value = false;
@@ -203,7 +212,8 @@ function handleDelete() {
         if (!error) {
           window.$message?.success('已删除该版研究');
           startNew();
-          emit('refresh');
+          await loadResearch();
+          emit('dirty');
         }
       } finally {
         deleting.value = false;
@@ -213,9 +223,8 @@ function handleDelete() {
 }
 
 /** 完成度提示：研究 = 结论 + 逻辑 + 证伪，后两者在另一个 Tab，所以这里给出口 */
-const logicShort = computed(() => props.logic.length < 2);
-const invShort = computed(() => props.invalidate.length < 3);
-const invUnquantified = computed(() => props.invalidate.filter(i => !i.quantified).length);
+const logicShort = computed(() => props.logicCount < 2);
+const invShort = computed(() => props.invalidateCount < 3);
 
 const columns = [
   { title: '定稿日', key: 'research_date', width: 110 },
@@ -349,6 +358,7 @@ const attributionColumns = [
 const attributionScrollX = attributionColumns.reduce((s, c) => s + Number(c.width || 0), 0);
 
 onMounted(() => {
+  loadResearch();
   loadStateLog();
   loadAttribution();
 });
@@ -469,18 +479,17 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       放在这里是因为**填研究的人此刻最想知道"档案还缺什么"**，跳出去才想起来就晚了。
       橙色只提示不阻断——录完研究、回头补证伪是正常顺序。
     -->
-    <NAlert :type="logicShort || invShort || invUnquantified ? 'warning' : 'success'" :bordered="false" class="mb-12px">
+    <NAlert :type="logicShort || invShort ? 'warning' : 'success'" :bordered="false" class="mb-12px">
       <div class="flex flex-wrap items-center gap-8px">
         <span>
           本标的已登记：逻辑
-          <b>{{ logic.length }}</b>
+          <b>{{ props.logicCount }}</b>
           条（纲领 2-4）、证伪
-          <b>{{ invalidate.length }}</b>
+          <b>{{ props.invalidateCount }}</b>
           条（纲领 ≥3，且覆盖第五章每条）
         </span>
         <NTag v-if="logicShort" size="small" :bordered="false" type="warning">逻辑不足 2 条</NTag>
         <NTag v-if="invShort" size="small" :bordered="false" type="warning">证伪不足 3 条</NTag>
-        <NTag v-if="invUnquantified" size="small" :bordered="false" type="error">不可量化 {{ invUnquantified }}</NTag>
         <NButton size="tiny" ghost class="ml-auto" @click="emit('goto', 'logic')">去登记逻辑与证伪</NButton>
       </div>
     </NAlert>

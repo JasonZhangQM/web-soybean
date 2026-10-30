@@ -10,20 +10,28 @@
  * 唯一写入口是 `saveVmVersion`（后端 save_version → refresh_current_pp → 钩子重算 pv_*）。
  * 任何地方都不要直写主表 pp_*。
  */
-import { ref, reactive, computed, watch, h } from 'vue';
+import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { saveVmVersion, deleteVmVersion } from '@/service/api';
+import { fetchVmVersions, saveVmVersion, deleteVmVersion } from '@/service/api';
 import VmDataTable from './VmDataTable.vue';
 
 defineOptions({ name: 'VmVersionTab' });
 
-const props = defineProps<{ vmId: number; symbol: string; versions: Api.Irs.VmVersion[] }>();
-const emit = defineEmits<{ (e: 'refresh'): void }>();
+const props = defineProps<{ vmId: number; symbol: string }>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const saving = ref(false);
 const deletingId = ref<number | null>(null);
 /** P2-4 档位分位校验告警：保存后若后端返回 warnings，显示红标 */
 const warnings = ref<Array<{ level: string; pb_pct: number; message: string }>>([]);
+
+// 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
+const versions = ref<Api.Irs.VmVersion[]>([]);
+
+async function loadVersions() {
+  const { data, error } = await fetchVmVersions(props.vmId);
+  if (!error && data) versions.value = data;
+}
 
 /** 今天（YYYY-MM-DD），NDatePicker 与后端都按日粒度 */
 function today() {
@@ -41,7 +49,7 @@ const form = reactive({
 });
 
 /** 当前表单日期命中的已有版本：非空就意味着「这次保存是改写」 */
-const hitVersion = computed(() => props.versions.find(v => v.effective_date === form.effective_date) ?? null);
+const hitVersion = computed(() => versions.value.find(v => v.effective_date === form.effective_date) ?? null);
 
 /** 表单日期所处状态的中文说明 */
 const dateHint = computed(() => {
@@ -64,7 +72,7 @@ function fillFrom(v: Api.Irs.VmVersion) {
 
 // 打开时用当前生效版预填，避免每次从空白开始
 watch(
-  () => props.versions,
+  () => versions.value,
   list => {
     const cur = list.find(v => v.status === 'current');
     if (cur && form.pp_el == null && form.pp_eh == null) fillFrom(cur);
@@ -119,7 +127,9 @@ function doSave(force = false) {
         warnings.value = (data?.warnings as Array<{ level: string; pb_pct: number; message: string }>) ?? [];
         // 保存后清掉 note，但保留日期与五档，方便连续微调
         form.note = '';
-        emit('refresh');
+        // 只刷 versions + 标记 dirty（抽屉关闭时才全量刷列表）
+        await loadVersions();
+        emit('dirty');
       }
     } finally {
       saving.value = false;
@@ -154,7 +164,8 @@ function handleDelete(v: Api.Irs.VmVersion) {
         const { error } = await deleteVmVersion(props.vmId, v.id);
         if (!error) {
           window.$message?.success('已删除该版并回写当前档位');
-          emit('refresh');
+          await loadVersions();
+          emit('dirty');
         }
       } finally {
         deletingId.value = null;
@@ -171,6 +182,8 @@ function fmt(v: number | string | null | undefined) {
       .replace(/\.?0+$/, '')
   );
 }
+
+onMounted(loadVersions);
 
 /** diff 里正负都要显式带符号，涨跌一眼可见 */
 function fmtDiff(v: number | null | undefined) {

@@ -19,6 +19,7 @@ import {
 defineOptions({ name: 'VmReviewTab' });
 
 const props = defineProps<{ vmId: number; symbol: string }>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const loading = ref(false);
 const saving = ref(false);
@@ -127,6 +128,7 @@ async function handleSave() {
     window.$message?.success(editingId.value == null ? '复盘已保存' : '复盘已更新');
     showModal.value = false;
     await load();
+    emit('dirty');
   } finally {
     saving.value = false;
   }
@@ -142,6 +144,7 @@ async function handleDelete(r: VmReview) {
     }
     window.$message?.success('已删除该条复盘');
     await load();
+    emit('dirty');
   } finally {
     deletingId.value = null;
   }

@@ -7,7 +7,6 @@ import {
   createValueMonitor,
   updateValueMonitor,
   deleteValueMonitor,
-  fetchValueMonitorDetail,
   syncIrs
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
@@ -348,36 +347,49 @@ function handleCancel() {
 }
 
 /**
- * 删除：外键是 RESTRICT，有子数据后端返回 409 + 各子表计数。
- *
- * 这里先取一次 detail 拿到计数，把代价摆在确认框里；确认后带 cascade=true。
- * 不能把 409 当普通错误弹一下——用户会以为"删不掉"（v3 §十一 风险 13）。
+ * 删除：先调 DELETE 不带 cascade — 有子数据后端返回 409 + 各子表计数，
+ * 前端把代价摆在确认框里；确认后带 cascade=true 再删。
+ * 不再走 detail 接口取计数（detail 已瘦身，不再返回各子表数组）。
  */
 async function handleDelete() {
   if (editingId.value === null) return;
   const id = editingId.value;
   submitLoading.value = true;
   try {
-    const { data, error } = await fetchValueMonitorDetail(id);
-    if (error || !data) return;
-    const counts = {
-      档位版本: data.versions.length,
-      研究版本: data.research.length,
-      投资逻辑: data.logic.length,
-      证伪条件: data.invalidate.length,
-      剧本: data.plans.length
-    };
+    // 第一次尝试：不 cascade
+    const { data, error } = await deleteValueMonitor(id, false);
+    if (!error && data) {
+      // 没有子数据，直接删成功
+      window.$message?.success('删除成功');
+      showModal.value = false;
+      resetForm();
+      pagination.page = 1;
+      fetchData();
+      loadThemeOptions();
+      return;
+    }
+    // 后端返回 409：解析 counts 构建确认框
+    const detailObj = (error as any)?.response?.data?.detail;
+    const counts: Record<string, number> = detailObj?.counts ?? {};
     const hasChild = Object.values(counts).some(n => n > 0);
+    if (!hasChild) return; // 不应该走到这里，但兜底
+
+    const labelMap: Record<string, string> = {
+      version: '档位版本',
+      research: '研究版本',
+      logic: '投资逻辑',
+      invalidate: '证伪条件',
+      plan: '剧本'
+    };
     const detailText = Object.entries(counts)
       .filter(([, n]) => n > 0)
-      .map(([k, n]) => `${k} ${n} 条`)
+      .map(([k, n]) => `${labelMap[k] ?? k} ${n} 条`)
       .join('、');
 
     window.$dialog?.warning({
-      title: hasChild ? `标的还有档案：${detailText}` : '确认删除这个标的？',
-      content: hasChild
-        ? '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？'
-        : '这个标的没有任何档案，删除不会连带其他数据。',
+      title: `标的还有档案：${detailText}`,
+      content:
+        '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？',
       positiveText: '确认删除',
       negativeText: '取消',
       onPositiveClick: async () => {

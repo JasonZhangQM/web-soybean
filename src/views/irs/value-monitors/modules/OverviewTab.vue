@@ -1,10 +1,9 @@
 <script setup lang="ts">
 /**
- * 概览 Tab：决策卡 + 档位摘要 + 剧本（只读，10 条/页）+ 归属合约
+ * 概览 Tab：决策卡 + 档位摘要 + 剧本摘要 + 归属合约（分页）
  *
- * 数据全部来自 `GET /value-monitors/{id}/detail`（一次给全，不在 Tab 内再打请求）。
- * 决策卡 8 项的数据源是**最新一条 `irs_vm_research`**，不是主表的 13 列
- * ——主表只留五档，叙述归研究版本。
+ * 数据全部来自瘦身版 `GET /value-monitors/{id}/detail`（概览最小集）。
+ * 各 Tab 明细走懒加载接口（versions/research/logic/invalidate/plans/groups）。
  */
 import { computed, h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -20,13 +19,11 @@ const emit = defineEmits<{ (e: 'goto', tab: string): void }>();
 
 const router = useRouter();
 
-/** 最新一版研究（research 已按日期倒序） */
-const latestResearch = computed(() => props.detail.research[0] ?? null);
+/** 最新一版研究（瘦身版 detail 直接给） */
+const latestResearch = computed(() => props.detail.latest_research);
 
-/** 当前生效版档位（versions 里 status='current' 的那条） */
-const currentVersion = computed(() => props.detail.versions.find(v => v.status === 'current') ?? null);
-/** 最近的未来版（"待生效 X-XX"） */
-const pendingVersion = computed(() => props.detail.versions.find(v => v.status === 'pending') ?? null);
+/** 当前生效版档位（瘦身版 detail 直接给五档 + 生效日期） */
+const currentVersion = computed(() => props.detail.current_version);
 
 const today = new Date().toISOString().slice(0, 10);
 /** 复核是否已到期 */
@@ -35,22 +32,21 @@ const reviewOverdue = computed(() => {
   return !!d && d < today;
 });
 
-/** 剧本计数：生效 / 暂停（暂停 = is_cancelled） */
-const planCount = computed(() => {
-  const active = props.detail.plans.filter(p => !p.is_cancelled).length;
-  const paused = props.detail.plans.filter(p => p.is_cancelled).length;
-  return { active, paused };
-});
+/** 剧本计数：生效 / 暂停 */
+const planCount = computed(() => ({
+  active: props.detail.plans_active_count,
+  paused: props.detail.plans_total_count - props.detail.plans_active_count
+}));
 
 // ---- 对应交易代码：服务端分页（10 条/页，id 倒序）+ 分类精确 / 合约模糊 ----
-const groups = ref<VmGroup[]>(props.detail.groups);
-const groupTotal = ref(props.detail.groups.length);
+const groups = ref<VmGroup[]>([]);
+const groupTotal = ref(props.detail.group_rows);
 const groupPage = ref(1);
 const groupPageSize = ref(10);
 const categoryFilter = ref<string | null>(null);
 const symbolFilter = ref('');
 const categoryOptions = computed(() => {
-  const set = new Set(props.detail.groups.map(g => g.category));
+  const set = new Set(groups.value.map(g => g.category));
   return [...set].sort().map(c => ({ label: c, value: c }));
 });
 const hasGroupFilter = computed(() => categoryFilter.value != null || !!symbolFilter.value.trim());
@@ -100,25 +96,6 @@ function resetGroupFilters() {
 
 onMounted(() => loadGroups(1));
 
-/**
- * 逻辑 / 证伪摘要（方案 A 第 1 条：概览要能看出"档案更没更新"）。
- *
- * 只做计数，不做内容预览：概览的作用是判断"要不要点进去"，不是读正文。
- * 纲领要求逻辑 2-4 条、证伪 ≥3 条，所以低于下限用橙色提示——但不拦保存。
- */
-const logicStat = computed(() => {
-  const c: Record<string, number> = { 完好: 0, 减弱: 0, 破坏: 0 };
-  for (const l of props.detail.logic) c[l.state] = (c[l.state] ?? 0) + 1;
-  return c;
-});
-const invStat = computed(() => {
-  const c: Record<string, number> = { 未触发: 0, 已触发: 0, 已失效: 0 };
-  for (const i of props.detail.invalidate) c[i.status] = (c[i.status] ?? 0) + 1;
-  return c;
-});
-/** 证伪信号里没有数字阈值的条数（不可量化 = 复盘时算没填） */
-const invUnquantified = computed(() => props.detail.invalidate.filter(i => !i.quantified).length);
-
 function fmtNum(v: number | null | undefined) {
   if (v == null) return '-';
   return Number(v)
@@ -132,11 +109,9 @@ function gotoGroupSymbols() {
 }
 
 /**
- * 概览里的剧本表 —— 只读摘要。
+ * 概览里的剧本表 —— 只读摘要（前 10 条）。
  *
- * 页大小 10 条：与抽屉内其他表、列表页默认值统一（原先单独取 6 是为了省高度，
- * 但多一个不一样的数字，用户每换一张表都要重新适应；统一后只看一次就记住了）。
- * 分页器、行高、表头样式全部来自共用组件 `VmDataTable`，与列表页同款。
+ * 剧本全量在「剧本与成交」Tab，这里只展示瘦身版 detail 返回的前 10 条。
  */
 const planColumns = [
   { title: '序', key: 'seq', width: 50 },
@@ -150,7 +125,6 @@ const planColumns = [
   {
     title: '触发条件',
     key: 'trigger',
-    // 用 width 而非 minWidth：scroll-x 要的是精确列宽和，minWidth 无从求和
     width: 240,
     render: (p: Api.Irs.VmPlan) => h('span', { class: 'text-12px' }, triggerText(p))
   },
@@ -167,14 +141,63 @@ const planColumns = [
 const groupColumns = [
   { title: '分类', key: 'category', width: 80 },
   { title: '合约代码', key: 'symbol', width: 180 },
-  { title: '成交笔数', key: 'bill_rows', width: 90, align: 'right' as const },
-  { title: '组内笔数', key: 'count', width: 90, align: 'right' as const },
+  { title: '成交笔数', key: 'bill_rows', width: 80, align: 'right' as const },
+  { title: '组内笔数', key: 'count', width: 70, align: 'right' as const },
+  {
+    title: '持仓量',
+    key: 'p_total',
+    width: 80,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.p_total != null ? Number(row.p_total).toLocaleString() : '-')
+  },
+  {
+    title: '持仓成本',
+    key: 'cost_total',
+    width: 110,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.cost_total != null ? Number(row.cost_total).toFixed(2) : '-')
+  },
+  {
+    title: '最新价',
+    key: 'price',
+    width: 100,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.price != null ? Number(row.price).toFixed(4).replace(/\.?0+$/, '') : '-')
+  },
+  {
+    title: '乘数',
+    key: 'multiplier',
+    width: 70,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.multiplier != null ? row.multiplier : '-')
+  },
+  {
+    title: '市值',
+    key: 'value_total',
+    width: 110,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.value_total != null ? Number(row.value_total).toFixed(2) : '-')
+  },
   {
     title: '浮动盈亏',
     key: 'pf_total',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (row: VmGroup) => (row.pf_total != null ? Number(row.pf_total).toFixed(2) : '-')
+  },
+  {
+    title: '平仓盈亏',
+    key: 'pl_all',
+    width: 110,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.pl_all != null ? Number(row.pl_all).toFixed(2) : '-')
+  },
+  {
+    title: '盈亏合计',
+    key: 'pfl_all',
+    width: 110,
+    align: 'right' as const,
+    render: (row: VmGroup) => (row.pfl_all != null ? Number(row.pfl_all).toFixed(2) : '-')
   }
 ];
 </script>
@@ -245,6 +268,7 @@ const groupColumns = [
 
     <!--
       逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
+      概览只展示计数（轻量），状态分布留给「逻辑与证伪」Tab 看全量。
       纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
     -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
@@ -252,20 +276,17 @@ const groupColumns = [
       <NTag
         size="small"
         :bordered="false"
-        :type="logicStat['破坏'] ? 'error' : detail.logic.length < 2 ? 'warning' : 'default'"
+        :type="detail.logic_total_count < 2 ? 'warning' : 'default'"
       >
-        逻辑 {{ detail.logic.length }} 条
-        <template v-if="logicStat['减弱']">（减弱 {{ logicStat['减弱'] }}）</template>
-        <template v-if="logicStat['破坏']">（破坏 {{ logicStat['破坏'] }}）</template>
+        逻辑 {{ detail.logic_total_count }} 条
       </NTag>
       <NTag
         size="small"
         :bordered="false"
-        :type="invStat['已触发'] ? 'error' : detail.invalidate.length < 3 ? 'warning' : 'default'"
+        :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'"
       >
-        证伪 {{ detail.invalidate.length }} 条（已触发 {{ invStat['已触发'] }}）
+        证伪 {{ detail.invalidate_total_count }} 条
       </NTag>
-      <NTag v-if="invUnquantified" size="small" :bordered="false" type="warning">不可量化 {{ invUnquantified }}</NTag>
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
     </div>
 
@@ -276,19 +297,17 @@ const groupColumns = [
       <span class="font-500">当前档位</span>
       <NTag v-if="currentVersion" size="small" :bordered="false">生效 {{ currentVersion.effective_date }}</NTag>
       <NTag v-else size="small" :bordered="false" type="warning">无生效版本</NTag>
-      <NTag v-if="pendingVersion" size="small" :bordered="false" type="warning">
-        待生效 {{ pendingVersion.effective_date }}（当前不生效）
-      </NTag>
-      <span class="text-12px text-gray-400">共 {{ detail.versions.length }} 版</span>
+      <span v-if="currentVersion?.note" class="text-12px text-gray-400">备注：{{ currentVersion.note }}</span>
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
     </div>
 
+    <!-- 档位摘要：五档从主表 vm 取（current_version 只给生效日期 + 备注） -->
     <NDescriptions v-if="currentVersion" :column="5" label-placement="top" bordered size="small" class="mb-16px">
-      <NDescriptionsItem label="极低">{{ fmtNum(currentVersion.pp_el) }}</NDescriptionsItem>
-      <NDescriptionsItem label="低">{{ fmtNum(currentVersion.pp_l) }}</NDescriptionsItem>
-      <NDescriptionsItem label="中">{{ fmtNum(currentVersion.pp_m) }}</NDescriptionsItem>
-      <NDescriptionsItem label="高">{{ fmtNum(currentVersion.pp_h) }}</NDescriptionsItem>
-      <NDescriptionsItem label="极高">{{ fmtNum(currentVersion.pp_eh) }}</NDescriptionsItem>
+      <NDescriptionsItem label="极低">{{ fmtNum(detail.vm.pp_el) }}</NDescriptionsItem>
+      <NDescriptionsItem label="低">{{ fmtNum(detail.vm.pp_l) }}</NDescriptionsItem>
+      <NDescriptionsItem label="中">{{ fmtNum(detail.vm.pp_m) }}</NDescriptionsItem>
+      <NDescriptionsItem label="高">{{ fmtNum(detail.vm.pp_h) }}</NDescriptionsItem>
+      <NDescriptionsItem label="极高">{{ fmtNum(detail.vm.pp_eh) }}</NDescriptionsItem>
     </NDescriptions>
 
     <NDivider />
@@ -301,12 +320,12 @@ const groupColumns = [
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去剧本与成交 Tab</NButton>
     </div>
 
-    <!-- 剧本明细（只读）：10 条/页 -->
+    <!-- 剧本明细（只读）：瘦身版 detail 给前 10 条，全量在「剧本与成交」Tab -->
     <VmDataTable
-      v-if="detail.plans.length"
+      v-if="detail.plans_preview.length"
       :columns="planColumns"
-      :data="detail.plans"
-      :page-size="10"
+      :data="detail.plans_preview"
+      :page-size="0"
       class="mb-8px"
     />
 

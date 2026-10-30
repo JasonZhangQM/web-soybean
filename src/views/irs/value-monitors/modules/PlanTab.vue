@@ -9,9 +9,9 @@
  * 2. **状态是派生的**：暂停 / 生效，不要在前端另算一套。
  * 3. 成交行的「想法」来自 `bills_bill_note`，一行 = 一笔成交（后端已压掉 1:N）。
  */
-import { ref, reactive, computed, h, watch, onMounted } from 'vue';
+import { ref, reactive, computed, h, onMounted, watch } from 'vue';
 import { NButton, NTag, NTooltip } from 'naive-ui';
-import { saveVmPlan, deleteVmPlan, fetchValueMonitorTrades, type VmTrade } from '@/service/api';
+import { saveVmPlan, deleteVmPlan, fetchValueMonitorTrades, fetchValueMonitorPlans, type VmTrade } from '@/service/api';
 import BillNotePanel from '@/views/bills/bills/modules/BillNotePanel.vue';
 import { useBillsStore } from '@/store/modules/bills';
 import VmDataTable from './VmDataTable.vue';
@@ -19,8 +19,15 @@ import { REF_LABEL, STATUS_TYPE, triggerText } from './planFormat';
 
 defineOptions({ name: 'VmPlanTab' });
 
-const props = defineProps<{ vmId: number; plans: Api.Irs.VmPlan[]; trades: VmTrade[] }>();
-const emit = defineEmits<{ (e: 'refresh'): void }>();
+const props = defineProps<{ vmId: number; symbol: string }>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
+
+// 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
+const plans = ref<Api.Irs.VmPlan[]>([]);
+async function loadPlans() {
+  const { data, error } = await fetchValueMonitorPlans(props.vmId);
+  if (!error && data) plans.value = data;
+}
 
 const REF_OPTIONS = Object.entries(REF_LABEL).map(([value, label]) => ({ value, label }));
 const OP_OPTIONS = [
@@ -73,7 +80,7 @@ const form = reactive<{
 const tradeSymbolOptions = computed(() => {
   const seen = new Set<string>();
   const out: Array<{ label: string; value: string; display: string }> = [];
-  for (const t of props.trades) {
+  for (const t of trades.value) {
     if (seen.has(t.symbol)) continue;
     seen.add(t.symbol);
     out.push({
@@ -91,7 +98,7 @@ function renderTradeSymbolLabel(option: { display?: string; label?: string }) {
 }
 
 function openNew() {
-  const maxSeq = props.plans.reduce((m, p) => Math.max(m, p.seq), 0);
+  const maxSeq = plans.value.reduce((m, p) => Math.max(m, p.seq), 0);
   form.seq = maxSeq + 1;
   // 只有唯一一个历史合约才预填。≥2 个时预填第一个等于替你猜，猜错了保存前也看不出来。
   form.trade_symbol = tradeSymbolOptions.value.length === 1 ? tradeSymbolOptions.value[0].label : '';
@@ -150,7 +157,8 @@ async function handleSave() {
     if (!error) {
       window.$message?.success('剧本已保存');
       showModal.value = false;
-      emit('refresh');
+      await loadPlans();
+      emit('dirty');
     }
   } finally {
     saving.value = false;
@@ -169,7 +177,8 @@ function handleDelete(p: Api.Irs.VmPlan) {
         const { error } = await deleteVmPlan(props.vmId, p.seq);
         if (!error) {
           window.$message?.success('已删除');
-          emit('refresh');
+          await loadPlans();
+          emit('dirty');
         }
       } finally {
         deletingSeq.value = null;
@@ -246,19 +255,29 @@ const planColumns = [
 ];
 
 const tradeColumns = [
+  { title: '分类', key: 'category', width: 70 },
+  {
+    title: '合约',
+    key: 'symbol',
+    width: 160,
+    render: (t: VmTrade) => h('span', { style: 'user-select: text' }, t.symbol)
+  },
+  {
+    title: '名称',
+    key: 'name',
+    width: 160,
+    ellipsis: { tooltip: true },
+    render: (t: VmTrade) => t.name ?? '-'
+  },
   {
     title: '成交时间',
     key: 'trade_time',
     width: 160,
     render: (t: VmTrade) => t.trade_time?.slice(0, 19).replace('T', ' ') ?? '-'
   },
-  {
-    title: '合约',
-    key: 'symbol',
-    width: 180,
-    render: (t: VmTrade) => h('span', { style: 'user-select: text' }, t.symbol)
-  },
-  { title: '方向', key: 'dir', width: 80, render: (t: VmTrade) => `${t.b_s ?? ''}${t.o_c ?? ''}` },
+  { title: '买卖', key: 'b_s', width: 44 },
+  { title: '沽购', key: 'c_p', width: 44, render: (t: VmTrade) => t.c_p ?? '-' },
+  { title: '开平', key: 'o_c', width: 44, render: (t: VmTrade) => t.o_c ?? '-' },
   {
     title: '成交价',
     key: 'price',
@@ -268,15 +287,22 @@ const tradeColumns = [
   },
   { title: '数量', key: 'vol', width: 80, align: 'right' as const },
   {
+    title: '发生额',
+    key: 'amount_act',
+    width: 110,
+    align: 'right' as const,
+    render: (t: VmTrade) => (t.amount_act != null ? Number(t.amount_act).toFixed(2) : '-')
+  },
+  {
     title: '剧本',
     key: 'plan_id',
-    width: 130,
+    width: 120,
     render: (t: VmTrade) => renderPlan(t)
   },
   {
     title: '想法',
     key: 'note_idea',
-    width: 180,
+    width: 120,
     render: (t: VmTrade) => renderIdea(t)
   },
   { title: '账户', key: 'account', width: 60 }
@@ -285,7 +311,7 @@ const tradeColumns = [
 /** 剧本 id → 简称（与 /bills/bills 一致：代码 + 买卖开平） */
 const planLabelMap = computed(() => {
   const m = new Map<number, string>();
-  for (const p of props.plans) m.set(p.id, `${p.trade_symbol} ${p.b_s}${p.o_c || ''}`);
+  for (const p of plans.value) m.set(p.id, `${p.trade_symbol} ${p.b_s}${p.o_c || ''}`);
   return m;
 });
 
@@ -349,19 +375,25 @@ function renderIdea(t: VmTrade) {
   );
 }
 
-// ---- 成交分页 + 剧本 / 账户 / 合约筛选（全部服务端，避免只在前 50 笔里筛） ----
+// ---- 成交分页 + 剧本 / 分类 / 账户 / 合约筛选（全部服务端，避免只在前 50 笔里筛） ----
 const billsStore = useBillsStore();
 const planFilter = ref<number | null>(null);
+const categoryFilter = ref<string | null>(null);
 const accountFilter = ref<string | null>(null);
 const symbolFilter = ref('');
-const trades = ref<VmTrade[]>(props.trades);
+const trades = ref<VmTrade[]>([]);
 const tradeTotal = ref<number | null>(null);
 const page = ref(1);
 /** 归属成交默认 10 条/页（与概览合约行、剧本表、列表页默认页大小一致） */
 const pageSize = ref(10);
-const planFilterOptions = computed(() => props.plans.map(p => ({ label: `#${p.id} ${p.trade_symbol}`, value: p.id })));
+const planFilterOptions = computed(() => plans.value.map(p => ({ label: `#${p.id} ${p.trade_symbol}`, value: p.id })));
+const categoryFilterOptions = computed(() => {
+  const set = new Set<string>();
+  for (const t of trades.value) set.add(t.category);
+  return [...set].sort().map(c => ({ label: c, value: c }));
+});
 const accountOptions = computed(() => billsStore.getAccountOptions());
-const hasFilter = computed(() => planFilter.value != null || !!accountFilter.value || !!symbolFilter.value.trim());
+const hasFilter = computed(() => planFilter.value != null || categoryFilter.value != null || !!accountFilter.value || !!symbolFilter.value.trim());
 
 /** 拉取指定页；页码越界（如删了数据）时回退到第 1 页 */
 async function loadTrades(targetPage = page.value) {
@@ -369,6 +401,7 @@ async function loadTrades(targetPage = page.value) {
     page: targetPage,
     pageSize: pageSize.value,
     planId: planFilter.value,
+    category: categoryFilter.value,
     account: accountFilter.value,
     symbol: symbolFilter.value.trim()
   });
@@ -399,7 +432,7 @@ function searchFromFirst() {
   loadTrades(1);
 }
 
-watch([planFilter, accountFilter], searchFromFirst);
+watch([planFilter, categoryFilter, accountFilter], searchFromFirst);
 // 合约是输入框：回车 / 清空才触发，避免每敲一个字就打一次接口
 function handleSymbolFilterInput(value: string) {
   if (!value) searchFromFirst();
@@ -407,19 +440,18 @@ function handleSymbolFilterInput(value: string) {
 
 function resetFilters() {
   planFilter.value = null;
+  categoryFilter.value = null;
   accountFilter.value = null;
   symbolFilter.value = '';
   searchFromFirst();
 }
-// 抽屉刷新（如新关联剧本）后，按当前筛选与页码重拉
-watch(
-  () => props.trades,
-  () => loadTrades(page.value)
-);
+// 注：之前 watch(() => props.trades, ...) 用于抽屉刷新后重拉成交；
+// 现在 PlanTab 自管 plans + 保存笔记只 loadTrades，不再 emit('refresh')，该 watch 已不需要
 
 onMounted(() => {
   // 账户选项复用账单 store 的全局缓存（首次拉取后不再重复请求）
   billsStore.loadAccounts();
+  loadPlans();
   loadTrades(1);
 });
 
@@ -437,8 +469,9 @@ async function handleNoteSave() {
   const ok = await notePanelRef.value?.save();
   if (ok) {
     showNoteModal.value = false;
+    // 只刷当前页成交（笔记变了 note_idea/plan_id 两列），不走 DetailDrawer 全量重拉
     await loadTrades(page.value);
-    emit('refresh');
+    emit('dirty');
   }
 }
 
@@ -464,7 +497,7 @@ watch(
       <NButton size="tiny" ghost class="ml-auto" @click="openNew">新增剧本</NButton>
     </div>
     <VmDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
-    <NEmpty v-if="!plans.length" size="small" description="还没有剧本" class="my-8px" />
+    <!-- <NEmpty v-if="!plans.length" size="small" description="还没有剧本" class="my-8px" /> -->
 
     <NDivider />
 
@@ -480,6 +513,14 @@ watch(
         style="width: 190px"
       />
       <NSelect
+        v-model:value="categoryFilter"
+        :options="categoryFilterOptions"
+        clearable
+        size="small"
+        placeholder="按分类筛选"
+        style="width: 110px"
+      />
+      <NSelect
         v-model:value="accountFilter"
         :options="accountOptions"
         clearable
@@ -491,7 +532,7 @@ watch(
         v-model:value="symbolFilter"
         clearable
         size="small"
-        placeholder="合约模糊筛选，回车"
+        placeholder="合约/名称模糊筛选，回车"
         style="width: 200px"
         @update:value="handleSymbolFilterInput"
         @keyup.enter="searchFromFirst"
@@ -499,7 +540,7 @@ watch(
       <NButton size="small" @click="searchFromFirst">搜索</NButton>
       <NButton size="small" @click="resetFilters">重置</NButton>
       <span class="text-12px text-gray-400">
-        融资融券不计入；点「剧本」或「想法」可关联剧本、写想法；复盘在「复盘」tab 写
+        点「剧本」或「想法」可关联剧本、写想法
       </span>
     </div>
     <VmDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
@@ -515,94 +556,103 @@ watch(
         @update:page-size="handlePageSizeChange"
       />
     </div>
-    <NEmpty
+    <!-- <NEmpty
       v-if="!trades.length"
       size="small"
       :description="hasFilter ? '没有符合筛选条件的成交' : '这个标的还没有归属的成交'"
       class="my-8px"
-    />
+    /> -->
 
-    <NModal v-model:show="showModal" preset="card" title="剧本" class="w-640px" :mask-closable="false">
-      <NForm label-placement="left" label-width="90px" :show-feedback="false">
-        <NFormItem label="序号">
-          <NInputNumber v-model:value="form.seq" :precision="0" :min="1" style="width: 120px" />
-          <span class="ml-8px text-12px text-gray-400">同标的下序号唯一，保存会覆盖同序号那条</span>
-        </NFormItem>
-        <NFormItem label="合约代码">
-          <div class="w-full">
-            <NAutoComplete
-              v-model:value="form.trade_symbol"
-              :options="tradeSymbolOptions"
-              :render-label="renderTradeSymbolLabel"
-              clearable
-              placeholder="直接输入合约代码，如 SHFE.au2612 / CFFEX.IO2612-P-4000"
-              style="width: 100%"
-            />
-            <div class="mt-4px text-12px text-gray-400">
-              可输入任意代码（包括系统里还没有的新挂牌合约）。
-              <template v-if="tradeSymbolOptions.length">
-                下拉里的 {{ tradeSymbolOptions.length }} 个只是该标的成交过的历史合约，供参考，不作校验。
-              </template>
-              <template v-else>该标的还没有成交记录，直接输入即可。</template>
+    <NDrawer
+      v-model:show="showModal"
+      title="剧本"
+      placement="left"
+      width="420"
+      :mask-closable="false"
+      :close-on-esc="false"
+    >
+      <NDrawerContent closable :native-scrollbar="false">
+        <NForm label-placement="left" label-width="90px" :show-feedback="false">
+          <NFormItem label="序号">
+            <NInputNumber v-model:value="form.seq" :precision="0" :min="1" style="width: 120px" />
+            <span class="ml-8px text-12px text-gray-400">同标的下序号唯一，保存会覆盖同序号那条</span>
+          </NFormItem>
+          <NFormItem label="合约代码">
+            <div class="w-full">
+              <NAutoComplete
+                v-model:value="form.trade_symbol"
+                :options="tradeSymbolOptions"
+                :render-label="renderTradeSymbolLabel"
+                clearable
+                placeholder="直接输入合约代码，如 SHFE.au2612 / CFFEX.IO2612-P-4000"
+                style="width: 100%"
+              />
+              <div class="mt-4px text-12px text-gray-400">
+                可输入任意代码（包括系统里还没有的新挂牌合约）。
+                <template v-if="tradeSymbolOptions.length">
+                  下拉里的 {{ tradeSymbolOptions.length }} 个只是该标的成交过的历史合约，供参考，不作校验。
+                </template>
+                <template v-else>该标的还没有成交记录，直接输入即可。</template>
+              </div>
             </div>
-          </div>
-        </NFormItem>
-        <NFormItem label="方向">
-          <NSpace>
+          </NFormItem>
+          <NFormItem label="方向">
+            <NSpace>
+              <NSelect
+                v-model:value="form.b_s"
+                :options="[
+                  { label: '买', value: '买' },
+                  { label: '卖', value: '卖' }
+                ]"
+                style="width: 100px"
+              />
+              <NSelect
+                v-model:value="form.o_c"
+                :options="[
+                  { label: '开', value: '开' },
+                  { label: '平', value: '平' }
+                ]"
+                clearable
+                style="width: 100px"
+              />
+            </NSpace>
+          </NFormItem>
+          <NFormItem label="触发方向">
+            <NSelect v-model:value="form.trigger_op" :options="OP_OPTIONS" style="width: 180px" />
+          </NFormItem>
+          <NFormItem label="触发价">
+            <NInputNumber v-model:value="form.trigger_price" :precision="4" :step="0.0001" style="width: 160px" />
+            <span class="ml-8px text-12px text-gray-400">填了就写死，不随档位变</span>
+          </NFormItem>
+          <NFormItem label="引用档位">
             <NSelect
-              v-model:value="form.b_s"
-              :options="[
-                { label: '买', value: '买' },
-                { label: '卖', value: '卖' }
-              ]"
-              style="width: 100px"
-            />
-            <NSelect
-              v-model:value="form.o_c"
-              :options="[
-                { label: '开', value: '开' },
-                { label: '平', value: '平' }
-              ]"
+              v-model:value="form.trigger_ref"
+              :options="REF_OPTIONS"
               clearable
-              style="width: 100px"
+              placeholder="不引用"
+              style="width: 160px"
             />
+            <span class="ml-8px text-12px text-gray-400">选「低」= 触发价跟随档位「低」的当前值</span>
+          </NFormItem>
+          <NFormItem label="每次手数">
+            <NInputNumber v-model:value="form.qty" :precision="0" :min="0" style="width: 160px" />
+          </NFormItem>
+          <NFormItem label="理由">
+            <NInput v-model:value="form.reason" placeholder="为什么在这个点位做这个动作" />
+          </NFormItem>
+          <NFormItem label="暂停">
+            <NSwitch v-model:value="form.is_cancelled" />
+            <span class="ml-8px text-12px text-gray-400">暂停剧本（暂停比删除好：留下「当时想过但暂时不做」）</span>
+          </NFormItem>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showModal = false">取消</NButton>
+            <NButton :loading="saving" type="primary" @click="handleSave">保存</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem label="触发方向">
-          <NSelect v-model:value="form.trigger_op" :options="OP_OPTIONS" style="width: 180px" />
-        </NFormItem>
-        <NFormItem label="触发价">
-          <NInputNumber v-model:value="form.trigger_price" :precision="4" :step="0.0001" style="width: 160px" />
-          <span class="ml-8px text-12px text-gray-400">填了就写死，不随档位变</span>
-        </NFormItem>
-        <NFormItem label="引用档位">
-          <NSelect
-            v-model:value="form.trigger_ref"
-            :options="REF_OPTIONS"
-            clearable
-            placeholder="不引用"
-            style="width: 160px"
-          />
-          <span class="ml-8px text-12px text-gray-400">选「低」= 触发价跟随档位「低」的当前值</span>
-        </NFormItem>
-        <NFormItem label="每次手数">
-          <NInputNumber v-model:value="form.qty" :precision="0" :min="0" style="width: 160px" />
-        </NFormItem>
-        <NFormItem label="理由">
-          <NInput v-model:value="form.reason" placeholder="为什么在这个点位做这个动作" />
-        </NFormItem>
-        <NFormItem label="暂停">
-          <NSwitch v-model:value="form.is_cancelled" />
-          <span class="ml-8px text-12px text-gray-400">暂停剧本（暂停比删除好：留下「当时想过但暂时不做」）</span>
-        </NFormItem>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showModal = false">取消</NButton>
-          <NButton :loading="saving" @click="handleSave">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
 
     <!-- 记一笔：想法 + 剧本（与账单页同一个面板） -->
     <NModal

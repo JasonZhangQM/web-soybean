@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * 标的档案抽屉（v3 §7.3）
+ * 标的档案抽屉（2026-10-30 架构升级）
  *
- * 一次 `GET /value-monitors/{id}/detail` 拿全：主表 + 当前档位 + 档位版本 + 研究版本 +
- * 计划 + 归属合约 + 成交 + 逻辑/证伪。各 Tab 内的写操作走各自端点，写完只刷 drawer 数据，
- * 不刷列表（列表由父组件在关闭时统一刷）。
+ * 开抽屉时只拉「概览最小集」detail（瘦身版），各 Tab 数据切到时懒加载。
+ * 每个 Tab 完全自治：写操作后只刷自己那份数据，不再 emit('refresh') 级联。
+ * 列表刷新（fetchData）统一在抽屉关闭时触发一次。
  *
  * ⚠️ 关联键一律用 `symbol`：主表 `id` 会漂移（历史上删过约 47 次，AUTO_INCREMENT 已到 56
  * 而只有 8 行），拿 id 做跨表引用迟早指错行。
@@ -30,12 +30,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void;
   (e: 'edit', row: Api.Irs.ValueMonitor): void;
+  /** 抽屉关闭时通知父组件刷列表（可能主题/zone/结论等列表字段变了） */
   (e: 'changed'): void;
 }>();
 
 const loading = ref(false);
 const detail = ref<ValueMonitorDetail | null>(null);
 const tab = ref('overview');
+/** 抽屉打开期间有无任何写操作 — 决定关闭时要不要 emit('changed') */
+let dirty = false;
 
 const visible = computed({
   get: () => props.show,
@@ -63,7 +66,7 @@ const headerTags = computed(() => {
     const pb = v.pb_pct != null ? Number(v.pb_pct).toFixed(1) : '—';
     tags.push({ text: `PE 分位 ${pe}% / PB 分位 ${pb}%`, type: 'warning' });
   }
-  const latest = detail.value?.research?.[0];
+  const latest = detail.value?.latest_research;
   if (latest?.conclusion) tags.push({ text: latest.conclusion, type: 'success' });
   else tags.push({ text: '未做研究', type: 'warning' });
   if (latest?.next_review && latest.next_review < new Date().toISOString().slice(0, 10)) {
@@ -83,10 +86,9 @@ async function load() {
   }
 }
 
-/** 子 Tab 写完后的统一刷新：只刷抽屉，不动列表 */
-function refresh() {
-  load();
-  emit('changed');
+/** 子 Tab 写操作后标记 dirty，抽屉关闭时统一 emit('changed') 刷列表 */
+function markDirty() {
+  dirty = true;
 }
 
 watch(
@@ -95,7 +97,14 @@ watch(
     if (show) {
       // 换标的时回到概览，避免停在上一个标的的档位 Tab 上误改
       tab.value = 'overview';
+      dirty = false;
       load();
+    } else {
+      // 抽屉关闭：有写操作才刷列表（1 次列表查询可接受）
+      if (dirty) {
+        emit('changed');
+        dirty = false;
+      }
     }
   },
   { immediate: true }
@@ -126,49 +135,49 @@ function goTab(name: string) {
 
       <NSpin :show="loading">
         <div v-if="!detail" class="py-40px text-center text-gray-400">载入中…</div>
-        <NTabs v-else v-model:value="tab" type="line" animated>
-          <NTabPane name="overview" tab="概览">
-            <OverviewTab v-if="tab === 'overview'" :detail="detail" @goto="goTab" />
+        <!--
+          去掉 animated（动画 + v-if 冲突）。
+          用 lazy 让每个 Tab 只在**第一次切到时** mount — 触发 onMounted 懒加载接口。
+          之后再切回来组件不销毁，数据保留在子组件的 ref 里，直接展示。
+        -->
+        <NTabs v-else v-model:value="tab" type="line">
+          <!-- 概览：首屏直接渲染，跟 detail 接口一起秒开 -->
+          <NTabPane name="overview" tab="概览" display-directive="show">
+            <OverviewTab :detail="detail" @goto="goTab" />
           </NTabPane>
-          <NTabPane name="research" tab="研究">
+          <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
+          <NTabPane name="research" tab="研究" display-directive="show:lazy">
             <ResearchVersionPanel
-              v-if="tab === 'research'"
               :vm-id="detail.vm.id"
-              :research="detail.research"
-              :logic="detail.logic"
-              :invalidate="detail.invalidate"
-              @refresh="refresh"
+              :symbol="detail.vm.symbol"
+              :logic-count="detail.logic_total_count"
+              :invalidate-count="detail.invalidate_total_count"
+              @dirty="markDirty"
               @goto="goTab"
             />
           </NTabPane>
-          <NTabPane name="review" tab="复盘">
-            <ReviewTab v-if="tab === 'review'" :vm-id="detail.vm.id" :symbol="detail.vm.symbol" />
+          <NTabPane name="review" tab="复盘" display-directive="show:lazy">
+            <ReviewTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
           </NTabPane>
-          <NTabPane name="version" tab="档位">
+          <NTabPane name="version" tab="档位" display-directive="show:lazy">
             <VersionTab
-              v-if="tab === 'version'"
               :vm-id="detail.vm.id"
               :symbol="detail.vm.symbol"
-              :versions="detail.versions"
-              @refresh="refresh"
+              @dirty="markDirty"
             />
           </NTabPane>
-          <NTabPane name="logic" tab="逻辑与证伪">
+          <NTabPane name="logic" tab="逻辑与证伪" display-directive="show:lazy">
             <LogicTab
-              v-if="tab === 'logic'"
               :vm-id="detail.vm.id"
-              :logic="detail.logic"
-              :invalidate="detail.invalidate"
-              @refresh="refresh"
+              :symbol="detail.vm.symbol"
+              @dirty="markDirty"
             />
           </NTabPane>
-          <NTabPane name="plan" tab="剧本与成交">
+          <NTabPane name="plan" tab="剧本与成交" display-directive="show:lazy">
             <PlanTab
-              v-if="tab === 'plan'"
               :vm-id="detail.vm.id"
-              :plans="detail.plans"
-              :trades="detail.trades"
-              @refresh="refresh"
+              :symbol="detail.vm.symbol"
+              @dirty="markDirty"
             />
           </NTabPane>
         </NTabs>

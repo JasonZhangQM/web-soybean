@@ -115,18 +115,25 @@ export function deleteValueMonitor(id: number, cascade = false) {
 // =========================================================================
 
 /** 详情抽屉首屏（一次给全，避免开抽屉连打 5 个请求） */
+/**
+ * 2026-10-30 瘦身版：只返回概览 Tab 最小集。
+ * 各 Tab 数据改为切到时懒加载（versions/research/logic/invalidate/plans/trades/groups）。
+ */
 export interface ValueMonitorDetail {
   vm: Api.Irs.ValueMonitor;
-  /** 当前生效版（只有日期 + 备注，五档见 versions） */
+  /** 当前生效版（只有日期 + 备注，五档见 versions Tab 懒加载） */
   current_version: { effective_date: string; note: string | null } | null;
-  versions: Api.Irs.VmVersion[];
-  research: Api.Irs.VmResearch[];
-  plans: Api.Irs.VmPlan[];
-  /** 归属到本标的的合约行（首屏给全量，概览表另走分页接口） */
-  groups: VmGroup[];
-  trades: VmTrade[];
-  logic: Api.Irs.VmLogic[];
-  invalidate: Api.Irs.VmInvalidate[];
+  /** 剧本前 10 条（概览只读展示） */
+  plans_preview: Api.Irs.VmPlan[];
+  /** 最新一版研究（概览决策卡） */
+  latest_research: Api.Irs.VmResearch | null;
+  /** 轻量计数（概览只关心"有多少"） */
+  plans_active_count: number;
+  plans_total_count: number;
+  logic_total_count: number;
+  invalidate_total_count: number;
+  group_rows: number;
+  bill_rows: number;
 }
 
 /** 归属合约行（对应交易代码） */
@@ -137,6 +144,20 @@ export interface VmGroup {
   count: number | null;
   pf_total: number | null;
   bill_rows: number | null;
+  /** 持仓量 */
+  p_total: number | null;
+  /** 持仓成本 */
+  cost_total: number | null;
+  /** 最新价 */
+  price: number | null;
+  /** 乘数 */
+  multiplier: number | null;
+  /** 当前市值 */
+  value_total: number | null;
+  /** 平仓盈亏 */
+  pl_all: number | null;
+  /** 盈亏合计 */
+  pfl_all: number | null;
 }
 
 /** 标的页成交行（一行 = 一笔成交，笔记已压成两列） */
@@ -147,11 +168,19 @@ export interface VmTrade {
   category: string;
   symbol: string;
   name: string;
+  /** 买/卖 */
   b_s: string | null;
+  /** 沽/购（期权专有，证券/期货为 null） */
+  c_p: string | null;
+  /** 开/平 */
   o_c: string | null;
   price: number;
   vol: number;
   amount: number;
+  /** 发生额（含费用的实际资金变动） */
+  amount_act: number | null;
+  /** 余额（成交后账户余额） */
+  balance: number | null;
   vm_symbol: string;
   note_idea: string | null;
   note_idea_at: string | null;
@@ -206,6 +235,7 @@ export function fetchValueMonitorTrades(
     planId?: number | null;
     account?: string | null;
     symbol?: string | null;
+    category?: string | null;
   } = {}
 ) {
   return request<{ items: VmTrade[]; total: number; page: number; page_size: number }>({
@@ -216,7 +246,8 @@ export function fetchValueMonitorTrades(
       page_size: opts.pageSize ?? 20,
       plan_id: opts.planId ?? undefined,
       account: opts.account ?? undefined,
-      symbol: opts.symbol ?? undefined
+      symbol: opts.symbol ?? undefined,
+      category: opts.category ?? undefined
     }
   });
 }
@@ -409,6 +440,14 @@ export function saveVmPlan(id: number, params: VmPlanSaveParams) {
     url: `/api/v1/irs/value-monitors/${id}/plans`,
     method: 'put',
     data: params
+  });
+}
+
+/** 轻量刷新：只拉当前标的剧本（不含详情抽屉的 10 合 1 大接口开销） */
+export function fetchValueMonitorPlans(id: number) {
+  return request<Api.Irs.VmPlan[]>({
+    url: `/api/v1/irs/value-monitors/${id}/plans`,
+    method: 'get'
   });
 }
 
