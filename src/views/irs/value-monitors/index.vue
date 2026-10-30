@@ -611,7 +611,7 @@ onMounted(async () => {
     <!-- 标的档案抽屉：概览 / 研究 / 档位 / 逻辑与证伪 / 计划与成交 -->
     <DetailDrawer v-model:show="showDrawer" :row="drawerRow" @edit="handleEdit" @changed="onDetailChanged" />
 
-    <NDrawer v-model:show="showModal" placement="left" width="480" :mask-closable="false" :close-on-esc="false">
+    <NDrawer v-model:show="showModal" placement="left" width="480" :mask-closable="false">
       <NDrawerContent :title="modalTitle" closable :native-scrollbar="false">
         <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="90px">
           <NFormItem label="代码" path="symbol">

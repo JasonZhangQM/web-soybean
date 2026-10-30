@@ -565,7 +565,7 @@ watch(
     /> 
 -->
 
-    <NDrawer v-model:show="showModal" placement="left" width="420" :mask-closable="false" :close-on-esc="false">
+    <NDrawer v-model:show="showModal" placement="left" width="420" :mask-closable="false">
       <NDrawerContent closable :native-scrollbar="false">
         <template #header>
           <span class="font-500">{{ editingPlanId ? '修改剧本' : '新增剧本' }}</span>
