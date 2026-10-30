@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, h, watch, onMounted } from 'vue';
+import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
@@ -149,14 +149,6 @@ const formData = reactive({
   symbol: '',
   name: '',
   theme: '' as string | null,
-  /** 档位版本生效日：仅新增模式显示（新建首版用） */
-  effective_date: null as string | null,
-  /** 档位五档：仅新增模式显示（编辑档位去详情抽屉的「档位」Tab） */
-  pp_el: null as number | null,
-  pp_l: null as number | null,
-  pp_m: null as number | null,
-  pp_h: null as number | null,
-  pp_eh: null as number | null,
   // 行情字段（兜底编辑，默认折叠）
   py_close: null as number | null,
   y_high: null as number | null,
@@ -186,48 +178,26 @@ function handleSymbolChange(symbol: string | null) {
 // 抽屉标题：新增/编辑动态切换
 const modalTitle = computed(() => (editingId.value === null ? '新增估值监测' : '编辑估值监测'));
 
-// "中"自动取"低"与"高"的平均值（仅新增模式生效，编辑模式五档已隐藏）
-watch(
-  () => [formData.pp_l, formData.pp_h],
-  ([low, high]) => {
-    if (editingId.value !== null) return;
-    formData.pp_m = low != null && high != null ? Number(((Number(low) + Number(high)) / 2).toFixed(4)) : null;
-  }
-);
-
-// 表单校验规则（pp_* 仅新增模式 required，编辑模式已隐藏不会触发 validate）
+// 表单校验规则
 const formRules = {
   symbol: { required: true, message: '请选择代码', trigger: 'change' },
-  name: { required: true, message: '请输入名称', trigger: 'blur' },
-  pp_el: { required: true, type: 'number' as const, message: '请输入极低', trigger: 'blur' },
-  pp_l: { required: true, type: 'number' as const, message: '请输入低', trigger: 'blur' },
-  pp_m: { required: true, type: 'number' as const, message: '请输入中', trigger: 'blur' },
-  pp_h: { required: true, type: 'number' as const, message: '请输入高', trigger: 'blur' },
-  pp_eh: { required: true, type: 'number' as const, message: '请输入极高', trigger: 'blur' }
+  name: { required: true, message: '请输入名称', trigger: 'blur' }
 };
 
 // 打开新增抽屉
 function handleAdd() {
   resetForm();
   editingId.value = null;
-  formData.effective_date = today();
   showModal.value = true;
 }
 
-/** 打开编辑抽屉：只回填 name/theme/行情，**不回填五档**（编辑档位去档位 Tab 改版本） */
+/** 打开编辑抽屉：回填 name/theme/行情（档位版本去档位 Tab 改） */
 function handleEdit(row: Api.Irs.ValueMonitor) {
   resetForm();
   editingId.value = row.id;
   formData.symbol = row.symbol;
   formData.name = row.name ?? '';
   formData.theme = row.theme ?? null;
-  // 编辑模式五档字段保留在 formData 但不展示、不提交
-  formData.effective_date = null;
-  formData.pp_el = null;
-  formData.pp_l = null;
-  formData.pp_m = null;
-  formData.pp_h = null;
-  formData.pp_eh = null;
   // 编辑回填时 NSelect 需有对应 option 才能显示，手动塞入当前行
   symbolOptions.value = [{ label: `${row.symbol} ${row.name ?? ''}`, value: row.symbol }];
   // 回填行情字段（兜底编辑用）
@@ -244,12 +214,6 @@ function resetForm() {
   formData.symbol = '';
   formData.name = '';
   formData.theme = null;
-  formData.effective_date = null;
-  formData.pp_el = null;
-  formData.pp_l = null;
-  formData.pp_m = null;
-  formData.pp_h = null;
-  formData.pp_eh = null;
   formData.py_close = null;
   formData.y_high = null;
   formData.y_low = null;
@@ -270,17 +234,11 @@ async function handleSubmit() {
   try {
     let error;
     if (editingId.value === null) {
-      // 新增：五档必填，后端 save_version() 建首版
+      // 新增：只传基础字段，档位版本后续去详情抽屉的「档位」Tab 建
       ({ error } = await createValueMonitor({
         symbol: formData.symbol,
         name: formData.name,
-        theme: formData.theme || null,
-        effective_date: formData.effective_date || null,
-        pp_el: formData.pp_el!,
-        pp_l: formData.pp_l!,
-        pp_m: formData.pp_m!,
-        pp_h: formData.pp_h!,
-        pp_eh: formData.pp_eh!
+        theme: formData.theme || null
       }));
     } else {
       // 编辑：只改名称/主题/行情，**不碰五档**（档位版本去档位 Tab 改）
@@ -685,65 +643,6 @@ onMounted(async () => {
               style="width: 100%"
             />
           </NFormItem>
-          <!-- 档位五档 + 生效日：仅新增模式显示（编辑档位去详情抽屉的「档位」Tab） -->
-          <template v-if="editingId === null">
-            <NFormItem label="极低" path="pp_el">
-              <NInputNumber
-                v-model:value="formData.pp_el"
-                :precision="4"
-                :step="0.0001"
-                placeholder="请输入极低"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="低" path="pp_l">
-              <NInputNumber
-                v-model:value="formData.pp_l"
-                :precision="4"
-                :step="0.0001"
-                placeholder="请输入低"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="中" path="pp_m">
-              <NInputNumber
-                v-model:value="formData.pp_m"
-                :precision="4"
-                :step="0.0001"
-                :disabled="true"
-                placeholder="自动取低与高的平均"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="高" path="pp_h">
-              <NInputNumber
-                v-model:value="formData.pp_h"
-                :precision="4"
-                :step="0.0001"
-                placeholder="请输入高"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="极高" path="pp_eh">
-              <NInputNumber
-                v-model:value="formData.pp_eh"
-                :precision="4"
-                :step="0.0001"
-                placeholder="请输入极高"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="档位生效日">
-              <NDatePicker
-                v-model:formatted-value="formData.effective_date"
-                type="date"
-                value-format="yyyy-MM-dd"
-                clearable
-                style="width: 100%"
-              />
-            </NFormItem>
-            <div class="mb-8px text-12px text-orange-500">新增标的时按此日期建立首版档位</div>
-          </template>
           <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
           <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
             <NCollapseItem title="行情字段（兜底编辑）" name="quote">

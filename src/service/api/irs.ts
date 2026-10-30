@@ -23,26 +23,14 @@ export function fetchValueMonitors(params?: ValueMonitorsQueryParams) {
   });
 }
 
-/** 估值监测新增参数 */
+/** 估值监测新增参数（v3 起 pp_* 可选，档位版本去详情抽屉的「档位」Tab 建） */
 interface ValueMonitorCreateParams {
   /** 代码 */
   symbol: string;
   /** 名称 */
   name: string;
-  /** 极低 */
-  pp_el: number;
-  /** 低 */
-  pp_l: number;
-  /** 中 */
-  pp_m: number;
-  /** 高 */
-  pp_h: number;
-  /** 极高 */
-  pp_eh: number;
   /** 主题 */
   theme?: string | null;
-  /** 首版生效日（空 = 今天） */
-  effective_date?: string | null;
 }
 
 /** 新增估值监测记录 */
