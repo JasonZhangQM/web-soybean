@@ -1022,12 +1022,15 @@ onUnmounted(stopPolling);
           <span>手工修正行情</span>
         </template>
         <div v-if="editRow" class="mb-16px">
-          <div class="mb-6px text-13px" style="color:#666">
-            合约：<span style="font-family:monospace">{{ editRow.contract_id }}</span>
+          <div class="mb-6px text-13px" style="color: #666">
+            合约：
+            <span style="font-family: monospace">{{ editRow.contract_id }}</span>
             · 行情日期：{{ editRow.trade_date }}
           </div>
-          <div class="text-12px" style="color:#999">
-            仅修正接口偶发取错的字段；<b>留空=清空为 null</b>，不填的字段不动。
+          <div class="text-12px" style="color: #999">
+            仅修正接口偶发取错的字段；
+            <b>留空=清空为 null</b>
+            ，不填的字段不动。
             <br />
             value_i / value_t / atm_i / ratio_* 等衍生列会在保存时自动按唯一口径重算。
           </div>

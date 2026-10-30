@@ -538,9 +538,7 @@ watch(
       />
       <NButton size="small" @click="searchFromFirst">搜索</NButton>
       <NButton size="small" @click="resetFilters">重置</NButton>
-      <span class="text-12px text-gray-400">
-        点「剧本」或「想法」可关联剧本、写想法
-      </span>
+      <span class="text-12px text-gray-400">点「剧本」或「想法」可关联剧本、写想法</span>
     </div>
     <VmDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
     <div class="mt-8px flex justify-end">

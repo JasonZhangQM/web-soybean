@@ -2,13 +2,7 @@
 import { ref, reactive, computed, h, watch, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { useRoute } from 'vue-router';
-import {
-  fetchValueMonitors,
-  createValueMonitor,
-  updateValueMonitor,
-  deleteValueMonitor,
-  syncIrs
-} from '@/service/api';
+import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
@@ -388,8 +382,7 @@ async function handleDelete() {
 
     window.$dialog?.warning({
       title: `标的还有档案：${detailText}`,
-      content:
-        '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？',
+      content: '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？',
       positiveText: '确认删除',
       negativeText: '取消',
       onPositiveClick: async () => {

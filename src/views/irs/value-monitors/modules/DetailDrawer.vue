@@ -160,25 +160,13 @@ function goTab(name: string) {
             <ReviewTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="version" tab="档位" display-directive="show:lazy">
-            <VersionTab
-              :vm-id="detail.vm.id"
-              :symbol="detail.vm.symbol"
-              @dirty="markDirty"
-            />
+            <VersionTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="logic" tab="逻辑与证伪" display-directive="show:lazy">
-            <LogicTab
-              :vm-id="detail.vm.id"
-              :symbol="detail.vm.symbol"
-              @dirty="markDirty"
-            />
+            <LogicTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="plan" tab="剧本与成交" display-directive="show:lazy">
-            <PlanTab
-              :vm-id="detail.vm.id"
-              :symbol="detail.vm.symbol"
-              @dirty="markDirty"
-            />
+            <PlanTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
           </NTabPane>
         </NTabs>
       </NSpin>

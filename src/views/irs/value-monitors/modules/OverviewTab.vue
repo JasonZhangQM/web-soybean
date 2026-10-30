@@ -162,7 +162,12 @@ const groupColumns = [
     key: 'price',
     width: 100,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.price != null ? Number(row.price).toFixed(4).replace(/\.?0+$/, '') : '-')
+    render: (row: VmGroup) =>
+      row.price != null
+        ? Number(row.price)
+            .toFixed(4)
+            .replace(/\.?0+$/, '')
+        : '-'
   },
   {
     title: '乘数',
@@ -273,18 +278,10 @@ const groupColumns = [
     -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">逻辑与证伪</span>
-      <NTag
-        size="small"
-        :bordered="false"
-        :type="detail.logic_total_count < 2 ? 'warning' : 'default'"
-      >
+      <NTag size="small" :bordered="false" :type="detail.logic_total_count < 2 ? 'warning' : 'default'">
         逻辑 {{ detail.logic_total_count }} 条
       </NTag>
-      <NTag
-        size="small"
-        :bordered="false"
-        :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'"
-      >
+      <NTag size="small" :bordered="false" :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'">
         证伪 {{ detail.invalidate_total_count }} 条
       </NTag>
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
