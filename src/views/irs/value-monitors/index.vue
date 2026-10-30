@@ -392,7 +392,7 @@ const columns = [
     // 主题只在标的层维护：合约层的 theme 列 v3 已删除
     title: '主题',
     key: 'theme',
-    width: 60,
+    width: 80,
     ellipsis: { tooltip: true },
     render: (row: Api.Irs.ValueMonitor) => row.theme || '-'
   },
