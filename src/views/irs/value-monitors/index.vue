@@ -140,10 +140,8 @@ async function openFromQuery() {
   }
 }
 
-// ===== 新增/编辑模态框 =====
+// ===== 新增/编辑抽屉 =====
 const editingId = ref<number | null>(null);
-/** 编辑前的原始行：用于判断五档到底有没有改（没改就不该新建版本） */
-const originalRow = ref<Api.Irs.ValueMonitor | null>(null);
 const showModal = ref(false);
 const submitLoading = ref(false);
 const formRef = ref();
@@ -151,8 +149,9 @@ const formData = reactive({
   symbol: '',
   name: '',
   theme: '' as string | null,
-  /** 档位版本生效日：选新日期=新建一版，选已有日期=改那一版 */
+  /** 档位版本生效日：仅新增模式显示（新建首版用） */
   effective_date: null as string | null,
+  /** 档位五档：仅新增模式显示（编辑档位去详情抽屉的「档位」Tab） */
   pp_el: null as number | null,
   pp_l: null as number | null,
   pp_m: null as number | null,
@@ -169,19 +168,6 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** 五档是否真的改了：只改名/主题时必须为 false，否则会凭空多出一版档位 */
-const tiersChanged = computed(() => {
-  if (editingId.value === null) return true;
-  const o = originalRow.value;
-  if (!o) return true;
-  const keys = ['pp_el', 'pp_l', 'pp_m', 'pp_h', 'pp_eh'] as const;
-  return keys.some(k => {
-    const a = formData[k] == null ? null : Number(formData[k]);
-    const b = o[k] == null ? null : Number(o[k]);
-    return a !== b;
-  });
-});
-
 // 行情折叠面板展开状态：默认折叠，仅编辑模式显示
 const quoteExpandedNames = ref<string[]>([]);
 
@@ -197,18 +183,19 @@ function handleSymbolChange(symbol: string | null) {
   }
 }
 
-// 模态框标题：新增/编辑动态切换
+// 抽屉标题：新增/编辑动态切换
 const modalTitle = computed(() => (editingId.value === null ? '新增估值监测' : '编辑估值监测'));
 
-// "中"自动取"低"与"高"的平均值（低/高任一为空时置空），新增与编辑一致
+// "中"自动取"低"与"高"的平均值（仅新增模式生效，编辑模式五档已隐藏）
 watch(
   () => [formData.pp_l, formData.pp_h],
   ([low, high]) => {
+    if (editingId.value !== null) return;
     formData.pp_m = low != null && high != null ? Number(((Number(low) + Number(high)) / 2).toFixed(4)) : null;
   }
 );
 
-// 表单校验规则
+// 表单校验规则（pp_* 仅新增模式 required，编辑模式已隐藏不会触发 validate）
 const formRules = {
   symbol: { required: true, message: '请选择代码', trigger: 'change' },
   name: { required: true, message: '请输入名称', trigger: 'blur' },
@@ -219,7 +206,7 @@ const formRules = {
   pp_eh: { required: true, type: 'number' as const, message: '请输入极高', trigger: 'blur' }
 };
 
-// 打开新增模态框
+// 打开新增抽屉
 function handleAdd() {
   resetForm();
   editingId.value = null;
@@ -227,24 +214,22 @@ function handleAdd() {
   showModal.value = true;
 }
 
-// 打开编辑模态框：回填行数据
-// 注意：后端 Decimal 字段经 JSON 序列化可能为字符串，需 Number() 转换为数字
+/** 打开编辑抽屉：只回填 name/theme/行情，**不回填五档**（编辑档位去档位 Tab 改版本） */
 function handleEdit(row: Api.Irs.ValueMonitor) {
   resetForm();
   editingId.value = row.id;
-  originalRow.value = row;
   formData.symbol = row.symbol;
   formData.name = row.name ?? '';
   formData.theme = row.theme ?? null;
-  // 默认取「当前生效版」的日期：改五档时若不改日期，就是覆盖当前生效那一版
-  formData.effective_date = row.pp_effective_date ?? today();
+  // 编辑模式五档字段保留在 formData 但不展示、不提交
+  formData.effective_date = null;
+  formData.pp_el = null;
+  formData.pp_l = null;
+  formData.pp_m = null;
+  formData.pp_h = null;
+  formData.pp_eh = null;
   // 编辑回填时 NSelect 需有对应 option 才能显示，手动塞入当前行
   symbolOptions.value = [{ label: `${row.symbol} ${row.name ?? ''}`, value: row.symbol }];
-  formData.pp_el = row.pp_el != null ? Number(row.pp_el) : null;
-  formData.pp_l = row.pp_l != null ? Number(row.pp_l) : null;
-  formData.pp_m = row.pp_m != null ? Number(row.pp_m) : null;
-  formData.pp_h = row.pp_h != null ? Number(row.pp_h) : null;
-  formData.pp_eh = row.pp_eh != null ? Number(row.pp_eh) : null;
   // 回填行情字段（兜底编辑用）
   formData.py_close = row.py_close != null ? Number(row.py_close) : null;
   formData.y_high = row.y_high != null ? Number(row.y_high) : null;
@@ -256,7 +241,6 @@ function handleEdit(row: Api.Irs.ValueMonitor) {
 // 重置表单
 function resetForm() {
   editingId.value = null;
-  originalRow.value = null;
   formData.symbol = '';
   formData.name = '';
   formData.theme = null;
@@ -284,32 +268,26 @@ async function handleSubmit() {
   }
   submitLoading.value = true;
   try {
-    const tiers = {
-      pp_el: formData.pp_el!,
-      pp_l: formData.pp_l!,
-      pp_m: formData.pp_m!,
-      pp_h: formData.pp_h!,
-      pp_eh: formData.pp_eh!
-    };
     let error;
     if (editingId.value === null) {
-      // 新增：需带 symbol；后端会顺手建首版档位
+      // 新增：五档必填，后端 save_version() 建首版
       ({ error } = await createValueMonitor({
         symbol: formData.symbol,
         name: formData.name,
         theme: formData.theme || null,
         effective_date: formData.effective_date || null,
-        ...tiers
+        pp_el: formData.pp_el!,
+        pp_l: formData.pp_l!,
+        pp_m: formData.pp_m!,
+        pp_h: formData.pp_h!,
+        pp_eh: formData.pp_eh!
       }));
     } else {
-      // 修改：
-      // - 五档没改 -> pp_* 一个都不传，后端跳过版本写入（否则每次改名都会凭空多一版）
-      // - 行情字段仅展开编辑时才传，未展开不传（后端 None 表示不修改）
+      // 编辑：只改名称/主题/行情，**不碰五档**（档位版本去档位 Tab 改）
       const quoteExpanded = quoteExpandedNames.value.includes('quote');
       ({ error } = await updateValueMonitor(editingId.value, {
         name: formData.name,
         theme: formData.theme || null,
-        ...(tiersChanged.value ? { ...tiers, effective_date: formData.effective_date || null } : {}),
         ...(quoteExpanded
           ? {
               py_close: formData.py_close,
@@ -323,9 +301,8 @@ async function handleSubmit() {
     if (!error) {
       window.$message?.success(editingId.value === null ? '新增成功' : '修改成功');
       showModal.value = false;
-      const wasEdit = editingId.value !== null;
       resetForm();
-      if (!wasEdit) pagination.page = 1;
+      pagination.page = 1;
       fetchData();
       loadThemeOptions();
     }
@@ -708,74 +685,65 @@ onMounted(async () => {
               style="width: 100%"
             />
           </NFormItem>
-          <NFormItem label="极低" path="pp_el">
-            <NInputNumber
-              v-model:value="formData.pp_el"
-              :precision="4"
-              :step="0.0001"
-              placeholder="请输入极低"
-              class="w-full"
-            />
-          </NFormItem>
-          <NFormItem label="低" path="pp_l">
-            <NInputNumber
-              v-model:value="formData.pp_l"
-              :precision="4"
-              :step="0.0001"
-              placeholder="请输入低"
-              class="w-full"
-            />
-          </NFormItem>
-          <NFormItem label="中" path="pp_m">
-            <NInputNumber
-              v-model:value="formData.pp_m"
-              :precision="4"
-              :step="0.0001"
-              :disabled="true"
-              placeholder="自动取低与高的平均"
-              class="w-full"
-            />
-          </NFormItem>
-          <NFormItem label="高" path="pp_h">
-            <NInputNumber
-              v-model:value="formData.pp_h"
-              :precision="4"
-              :step="0.0001"
-              placeholder="请输入高"
-              class="w-full"
-            />
-          </NFormItem>
-          <NFormItem label="极高" path="pp_eh">
-            <NInputNumber
-              v-model:value="formData.pp_eh"
-              :precision="4"
-              :step="0.0001"
-              placeholder="请输入极高"
-              class="w-full"
-            />
-          </NFormItem>
-          <NFormItem label="档位生效日">
-            <NDatePicker
-              v-model:formatted-value="formData.effective_date"
-              type="date"
-              value-format="yyyy-MM-dd"
-              clearable
-              :disabled="editingId !== null && !tiersChanged"
-              style="width: 100%"
-            />
-          </NFormItem>
-          <div
-            class="mb-8px text-12px"
-            :class="editingId !== null && !tiersChanged ? 'text-gray-400' : 'text-orange-500'"
-          >
-            {{
-              editingId === null
-                ? '新增标的时按此日期建立首版档位'
-                : tiersChanged
-                  ? '五档已改：选新日期 = 新建一版，选已有日期 = 改那一版'
-                  : '五档未改：只改名称/主题，不会新建档位版本'
-            }}
-          </div>
+          <!-- 档位五档 + 生效日：仅新增模式显示（编辑档位去详情抽屉的「档位」Tab） -->
+          <template v-if="editingId === null">
+            <NFormItem label="极低" path="pp_el">
+              <NInputNumber
+                v-model:value="formData.pp_el"
+                :precision="4"
+                :step="0.0001"
+                placeholder="请输入极低"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="低" path="pp_l">
+              <NInputNumber
+                v-model:value="formData.pp_l"
+                :precision="4"
+                :step="0.0001"
+                placeholder="请输入低"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="中" path="pp_m">
+              <NInputNumber
+                v-model:value="formData.pp_m"
+                :precision="4"
+                :step="0.0001"
+                :disabled="true"
+                placeholder="自动取低与高的平均"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="高" path="pp_h">
+              <NInputNumber
+                v-model:value="formData.pp_h"
+                :precision="4"
+                :step="0.0001"
+                placeholder="请输入高"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="极高" path="pp_eh">
+              <NInputNumber
+                v-model:value="formData.pp_eh"
+                :precision="4"
+                :step="0.0001"
+                placeholder="请输入极高"
+                class="w-full"
+              />
+            </NFormItem>
+            <NFormItem label="档位生效日">
+              <NDatePicker
+                v-model:formatted-value="formData.effective_date"
+                type="date"
+                value-format="yyyy-MM-dd"
+                clearable
+                style="width: 100%"
+              />
+            </NFormItem>
+            <div class="mb-8px text-12px text-orange-500">新增标的时按此日期建立首版档位</div>
+          </template>
           <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
           <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
             <NCollapseItem title="行情字段（兜底编辑）" name="quote">
