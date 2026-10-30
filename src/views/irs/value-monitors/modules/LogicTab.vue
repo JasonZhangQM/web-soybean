@@ -16,7 +16,7 @@
  * 前端照抄同一条正则做实时提示，但**不阻断保存**：先登记、后补数字是正常节奏。
  */
 import { ref, reactive, computed, h, onMounted } from 'vue';
-import { NButton, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
+import { NButton, NDrawerContent, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
 import {
   fetchVmLogic,
   fetchVmInvalidate,
@@ -537,152 +537,156 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
     <VmDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
     <!-- <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" /> -->
 
-    <!-- 逻辑弹窗 -->
-    <NModal v-model:show="showLogicModal" preset="card" title="投资逻辑" class="w-640px" :mask-closable="false">
-      <NForm label-placement="left" label-width="90px" :show-feedback="false">
-        <NFormItem label="序号">
-          <NInputNumber v-model:value="logicForm.seq" :precision="0" :min="1" style="width: 120px" />
-          <!--
-            判据用**已有条数**而不是 seq：seq 会有空洞（删过第 3 条后新建得 4），
-            拿 seq 判断会把 4 条误报成超限。与后端 warning 的判据保持一致。
-          -->
-          <span class="ml-8px text-12px" :class="logic.length >= 4 ? 'text-orange-500' : 'text-gray-400'">
-            {{
-              logic.length >= 4
-                ? `本标的已有 ${logic.length} 条，超过纲领建议的 2-4 条（仍可保存）`
-                : '同标的同序号 = 覆盖'
-            }}
-          </span>
-        </NFormItem>
-        <NFormItem label="逻辑">
-          <NInput
-            v-model:value="logicForm.content"
-            type="textarea"
-            :autosize="{ minRows: 2, maxRows: 4 }"
-            :maxlength="200"
-            show-count
-            placeholder="逻辑 → 影响路径 → 是否已定价"
-          />
-        </NFormItem>
-        <NFormItem label="定价依据">
-          <NSelect
-            v-model:value="logicForm.pricing"
-            :options="PRICING_OPTIONS"
-            clearable
-            placeholder="是否已被市场定价"
-            style="width: 160px"
-          />
-        </NFormItem>
-        <NFormItem label="状态">
-          <NSelect v-model:value="logicForm.state" :options="STATE_OPTIONS" style="width: 160px" />
-          <span class="ml-8px text-12px text-gray-400">状态变化时才写「状态变更」时间</span>
-        </NFormItem>
-        <NFormItem label="证据">
-          <NInput v-model:value="logicForm.evidence" :maxlength="200" placeholder="报告章节 / 数据代码 / 指标" />
-        </NFormItem>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showLogicModal = false">取消</NButton>
-          <NButton :loading="saving" @click="saveLogic">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
-    <!-- 证伪弹窗 -->
-    <NModal v-model:show="showInvModal" preset="card" title="证伪条件" class="w-680px" :mask-closable="false">
-      <NForm label-placement="left" label-width="90px" :show-feedback="false">
-        <NFormItem label="序号">
-          <NInputNumber v-model:value="invForm.seq" :precision="0" :min="1" style="width: 120px" />
-          <span class="ml-8px text-12px text-gray-400">同标的同序号 = 覆盖</span>
-        </NFormItem>
-        <NFormItem label="命题">
-          <NInput
-            v-model:value="invForm.proposition"
-            :maxlength="200"
-            placeholder="我原来认为什么（会被证伪的那个判断）"
-          />
-        </NFormItem>
-        <NFormItem label="证伪信号">
-          <div class="w-full">
+    <!-- 投资逻辑抽屉（左侧） -->
+    <NDrawer v-model:show="showLogicModal" placement="left" width="520px" :mask-closable="false">
+      <NDrawerContent title="投资逻辑" closable :native-scrollbar="false">
+        <NForm label-placement="left" label-width="90px" :show-feedback="false">
+          <NFormItem label="序号">
+            <NInputNumber v-model:value="logicForm.seq" :precision="0" :min="1" style="width: 120px" />
+            <!--
+              判据用**已有条数**而不是 seq：seq 会有空洞（删过第 3 条后新建得 4），
+              拿 seq 判断会把 4 条误报成超限。与后端 warning 的判据保持一致。
+            -->
+            <span class="ml-8px text-12px" :class="logic.length >= 4 ? 'text-orange-500' : 'text-gray-400'">
+              {{
+                logic.length >= 4
+                  ? `本标的已有 ${logic.length} 条，超过纲领建议的 2-4 条（仍可保存）`
+                  : '同标的同序号 = 覆盖'
+              }}
+            </span>
+          </NFormItem>
+          <NFormItem label="逻辑">
             <NInput
-              v-model:value="invForm.signal"
+              v-model:value="logicForm.content"
               type="textarea"
               :autosize="{ minRows: 2, maxRows: 4 }"
               :maxlength="200"
               show-count
-              placeholder="必须带数字阈值，如：贴水收敛至 <2% 且持续 5 个交易日"
+              placeholder="逻辑 → 影响路径 → 是否已定价"
             />
-            <div
-              v-if="invForm.signal"
-              class="mt-4px text-12px"
-              :class="signalQuantified ? 'text-green-500' : 'text-red-500'"
-            >
-              {{
-                signalQuantified
-                  ? '已含数字阈值，可量化'
-                  : '没有数字阈值，会被判为「不可量化」——仍可保存，但复盘时算没填'
-              }}
-            </div>
-          </div>
-        </NFormItem>
-        <NFormItem label="对应逻辑">
-          <NSelect
-            v-model:value="invForm.logic_id"
-            :options="logicOptions"
-            clearable
-            placeholder="可选：这条证伪针对哪条逻辑"
-            style="width: 100%"
-          />
-        </NFormItem>
-        <NFormItem label="来源">
-          <NInput v-model:value="invForm.source" :maxlength="64" placeholder="数据源 / 报告章节" />
-        </NFormItem>
-        <NFormItem label="动作">
-          <NInput v-model:value="invForm.action" :maxlength="32" placeholder="触发后做什么：减仓 / 清仓 / 重估" />
-        </NFormItem>
-        <!-- P2-2 自动判定：judge + judge_expr（只写候选，不改 status） -->
-        <NFormItem label="自动判定">
-          <div class="flex w-full items-center gap-8px">
+          </NFormItem>
+          <NFormItem label="定价依据">
             <NSelect
-              v-model:value="invForm.judge"
-              :options="JUDGE_OPTIONS"
+              v-model:value="logicForm.pricing"
+              :options="PRICING_OPTIONS"
               clearable
-              placeholder="不自动判定"
-              style="width: 170px"
+              placeholder="是否已被市场定价"
+              style="width: 160px"
             />
+          </NFormItem>
+          <NFormItem label="状态">
+            <NSelect v-model:value="logicForm.state" :options="STATE_OPTIONS" style="width: 160px" />
+            <span class="ml-8px text-12px text-gray-400">状态变化时才写「状态变更」时间</span>
+          </NFormItem>
+          <NFormItem label="证据">
+            <NInput v-model:value="logicForm.evidence" :maxlength="200" placeholder="报告章节 / 数据代码 / 指标" />
+          </NFormItem>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showLogicModal = false">取消</NButton>
+            <NButton :loading="saving" @click="saveLogic">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
+
+    <!-- 证伪抽屉（左侧），与投资逻辑抽屉同规格 -->
+    <NDrawer v-model:show="showInvModal" placement="left" width="520px" :mask-closable="false">
+      <NDrawerContent title="证伪条件" closable :native-scrollbar="false">
+        <NForm label-placement="left" label-width="90px" :show-feedback="false">
+          <NFormItem label="序号">
+            <NInputNumber v-model:value="invForm.seq" :precision="0" :min="1" style="width: 120px" />
+            <span class="ml-8px text-12px text-gray-400">同标的同序号 = 覆盖</span>
+          </NFormItem>
+          <NFormItem label="命题">
             <NInput
-              v-model:value="invForm.judge_expr"
-              :maxlength="64"
-              placeholder="判据表达式，如 price<=3800"
-              style="flex: 1"
+              v-model:value="invForm.proposition"
+              :maxlength="200"
+              placeholder="我原来认为什么（会被证伪的那个判断）"
             />
-          </div>
-          <div v-if="invForm.judge && invForm.judge !== 'manual'" class="mt-4px text-12px text-gray-400">
-            机器会每日按此表达式判定候选触发（只在表格标红，**绝不自动改状态**）。 格式约定
-            {metric}{op}{value}：价格类写 price ≤ XXX，分位类写 pb_pct ≥ 0.7（仅指数标的有效）
-          </div>
-        </NFormItem>
-        <NFormItem label="状态">
-          <NSelect v-model:value="invForm.status" :options="STATUS_OPTIONS" style="width: 160px" />
-        </NFormItem>
-        <NFormItem label="触发日">
-          <NDatePicker
-            v-model:formatted-value="invForm.triggered_at"
-            type="date"
-            value-format="yyyy-MM-dd"
-            clearable
-            style="width: 160px"
-          />
-          <span class="ml-8px text-12px text-gray-400">状态选「已触发」时才需要填</span>
-        </NFormItem>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showInvModal = false">取消</NButton>
-          <NButton :loading="saving" @click="saveInv">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+          </NFormItem>
+          <NFormItem label="证伪信号">
+            <div class="w-full">
+              <NInput
+                v-model:value="invForm.signal"
+                type="textarea"
+                :autosize="{ minRows: 2, maxRows: 4 }"
+                :maxlength="200"
+                show-count
+                placeholder="必须带数字阈值，如：贴水收敛至 <2% 且持续 5 个交易日"
+              />
+              <div
+                v-if="invForm.signal"
+                class="mt-4px text-12px"
+                :class="signalQuantified ? 'text-green-500' : 'text-red-500'"
+              >
+                {{
+                  signalQuantified
+                    ? '已含数字阈值，可量化'
+                    : '没有数字阈值，会被判为「不可量化」——仍可保存，但复盘时算没填'
+                }}
+              </div>
+            </div>
+          </NFormItem>
+          <NFormItem label="对应逻辑">
+            <NSelect
+              v-model:value="invForm.logic_id"
+              :options="logicOptions"
+              clearable
+              placeholder="可选：这条证伪针对哪条逻辑"
+              style="width: 100%"
+            />
+          </NFormItem>
+          <NFormItem label="来源">
+            <NInput v-model:value="invForm.source" :maxlength="64" placeholder="数据源 / 报告章节" />
+          </NFormItem>
+          <NFormItem label="动作">
+            <NInput v-model:value="invForm.action" :maxlength="32" placeholder="触发后做什么：减仓 / 清仓 / 重估" />
+          </NFormItem>
+          <!-- P2-2 自动判定：judge + judge_expr（只写候选，不改 status） -->
+          <NFormItem label="自动判定">
+            <div class="flex w-full items-center gap-8px">
+              <NSelect
+                v-model:value="invForm.judge"
+                :options="JUDGE_OPTIONS"
+                clearable
+                placeholder="不自动判定"
+                style="width: 170px"
+              />
+              <NInput
+                v-model:value="invForm.judge_expr"
+                :maxlength="64"
+                placeholder="判据表达式，如 price<=3800"
+                style="flex: 1"
+              />
+            </div>
+            <div v-if="invForm.judge && invForm.judge !== 'manual'" class="mt-4px text-12px text-gray-400">
+              机器会每日按此表达式判定候选触发（只在表格标红，**绝不自动改状态**）。 格式约定
+              {metric}{op}{value}：价格类写 price ≤ XXX，分位类写 pb_pct ≥ 0.7（仅指数标的有效）
+            </div>
+          </NFormItem>
+          <NFormItem label="状态">
+            <NSelect v-model:value="invForm.status" :options="STATUS_OPTIONS" style="width: 160px" />
+          </NFormItem>
+          <NFormItem label="触发日">
+            <NDatePicker
+              v-model:formatted-value="invForm.triggered_at"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              style="width: 160px"
+            />
+            <span class="ml-8px text-12px text-gray-400">状态选「已触发」时才需要填</span>
+          </NFormItem>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showInvModal = false">取消</NButton>
+            <NButton :loading="saving" @click="saveInv">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

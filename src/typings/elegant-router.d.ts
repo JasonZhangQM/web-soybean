@@ -21,8 +21,8 @@ declare module "@elegant-router/types" {
     "403": "/403";
     "404": "/404";
     "500": "/500";
+    "batch-sync": "/batch-sync";
     "bds": "/bds";
-    "bds_batch-sync": "/bds/batch-sync";
     "bds_fund-data": "/bds/fund-data";
     "bds_fund-data_finance-derivs": "/bds/fund-data/finance-derivs";
     "bds_fund-data_fund-balances": "/bds/fund-data/fund-balances";
@@ -57,10 +57,10 @@ declare module "@elegant-router/types" {
     "irs_index-valuation": "/irs/index-valuation";
     "irs_macro-framework": "/irs/macro-framework";
     "irs_option-quote": "/irs/option-quote";
-    "irs_today": "/irs/today";
     "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
     "irs_value-monitors": "/irs/value-monitors";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
+    "today": "/today";
   };
 
   /**
@@ -96,12 +96,14 @@ declare module "@elegant-router/types" {
     | "403"
     | "404"
     | "500"
+    | "batch-sync"
     | "bds"
     | "bills"
     | "home"
     | "iframe-page"
     | "irs"
     | "login"
+    | "today"
   >;
 
   /**
@@ -123,7 +125,7 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
-    | "bds_batch-sync"
+    | "batch-sync"
     | "bds_fund-data_finance-derivs"
     | "bds_fund-data_fund-balances"
     | "bds_fund-data_fund-cashflows"
@@ -152,9 +154,9 @@ declare module "@elegant-router/types" {
     | "irs_index-valuation"
     | "irs_macro-framework"
     | "irs_option-quote"
-    | "irs_today"
     | "irs_us-economic-dashboard"
     | "irs_value-monitors"
+    | "today"
   >;
 
   /**

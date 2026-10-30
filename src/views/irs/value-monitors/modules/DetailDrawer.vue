@@ -86,9 +86,11 @@ async function load() {
   }
 }
 
-/** 子 Tab 写操作后标记 dirty，抽屉关闭时统一 emit('changed') 刷列表 */
+/** 子 Tab 写操作后标记 dirty，并刷新 detail（让概览 Tab 的计数/剧本列表跟上最新状态） */
 function markDirty() {
   dirty = true;
+  // 幂等：抽屉还开着就重拉一次概览数据（PlanTab 改剧本后概览的生效数会变）
+  if (visible.value) load();
 }
 
 watch(

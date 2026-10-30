@@ -32,11 +32,8 @@ const reviewOverdue = computed(() => {
   return !!d && d < today;
 });
 
-/** 剧本计数：生效 / 暂停 */
-const planCount = computed(() => ({
-  active: props.detail.plans_active_count,
-  paused: props.detail.plans_total_count - props.detail.plans_active_count
-}));
+/** 生效剧本数量 */
+const activePlanCount = computed(() => props.detail.plans_active_count);
 
 // ---- 对应交易代码：服务端分页（10 条/页，id 倒序）+ 分类精确 / 合约模糊 ----
 const groups = ref<VmGroup[]>([]);
@@ -95,6 +92,9 @@ function resetGroupFilters() {
 }
 
 onMounted(() => loadGroups(1));
+
+/** 概览只展示生效剧本（暂停的留给「剧本与成交」Tab 看全量） */
+const activePlans = computed(() => props.detail.plans_preview.filter(p => !p.is_cancelled));
 
 function fmtNum(v: number | null | undefined) {
   if (v == null) return '-';
@@ -205,6 +205,34 @@ const groupColumns = [
     render: (row: VmGroup) => (row.pfl_all != null ? Number(row.pfl_all).toFixed(2) : '-')
   }
 ];
+
+// ---- 档位表格：五档横排，VmDataTable 样式与剧本 / 对应交易代码统一 ----
+const LEVEL_META = [
+  { key: 'pp_el', label: '极低' },
+  { key: 'pp_l', label: '低' },
+  { key: 'pp_m', label: '中' },
+  { key: 'pp_h', label: '高' },
+  { key: 'pp_eh', label: '极高' }
+] as const;
+
+/** 单行数据，五个档位值按 key 取 */
+const levelRows = computed(() => [
+  LEVEL_META.reduce(
+    (acc, m) => {
+      (acc as any)[m.key] = fmtNum((props.detail.vm as any)[m.key]);
+      return acc;
+    },
+    {} as Record<string, string>
+  )
+]);
+
+/** 每列表头用普通文字 */
+const levelColumns = LEVEL_META.map(m => ({
+  title: m.label,
+  key: m.key,
+  width: 130,
+  align: 'right' as const
+}));
 </script>
 
 <template>
@@ -298,33 +326,19 @@ const groupColumns = [
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
     </div>
 
-    <!-- 档位摘要：五档从主表 vm 取（current_version 只给生效日期 + 备注） -->
-    <NDescriptions v-if="currentVersion" :column="5" label-placement="top" bordered size="small" class="mb-16px">
-      <NDescriptionsItem label="极低">{{ fmtNum(detail.vm.pp_el) }}</NDescriptionsItem>
-      <NDescriptionsItem label="低">{{ fmtNum(detail.vm.pp_l) }}</NDescriptionsItem>
-      <NDescriptionsItem label="中">{{ fmtNum(detail.vm.pp_m) }}</NDescriptionsItem>
-      <NDescriptionsItem label="高">{{ fmtNum(detail.vm.pp_h) }}</NDescriptionsItem>
-      <NDescriptionsItem label="极高">{{ fmtNum(detail.vm.pp_eh) }}</NDescriptionsItem>
-    </NDescriptions>
+    <!-- 档位摘要：五档横排，VmDataTable 样式与剧本 / 对应交易代码统一 -->
+    <VmDataTable v-if="currentVersion" :columns="levelColumns" :data="levelRows" :page-size="0" class="mb-16px" />
 
     <NDivider />
 
     <!-- 剧本计数 -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">剧本</span>
-      <NTag size="small" :bordered="false" type="success">生效 {{ planCount.active }}</NTag>
-      <NTag size="small" :bordered="false" type="default">暂停 {{ planCount.paused }}</NTag>
+      <span class="font-500">生效剧本({{ activePlanCount }})</span>
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去剧本与成交 Tab</NButton>
     </div>
 
-    <!-- 剧本明细（只读）：瘦身版 detail 给前 10 条，全量在「剧本与成交」Tab -->
-    <VmDataTable
-      v-if="detail.plans_preview.length"
-      :columns="planColumns"
-      :data="detail.plans_preview"
-      :page-size="0"
-      class="mb-8px"
-    />
+    <!-- 剧本明细（只读）：只展示生效剧本，暂停的留给「剧本与成交」Tab 看全量 -->
+    <VmDataTable v-if="activePlans.length" :columns="planColumns" :data="activePlans" :page-size="0" class="mb-8px" />
 
     <NDivider />
 

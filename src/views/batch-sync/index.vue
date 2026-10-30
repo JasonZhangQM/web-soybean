@@ -43,6 +43,16 @@ const TABLE_OPTIONS = [
   { label: '每日市值', value: 'daily-mktvalue' }
 ];
 
+/** 同步表 → 数据查看页链接（checkbox 文字后的 ↗，点击跳转不触发勾选） */
+const TABLE_LINKS: Record<string, string> = {
+  'fund-balance': '/bds/fund-data/fund-balances',
+  'fund-income': '/bds/fund-data/fund-incomes',
+  'fund-cashflow': '/bds/fund-data/fund-cashflows',
+  'finance-deriv': '/bds/fund-data/finance-derivs',
+  'daily-valuation': '/bds/market-data/daily-valuations',
+  'daily-mktvalue': '/bds/market-data/daily-mktvalues'
+};
+
 const scopeOptions = [
   { label: '全市场', value: 'all' },
   { label: '指数成分股', value: 'index' },
@@ -902,6 +912,7 @@ onBeforeUnmount(() => {
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in TABLE_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
+              <RouterLink :to="TABLE_LINKS[opt.value]" class="sync-link" @click.stop>↗</RouterLink>
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
@@ -1009,7 +1020,10 @@ onBeforeUnmount(() => {
 
     <!-- ===== 卡片 2：指数成分股同步 ===== -->
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
-      <template #header>指数成分股同步</template>
+      <template #header>
+        指数成分股同步
+        <RouterLink to="/bds/index-constituents" class="sync-link" @click.stop>↗</RouterLink>
+      </template>
       <template #header-extra>
         <NButton
           type="primary"
@@ -1168,7 +1182,10 @@ onBeforeUnmount(() => {
 
     <!-- ===== 卡片 3：指数估值重算 ===== -->
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
-      <template #header>指数估值重算</template>
+      <template #header>
+        指数估值重算
+        <RouterLink to="/bds/index-valuation" class="sync-link" @click.stop>↗</RouterLink>
+      </template>
       <template #header-extra>
         <NButton
           type="primary"

@@ -9,13 +9,20 @@
  *   1 证伪触发（红）→ 2 剧本命中（橙）→ 3 裸仓（黄）→ 4 复核到期（蓝）→ 5 没事。
  */
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { NButton, NTag, NEmpty } from 'naive-ui';
 import { fetchToday, saveVmTarget, fetchRiskBoard } from '@/service/api';
 
 defineOptions({ name: 'IrsTodayPage' });
 
+const router = useRouter();
 const loading = ref(false);
 const items = ref<Api.Irs.TodayItem[]>([]);
+
+/** 标题跳估值监测详情抽屉：复用 ?vm= 入口（openFromQuery 自动开抽屉） */
+function goDetail(it: Api.Irs.TodayItem) {
+  router.push({ name: 'irs_value-monitors', query: { vm: it.symbol } });
+}
 
 async function load() {
   loading.value = true;
@@ -191,7 +198,9 @@ function cardClass(it: Api.Irs.TodayItem) {
         <NCard v-for="it in items" :key="it.symbol" size="small" :class="cardClass(it)">
           <template #header>
             <div class="flex flex-wrap items-center gap-8px">
-              <span class="font-600">{{ it.name || it.symbol }}</span>
+              <NButton text type="primary" class="font-600" @click="goDetail(it)">
+                {{ it.name || it.symbol }}
+              </NButton>
               <span class="text-12px text-gray-400">{{ it.symbol }}</span>
               <NTag size="tiny" :bordered="false" :type="PRIORITY_META[it.priority]?.type ?? 'default'">
                 {{ PRIORITY_META[it.priority]?.label ?? it.priority }}
@@ -259,28 +268,30 @@ function cardClass(it: Api.Irs.TodayItem) {
       </div>
     </NSpin>
 
-    <!-- 设置目标仓位 -->
-    <NModal v-model:show="showTargetModal" preset="card" title="设置目标仓位" class="w-360px">
-      <NForm label-placement="left" label-width="96px" :show-feedback="false">
-        <NFormItem label="目标仓位(%)">
-          <NInputNumber
-            v-model:value="targetValue"
-            :precision="2"
-            :step="0.5"
-            :min="0"
-            :max="100"
-            placeholder="占总资产比例"
-            class="w-full"
-          />
-        </NFormItem>
-        <div class="text-12px text-gray-400">决策层目标 vs 实际持仓的漂移在卡片下方看，这里只设目标</div>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showTargetModal = false">取消</NButton>
-          <NButton type="primary" :loading="savingTarget" @click="saveTarget">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+    <!-- 设置目标仓位抽屉（左侧） -->
+    <NDrawer v-model:show="showTargetModal" placement="left" width="360px" :mask-closable="false">
+      <NDrawerContent title="设置目标仓位" closable :native-scrollbar="false">
+        <NForm label-placement="left" label-width="96px" :show-feedback="false">
+          <NFormItem label="目标仓位(%)">
+            <NInputNumber
+              v-model:value="targetValue"
+              :precision="2"
+              :step="0.5"
+              :min="0"
+              :max="100"
+              placeholder="占总资产比例"
+              class="w-full"
+            />
+          </NFormItem>
+          <div class="text-12px text-gray-400">决策层目标 vs 实际持仓的漂移在卡片下方看，这里只设目标</div>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showTargetModal = false">取消</NButton>
+            <NButton type="primary" :loading="savingTarget" @click="saveTarget">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

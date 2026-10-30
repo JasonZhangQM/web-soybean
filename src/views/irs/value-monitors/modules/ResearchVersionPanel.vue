@@ -355,8 +355,6 @@ const attributionColumns = [
   }
 ];
 
-const attributionScrollX = attributionColumns.reduce((s, c) => s + Number(c.width || 0), 0);
-
 onMounted(() => {
   loadResearch();
   loadStateLog();
@@ -528,13 +526,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <span class="text-12px text-gray-400">读 bills_bill_note.plan_id 按剧本聚合；未归因成交显式标注</span>
     </div>
     <NSpin :show="attributionLoading">
-      <NDataTable
-        v-if="attributionRows.length"
-        :columns="attributionColumns"
-        :data="attributionRows"
-        size="small"
-        :scroll-x="attributionScrollX"
-      />
+      <VmDataTable v-if="attributionRows.length" :columns="attributionColumns" :data="attributionRows" :page-size="0" />
       <NEmpty v-else-if="!attributionLoading" size="small" description="还没有带剧本标记的成交" class="my-8px" />
     </NSpin>
     <NAlert v-if="attribution" type="info" :bordered="false" class="mt-8px">

@@ -191,37 +191,34 @@ async function handleDelete(r: VmReview) {
       </div>
     </NSpin>
 
-    <NModal
-      v-model:show="showModal"
-      preset="dialog"
-      :title="editingId == null ? '写复盘' : '编辑复盘'"
-      :mask-closable="false"
-      style="width: 560px"
-    >
-      <NForm label-placement="top" :show-feedback="false">
-        <NFormItem label="研究版本" required>
-          <NSelect
-            v-model:value="form.research_id"
-            :options="researchOptions"
-            filterable
-            placeholder="选这条复盘锚定的研究版本"
-          />
-        </NFormItem>
-        <NFormItem label="复盘正文" required>
-          <NInput
-            v-model:value="form.content"
-            type="textarea"
-            :autosize="{ minRows: 4, maxRows: 10 }"
-            placeholder="这版研究的结论兑现了没有：哪些兑现、哪些没兑现、下一步怎么办"
-          />
-        </NFormItem>
-      </NForm>
-      <template #action>
-        <NSpace justify="end">
-          <NButton @click="showModal = false">取消</NButton>
-          <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
-        </NSpace>
-      </template>
-    </NModal>
+    <!-- 写复盘抽屉（左侧），与逻辑/证伪抽屉同规格 -->
+    <NDrawer v-model:show="showModal" placement="left" width="520px" :mask-closable="false">
+      <NDrawerContent :title="editingId == null ? '写复盘' : '编辑复盘'" closable :native-scrollbar="false">
+        <NForm label-placement="top" :show-feedback="false">
+          <NFormItem label="研究版本" required>
+            <NSelect
+              v-model:value="form.research_id"
+              :options="researchOptions"
+              filterable
+              placeholder="选这条复盘锚定的研究版本"
+            />
+          </NFormItem>
+          <NFormItem label="复盘正文" required>
+            <NInput
+              v-model:value="form.content"
+              type="textarea"
+              :autosize="{ minRows: 4, maxRows: 10 }"
+              placeholder="这版研究的结论兑现了没有：哪些兑现、哪些没兑现、下一步怎么办"
+            />
+          </NFormItem>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showModal = false">取消</NButton>
+            <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

@@ -20,7 +20,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   500: () => import("@/views/_builtin/500/index.vue"),
   "iframe-page": () => import("@/views/_builtin/iframe-page/[url].vue"),
   login: () => import("@/views/_builtin/login/index.vue"),
-  "bds_batch-sync": () => import("@/views/bds/batch-sync/index.vue"),
+  "batch-sync": () => import("@/views/batch-sync/index.vue"),
   "bds_fund-data_finance-derivs": () => import("@/views/bds/fund-data/finance-derivs/index.vue"),
   "bds_fund-data_fund-balances": () => import("@/views/bds/fund-data/fund-balances/index.vue"),
   "bds_fund-data_fund-cashflows": () => import("@/views/bds/fund-data/fund-cashflows/index.vue"),
@@ -49,7 +49,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "irs_index-valuation": () => import("@/views/irs/index-valuation/index.vue"),
   "irs_macro-framework": () => import("@/views/irs/macro-framework/index.vue"),
   "irs_option-quote": () => import("@/views/irs/option-quote/index.vue"),
-  irs_today: () => import("@/views/irs/today/index.vue"),
   "irs_us-economic-dashboard": () => import("@/views/irs/us-economic-dashboard/index.vue"),
   "irs_value-monitors": () => import("@/views/irs/value-monitors/index.vue"),
+  today: () => import("@/views/today/index.vue"),
 };

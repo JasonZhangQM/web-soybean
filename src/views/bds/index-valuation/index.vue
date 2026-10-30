@@ -266,7 +266,7 @@ function handlePageSizeChange(pageSize: number) {
  * 与成分股同步收口在同一处，避免同一件事有两个入口、两套状态。
  */
 function goRecalc() {
-  router.push({ name: 'bds_batch-sync' });
+  router.push({ name: 'batch-sync' });
 }
 
 /** 跳 IRs 图表页；把当前筛选的指数带过去，避免跳过去还要重选 */

@@ -85,3 +85,17 @@ html.dark .n-card.bds-sync-card > .n-card-header {
   align-items: center;
   gap: 8px;
 }
+
+/* ===== 同步页选项跳转链接：checkbox 文字 / 卡片标题后的 ↗，点击跳对应数据页 ===== */
+/* 默认淡灰不抢焦点，hover 变主色；点击事件在模板里 .stop 阻止冒泡，避免触发勾选 */
+.sync-link {
+  margin-left: 3px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #999;
+  text-decoration: none;
+  vertical-align: 1px;
+}
+.sync-link:hover {
+  color: rgb(var(--primary-color));
+}

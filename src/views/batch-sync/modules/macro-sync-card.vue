@@ -51,6 +51,18 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
 
 const STAGE_OPTIONS: StageOption[] = STAGE_GROUPS.flatMap(g => g.options);
 
+/** 同步段 → 数据查看页链接（checkbox 文字后的 ↗，点击跳转不触发勾选） */
+const STAGE_LINKS: Record<StageKey, string> = {
+  trade_date: '/bds/trade-dates',
+  symbol_info: '/bds/symbol-infos',
+  index_history: '/bds/market-data/index-histories',
+  option_info: '/bds/option-info',
+  option_market: '/bds/market-data/option-market',
+  wscn: '/bds/macro-research/economic-indicators',
+  daily: '/bds/macro-research/daily-indicators',
+  gold: '/bds/macro-research/gold-reserves'
+};
+
 /**
  * 默认勾选六段。
  * - 不勾「交易日历」：insert_trade_date_em_sql 只在跨年时才真写库，一年手动跑一次足够
@@ -284,6 +296,7 @@ onBeforeUnmount(() => {
           <NSpace :size="16" :wrap="true">
             <NCheckbox v-for="opt in g.options" :key="opt.value" :value="opt.value">
               {{ opt.label }}
+              <RouterLink :to="STAGE_LINKS[opt.value]" class="sync-link" @click.stop>↗</RouterLink>
             </NCheckbox>
           </NSpace>
         </div>

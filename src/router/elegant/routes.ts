@@ -41,6 +41,18 @@ export const generatedRoutes = [
     }
   },
   {
+    name: 'batch-sync',
+    path: '/batch-sync',
+    component: 'layout.base$view.batch-sync',
+    meta: {
+      title: 'batch-sync',
+      i18nKey: 'route.batch-sync',
+      icon: 'mdi:sync',
+      order: 1.75,
+      constant: true
+    }
+  },
+  {
     name: 'bds',
     path: '/bds',
     component: 'layout.base',
@@ -52,17 +64,6 @@ export const generatedRoutes = [
       constant: true
     },
     children: [
-      {
-        name: 'bds_batch-sync',
-        path: '/bds/batch-sync',
-        component: 'view.bds_batch-sync',
-        meta: {
-          title: 'bds_batch-sync',
-          i18nKey: 'route.bds_batch-sync',
-          order: 7,
-          constant: true
-        }
-      },
       {
         name: 'bds_fund-data',
         path: '/bds/fund-data',
@@ -398,7 +399,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_discounts-monitor',
           i18nKey: 'route.irs_discounts-monitor',
-          order: 3,
+          order: 4,
           constant: true
         }
       },
@@ -409,7 +410,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_index-valuation',
           i18nKey: 'route.irs_index-valuation',
-          order: 5,
+          order: 3,
           constant: true
         }
       },
@@ -431,17 +432,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_option-quote',
           i18nKey: 'route.irs_option-quote',
-          constant: true
-        }
-      },
-      {
-        name: 'irs_today',
-        path: '/irs/today',
-        component: 'view.irs_today',
-        meta: {
-          title: 'irs_today',
-          i18nKey: 'route.irs_today',
-          order: 1,
+          order: 5,
           constant: true
         }
       },
@@ -463,7 +454,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_value-monitors',
           i18nKey: 'route.irs_value-monitors',
-          order: 4,
+          order: 2,
           constant: true
         }
       }
@@ -479,6 +470,18 @@ export const generatedRoutes = [
       i18nKey: 'route.login',
       constant: true,
       hideInMenu: true
+    }
+  },
+  {
+    name: 'today',
+    path: '/today',
+    component: 'layout.base$view.today',
+    meta: {
+      title: 'today',
+      i18nKey: 'route.today',
+      icon: 'mdi:calendar-check',
+      order: 1.5,
+      constant: true
     }
   }
 ];
