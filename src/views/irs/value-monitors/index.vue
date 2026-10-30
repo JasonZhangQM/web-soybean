@@ -445,7 +445,7 @@ const columns = [
     // 名称是档案入口：点了开抽屉（编辑标的信息在抽屉头部与右侧「操作」列）
     title: '名称',
     key: 'name',
-    width: 130,
+    width: 100,
     render: (row: Api.Irs.ValueMonitor) =>
       h(
         NButton,
@@ -457,7 +457,7 @@ const columns = [
     // 主题只在标的层维护：合约层的 theme 列 v3 已删除
     title: '主题',
     key: 'theme',
-    width: 100,
+    width: 60,
     ellipsis: { tooltip: true },
     render: (row: Api.Irs.ValueMonitor) => row.theme || '-'
   },
@@ -465,7 +465,7 @@ const columns = [
     // 结论取自最新一版研究（≤今天），不是主表的列
     title: '结论',
     key: 'research_conclusion',
-    width: 220,
+    width: 60,
     ellipsis: { tooltip: true },
     render: (row: Api.Irs.ValueMonitor) =>
       row.research_conclusion ? row.research_conclusion : h('span', { class: 'text-gray-300' }, '未填')
@@ -482,7 +482,7 @@ const columns = [
   },
   {
     // PE 分位（P2-1，来源 bds 指数估值，标 10y）：只对 000300/000905/SPX 有效，其余 —
-    title: 'PE 分位(10y)',
+    title: 'PE分位(10y)',
     key: 'pe_pct',
     width: 100,
     render: (row: Api.Irs.ValueMonitor) => {
@@ -494,7 +494,7 @@ const columns = [
   },
   {
     // PB 分位（P2-1）：与 PE 分位同源，用不同底色与手填档位区隔
-    title: 'PB 分位(10y)',
+    title: 'PB分位(10y)',
     key: 'pb_pct',
     width: 100,
     render: (row: Api.Irs.ValueMonitor) => {
@@ -676,159 +676,161 @@ onMounted(async () => {
     <!-- 标的档案抽屉：概览 / 研究 / 档位 / 逻辑与证伪 / 计划与成交 -->
     <DetailDrawer v-model:show="showDrawer" :row="drawerRow" @edit="handleEdit" @changed="onDetailChanged" />
 
-    <NModal v-model:show="showModal" preset="card" :title="modalTitle" class="w-520px" :mask-closable="false">
-      <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="90px">
-        <NFormItem label="代码" path="symbol">
-          <NSelect
-            :value="formData.symbol || null"
-            :options="symbolOptions"
-            :loading="symbolLoading"
-            :disabled="editingId !== null"
-            filterable
-            remote
-            clearable
-            placeholder="输入代码或名称搜索"
-            style="width: 100%"
-            @search="handleSymbolSearch"
-            @update:value="handleSymbolChange"
-          />
-        </NFormItem>
-        <NFormItem label="名称" path="name">
-          <NInput v-model:value="formData.name" placeholder="请输入名称" />
-        </NFormItem>
-        <NFormItem label="主题">
-          <NSelect
-            v-model:value="formData.theme"
-            :options="themeOptions"
-            filterable
-            tag
-            clearable
-            placeholder="黄金 / IC贴水 / 红利…（可输入新标签，跨合约聚合用）"
-            style="width: 100%"
-          />
-        </NFormItem>
-        <NFormItem label="极低" path="pp_el">
-          <NInputNumber
-            v-model:value="formData.pp_el"
-            :precision="4"
-            :step="0.0001"
-            placeholder="请输入极低"
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="低" path="pp_l">
-          <NInputNumber
-            v-model:value="formData.pp_l"
-            :precision="4"
-            :step="0.0001"
-            placeholder="请输入低"
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="中" path="pp_m">
-          <NInputNumber
-            v-model:value="formData.pp_m"
-            :precision="4"
-            :step="0.0001"
-            :disabled="true"
-            placeholder="自动取低与高的平均"
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="高" path="pp_h">
-          <NInputNumber
-            v-model:value="formData.pp_h"
-            :precision="4"
-            :step="0.0001"
-            placeholder="请输入高"
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="极高" path="pp_eh">
-          <NInputNumber
-            v-model:value="formData.pp_eh"
-            :precision="4"
-            :step="0.0001"
-            placeholder="请输入极高"
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="档位生效日">
-          <NDatePicker
-            v-model:formatted-value="formData.effective_date"
-            type="date"
-            value-format="yyyy-MM-dd"
-            clearable
-            :disabled="editingId !== null && !tiersChanged"
-            style="width: 100%"
-          />
-        </NFormItem>
-        <div
-          class="mb-8px text-12px"
-          :class="editingId !== null && !tiersChanged ? 'text-gray-400' : 'text-orange-500'"
-        >
-          {{
-            editingId === null
-              ? '新增标的时按此日期建立首版档位'
-              : tiersChanged
-                ? '五档已改：选新日期 = 新建一版，选已有日期 = 改那一版'
-                : '五档未改：只改名称/主题，不会新建档位版本'
-          }}
-        </div>
-        <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
-        <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
-          <NCollapseItem title="行情字段（兜底编辑）" name="quote">
-            <NFormItem label="上年末" path="py_close">
-              <NInputNumber
-                v-model:value="formData.py_close"
-                :precision="4"
-                :step="0.0001"
-                placeholder="上年末收盘价"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="年高" path="y_high">
-              <NInputNumber
-                v-model:value="formData.y_high"
-                :precision="4"
-                :step="0.0001"
-                placeholder="年度最高价"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="年低" path="y_low">
-              <NInputNumber
-                v-model:value="formData.y_low"
-                :precision="4"
-                :step="0.0001"
-                placeholder="年度最低价"
-                class="w-full"
-              />
-            </NFormItem>
-            <NFormItem label="最新价" path="price">
-              <NInputNumber
-                v-model:value="formData.price"
-                :precision="4"
-                :step="0.0001"
-                placeholder="最新成交价"
-                class="w-full"
-              />
-            </NFormItem>
-          </NCollapseItem>
-        </NCollapse>
-      </NForm>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="handleCancel">取消</NButton>
-          <NButton ghost :loading="submitLoading" @click="handleSubmit">
-            {{ editingId === null ? '确定' : '修改' }}
-          </NButton>
-          <NButton v-if="editingId !== null" type="error" ghost :loading="submitLoading" @click="handleDelete">
-            删除
-          </NButton>
-        </NSpace>
-      </template>
-    </NModal>
+    <NDrawer v-model:show="showModal" placement="left" width="480" :mask-closable="false" :close-on-esc="false">
+      <NDrawerContent :title="modalTitle" closable :native-scrollbar="false">
+        <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="90px">
+          <NFormItem label="代码" path="symbol">
+            <NSelect
+              :value="formData.symbol || null"
+              :options="symbolOptions"
+              :loading="symbolLoading"
+              :disabled="editingId !== null"
+              filterable
+              remote
+              clearable
+              placeholder="输入代码或名称搜索"
+              style="width: 100%"
+              @search="handleSymbolSearch"
+              @update:value="handleSymbolChange"
+            />
+          </NFormItem>
+          <NFormItem label="名称" path="name">
+            <NInput v-model:value="formData.name" placeholder="请输入名称" />
+          </NFormItem>
+          <NFormItem label="主题">
+            <NSelect
+              v-model:value="formData.theme"
+              :options="themeOptions"
+              filterable
+              tag
+              clearable
+              placeholder="黄金 / IC贴水 / 红利…（可输入新标签，跨合约聚合用）"
+              style="width: 100%"
+            />
+          </NFormItem>
+          <NFormItem label="极低" path="pp_el">
+            <NInputNumber
+              v-model:value="formData.pp_el"
+              :precision="4"
+              :step="0.0001"
+              placeholder="请输入极低"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="低" path="pp_l">
+            <NInputNumber
+              v-model:value="formData.pp_l"
+              :precision="4"
+              :step="0.0001"
+              placeholder="请输入低"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="中" path="pp_m">
+            <NInputNumber
+              v-model:value="formData.pp_m"
+              :precision="4"
+              :step="0.0001"
+              :disabled="true"
+              placeholder="自动取低与高的平均"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="高" path="pp_h">
+            <NInputNumber
+              v-model:value="formData.pp_h"
+              :precision="4"
+              :step="0.0001"
+              placeholder="请输入高"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="极高" path="pp_eh">
+            <NInputNumber
+              v-model:value="formData.pp_eh"
+              :precision="4"
+              :step="0.0001"
+              placeholder="请输入极高"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="档位生效日">
+            <NDatePicker
+              v-model:formatted-value="formData.effective_date"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              :disabled="editingId !== null && !tiersChanged"
+              style="width: 100%"
+            />
+          </NFormItem>
+          <div
+            class="mb-8px text-12px"
+            :class="editingId !== null && !tiersChanged ? 'text-gray-400' : 'text-orange-500'"
+          >
+            {{
+              editingId === null
+                ? '新增标的时按此日期建立首版档位'
+                : tiersChanged
+                  ? '五档已改：选新日期 = 新建一版，选已有日期 = 改那一版'
+                  : '五档未改：只改名称/主题，不会新建档位版本'
+            }}
+          </div>
+          <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
+          <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
+            <NCollapseItem title="行情字段（兜底编辑）" name="quote">
+              <NFormItem label="上年末" path="py_close">
+                <NInputNumber
+                  v-model:value="formData.py_close"
+                  :precision="4"
+                  :step="0.0001"
+                  placeholder="上年末收盘价"
+                  class="w-full"
+                />
+              </NFormItem>
+              <NFormItem label="年高" path="y_high">
+                <NInputNumber
+                  v-model:value="formData.y_high"
+                  :precision="4"
+                  :step="0.0001"
+                  placeholder="年度最高价"
+                  class="w-full"
+                />
+              </NFormItem>
+              <NFormItem label="年低" path="y_low">
+                <NInputNumber
+                  v-model:value="formData.y_low"
+                  :precision="4"
+                  :step="0.0001"
+                  placeholder="年度最低价"
+                  class="w-full"
+                />
+              </NFormItem>
+              <NFormItem label="最新价" path="price">
+                <NInputNumber
+                  v-model:value="formData.price"
+                  :precision="4"
+                  :step="0.0001"
+                  placeholder="最新成交价"
+                  class="w-full"
+                />
+              </NFormItem>
+            </NCollapseItem>
+          </NCollapse>
+        </NForm>
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="handleCancel">取消</NButton>
+            <NButton ghost :loading="submitLoading" @click="handleSubmit">
+              {{ editingId === null ? '确定' : '修改' }}
+            </NButton>
+            <NButton v-if="editingId !== null" type="error" ghost :loading="submitLoading" @click="handleDelete">
+              删除
+            </NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
 

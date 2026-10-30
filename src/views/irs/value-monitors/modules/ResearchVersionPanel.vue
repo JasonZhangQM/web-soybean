@@ -382,7 +382,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <NButton size="tiny" ghost class="ml-auto" @click="startNew">新建一版</NButton>
     </div>
     <VmDataTable :columns="columns" :data="research" :page-size="10" />
-    <NEmpty v-if="!research.length" size="small" description="还没有研究版本" class="my-8px" />
+    <!-- <NEmpty v-if="!research.length" size="small" description="还没有研究版本" class="my-8px" /> -->
 
     <NDivider />
 

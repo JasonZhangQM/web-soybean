@@ -39,6 +39,7 @@ const OP_OPTIONS = [
 const showModal = ref(false);
 const saving = ref(false);
 const deletingSeq = ref<number | null>(null);
+const editingPlanId = ref<number | null>(null);
 
 const form = reactive<{
   seq: number;
@@ -99,6 +100,7 @@ function renderTradeSymbolLabel(option: { display?: string; label?: string }) {
 }
 
 function openNew() {
+  editingPlanId.value = null;
   const maxSeq = plans.value.reduce((m, p) => Math.max(m, p.seq), 0);
   form.seq = maxSeq + 1;
   // 只有唯一一个历史合约才预填。≥2 个时预填第一个等于替你猜，猜错了保存前也看不出来。
@@ -115,6 +117,7 @@ function openNew() {
 }
 
 function openEdit(p: Api.Irs.VmPlan) {
+  editingPlanId.value = p.id;
   form.seq = p.seq;
   form.trade_symbol = p.trade_symbol;
   form.b_s = p.b_s;
@@ -562,15 +565,11 @@ watch(
     /> 
 -->
 
-    <NDrawer
-      v-model:show="showModal"
-      title="剧本"
-      placement="left"
-      width="420"
-      :mask-closable="false"
-      :close-on-esc="false"
-    >
+    <NDrawer v-model:show="showModal" placement="left" width="420" :mask-closable="false" :close-on-esc="false">
       <NDrawerContent closable :native-scrollbar="false">
+        <template #header>
+          <span class="font-500">{{ editingPlanId ? '修改剧本' : '新增剧本' }}</span>
+        </template>
         <NForm label-placement="left" label-width="90px" :show-feedback="false">
           <NFormItem label="序号">
             <NInputNumber v-model:value="form.seq" :precision="0" :min="1" style="width: 120px" />
