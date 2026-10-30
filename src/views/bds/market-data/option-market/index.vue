@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue';
-import { NSelect, useMessage } from 'naive-ui';
+import { NSelect, NInput, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import {
   deleteOptionConfig,
@@ -12,7 +12,8 @@ import {
   fetchOptionSyncPlan,
   fetchSyncTask,
   syncOptionMarket,
-  updateOptionConfig
+  updateOptionConfig,
+  updateOptionMarket
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
@@ -113,7 +114,21 @@ function fmtMissing(v: unknown, title: string, digits = 4) {
 }
 
 const columns = [
-  { title: '行情日期', key: 'trade_date', width: 110 },
+  {
+    title: '行情日期',
+    key: 'trade_date',
+    width: 110,
+    render: (r: Api.Bds.OptionMarket) =>
+      h(
+        'a',
+        {
+          style: 'color:#2080f0;cursor:pointer',
+          onClick: () => openEditMarket(r),
+          title: '点击编辑该行情'
+        },
+        r.trade_date
+      )
+  },
   {
     title: '合约ID',
     key: 'contract_id',
@@ -616,6 +631,77 @@ function renderBrokerSymbol(row: Api.Bds.OptionConfig) {
   });
 }
 
+// ===================== 行情手工修改弹窗 =====================
+
+const editDrawer = ref(false);
+const editLoading = ref(false);
+const editRow = ref<Api.Bds.OptionMarket | null>(null);
+const editForm = reactive<{
+  price: string;
+  pre_settle: string;
+  settle: string;
+  price_ud: string;
+  delta_opt: string;
+  volume: string;
+  open_interest: string;
+}>({
+  price: '',
+  pre_settle: '',
+  settle: '',
+  price_ud: '',
+  delta_opt: '',
+  volume: '',
+  open_interest: ''
+});
+
+/** 数字/空串 → number | null（输入空串视为清空） */
+function toNumOrNull(s: string): number | null {
+  const t = (s ?? '').trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function openEditMarket(row: Api.Bds.OptionMarket) {
+  editRow.value = row;
+  editForm.price = row.price == null ? '' : String(row.price);
+  editForm.pre_settle = row.pre_settle == null ? '' : String(row.pre_settle);
+  editForm.settle = row.settle == null ? '' : String(row.settle);
+  editForm.price_ud = row.price_ud == null ? '' : String(row.price_ud);
+  editForm.delta_opt = row.delta_opt == null ? '' : String(row.delta_opt);
+  editForm.volume = row.volume == null ? '' : String(row.volume);
+  editForm.open_interest = row.open_interest == null ? '' : String(row.open_interest);
+  editDrawer.value = true;
+}
+
+async function saveEditMarket() {
+  if (!editRow.value) return;
+  editLoading.value = true;
+  try {
+    const payload: Api.Bds.OptionMarketUpdate = {
+      price: toNumOrNull(editForm.price),
+      pre_settle: toNumOrNull(editForm.pre_settle),
+      settle: toNumOrNull(editForm.settle),
+      price_ud: toNumOrNull(editForm.price_ud),
+      delta_opt: toNumOrNull(editForm.delta_opt),
+      volume: toNumOrNull(editForm.volume),
+      open_interest: toNumOrNull(editForm.open_interest)
+    };
+    const { data, error } = await updateOptionMarket(editRow.value.id, payload);
+    if (error) {
+      message.error((error as any)?.message || '行情更新失败');
+      return;
+    }
+    // 本地替换该行（不重新翻页），同时刷新最新行情日期与同步时间提示
+    const idx = tableData.value.findIndex(r => r.id === editRow.value!.id);
+    if (idx >= 0 && data) tableData.value[idx] = data;
+    editDrawer.value = false;
+    message.success('行情已更新');
+  } finally {
+    editLoading.value = false;
+  }
+}
+
 function openConfigDrawer() {
   configDrawer.value = true;
   configPagination.page = 1;
@@ -926,6 +1012,53 @@ onUnmounted(stopPolling);
           :pagination="configPagination"
           :scroll-x="configScrollX"
         />
+      </NDrawerContent>
+    </NDrawer>
+
+    <!-- 行情手工修改弹窗（抽屉左开，合约与日期固定不可改） -->
+    <NDrawer v-model:show="editDrawer" width="480" placement="left">
+      <NDrawerContent closable>
+        <template #header>
+          <span>手工修正行情</span>
+        </template>
+        <div v-if="editRow" class="mb-16px">
+          <div class="mb-6px text-13px" style="color:#666">
+            合约：<span style="font-family:monospace">{{ editRow.contract_id }}</span>
+            · 行情日期：{{ editRow.trade_date }}
+          </div>
+          <div class="text-12px" style="color:#999">
+            仅修正接口偶发取错的字段；<b>留空=清空为 null</b>，不填的字段不动。
+            <br />
+            value_i / value_t / atm_i / ratio_* 等衍生列会在保存时自动按唯一口径重算。
+          </div>
+        </div>
+        <NForm label-placement="left" label-width="110px" class="mt-12px">
+          <NFormItem label="最新价 price">
+            <NInput v-model:value="editForm.price" placeholder="如 12.18" />
+          </NFormItem>
+          <NFormItem label="前结算价 pre_settle">
+            <NInput v-model:value="editForm.pre_settle" placeholder="如 11.80" />
+          </NFormItem>
+          <NFormItem label="结算价 settle">
+            <NInput v-model:value="editForm.settle" placeholder="如 12.15；股指/ETF 留空" />
+          </NFormItem>
+          <NFormItem label="标的价 price_ud">
+            <NInput v-model:value="editForm.price_ud" placeholder="如 1150.50" />
+          </NFormItem>
+          <NFormItem label="delta">
+            <NInput v-model:value="editForm.delta_opt" placeholder="如 -0.4532" />
+          </NFormItem>
+          <NFormItem label="成交量">
+            <NInput v-model:value="editForm.volume" placeholder="如 1431；ETF 留空" />
+          </NFormItem>
+          <NFormItem label="持仓量">
+            <NInput v-model:value="editForm.open_interest" placeholder="如 5682" />
+          </NFormItem>
+        </NForm>
+        <div class="mt-16px flex gap-8px">
+          <NButton :loading="editLoading" @click="saveEditMarket">保存</NButton>
+          <NButton :disabled="editLoading" @click="editDrawer = false">取消</NButton>
+        </div>
       </NDrawerContent>
     </NDrawer>
   </div>

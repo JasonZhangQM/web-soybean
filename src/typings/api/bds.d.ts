@@ -1237,5 +1237,17 @@ declare namespace Api {
       end_months: string[];
       und_keys: string[];
     }
+
+    /** 期权行情手工修改入参（PUT /bds/option-market/{id}）。
+     *  每个字段传值才会覆盖，null/undefined 表示不改；支持显式传 null 清空。 */
+    interface OptionMarketUpdate {
+      price?: number | null;
+      pre_settle?: number | null;
+      settle?: number | null;
+      price_ud?: number | null;
+      delta_opt?: number | null;
+      volume?: number | null;
+      open_interest?: number | null;
+    }
   }
 }

@@ -24,6 +24,7 @@ const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
 const plans = ref<Api.Irs.VmPlan[]>([]);
+const trades = ref<VmTrade[]>([]);
 async function loadPlans() {
   const { data, error } = await fetchValueMonitorPlans(props.vmId);
   if (!error && data) plans.value = data;
@@ -381,7 +382,6 @@ const planFilter = ref<number | null>(null);
 const categoryFilter = ref<string | null>(null);
 const accountFilter = ref<string | null>(null);
 const symbolFilter = ref('');
-const trades = ref<VmTrade[]>([]);
 const tradeTotal = ref<number | null>(null);
 const page = ref(1);
 /** 归属成交默认 10 条/页（与概览合约行、剧本表、列表页默认页大小一致） */
@@ -393,7 +393,6 @@ const categoryFilterOptions = computed(() => {
   return [...set].sort().map(c => ({ label: c, value: c }));
 });
 const accountOptions = computed(() => billsStore.getAccountOptions());
-const hasFilter = computed(() => planFilter.value != null || categoryFilter.value != null || !!accountFilter.value || !!symbolFilter.value.trim());
 
 /** 拉取指定页；页码越界（如删了数据）时回退到第 1 页 */
 async function loadTrades(targetPage = page.value) {
@@ -556,12 +555,14 @@ watch(
         @update:page-size="handlePageSizeChange"
       />
     </div>
-    <!-- <NEmpty
+    <!--
+ <NEmpty
       v-if="!trades.length"
       size="small"
       :description="hasFilter ? '没有符合筛选条件的成交' : '这个标的还没有归属的成交'"
       class="my-8px"
-    /> -->
+    /> 
+-->
 
     <NDrawer
       v-model:show="showModal"

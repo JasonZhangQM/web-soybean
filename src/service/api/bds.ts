@@ -706,3 +706,12 @@ export function deleteOptionConfig(id: number) {
     method: 'delete'
   });
 }
+
+/** 手工修改某条期权行情（仅允许改 price/pre_settle/settle/price_ud/delta_opt/volume/open_interest 七列） */
+export function updateOptionMarket(id: number, data: Api.Bds.OptionMarketUpdate) {
+  return request<Api.Bds.OptionMarket>({
+    url: `/api/v1/bds/option-market/${id}`,
+    method: 'put',
+    data
+  });
+}
