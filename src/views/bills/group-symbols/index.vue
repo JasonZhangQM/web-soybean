@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, h } from 'vue';
-import { NSelect, NTag, NTooltip } from 'naive-ui';
+import { NButton, NSelect, NTag, NTooltip } from 'naive-ui';
 import { useRoute } from 'vue-router';
 import {
   fetchGroupSymbols,
@@ -51,8 +51,9 @@ const pagination = createTablePagination();
  * - vm_symbol 归属标的：精确筛某个标的名下的全部合约行（如 SHSE.000300 下的期权+ETF+期货）。
  *   与 mapped 互斥（mapped=no + 具体标的恒为空集），选一个会清掉另一个。
  *
- * v3 起本页没有 theme / has_note：主题与笔记全部迁到标的档案（/irs/value-monitors），
- * 本表唯一的人工列是 vm_symbol。
+ * v3 起本页没有 theme / has_note：主题与笔记全部迁到标的档案（/irs/value-monitors）；
+ * 人工列只剩 vm_symbol（归属标的），编辑在抽屉（点击代码）；风险敞口为联动
+ * 派生列（人工值设在 Group 页，按标的自动汇总），本页只读。
  *
  * 「可归属」= 交易类（证券/期货/期权）且 symbol 不是资金流水占位代码
  * （RZRQ/CRJ/SYFY/cash）；理财逆回购按分类一并排除。口径见后端
@@ -214,6 +215,16 @@ function renderAmount(row: Api.Bills.GroupSymbol, key: keyof Api.Bills.GroupSymb
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 数值渲染：toFixed 统一精度后去掉小数末尾的 0 与孤立小数点
+// （4800.00 -> 4800、2.7500 -> 2.75、3.0000 -> 3）；金额列仍走 renderAmount 保留两位
+function renderTrimmed(val: number | string | null | undefined, precision: number) {
+  return val != null
+    ? Number(val)
+        .toFixed(precision)
+        .replace(/\.?0+$/, '')
+    : '-';
+}
+
 // 当前页三列盈亏汇总（前端计算，null 值跳过不计）
 const plSummary = computed(() => {
   let pfTotal = 0;
@@ -242,13 +253,12 @@ function renderRate(row: Api.Bills.GroupSymbol) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
-// 最新价：保留 4 位小数，null 显示 '-'
+// 最新价：最多 4 位小数，去掉末尾 0（2.7500 -> 2.75），null 显示 '-'
 function renderPrice(row: Api.Bills.GroupSymbol) {
-  const val = row.price;
-  return val != null ? Number(val).toFixed(4) : '-';
+  return renderTrimmed(row.price, 4);
 }
 
-// ---------------- 归属标的（唯一的人工列） ----------------
+// ---------------- 归属标的（列内只读展示，编辑统一走抽屉） ----------------
 /**
  * 可归属判定 —— 与后端 `app/bills/constants.py::is_attachable` 同一口径。
  *
@@ -281,33 +291,8 @@ function nonAttachableHint(row: Api.Bills.GroupSymbol) {
   return NON_ATTACHABLE_HINTS[row.category] ?? `${row.category}：非交易类别，不参与标的归属`;
 }
 
-const vmSaving = ref<number | null>(null);
-
-/**
- * 写归属：**只写 vm_symbol 一列**（后端 update_columns 白名单），
- * 不会把上一屏的派生列旧值回写，所以这里也不必整行重取。
- *
- * NSelect 是受控组件，必须把返回值写回 row，否则选了会弹回原值。
- */
-async function handleVmChange(row: Api.Bills.GroupSymbol, val: string | null) {
-  if (!isAttachable(row)) return;
-  if ((row.vm_symbol ?? null) === (val ?? null)) return;
-  vmSaving.value = row.id;
-  try {
-    const { data, error } = await updateGroupSymbolVm(row.id, { vm_symbol: val || null });
-    if (!error) {
-      row.vm_symbol = data?.vm_symbol ?? null;
-      const nm = row.vm_symbol ? vmNameMap.value[row.vm_symbol] || '' : '';
-      window.$message?.success(row.vm_symbol ? `已归属 ${row.vm_symbol} ${nm}` : '已取消归属');
-      // 覆盖计数随之变化；表格本身不需要整页刷新
-      fetchCoverage();
-    }
-  } finally {
-    vmSaving.value = null;
-  }
-}
-
-// 归属列渲染：不可归属 ⇒ 「—」（附原因，不是漏配）；其余 ⇒ 可清空的 NSelect
+// 归属列渲染（只读，编辑统一走抽屉）：
+// 不可归属 ⇒ 「—」（附原因，不是漏配）；未归属 ⇒ 灰字；已归属 ⇒ 「代码 名称」
 function renderVmSymbol(row: Api.Bills.GroupSymbol) {
   if (!isAttachable(row)) {
     return h(NTooltip, null, {
@@ -315,33 +300,75 @@ function renderVmSymbol(row: Api.Bills.GroupSymbol) {
       default: () => nonAttachableHint(row)
     });
   }
-  return h(NSelect, {
-    value: row.vm_symbol ?? null,
-    options: vmOptions.value,
-    clearable: true,
-    filterable: true,
-    size: 'small',
-    placeholder: '未归属',
-    loading: vmSaving.value === row.id,
-    'onUpdate:value': (v: string | null) => handleVmChange(row, v)
-  });
+  if (!row.vm_symbol) {
+    return h('span', { class: 'text-gray-300' }, '未归属');
+  }
+  const nm = vmNameMap.value[row.vm_symbol] ?? '';
+  return h('span', { class: 'whitespace-nowrap' }, `${row.vm_symbol} ${nm}`.trim());
+}
+
+// ---------------- 合约行编辑抽屉（归属标的，GroupSymbol 唯一人工列） ----------------
+/**
+ * 代码列点击入口的落点。后端 PATCH /vm 只写 vm_symbol 列（白名单），
+ * 整体保存语义：清空下拉 = 清空归属（null）。
+ * 风险敞口的人工设置已上移到 Group 页（账户×分类×代码粒度），本表同名列
+ * 由后端联动汇总维护，此抽屉只读展示。
+ */
+const metaDrawerShow = ref(false);
+const metaRow = ref<Api.Bills.GroupSymbol | null>(null);
+const metaForm = reactive<{ vm_symbol: string | null }>({ vm_symbol: null });
+const metaSaving = ref(false);
+
+function openMetaDrawer(row: Api.Bills.GroupSymbol) {
+  metaRow.value = row;
+  metaForm.vm_symbol = row.vm_symbol ?? null;
+  metaDrawerShow.value = true;
+}
+
+async function handleMetaSave() {
+  const row = metaRow.value;
+  if (!row) return;
+  metaSaving.value = true;
+  try {
+    const { data, error } = await updateGroupSymbolVm(row.id, {
+      vm_symbol: metaForm.vm_symbol || null
+    });
+    if (!error) {
+      // 只回写人工列，派生列保持本屏数据，无需整行重取
+      row.vm_symbol = data?.vm_symbol ?? null;
+      window.$message?.success('已保存');
+      metaDrawerShow.value = false;
+      // 归属变化会改变覆盖计数
+      fetchCoverage();
+    }
+  } finally {
+    metaSaving.value = false;
+  }
 }
 
 const columns = [
-  { title: '交易分类', key: 'category', width: 80 },
   {
-    // 代码只做展示与复制。v3 起笔记不在本页（标的层档案在 /irs/value-monitors，
-    // 单笔成交笔记在 /bills/bills），所以这里不再挂弹窗入口。
+    // 代码即编辑入口：点击直接弹出左侧抽屉，维护归属标的（唯一人工列）。
     // 不折行：19 字符的最长合约代码（如 CFFEX.IO2611-P-4000）要能一行显示。
-    // ⚠️ 用 span 而不是 NButton：naive-ui 按钮样式带 user-select:none，代码没法选中复制
+    // ⚠️ 文本用 span 而不是 NButton：naive-ui 按钮样式带 user-select:none，代码没法选中复制
     title: '代码',
     key: 'symbol',
-    width: 200,
+    width: 230,
     render: (row: Api.Bills.GroupSymbol) =>
-      h('span', { class: 'whitespace-nowrap', style: 'user-select: text' }, row.symbol)
+      h(
+        'span',
+        {
+          class: 'text-primary hover:underline cursor-pointer whitespace-nowrap',
+          style: 'user-select: text',
+          onClick: () => openMetaDrawer(row)
+        },
+        row.symbol
+      )
   },
+  { title: '交易分类', key: 'category', width: 80 },
   {
-    // 归属标的：合约 → 标的的唯一桥梁。选中后该合约的全部成交都归到这个标的名下
+    // 归属标的：合约 → 标的的唯一桥梁。归属后该合约的全部成交都归到这个标的名下；
+    // 列内只读展示，编辑统一在抽屉（点击代码）设置
     title: '归属标的',
     key: 'vm_symbol',
     width: 200,
@@ -349,11 +376,37 @@ const columns = [
   },
   { title: '交易次数', key: 'count', width: 80, align: 'right' as const },
   {
+    // 持仓量：去掉 toFixed(2) 的末尾 0（4800.00 -> 4800），null 显示 '-'
     title: '持仓量',
     key: 'p_total',
     width: 100,
     align: 'right' as const,
-    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'p_total')
+    render: (row: Api.Bills.GroupSymbol) => renderTrimmed(row.p_total, 2)
+  },
+  {
+    title: '最新价',
+    key: 'price',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bills.GroupSymbol) => renderPrice(row)
+  },
+  {
+    // 乘数：期货/期权合约每单位价值（如沪金=1000、IO=300）；证券类为 1，null 显示 '-'。
+    // 整数原样展示——不能用 renderTrimmed：precision=0 时无小数点，正则会误删末尾 0（300 -> 3）
+    title: '乘数',
+    key: 'multiplier',
+    width: 70,
+    align: 'right' as const,
+    render: (row: Api.Bills.GroupSymbol) => (row.multiplier != null ? String(row.multiplier) : '-')
+  },
+  {
+    // 行权价：仅期权交易行有值（后端经 bds_option_config → bds_option_info 查得），
+    // 未登记同步清单的合约 / 非期权类别显示 '-'
+    title: '行权价',
+    key: 'strike',
+    width: 90,
+    align: 'right' as const,
+    render: (row: Api.Bills.GroupSymbol) => renderTrimmed(row.strike, 4)
   },
   {
     title: '持仓成本',
@@ -364,19 +417,21 @@ const columns = [
     render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total')
   },
   {
-    title: '最新价',
-    key: 'price',
-    width: 100,
-    align: 'right' as const,
-    render: (row: Api.Bills.GroupSymbol) => renderPrice(row)
-  },
-  {
     title: '当前市值',
     key: 'value_total',
     // 130：同上，最长 13 字符
     width: 130,
     align: 'right' as const,
     render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total')
+  },
+  {
+    // 风险敞口（联动派生，只读）：人工值设在 Group 页（账户×分类×代码），
+    // 后端保存时按 (category, symbol) 汇总刷回本表
+    title: '风险敞口',
+    key: 'risk_exposure',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'risk_exposure')
   },
   {
     title: '浮动盈亏',
@@ -526,5 +581,36 @@ onMounted(async () => {
         @update:page-size="handlePageSizeChange"
       />
     </NCard>
+
+    <!-- 合约行编辑抽屉（点击代码列打开）：归属标的（唯一人工列） -->
+    <NDrawer v-model:show="metaDrawerShow" placement="left" width="440px" :mask-closable="false">
+      <NDrawerContent :title="metaRow ? `编辑：${metaRow.symbol}` : '编辑合约行'" closable>
+        <NForm label-placement="left" label-width="90px" :show-feedback="false" class="flex flex-col gap-16px">
+          <NFormItem label="归属标的">
+            <NSelect
+              v-model:value="metaForm.vm_symbol"
+              :options="vmOptions"
+              clearable
+              filterable
+              placeholder="未归属"
+              :disabled="metaRow ? !isAttachable(metaRow) : false"
+            />
+          </NFormItem>
+          <div v-if="metaRow && !isAttachable(metaRow)" class="text-12px" style="color: #999; padding-left: 90px">
+            {{ nonAttachableHint(metaRow) }}
+          </div>
+          <div class="text-12px" style="color: #999; padding-left: 90px">
+            风险敞口不再在此维护：请到「账户持仓」页（Group，按账户×分类×代码）设置， 保存后自动按标的 /
+            账户汇总刷新本页与账户汇总。
+          </div>
+        </NForm>
+        <template #footer>
+          <NSpace>
+            <NButton @click="metaDrawerShow = false">取消</NButton>
+            <NButton type="primary" :loading="metaSaving" @click="handleMetaSave">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

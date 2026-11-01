@@ -159,16 +159,16 @@ export function fetchGroupSymbolOptions(category = '期权交易') {
   });
 }
 
-/** 归属参数（vm_symbol 传 null = 清空归属） */
+/** 归属标的修改参数（null = 清空归属） */
 export interface GroupSymbolVmParams {
   vm_symbol: string | null;
 }
 
 /**
- * 修改合约行的归属标的（PATCH /bills/group-symbols/{id}/vm）
+ * 修改归属标的（PATCH /bills/group-symbols/{id}/vm）
  *
- * 后端只写 vm_symbol 一列（铁律 4.9 白名单），不会碰派生列。
- * 融资融券行传非空值 -> 400（融资只是融资行为，name 不承担归属含义）。
+ * GroupSymbol 唯一的人工列。后端只写 vm_symbol（白名单），派生列不受影响；
+ * 资金流水行传非空值 -> 400；标的必须已存在于估值监测。
  */
 export function updateGroupSymbolVm(id: number, params: GroupSymbolVmParams) {
   return request<{ status: string; vm_symbol: string | null }>({
@@ -383,10 +383,16 @@ export function fetchUnplannedBills(params?: UnplannedBillsQueryParams) {
   });
 }
 
-/** Group 修改参数（仅 profit_time / value_time 可编辑） */
+/**
+ * Group 修改参数（PATCH /bills/group/{id}）
+ * - profit_time / value_time：时间戳，不传不修改；
+ * - risk_exposure：风险敞口唯一人工入口，**显式携带即写入**（null=清空），
+ *   落库后后端联动刷新 GroupAcc / GroupSymbol 的同名列（按账户、按标的汇总）。
+ */
 export interface GroupUpdateParams {
   profit_time?: string | null;
   value_time?: string | null;
+  risk_exposure?: number | null;
 }
 
 /** 修改 Group 记录（PATCH /bills/group/{id}） */

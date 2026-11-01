@@ -586,16 +586,35 @@ const columns = [
   { title: '买/卖', key: 'b_s', width: 70 },
   { title: '沽/购', key: 'c_p', width: 70 },
   { title: '开/平', key: 'o_c', width: 70 },
-  { title: '成交价', key: 'price', width: 100, render: (row: Api.Bills.Bill) => Number(row.price).toFixed(4) },
-  { title: '成交量', key: 'vol', width: 70 },
-  { title: '成交额', key: 'amount', width: 120, render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2) },
+  {
+    title: '成交价',
+    key: 'price',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bills.Bill) => Number(row.price).toFixed(4)
+  },
+  { title: '成交量', key: 'vol', width: 70, align: 'right' as const },
+  {
+    title: '成交额',
+    key: 'amount',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Bill) => Number(row.amount).toFixed(2)
+  },
   {
     title: '发生额',
     key: 'amount_act',
     width: 130,
+    align: 'right' as const,
     render: (row: Api.Bills.Bill) => Number(row.amount_act).toFixed(2)
   },
-  { title: '税费合计', key: 'fee_tax', width: 90, render: (row: Api.Bills.Bill) => renderAmount(row, 'fee_tax') },
+  {
+    title: '税费合计',
+    key: 'fee_tax',
+    width: 90,
+    align: 'right' as const,
+    render: (row: Api.Bills.Bill) => renderAmount(row, 'fee_tax')
+  },
   { title: '账户', key: 'account', width: 70 }
 ];
 

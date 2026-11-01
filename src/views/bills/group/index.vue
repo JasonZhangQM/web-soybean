@@ -153,17 +153,49 @@ function renderMultiplier(row: Api.Bills.Group) {
   return val != null ? String(val) : '-';
 }
 
-// ===== 编辑弹窗 =====
+// ===== 编辑弹窗（时间戳 + 风险敞口） =====
 
 const editingId = ref<number | null>(null);
 const editingLabel = ref<string>('');
+const editingRow = ref<Api.Bills.Group | null>(null);
 const showModal = ref(false);
 const submitLoading = ref(false);
 
 const formData = reactive({
   profit_time: null as string | null,
-  value_time: null as string | null
+  value_time: null as string | null,
+  // Decimal 序列化后是 string，统一转 number 供 NInputNumber
+  risk_exposure: null as number | null
 });
+
+// 风险敞口输入参考（口径随类别）：
+// 证券/期货 = 持仓成本；期权 = 持仓量×行权价×乘数＋持仓成本（另附纯成本参考）。
+// 只是建议值不强制；资金流水等其它类别无参考。
+const riskRef = computed(() => {
+  const row = editingRow.value;
+  if (!row) return null;
+  const cost = row.cost_total != null ? Number(row.cost_total) : null;
+  const cat = row.category || '';
+  if (cat.startsWith('期权')) {
+    const p = row.p_total ?? 0;
+    const strike = row.strike != null ? Number(row.strike) : null;
+    const mult = row.multiplier ?? 0;
+    // 行权价缺失（如 ETF 未解析码）或无持仓时，名义本金部分算不出，只给成本参考
+    if (strike != null && p !== 0) {
+      // isFormula：主参考是名义本金公式而非成本本身，才额外给「填入成本」入口
+      return { label: '持仓量×行权价×乘数＋持仓成本', value: p * strike * mult + (cost ?? 0), cost, isFormula: true };
+    }
+    return { label: '行权价缺失，参考持仓成本', value: cost, cost, isFormula: false };
+  }
+  if (cat === '证券交易' || cat === '期货交易') {
+    return { label: '持仓成本', value: cost, cost, isFormula: false };
+  }
+  return null;
+});
+
+function fmtRef(n: number | null): string {
+  return n == null ? '-' : n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 // 格式化 datetime 字符串：去掉 'T' 换成空格，截取到秒
 function fmtDateTime(s: string | null | undefined): string | null {
@@ -174,8 +206,10 @@ function fmtDateTime(s: string | null | undefined): string | null {
 function handleEdit(row: Api.Bills.Group) {
   editingId.value = row.id;
   editingLabel.value = `${row.account ?? ''}·${row.category}·${row.symbol}`;
+  editingRow.value = row;
   formData.profit_time = fmtDateTime(row.profit_time);
   formData.value_time = fmtDateTime(row.value_time);
+  formData.risk_exposure = row.risk_exposure != null ? Number(row.risk_exposure) : null;
   showModal.value = true;
 }
 
@@ -183,15 +217,21 @@ function handleCancel() {
   showModal.value = false;
   editingId.value = null;
   editingLabel.value = '';
+  editingRow.value = null;
   formData.profit_time = null;
   formData.value_time = null;
+  formData.risk_exposure = null;
 }
 
 async function handleSubmit() {
   if (editingId.value === null) return;
   submitLoading.value = true;
   try {
-    const payload: { profit_time?: string | null; value_time?: string | null } = {};
+    const payload: { profit_time?: string | null; value_time?: string | null; risk_exposure: number | null } = {
+      // 风险敞口显式携带即写入（null=清空），保存后后端联动刷新
+      // GroupAcc（按账户）与 GroupSymbol（按标的）的同名列
+      risk_exposure: formData.risk_exposure ?? null
+    };
     if (formData.profit_time !== null) payload.profit_time = formData.profit_time;
     if (formData.value_time !== null) payload.value_time = formData.value_time;
     const { error } = await updateGroup(editingId.value, payload);
@@ -207,7 +247,7 @@ async function handleSubmit() {
 
 const columns = [
   {
-    // 代码同时是操作入口：点击打开时间戳编辑弹窗。
+    // 代码同时是操作入口：点击打开行编辑弹窗（时间戳 + 风险敞口）。
     // ⚠️ 用 span 而不是 NButton：naive-ui 按钮样式带 user-select:none，代码没法选中复制
     title: '代码',
     key: 'symbol',
@@ -230,27 +270,80 @@ const columns = [
   },
   { title: '账户', key: 'account', width: 80 },
   { title: '交易分类', key: 'category', width: 80 },
-  { title: '持仓', key: 'p_total', width: 100, render: (row: Api.Bills.Group) => renderAmount(row, 'p_total') },
+  {
+    title: '持仓',
+    key: 'p_total',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'p_total')
+  },
   {
     title: '持仓成本',
     key: 'cost_total',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.Group) => renderAmount(row, 'cost_total')
   },
-  { title: '最新价', key: 'price', width: 100, render: (row: Api.Bills.Group) => renderPrice(row) },
-  { title: '乘数', key: 'multiplier', width: 80, render: (row: Api.Bills.Group) => renderMultiplier(row) },
-  { title: '市值', key: 'value_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'value_total') },
-  { title: '浮动盈亏', key: 'pf_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pf_total') },
-  { title: '平仓盈亏', key: 'pl_total', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_total') },
+  {
+    title: '最新价',
+    key: 'price',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderPrice(row)
+  },
+  {
+    title: '乘数',
+    key: 'multiplier',
+    width: 80,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderMultiplier(row)
+  },
+  {
+    title: '市值',
+    key: 'value_total',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'value_total')
+  },
+  {
+    // 风险敞口（人工确认）：本页为唯一人工入口，点击代码进弹窗编辑；
+    // 保存后后端联动刷新 GroupAcc（按账户）与 GroupSymbol（按标的）
+    title: '风险敞口',
+    key: 'risk_exposure',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'risk_exposure')
+  },
+  {
+    title: '浮动盈亏',
+    key: 'pf_total',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'pf_total')
+  },
+  {
+    title: '平仓盈亏',
+    key: 'pl_total',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'pl_total')
+  },
   {
     title: '其他损益',
     key: 'pl_t_other',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_other')
   },
-  { title: '融资利息', key: 'pl_t_br', width: 120, render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_br') },
-  { title: '盈亏合计', key: 'pfl_all', width: 100, render: renderPflAll },
-  { title: '交易次数', key: 'count', width: 80 }
+  {
+    title: '融资利息',
+    key: 'pl_t_br',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'pl_t_br')
+  },
+  { title: '盈亏合计', key: 'pfl_all', width: 100, align: 'right' as const, render: renderPflAll },
+  { title: '交易次数', key: 'count', width: 80, align: 'right' as const }
 ];
 
 onMounted(() => {
@@ -337,12 +430,52 @@ onMounted(() => {
       />
     </NCard>
 
-    <!-- ===== Group 时间编辑弹窗 ===== -->
-    <NModal v-model:show="showModal" preset="card" title="编辑时间戳" class="w-520px" :mask-closable="false">
+    <!-- ===== Group 行编辑弹窗（时间戳 + 风险敞口） ===== -->
+    <NModal v-model:show="showModal" preset="card" title="编辑" class="w-520px" :mask-closable="false">
       <div style="margin-bottom: 12px; color: #666; font-size: 13px">
         {{ editingLabel }}
       </div>
       <NForm :model="formData" label-placement="left" label-width="120px">
+        <NFormItem label="风险敞口">
+          <NInputNumber
+            v-model:value="formData.risk_exposure"
+            :precision="2"
+            clearable
+            placeholder="未设置"
+            style="width: 200px"
+          />
+        </NFormItem>
+        <!-- 输入参考：口径随类别（证券/期货=持仓成本；期权=持仓量×行权价×乘数＋持仓成本，另附成本），可一键填入 -->
+        <div
+          v-if="riskRef"
+          class="flex flex-wrap items-center gap-x-8px gap-y-2px text-12px"
+          style="color: #999; padding-left: 120px"
+        >
+          <span>
+            参考（{{ riskRef.label }}）：
+            <span style="color: #18a058">{{ fmtRef(riskRef.value) }}</span>
+          </span>
+          <NButton
+            v-if="riskRef.value != null"
+            text
+            type="primary"
+            size="tiny"
+            @click="formData.risk_exposure = Number(riskRef.value.toFixed(2))"
+          >
+            填入
+          </NButton>
+          <template v-if="riskRef.isFormula && riskRef.cost != null">
+            <span>｜持仓成本：{{ fmtRef(riskRef.cost) }}</span>
+            <NButton text type="primary" size="tiny" @click="formData.risk_exposure = Number(riskRef.cost!.toFixed(2))">
+              填入成本
+            </NButton>
+          </template>
+        </div>
+        <div style="color: #999; font-size: 12px; margin-top: 4px; padding-left: 120px">
+          人工确认的风险敞口，自动汇总（行情同步 / 批量导入）不会覆盖；保存后按账户、
+          按标的联动刷新汇总；清空输入框并保存即删除。
+        </div>
+        <NDivider style="margin: 12px 0" />
         <NFormItem label="收益试算时间">
           <NDatePicker
             v-model:formatted-value="formData.profit_time"
@@ -362,7 +495,7 @@ onMounted(() => {
           />
         </NFormItem>
         <div style="color: #999; font-size: 12px; margin-top: 4px">
-          注：以上时间戳为收益试算/市值更新的完成时间，不改变实际盈亏和市值数据。
+          注：时间戳为收益试算/市值更新的完成时间，不改变实际盈亏和市值数据。
         </div>
       </NForm>
       <template #footer>

@@ -61,52 +61,66 @@ const columns = [
     title: '平仓盈亏l',
     key: 'pl_long',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_long')
   },
   {
     title: '平仓盈亏s',
     key: 'pl_short',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_short')
   },
   {
     title: '其他损益',
     key: 'pl_other',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_other')
   },
-  { title: '融资利息', key: 'pl_br', width: 120, render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_br') },
+  {
+    title: '融资利息',
+    key: 'pl_br',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_br')
+  },
   {
     title: '总平仓盈亏',
     key: 'pl_all',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_all')
   },
   {
     title: '累计盈亏',
     key: 'pl_cumulative',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'pl_cumulative')
   },
   {
     title: '年初资产',
     key: 'asset_begin',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_begin')
   },
   {
     title: '年末资产',
     key: 'asset_end',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_end')
   },
   {
     title: '日均资产',
     key: 'asset_avg',
     width: 120,
+    align: 'right' as const,
     render: (row: Api.Bills.ProfitYear) => renderAmount(row, 'asset_avg')
   },
-  { title: '收益率', key: 'return_rate', width: 100, render: renderRate }
+  { title: '收益率', key: 'return_rate', width: 100, align: 'right' as const, render: renderRate }
 ];
 
 onMounted(() => fetchData());

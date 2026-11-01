@@ -65,6 +65,10 @@ declare namespace Api {
       diff_dw: number | null;
       /** 资金日结差额 */
       diff_dwt: number | null;
+      /** 风险敞口（人工确认，编辑联动刷新账户/标的汇总；null=未设置） */
+      risk_exposure: number | null;
+      /** 行权价（仅期权交易行返回，编辑弹窗参考值用；其余类别与未登记合约为 null） */
+      strike: number | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
@@ -259,6 +263,8 @@ declare namespace Api {
       diff_dwt: number | null;
       /** 状态 */
       status: number | null;
+      /** 风险敞口（账户内各 Group 之和，编辑联动刷新；null=未设置） */
+      risk_exposure: number | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
@@ -301,8 +307,12 @@ declare namespace Api {
       diff_dw: number | null;
       /** 资金日结差额 */
       diff_dwt: number | null;
-      /** 归属标的（唯一的人工列，重算不覆盖；融资融券与未归属为 null） */
+      /** 归属标的（人工列，重算不覆盖；融资融券与未归属为 null） */
       vm_symbol: string | null;
+      /** 风险敞口（人工设置在 Group，此处为同标的各账户之和，编辑联动刷新；null=未设置） */
+      risk_exposure: number | null;
+      /** 行权价（仅期权交易行返回，经 bds_option_info 查得；其余类别与未登记合约为 null） */
+      strike: number | null;
       /** 主键 */
       id: number;
       /** 创建时间 */
