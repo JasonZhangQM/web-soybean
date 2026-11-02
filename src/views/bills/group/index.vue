@@ -285,6 +285,15 @@ const columns = [
     render: (row: Api.Bills.Group) => renderAmount(row, 'cost_total')
   },
   {
+    // 风险敞口（人工确认）：本页为唯一人工入口，点击代码进弹窗编辑；
+    // 保存后后端联动刷新 GroupAcc（按账户）与 GroupSymbol（按标的）
+    title: '风险敞口',
+    key: 'risk_exposure',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bills.Group) => renderAmount(row, 'risk_exposure')
+  },
+  {
     title: '最新价',
     key: 'price',
     width: 100,
@@ -304,15 +313,6 @@ const columns = [
     width: 120,
     align: 'right' as const,
     render: (row: Api.Bills.Group) => renderAmount(row, 'value_total')
-  },
-  {
-    // 风险敞口（人工确认）：本页为唯一人工入口，点击代码进弹窗编辑；
-    // 保存后后端联动刷新 GroupAcc（按账户）与 GroupSymbol（按标的）
-    title: '风险敞口',
-    key: 'risk_exposure',
-    width: 120,
-    align: 'right' as const,
-    render: (row: Api.Bills.Group) => renderAmount(row, 'risk_exposure')
   },
   {
     title: '浮动盈亏',

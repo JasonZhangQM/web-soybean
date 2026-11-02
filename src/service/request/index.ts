@@ -8,6 +8,23 @@ import type { RequestInstanceState } from './type';
 const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
 const { baseURL, otherBaseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
 
+/** 从 axios 错误体取 FastAPI 的 detail；422 校验错误的 detail 是数组，拼成一条 */
+function fastapiDetail(error: { response?: { data?: { detail?: unknown; msg?: unknown } } }): string {
+  const detail = error.response?.data?.detail ?? error.response?.data?.msg;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    // 422 校验错误：[{msg, loc, ...}] → "msg (loc 路径)"
+    return detail
+      .map((item: any) => {
+        const loc = Array.isArray(item?.loc) ? item.loc.join('.') : '';
+        return loc ? `${item.msg} (${loc})` : (item?.msg ?? '');
+      })
+      .filter(Boolean)
+      .join('；');
+  }
+  return '';
+}
+
 export const request = createFlatRequest(
   {
     baseURL,
@@ -39,15 +56,24 @@ export const request = createFlatRequest(
       return null;
     },
     onError(error) {
+      // 静默请求（silent: true）：页面自行消费 error 展示内联阻断态，不弹全局 toast
+      if ((error.config as { silent?: boolean } | undefined)?.silent) {
+        return;
+      }
+
       // 请求失败时展示错误信息
 
       let message = error.message;
       let backendErrorCode = '';
 
-      // FastAPI 错误格式为 {detail: "..."}，优先取 detail；兼容保留原 msg 字段
+      // FastAPI 错误格式为 {detail: "..."}，优先取 detail；兼容保留原 msg 字段。
+      // ⚠️ 非这些 code 的 HTTP 错误（409/400/422 等）走 axios 错误路径（ERR_BAD_REQUEST），
+      // 不带 BACKEND_ERROR_CODE —— detail 必须两条路径都取，否则弹英文原文
       if (error.code === BACKEND_ERROR_CODE) {
         message = error.response?.data?.detail || error.response?.data?.msg || message;
         backendErrorCode = String(error.response?.data?.code || '');
+      } else {
+        message = fastapiDetail(error) || message;
       }
 
       // 这些 code 在 FastAPI 中不存在，不会误触发，保留跳过逻辑

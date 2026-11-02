@@ -338,11 +338,12 @@ export function saveBillNote(id: number, kind: BillNoteKind, content: string, pl
   });
 }
 
-/** 剧本盈亏归因（读 bills_bill_note.plan_id，group by 剧本；剧本名前端按 plan_id 映射） */
-export function fetchAttributionByPlan() {
+/** 剧本盈亏归因（读 bills_bill_note.plan_id，group by 剧本；剧本名前端按 plan_id 映射；传 vmSymbol 只统计该标的） */
+export function fetchAttributionByPlan(vmSymbol?: string) {
   return request<Api.Bills.AttributionByPlan>({
     url: '/api/v1/bills/attribution/by-plan',
-    method: 'get'
+    method: 'get',
+    params: vmSymbol ? { vm_symbol: vmSymbol } : undefined
   });
 }
 
@@ -419,11 +420,16 @@ export interface RiskBoardQueryParams {
 }
 
 /** 风险看板实时计算（GET /bills/risk-board，只读） */
-export function fetchRiskBoard(params?: RiskBoardQueryParams) {
+/**
+ * 组合风险快照。409 = 数据阻断态（行情过期/混日），error 里有 detail。
+ * 传 silent: true 不弹全局 toast——页面用内联阻断态展示（today 页用），风险看板页保持默认 toast。
+ */
+export function fetchRiskBoard(params?: RiskBoardQueryParams, opts?: { silent?: boolean }) {
   return request<Api.Bills.RiskBoard>({
     url: '/api/v1/bills/risk-board',
     method: 'get',
-    params
+    params,
+    silent: opts?.silent
   });
 }
 

@@ -16,7 +16,7 @@
  * 前端照抄同一条正则做实时提示，但**不阻断保存**：先登记、后补数字是正常节奏。
  */
 import { ref, reactive, computed, h, onMounted } from 'vue';
-import { NButton, NDrawerContent, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
+import { NButton, NDrawerContent, NEllipsis, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
 import {
   fetchVmLogic,
   fetchVmInvalidate,
@@ -402,14 +402,22 @@ const logicColumns = [
 
 const invalidateColumns = [
   { title: '序', key: 'seq', width: 50 },
-  { title: '命题', key: 'proposition', width: 240, ellipsis: { tooltip: true } },
+  {
+    title: '命题',
+    key: 'proposition',
+    width: 240,
+    // 列级 ellipsis 在 VmDataTable 内未生效，与「证伪信号」列同款：flex + NEllipsis 强制收缩
+    render: (r: Api.Irs.VmInvalidate) =>
+      h('div', { class: 'flex items-center' }, [h(NEllipsis, { class: 'flex-1' }, { default: () => r.proposition })])
+  },
   {
     title: '证伪信号',
     key: 'signal',
     width: 300,
     render: (r: Api.Irs.VmInvalidate) =>
       h('div', { class: 'flex items-center gap-6px' }, [
-        h('span', { class: r.quantified ? '' : 'text-red-500' }, r.signal),
+        // 自定义 render 下列级 ellipsis 不生效，用 NEllipsis 截断（hover 显示完整内容）
+        h(NEllipsis, { class: `flex-1${r.quantified ? '' : ' text-red-500'}` }, { default: () => r.signal }),
         r.quantified ? null : h(NTag, { size: 'tiny', bordered: false, type: 'error' }, { default: () => '不可量化' })
       ])
   },

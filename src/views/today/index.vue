@@ -8,10 +8,11 @@
  * 优先级来自后端 today_items：
  *   1 证伪触发（红）→ 2 剧本命中（橙）→ 3 裸仓（黄）→ 4 复核到期（蓝）→ 5 没事。
  */
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag, NEmpty } from 'naive-ui';
 import { fetchToday, saveVmTarget, fetchRiskBoard } from '@/service/api';
+import { syncOptionMarket, fetchSyncTask } from '@/service/api';
 
 defineOptions({ name: 'IrsTodayPage' });
 
@@ -39,17 +40,65 @@ onMounted(load);
 // ---------------- P3-1 组合风险快照 ----------------
 const riskBoard = ref<Api.Bills.RiskBoard | null>(null);
 const riskLoading = ref(false);
+/** 阻断态原因（后端 detail 原样透出，如「在仓期权的行情日期不一致…」） */
+const riskBlockMsg = ref('');
+/** 同步期权行情进行中（阻断态的修复入口） */
+const syncRunning = ref(false);
+let syncTimer: number | undefined;
+
+onUnmounted(() => window.clearTimeout(syncTimer));
+
+/** 从 axios 错误体取 FastAPI 的 detail（silent 请求不弹全局 toast，这里内联展示） */
+function detailOf(error: unknown): string {
+  const err = error as { response?: { data?: { detail?: string } } };
+  return err?.response?.data?.detail ?? '';
+}
 
 async function loadRisk() {
   riskLoading.value = true;
   try {
-    const { data } = await fetchRiskBoard({ horizon: 'now', iv_mult: 1.0 });
-    riskBoard.value = data ?? null;
-  } catch {
-    riskBoard.value = null;
+    const { data, error } = await fetchRiskBoard({ horizon: 'now', iv_mult: 1.0 }, { silent: true });
+    if (error || !data) {
+      riskBlockMsg.value = detailOf(error) || '风险快照计算失败';
+      riskBoard.value = null;
+      return;
+    }
+    riskBlockMsg.value = '';
+    riskBoard.value = data;
   } finally {
     riskLoading.value = false;
   }
+}
+
+/**
+ * 阻断态修复入口：一键同步期权行情（后台任务），轮询到终态后自动重试风险快照。
+ * 同步任务与批量同步全局互斥（409），失败原样提示；轮询上限 2 分钟。
+ */
+async function syncOptionThenRetry() {
+  if (syncRunning.value) return;
+  window.clearTimeout(syncTimer);
+  const { data: task, error } = await syncOptionMarket({ silent: true });
+  if (error || !task) {
+    window.$message?.error(detailOf(error) || '同步任务启动失败');
+    return;
+  }
+  syncRunning.value = true;
+  const started = Date.now();
+  const poll = async () => {
+    const { data: t } = await fetchSyncTask(task.id);
+    if (t && t.status === 'running' && Date.now() - started < 120_000) {
+      syncTimer = window.setTimeout(poll, 3000);
+      return;
+    }
+    syncRunning.value = false;
+    if (t && t.status === 'done') {
+      window.$message?.success('期权行情同步完成');
+    } else {
+      window.$message?.warning(`同步未完成（${t?.status ?? '超时'}），可稍后在基础数据页重试`);
+    }
+    loadRisk();
+  };
+  poll();
 }
 
 // 今日页打开就拉一次风险快照；risk-board 是独立的引擎，不依赖 today_items 的命中
@@ -140,6 +189,16 @@ function cardClass(it: Api.Irs.TodayItem) {
     </div>
 
     <!-- P3-1 组合风险快照：前端只读聚合 risk-board，全账户视角 -->
+    <!-- 阻断态（409：行情过期/混日）：内联提示 + 一键同步期权行情，不静默空白 -->
+    <NAlert v-if="riskBlockMsg && !riskLoading" type="warning" :bordered="false" class="mb-16px">
+      <div class="flex flex-wrap items-center gap-8px">
+        <span class="font-500">风险快照不可用</span>
+        <span class="text-12px">{{ riskBlockMsg }}</span>
+        <NButton size="tiny" type="primary" class="ml-auto" :loading="syncRunning" @click="syncOptionThenRetry">
+          {{ syncRunning ? '同步中…' : '同步期权行情并重试' }}
+        </NButton>
+      </div>
+    </NAlert>
     <div v-if="riskBoard && !riskLoading" class="mb-16px rounded-8px border border-gray-200 p-12px">
       <div class="mb-8px flex flex-wrap items-center gap-8px text-12px">
         <span class="font-500">组合风险快照（即期口径）</span>

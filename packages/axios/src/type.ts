@@ -83,6 +83,8 @@ export type MappedType<R extends ResponseType, JsonType = any> = R extends keyof
 
 export type CustomAxiosRequestConfig<R extends ResponseType = 'json'> = Omit<AxiosRequestConfig, 'responseType'> & {
   responseType?: R;
+  /** 静默请求：失败时不弹全局错误 toast（页面自行消费 error 展示阻断态等内联提示） */
+  silent?: boolean;
 };
 
 export interface RequestInstanceCommon<State extends Record<string, unknown>> {

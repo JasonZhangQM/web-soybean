@@ -417,14 +417,6 @@ const columns = [
     render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'cost_total')
   },
   {
-    title: '当前市值',
-    key: 'value_total',
-    // 130：同上，最长 13 字符
-    width: 130,
-    align: 'right' as const,
-    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total')
-  },
-  {
     // 风险敞口（联动派生，只读）：人工值设在 Group 页（账户×分类×代码），
     // 后端保存时按 (category, symbol) 汇总刷回本表
     title: '风险敞口',
@@ -432,6 +424,14 @@ const columns = [
     width: 120,
     align: 'right' as const,
     render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'risk_exposure')
+  },
+  {
+    title: '当前市值',
+    key: 'value_total',
+    // 130：同上，最长 13 字符
+    width: 130,
+    align: 'right' as const,
+    render: (row: Api.Bills.GroupSymbol) => renderAmount(row, 'value_total')
   },
   {
     title: '浮动盈亏',

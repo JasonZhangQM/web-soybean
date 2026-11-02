@@ -654,10 +654,11 @@ export function fetchOptionSyncPlan() {
  * 进度轮询 `/sync-tasks/{id}`；`total_count` 是**组数**不是合约数，
  * 所以进度条要显示「第几组/共几组」。停止沿用 `stopBatchSync(taskId)`。
  */
-export function syncOptionMarket() {
+export function syncOptionMarket(opts?: { silent?: boolean }) {
   return request<Api.Bds.SyncTask>({
     url: '/api/v1/bds/option-market/sync',
-    method: 'post'
+    method: 'post',
+    silent: opts?.silent
   });
 }
 

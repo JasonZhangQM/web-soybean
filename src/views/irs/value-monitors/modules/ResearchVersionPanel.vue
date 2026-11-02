@@ -14,7 +14,7 @@ import {
   deleteVmResearch,
   fetchVmStateLog,
   fetchAttributionByPlan,
-  fetchAllPlans
+  fetchVmPlans
 } from '@/service/api';
 import VmDataTable from './VmDataTable.vue';
 
@@ -282,11 +282,11 @@ async function loadStateLog() {
   if (data) stateLog.value = data;
 }
 
-/** 剧本盈亏归因：全局（读 note.plan_id），跨标的聚合，plan_id → 剧本名靠 /irs/plans 映射 */
+/** 剧本盈亏归因：只统计本标的（传 vm_symbol），plan_id → 剧本名靠 /irs/plans 映射 */
 async function loadAttribution() {
   attributionLoading.value = true;
   try {
-    const [attr, plans] = await Promise.all([fetchAttributionByPlan(), fetchAllPlans()]);
+    const [attr, plans] = await Promise.all([fetchAttributionByPlan(props.symbol), fetchVmPlans(props.vmId)]);
     if (!attr.error && attr.data) attribution.value = attr.data;
     if (!plans.error && plans.data) allPlans.value = plans.data;
   } finally {
@@ -523,7 +523,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
 
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">剧本盈亏归因</span>
-      <span class="text-12px text-gray-400">读 bills_bill_note.plan_id 按剧本聚合；未归因成交显式标注</span>
+      <span class="text-12px text-gray-400">只统计本标的的剧本（vm_symbol 过滤）；未归因成交显式标注</span>
     </div>
     <NSpin :show="attributionLoading">
       <VmDataTable v-if="attributionRows.length" :columns="attributionColumns" :data="attributionRows" :page-size="0" />
