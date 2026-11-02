@@ -55,6 +55,8 @@ interface SymbolInfoQueryParams {
   sync_status?: 'synced' | 'unsynced';
   /** 退市状态筛选：trading=仅在市，delisted=仅退市，不传=全部 */
   trading_status?: 'trading' | 'delisted';
+  /** 为 true 时只返回 A 股个股（剔除指数与美股/黄金） */
+  only_stock?: boolean;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -533,6 +535,24 @@ export function fetchIndexValuations(params?: Api.Bds.IndexValuationSeriesParams
 export function fetchIndexValuationPercentiles(params?: { metric?: string }) {
   return request<Api.Bds.IndexValuationPercentileResponse>({
     url: '/api/v1/bds/index-valuation-percentiles',
+    method: 'get',
+    params
+  });
+}
+
+/** 获取个股估值日序列（画图用，`/irs/valuation-percent` 个股模式） */
+export function fetchStockValuations(params: Api.Bds.StockValuationSeriesParams) {
+  return request<Api.Bds.StockValuationSeries>({
+    url: '/api/v1/bds/stock-valuations',
+    method: 'get',
+    params
+  });
+}
+
+/** 获取个股分位汇总（分位由后端实时算；dy_ttm 返回原始分位，反向染色在前端） */
+export function fetchStockValuationPercentiles(params: { symbols: string[]; metric?: string }) {
+  return request<Api.Bds.StockValuationPercentileResponse>({
+    url: '/api/v1/bds/stock-valuation-percentiles',
     method: 'get',
     params
   });

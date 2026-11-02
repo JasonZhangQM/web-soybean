@@ -953,6 +953,81 @@ declare namespace Api {
       items: IndexValuationPercentile[];
     }
 
+    // ========================================================================
+    // 个股估值分位（`/stock-valuations` + `/stock-valuation-percentiles`，
+    // 供 `/irs/valuation-percent` 个股模式；数据源直接是 bds_daily_valuation）
+    // ========================================================================
+
+    /**
+     * 单只个股分位汇总。结构与 `IndexValuationPercentile` 对齐（主键是 `symbol`），
+     * 指数特有的成分新鲜度字段换成个股覆盖信息；窗口口径与指数完全一致。
+     */
+    interface StockValuationPercentile {
+      /** 证券代码（SHSE.600519 形态） */
+      symbol: string;
+      /** 证券名称 */
+      sec_name?: string;
+      industry?: string | null;
+      board?: string | null;
+      /** 上市日期 */
+      online_date?: string | null;
+      metric?: string;
+      /** 当前值（**原始最后值**：无效时也原样给，如亏损的负 PE，供卡片展示） */
+      current: number | null;
+      /** 当前值是否通过有效值清洗（false ⇒ 分位一律为 null，看 status_note） */
+      current_valid: boolean;
+      /** ok=正常；loss=当前值无效（亏损/净资产为负/现金流为负）；no_data=估值源无数据 */
+      status: 'ok' | 'loss' | 'no_data';
+      /** status 非 ok 时的人话说明 */
+      status_note: string | null;
+      /** 当前值所属交易日 */
+      last_date: string | null;
+      as_of: string | null;
+      /** 是否落后于个股估值源末日 */
+      is_stale: boolean;
+      stale_days: number | null;
+      /** 该标的估值数据首日（≠上市日：上市初可能缺数据） */
+      first_date: string | null;
+      /** 原始行数（含被清洗的日子） */
+      raw_n: number;
+      /** 有效样本数（清洗后，参与分位计算） */
+      cleaned_n: number;
+      pct_all?: IndexValuationStat;
+      pct_10y?: IndexValuationStat;
+      pct_5y?: IndexValuationStat;
+      pct_3y?: IndexValuationStat;
+      /** 样本不足 MIN_WINDOW_SAMPLES(250) 的窗口键（上市不足窗口期 / 长期停牌） */
+      windows_short: string[];
+    }
+
+    /** 个股分位接口整体响应 */
+    interface StockValuationPercentileResponse {
+      metric: string;
+      /** 个股估值源末日（与指数页同一把尺子） */
+      latest_trade_date: string | null;
+      items: StockValuationPercentile[];
+    }
+
+    /** 个股估值序列查询参数 */
+    interface StockValuationSeriesParams {
+      /** 证券代码（1~10 只） */
+      symbols: string[];
+      metric?: string;
+      start_date?: string;
+      end_date?: string;
+    }
+
+    /** 个股估值序列（与 IndexValuationSeries 同构，另带原始覆盖区间） */
+    interface StockValuationSeries {
+      trade_dates: string[];
+      /** { 证券代码: 与 trade_dates 对齐的数值数组（已清洗，无效值为 null） } */
+      series: Record<string, (number | null)[]>;
+      sec_names: Record<string, string>;
+      metric: string;
+      /** { 证券代码: 原始数据覆盖区间（含被清洗的日子） } */
+      data_ranges: Record<string, { first: string | null; last: string | null }>;
+    }
+
     /** 指数估值重算请求体 */
     interface IndexValuationSyncRequest {
       index_codes?: string[];
