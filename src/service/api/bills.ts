@@ -219,15 +219,19 @@ export function syncGroup() {
   });
 }
 
-/** 触发账单批量导入（后端执行 run/batch-import 任务）
- *  批量导入含数据拉取、加工、盈亏计算等多步，耗时较长，
- *  单独设置 1 分钟超时，覆盖全局默认值
+/**
+ * 触发交易明细导入后台任务（POST /bills/run/batch-import-task）
+ *
+ * 整合进「批量同步 → 宏观与基础数据同步」卡片的「基础数据」组后，bills 页面
+ * 的同步「导入」按钮已移除，本函数是该流水线的唯一前端入口。
+ * 12 步流水线在后台线程执行，立即返回 bds_sync_task 任务对象：
+ * 轮询走 GET /bds/sync-tasks/{id}，停止走 POST /bds/stop/batch-sync，
+ * 与 bds 各同步任务共用任务表 ⇒ 全局互斥（有 running 则 409）
  */
-export function batchImportBills() {
-  return request<Api.Bills.SyncResult>({
-    url: '/api/v1/bills/run/batch-import',
-    method: 'post',
-    timeout: 60 * 1000
+export function startBillsImportTask() {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bills/run/batch-import-task',
+    method: 'post'
   });
 }
 

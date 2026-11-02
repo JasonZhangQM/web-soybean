@@ -4,7 +4,6 @@ import { NButton, NTag, NTooltip } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import {
   fetchBills,
-  batchImportBills,
   updateBill,
   deleteBill,
   fetchValueMonitors,
@@ -12,7 +11,6 @@ import {
   type BillUpdateParams
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
-import { executeSync } from '@/utils/sync-feedback';
 import { useBillsStore } from '@/store/modules/bills';
 import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
@@ -38,8 +36,6 @@ function renderSymbolLabel(option: any) {
 }
 
 const loading = ref(false);
-// 导入专用 loading：与表格 loading 分离，避免导入过程中表格闪烁
-const importLoading = ref(false);
 const tableData = ref<Api.Bills.Bill[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -126,11 +122,6 @@ function handleKeywordChange(value: string | null) {
   const keyword = value ?? '';
   handleSymbolSearch(keyword);
   if (!keyword) handleSearch();
-}
-
-// 触发后端账单批量导入（executeSync 内置进度条/防重复/结果通知）
-async function handleImport() {
-  await executeSync(batchImportBills, importLoading, fetchData);
 }
 
 function handlePageChange(page: number) {
@@ -708,9 +699,6 @@ onMounted(() => {
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="importLoading" @click="handleImport">导入</NButton>
         </NFormItem>
       </NForm>
     </NCard>

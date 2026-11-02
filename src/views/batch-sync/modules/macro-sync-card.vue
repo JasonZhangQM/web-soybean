@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
-import { fetchLatestSyncTask, fetchSyncTask, startMacroSync, stopBatchSync } from '@/service/api';
+import { fetchLatestSyncTask, fetchSyncTask, startMacroSync, startBillsImportTask, stopBatchSync } from '@/service/api';
 
 defineOptions({ name: 'MacroSyncCard' });
 
@@ -9,13 +9,15 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 八个同步段；执行顺序由后端固定为 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold */
+/** 九个同步段；其中交易明细导入是 bills 模块的独立后台任务（scope='bills_import'），
+ *  其余八段由后端固定为 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold */
 type StageKey =
   | 'trade_date'
   | 'symbol_info'
   | 'index_history'
   | 'option_info'
   | 'option_market'
+  | 'bills_import'
   | 'wscn'
   | 'daily'
   | 'gold';
@@ -36,7 +38,10 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
       // 🔴 必须排在「期权行情」之前：行情同步要从字典取逐合约乘数与权威到期日，
       // 当天新挂牌的合约若还没进字典就会被跳过（后端也固定这个顺序）
       { label: '期权合约字典', value: 'option_info' },
-      { label: '期权行情', value: 'option_market' }
+      { label: '期权行情', value: 'option_market' },
+      // 交易明细导入（bills 12 步流水线）：与其他段不同，它跑的是 bills 自己的
+      // 后台任务端点，且因全局互斥只能串联排队——见 handleStart 的分流逻辑
+      { label: '交易明细导入', value: 'bills_import' }
     ]
   },
   {
@@ -58,6 +63,7 @@ const STAGE_LINKS: Record<StageKey, string> = {
   index_history: '/bds/market-data/index-histories',
   option_info: '/bds/option-info',
   option_market: '/bds/market-data/option-market',
+  bills_import: '/bills/bills',
   wscn: '/bds/macro-research/economic-indicators',
   daily: '/bds/macro-research/daily-indicators',
   gold: '/bds/macro-research/gold-reserves'
@@ -70,12 +76,14 @@ const STAGE_LINKS: Record<StageKey, string> = {
  *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），默认勾上等于每次启动都白等
  * - 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s；它是「期权行情」的上游
  * - 勾「期权行情」：3 组约 5s，属于每日都要更新的行情数据，代价可接受
+ * - 不勾「交易明细导入」：12 步重度流水线（读账单 Excel + 抓实时市值），只在有新账单
+ *   入库后按需勾选，避免每日一键同步都白跑一遍全量重算
  */
 const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_info', 'option_market', 'wscn', 'daily'];
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 
-/** 全选：勾选全部同步段（全选 = 全部 8 段，默认不勾的交易日历/黄金储备也包含在内） */
+/** 全选：勾选全部同步段（全选 = 全部 9 段，默认不勾的交易日历/黄金储备/交易明细导入也包含在内） */
 function selectAllStages() {
   selectedStages.value = STAGE_OPTIONS.map(o => o.value);
 }
@@ -90,6 +98,13 @@ function clearStages() {
 const starting = ref(false);
 const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
+
+/**
+ * 串联排队标记：「交易明细导入」与其他段同时勾选时，先跑宏观任务，
+ * 结束后由 loadTask 自动接跑导入任务（两任务是不同后端端点、共用任务表全局互斥）。
+ * ⚠️ 排队是前端行为：任务本身关页面照常执行，但自动接跑需要本页存活（刷新即失效）
+ */
+const queuedBillsImport = ref(false);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
 const progressValue = computed(() => Number(task.value?.progress || 0));
@@ -187,8 +202,8 @@ async function loadTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
-      // 只接管一键同步任务：latest 可能返回批量同步/成分股/估值任务，抢过来会把别的卡片挤掉
-      if (data.scope !== 'macro_sync') return;
+      // 只接管本卡片的两类任务：latest 可能返回批量同步/成分股/估值任务，抢过来会把别的卡片挤掉
+      if (data.scope !== 'macro_sync' && data.scope !== 'bills_import') return;
       task.value = data;
 
       // 运行中用任务参数回填勾选，避免"显示跑了 3 段、勾选只有 2 段"的错位
@@ -197,6 +212,14 @@ async function loadTask(id?: number) {
         if (Array.isArray(st) && st.length > 0) selectedStages.value = st as StageKey[];
       } else {
         stopPolling();
+        // 串联排队：宏观任务结束后自动接跑交易明细导入；手动停止视为撤销排队
+        if (queuedBillsImport.value) {
+          queuedBillsImport.value = false;
+          if (data.scope === 'macro_sync' && data.status !== 'stopped') {
+            message.info('宏观同步结束，自动接跑交易明细导入');
+            await startImportTask();
+          }
+        }
       }
     }
   } catch {
@@ -220,6 +243,18 @@ function stopPolling() {
 
 // ===================== 操作 =====================
 
+/** 启动交易明细导入后台任务（bills 端点），接管任务卡显示并继续轮询 */
+async function startImportTask() {
+  const { data, error } = await startBillsImportTask();
+  if (error) {
+    message.error(error.message || '启动交易明细导入失败');
+    return;
+  }
+  message.success(`已启动交易明细导入任务 #${data.id}`);
+  task.value = data;
+  startPolling();
+}
+
 async function handleStart() {
   if (selectedStages.value.length === 0) {
     message.warning('请至少选择一个同步段');
@@ -227,14 +262,26 @@ async function handleStart() {
   }
   starting.value = true;
   try {
-    const { data, error } = await startMacroSync({ stages: [...selectedStages.value] });
-    if (error) {
-      message.error(error.message || '启动失败');
-      return;
+    // 交易明细导入走 bills 自己的任务端点，不能混进 startMacroSync 的 stages（后端 400 未知段）
+    const billsImport = selectedStages.value.includes('bills_import');
+    const macroStages = selectedStages.value.filter(s => s !== 'bills_import');
+
+    if (macroStages.length > 0) {
+      // 同时勾了两类：先启动宏观任务并记下排队，结束后自动接跑导入
+      queuedBillsImport.value = billsImport;
+      const { data, error } = await startMacroSync({ stages: macroStages });
+      if (error) {
+        message.error(error.message || '启动失败');
+        queuedBillsImport.value = false;
+        return;
+      }
+      message.success(`已启动任务 #${data.id}${billsImport ? '，完成后将自动接跑交易明细导入' : ''}`);
+      await loadTask(data.id);
+      startPolling();
+    } else {
+      // 只勾了交易明细导入：直接启动导入任务
+      await startImportTask();
     }
-    message.success(`已启动任务 #${data.id}`);
-    await loadTask(data.id);
-    startPolling();
   } finally {
     starting.value = false;
   }
@@ -260,7 +307,8 @@ async function handleStop() {
 
 onMounted(async () => {
   const { data, error } = await fetchLatestSyncTask();
-  if (!error && data && data.scope === 'macro_sync') {
+  // 宏观任务（macro_sync）与导入任务（bills_import）都归本卡片接管
+  if (!error && data && (data.scope === 'macro_sync' || data.scope === 'bills_import')) {
     task.value = data;
     if (isRunning.value) {
       const st = ((data.scope_params || {}) as Record<string, unknown>).stages;
@@ -308,7 +356,9 @@ onBeforeUnmount(() => {
     <div style="margin-top: 6px; font-size: 12px; color: #999; line-height: 1.6">
       固定顺序：交易日历 → 证券信息 → 指数行情 → 期权行情 → 经济指标 → 美债收益率 →
       黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。后台任务，关页面/刷新不影响执行。默认不勾交易日历（仅跨年才真写库）与黄金储备（IMF
-      接口当前返回 502，勾上会白等约 5.5 分钟且 20 国全失败）。
+      接口当前返回 502，勾上会白等约 5.5 分钟且 20 国全失败）。 「交易明细导入」是 bills
+      的十二步流水线（任一步失败即终止流水线）；与其他段同时勾选时先跑其余段、结束后自动接跑导入（自动接跑需保持本页打开）。
+      默认不勾交易明细导入：仅在有新账单入库后按需勾选。
     </div>
 
     <!-- 进度面板（与卡片 1 同构） -->

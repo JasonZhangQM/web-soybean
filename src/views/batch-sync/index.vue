@@ -264,6 +264,8 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
  * - index_backfill：卡片 2（指数成分股同步）
  * - index_valuation：卡片 3（指数估值重算）
  * - macro_sync：卡片 4（宏观与基础数据同步，自己拉 latest）
+ * - bills_import：交易明细导入任务（POST /bills/run/batch-import-task），也归卡片 4
+ *   接管（勾选「交易明细导入」段触发）
  * - option_market：期权行情页自带的「行情同步」（`/bds/option-market/sync`），
  *   任务在那边轮询；这里漏掉它会把 `scope='option_market'` + `tables=['option-market']`
  *   塞进批量同步表单（下拉无此选项），之后点「启动」还会被后端判「未知 scope」
@@ -273,7 +275,14 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
  *   不排除就会被卡片 1 抢走并误填表单。
  * 漏掉任意一个都会被卡片 1 抢走并误填表单（一键同步任务的 tables 是段名、不是表名）
  */
-const NON_BATCH_SCOPES = ['index_backfill', 'index_valuation', 'macro_sync', 'option_info', 'option_market'];
+const NON_BATCH_SCOPES = [
+  'index_backfill',
+  'index_valuation',
+  'macro_sync',
+  'bills_import',
+  'option_info',
+  'option_market'
+];
 
 async function loadBatchTask(id?: number) {
   try {
@@ -838,8 +847,8 @@ onMounted(async () => {
         fillValuationFormFromTask(data);
         startValuationPolling();
       }
-    } else if (data.scope === 'macro_sync') {
-      // 卡片 4（宏观与基础数据同步）在组件内自行拉 latest 并接管，这里什么都不做
+    } else if (data.scope === 'macro_sync' || data.scope === 'bills_import') {
+      // 卡片 4（宏观与基础数据同步，含交易明细导入）在组件内自行拉 latest 并接管，这里什么都不做
     } else if (!NON_BATCH_SCOPES.includes(data.scope)) {
       // 用「不在排除清单」而不是逐个列举：以后再加属于别的页面的 scope，
       // 只要进 NON_BATCH_SCOPES 就自动不被卡片 1 认领，不用回来改这里
