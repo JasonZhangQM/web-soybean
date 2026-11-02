@@ -426,6 +426,17 @@ export const generatedRoutes = [
         }
       },
       {
+        name: 'irs_underlying-monitors',
+        path: '/irs/underlying-monitors',
+        component: 'view.irs_underlying-monitors',
+        meta: {
+          title: 'irs_underlying-monitors',
+          i18nKey: 'route.irs_underlying-monitors',
+          order: 2,
+          constant: true
+        }
+      },
+      {
         name: 'irs_us-economic-dashboard',
         path: '/irs/us-economic-dashboard',
         component: 'view.irs_us-economic-dashboard',
@@ -444,17 +455,6 @@ export const generatedRoutes = [
           title: 'irs_valuation-percent',
           i18nKey: 'route.irs_valuation-percent',
           order: 3,
-          constant: true
-        }
-      },
-      {
-        name: 'irs_value-monitors',
-        path: '/irs/value-monitors',
-        component: 'view.irs_value-monitors',
-        meta: {
-          title: 'irs_value-monitors',
-          i18nKey: 'route.irs_value-monitors',
-          order: 2,
           constant: true
         }
       }

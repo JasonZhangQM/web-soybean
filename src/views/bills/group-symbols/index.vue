@@ -5,9 +5,9 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   fetchGroupSymbols,
   fetchGroupSymbolsCoverage,
-  fetchValueMonitors,
+  fetchUnderlyingMonitors,
   syncGroup,
-  updateGroupSymbolVm
+  updateGroupSymbolUnderlying
 } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
@@ -48,12 +48,12 @@ const pagination = createTablePagination();
  * - symbol NAutoComplete（可直接输入后点搜索）
  * - pos_state 二选（holding 持仓中 / closed 已平仓），留空 = 全部，默认 holding
  * - mapped 归属筛选：null=全部 / 'yes'=已归属 / 'no'=未归属（**仅可归属的交易行**里既无
- *   vm_symbol 也不同代码的行，即"还能补多少"的可操作清单；资金流水行不计入）
- * - vm_symbol 归属标的：精确筛某个标的名下的全部合约行（如 SHSE.000300 下的期权+ETF+期货）。
+ *   underlying_symbol 也不同代码的行，即"还能补多少"的可操作清单；资金流水行不计入）
+ * - underlying_symbol 归属标的：精确筛某个标的名下的全部合约行（如 SHSE.000300 下的期权+ETF+期货）。
  *   与 mapped 互斥（mapped=no + 具体标的恒为空集），选一个会清掉另一个。
  *
- * v3 起本页没有 theme / has_note：主题与笔记全部迁到标的档案（/irs/value-monitors）；
- * 人工列只剩 vm_symbol（归属标的），编辑在抽屉（点击代码）；风险敞口为联动
+ * v3 起本页没有 theme / has_note：主题与笔记全部迁到标的档案（/irs/underlying-monitors）；
+ * 人工列只剩 underlying_symbol（归属标的），编辑在抽屉（点击代码）；风险敞口为联动
  * 派生列（人工值设在 Group 页，按标的自动汇总），本页只读。
  *
  * 「可归属」= 交易类（证券/期货/期权）且 symbol 不是资金流水占位代码
@@ -65,11 +65,11 @@ const searchParams = reactive<{
   symbol?: string;
   pos_state: 'holding' | 'closed' | null;
   mapped: 'yes' | 'no' | null;
-  vm_symbol: string | null;
+  underlying_symbol: string | null;
 }>({
   pos_state: 'holding',
   mapped: null,
-  vm_symbol: null
+  underlying_symbol: null
 });
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
@@ -95,22 +95,22 @@ function toPosStateParam(val: string | null) {
   return val === 'holding' || val === 'closed' ? val : undefined;
 }
 
-// ---------------- 归属标的候选（来源：估值监测列表，8 个标的） ----------------
-const vmList = ref<Api.Irs.ValueMonitor[]>([]);
-const vmOptions = computed(() =>
-  vmList.value.map(v => ({ label: `${v.symbol} ${v.name ?? ''}`.trim(), value: v.symbol }))
+// ---------------- 归属标的候选（来源：标的监测列表，8 个标的） ----------------
+const umList = ref<Api.Irs.UnderlyingMonitor[]>([]);
+const umOptions = computed(() =>
+  umList.value.map(v => ({ label: `${v.symbol} ${v.name ?? ''}`.trim(), value: v.symbol }))
 );
 // symbol -> 名称，用于「已归属 XXX」提示
-const vmNameMap = computed(() => {
+const umNameMap = computed(() => {
   const m: Record<string, string> = {};
-  for (const v of vmList.value) m[v.symbol] = v.name ?? '';
+  for (const v of umList.value) m[v.symbol] = v.name ?? '';
   return m;
 });
 
-async function loadVmOptions() {
+async function loadUnderlyingOptions() {
   // 标的就那么几个（当前 8 个），一次取全，不必分页
-  const { data, error } = await fetchValueMonitors({ limit: 200 });
-  if (!error && data) vmList.value = data.items;
+  const { data, error } = await fetchUnderlyingMonitors({ limit: 200 });
+  if (!error && data) umList.value = data.items;
 }
 
 // ---------------- 归属覆盖计数（顶部「还有多少行没选」） ----------------
@@ -140,7 +140,7 @@ async function fetchData() {
       pos_state: toPosStateParam(searchParams.pos_state),
       mapped: searchParams.mapped || undefined,
       // NSelect 清空返回 null，转为 undefined 避免传给后端
-      vm_symbol: searchParams.vm_symbol || undefined,
+      underlying_symbol: searchParams.underlying_symbol || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -171,7 +171,7 @@ function handleReset() {
   searchParams.symbol = '';
   searchParams.pos_state = 'holding';
   searchParams.mapped = null;
-  searchParams.vm_symbol = null;
+  searchParams.underlying_symbol = null;
   clearSymbolOptions();
   fetchData();
 }
@@ -182,12 +182,12 @@ function handleReset() {
  */
 function handleMappedChange(val: 'yes' | 'no' | null) {
   searchParams.mapped = val;
-  if (val) searchParams.vm_symbol = null;
+  if (val) searchParams.underlying_symbol = null;
   handleSearch();
 }
 
-function handleVmSymbolChange(val: string | null) {
-  searchParams.vm_symbol = val;
+function handleUnderlyingSymbolChange(val: string | null) {
+  searchParams.underlying_symbol = val;
   if (val) searchParams.mapped = null;
   handleSearch();
 }
@@ -204,7 +204,7 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 async function handleSync() {
-  // 行情同步会重算派生列，顺手刷一次覆盖计数（vm_symbol 不受影响，见 group_summary 注释）
+  // 行情同步会重算派生列，顺手刷一次覆盖计数（underlying_symbol 不受影响，见 group_summary 注释）
   await executeSync(syncGroup, syncLoading, async () => {
     await Promise.all([fetchData(), fetchCoverage()]);
   });
@@ -294,47 +294,47 @@ function nonAttachableHint(row: Api.Bills.GroupSymbol) {
 
 // 归属列渲染（列内只读展示，编辑统一走抽屉）：
 // 不可归属 ⇒ 「—」（附原因，不是漏配）；未归属 ⇒ 灰字；
-// 已归属 ⇒ 「代码 名称」链接，跳估值监测页 ?vm=SYMBOL 自动开标的档案抽屉
+// 已归属 ⇒ 「代码 名称」链接，跳标的监测页 ?um=SYMBOL 自动开标的档案抽屉
 // （对端 openFromQuery 消费即摘除参数，不会污染标签 fullPath 反复弹抽屉）。
 // 用 span 而不是 NButton：与代码列同理由——naive-ui 按钮样式带 user-select:none，文本没法选中复制
-function renderVmSymbol(row: Api.Bills.GroupSymbol) {
+function renderUnderlyingSymbol(row: Api.Bills.GroupSymbol) {
   if (!isAttachable(row)) {
     return h(NTooltip, null, {
       trigger: () => h('span', { class: 'text-gray-400', style: 'cursor: help' }, '—'),
       default: () => nonAttachableHint(row)
     });
   }
-  if (!row.vm_symbol) {
+  if (!row.underlying_symbol) {
     return h('span', { class: 'text-gray-300' }, '未归属');
   }
-  const nm = vmNameMap.value[row.vm_symbol] ?? '';
-  const vm = row.vm_symbol;
+  const nm = umNameMap.value[row.underlying_symbol] ?? '';
+  const um = row.underlying_symbol;
   return h(
     'span',
     {
       class: 'text-primary hover:underline cursor-pointer whitespace-nowrap',
       style: 'user-select: text',
-      onClick: () => router.push({ name: 'irs_value-monitors', query: { vm } })
+      onClick: () => router.push({ name: 'irs_underlying-monitors', query: { um } })
     },
-    `${vm} ${nm}`.trim()
+    `${um} ${nm}`.trim()
   );
 }
 
 // ---------------- 合约行编辑抽屉（归属标的，GroupSymbol 唯一人工列） ----------------
 /**
- * 代码列点击入口的落点。后端 PATCH /vm 只写 vm_symbol 列（白名单），
+ * 代码列点击入口的落点。后端 PATCH /um 只写 underlying_symbol 列（白名单），
  * 整体保存语义：清空下拉 = 清空归属（null）。
  * 风险敞口的人工设置已上移到 Group 页（账户×分类×代码粒度），本表同名列
  * 由后端联动汇总维护，此抽屉只读展示。
  */
 const metaDrawerShow = ref(false);
 const metaRow = ref<Api.Bills.GroupSymbol | null>(null);
-const metaForm = reactive<{ vm_symbol: string | null }>({ vm_symbol: null });
+const metaForm = reactive<{ underlying_symbol: string | null }>({ underlying_symbol: null });
 const metaSaving = ref(false);
 
 function openMetaDrawer(row: Api.Bills.GroupSymbol) {
   metaRow.value = row;
-  metaForm.vm_symbol = row.vm_symbol ?? null;
+  metaForm.underlying_symbol = row.underlying_symbol ?? null;
   metaDrawerShow.value = true;
 }
 
@@ -343,12 +343,12 @@ async function handleMetaSave() {
   if (!row) return;
   metaSaving.value = true;
   try {
-    const { data, error } = await updateGroupSymbolVm(row.id, {
-      vm_symbol: metaForm.vm_symbol || null
+    const { data, error } = await updateGroupSymbolUnderlying(row.id, {
+      underlying_symbol: metaForm.underlying_symbol || null
     });
     if (!error) {
       // 只回写人工列，派生列保持本屏数据，无需整行重取
-      row.vm_symbol = data?.vm_symbol ?? null;
+      row.underlying_symbol = data?.underlying_symbol ?? null;
       window.$message?.success('已保存');
       metaDrawerShow.value = false;
       // 归属变化会改变覆盖计数
@@ -383,9 +383,9 @@ const columns = [
     // 归属标的：合约 → 标的的唯一桥梁。归属后该合约的全部成交都归到这个标的名下；
     // 列内只读展示，编辑统一在抽屉（点击代码）设置
     title: '归属标的',
-    key: 'vm_symbol',
+    key: 'underlying_symbol',
     width: 200,
-    render: (row: Api.Bills.GroupSymbol) => renderVmSymbol(row)
+    render: (row: Api.Bills.GroupSymbol) => renderUnderlyingSymbol(row)
   },
   { title: '交易次数', key: 'count', width: 80, align: 'right' as const },
   {
@@ -470,7 +470,7 @@ const scrollX = columns.reduce((sum, col) => sum + (col.width as number), 0);
 function filterUnmapped() {
   searchParams.mapped = 'no';
   // 未归属清单必然不含具体标的，清了才不会 AND 成空集
-  searchParams.vm_symbol = null;
+  searchParams.underlying_symbol = null;
   handleSearch();
 }
 
@@ -485,7 +485,7 @@ onMounted(async () => {
   }
   fetchData();
   fetchCoverage();
-  loadVmOptions();
+  loadUnderlyingOptions();
   // 确保类别列表已加载（全局 store 会自动去重）
   billsStore.loadCategories();
 });
@@ -527,13 +527,13 @@ onMounted(async () => {
         </NFormItem>
         <NFormItem label="归属标的">
           <NSelect
-            v-model:value="searchParams.vm_symbol"
-            :options="vmOptions"
+            v-model:value="searchParams.underlying_symbol"
+            :options="umOptions"
             clearable
             filterable
             placeholder="全部"
             style="width: 200px"
-            @update:value="handleVmSymbolChange"
+            @update:value="handleUnderlyingSymbolChange"
           />
         </NFormItem>
         <NFormItem label="代码/名称">
@@ -601,8 +601,8 @@ onMounted(async () => {
         <NForm label-placement="left" label-width="90px" :show-feedback="false" class="flex flex-col gap-16px">
           <NFormItem label="归属标的">
             <NSelect
-              v-model:value="metaForm.vm_symbol"
-              :options="vmOptions"
+              v-model:value="metaForm.underlying_symbol"
+              :options="umOptions"
               clearable
               filterable
               placeholder="未归属"

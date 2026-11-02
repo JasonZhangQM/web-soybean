@@ -3,31 +3,31 @@
  * 复盘 Tab（标的层）
  *
  * 复盘回答的是「这版研究的结论兑现了没有」，所以每条复盘都必须锚定一版研究
- * （`research_id` → `irs_vm_research`）；同一版本可以多次复盘，落笔日期
+ * （`research_id` → `irs_um_research`）；同一版本可以多次复盘，落笔日期
  * `review_date` 由后端填，前端不可传。
  */
 import { computed, onMounted, ref } from 'vue';
 import {
-  createVmReview,
-  deleteVmReview,
-  fetchVmResearch,
-  fetchVmReviews,
-  updateVmReview,
-  type VmReview
+  createUnderlyingReview,
+  deleteUnderlyingReview,
+  fetchUnderlyingResearch,
+  fetchUnderlyingReviews,
+  updateUnderlyingReview,
+  type UnderlyingReview
 } from '@/service/api';
 
-defineOptions({ name: 'VmReviewTab' });
+defineOptions({ name: 'UnderlyingReviewTab' });
 
-const props = defineProps<{ vmId: number; symbol: string }>();
+const props = defineProps<{ umId: number; symbol: string }>();
 const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const loading = ref(false);
 const saving = ref(false);
 const deletingId = ref<number | null>(null);
 /** 复盘列表（后端已按 review_date 倒序） */
-const reviews = ref<VmReview[]>([]);
+const reviews = ref<UnderlyingReview[]>([]);
 /** 可锚定的研究版本（research_date 倒序） */
-const researchList = ref<Api.Irs.VmResearch[]>([]);
+const researchList = ref<Api.Irs.UnderlyingResearch[]>([]);
 
 const showModal = ref(false);
 /** null = 新建；否则为被编辑的复盘 id */
@@ -62,7 +62,7 @@ function versionSummary(researchId: number) {
 async function load() {
   loading.value = true;
   try {
-    const { data, error } = await fetchVmReviews(props.vmId);
+    const { data, error } = await fetchUnderlyingReviews(props.umId);
     if (error) {
       window.$message?.error(detailOf(error) || '复盘加载失败');
       return;
@@ -74,7 +74,7 @@ async function load() {
 }
 
 async function loadResearch() {
-  const { data, error } = await fetchVmResearch(props.vmId);
+  const { data, error } = await fetchUnderlyingResearch(props.umId);
   if (error) {
     window.$message?.error(detailOf(error) || '研究版本加载失败');
     return;
@@ -98,7 +98,7 @@ function openNew() {
   showModal.value = true;
 }
 
-function openEdit(r: VmReview) {
+function openEdit(r: UnderlyingReview) {
   editingId.value = r.id;
   form.value = { research_id: r.research_id, content: r.content };
   showModal.value = true;
@@ -119,8 +119,8 @@ async function handleSave() {
     const params = { research_id: form.value.research_id, content };
     const { error } =
       editingId.value == null
-        ? await createVmReview(props.vmId, params)
-        : await updateVmReview(editingId.value, params);
+        ? await createUnderlyingReview(props.umId, params)
+        : await updateUnderlyingReview(editingId.value, params);
     if (error) {
       window.$message?.error(detailOf(error) || '复盘保存失败');
       return;
@@ -134,10 +134,10 @@ async function handleSave() {
   }
 }
 
-async function handleDelete(r: VmReview) {
+async function handleDelete(r: UnderlyingReview) {
   deletingId.value = r.id;
   try {
-    const { error } = await deleteVmReview(r.id);
+    const { error } = await deleteUnderlyingReview(r.id);
     if (error) {
       window.$message?.error(detailOf(error) || '复盘删除失败');
       return;

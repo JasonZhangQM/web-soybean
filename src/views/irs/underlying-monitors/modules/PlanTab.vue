@@ -11,22 +11,28 @@
  */
 import { ref, reactive, computed, h, onMounted, watch } from 'vue';
 import { NButton, NTag, NTooltip } from 'naive-ui';
-import { saveVmPlan, deleteVmPlan, fetchValueMonitorTrades, fetchValueMonitorPlans, type VmTrade } from '@/service/api';
+import {
+  saveUnderlyingPlan,
+  deleteUnderlyingPlan,
+  fetchUnderlyingMonitorTrades,
+  fetchUnderlyingMonitorPlans,
+  type UnderlyingTrade
+} from '@/service/api';
 import BillNotePanel from '@/views/bills/bills/modules/BillNotePanel.vue';
 import { useBillsStore } from '@/store/modules/bills';
-import VmDataTable from './VmDataTable.vue';
+import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import { REF_LABEL, STATUS_TYPE, triggerText } from './planFormat';
 
-defineOptions({ name: 'VmPlanTab' });
+defineOptions({ name: 'UnderlyingPlanTab' });
 
-const props = defineProps<{ vmId: number; symbol: string }>();
+const props = defineProps<{ umId: number; symbol: string }>();
 const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
-const plans = ref<Api.Irs.VmPlan[]>([]);
-const trades = ref<VmTrade[]>([]);
+const plans = ref<Api.Irs.UnderlyingPlan[]>([]);
+const trades = ref<UnderlyingTrade[]>([]);
 async function loadPlans() {
-  const { data, error } = await fetchValueMonitorPlans(props.vmId);
+  const { data, error } = await fetchUnderlyingMonitorPlans(props.umId);
   if (!error && data) plans.value = data;
 }
 
@@ -69,8 +75,8 @@ const form = reactive<{
  * 合约代码候选 —— **只是建议，不是白名单**。
  *
  * 来源：该标的「已归属成交」里出现过的 symbol（`props.trades`，链路是
- * `GET /value-monitors/{id}/trades` → `vm_map.trades_of` →
- * `bills_bill JOIN bills_group_symbol ON (category, symbol) WHERE g.vm_symbol = 标的`）。
+ * `GET /underlying-monitors/{id}/trades` → `um_map.trades_of` →
+ * `bills_bill JOIN bills_group_symbol ON (category, symbol) WHERE g.underlying_symbol = 标的`）。
  *
  * 所以它只包含**已经成交过的合约**。新挂牌的期权合约（如 IO2612 刚上市）、
  * 还没建仓的下一步滚仓合约，系统里根本不存在，永远进不了这个列表 ——
@@ -116,7 +122,7 @@ function openNew() {
   showModal.value = true;
 }
 
-function openEdit(p: Api.Irs.VmPlan) {
+function openEdit(p: Api.Irs.UnderlyingPlan) {
   editingPlanId.value = p.id;
   form.seq = p.seq;
   form.trade_symbol = p.trade_symbol;
@@ -146,7 +152,7 @@ async function handleSave() {
   }
   saving.value = true;
   try {
-    const { error } = await saveVmPlan(props.vmId, {
+    const { error } = await saveUnderlyingPlan(props.umId, {
       seq: form.seq,
       trade_symbol: form.trade_symbol,
       b_s: form.b_s,
@@ -169,7 +175,7 @@ async function handleSave() {
   }
 }
 
-function handleDelete(p: Api.Irs.VmPlan) {
+function handleDelete(p: Api.Irs.UnderlyingPlan) {
   window.$dialog?.warning({
     title: `删除第 ${p.seq} 条剧本？`,
     content: `${p.trade_symbol} ${p.b_s}${p.o_c ?? ''}。删了就查不到「当时打算怎么做」了；如果只是暂时不做，改「暂停」比删除好。`,
@@ -178,7 +184,7 @@ function handleDelete(p: Api.Irs.VmPlan) {
     onPositiveClick: async () => {
       deletingSeq.value = p.seq;
       try {
-        const { error } = await deleteVmPlan(props.vmId, p.seq);
+        const { error } = await deleteUnderlyingPlan(props.umId, p.seq);
         if (!error) {
           window.$message?.success('已删除');
           await loadPlans();
@@ -196,7 +202,7 @@ function handleDelete(p: Api.Irs.VmPlan) {
  * 剧本、成交都 10 条/页（2026-10-23 用户定）—— 与列表页默认页大小一致，
  * 翻页器行为、页码密度都跟列表页对得上，不再为两张表各设一个不同的默认值。
  *
- * scroll-x 不手写常量：`VmDataTable` 按列宽和自动算（铁律 4.11 的漂移问题
+ * scroll-x 不手写常量：`UnderlyingDataTable` 按列宽和自动算（铁律 4.11 的漂移问题
  * 就是「改了列宽忘改常量」，交给它算一次解决）。
  */
 const PAGE_SIZE = 10;
@@ -207,22 +213,28 @@ const planColumns = [
     title: '合约',
     key: 'trade_symbol',
     width: 190,
-    render: (p: Api.Irs.VmPlan) => h('span', { style: 'user-select: text' }, p.trade_symbol)
+    render: (p: Api.Irs.UnderlyingPlan) => h('span', { style: 'user-select: text' }, p.trade_symbol)
   },
-  { title: '方向', key: 'dir', width: 90, render: (p: Api.Irs.VmPlan) => `${p.b_s}${p.o_c ?? ''}` },
+  { title: '方向', key: 'dir', width: 90, render: (p: Api.Irs.UnderlyingPlan) => `${p.b_s}${p.o_c ?? ''}` },
   {
     title: '触发条件',
     key: 'trigger',
     // 用 width 而不是 minWidth：scroll-x 要的是精确列宽和，minWidth 无法求和
     width: 280,
-    render: (p: Api.Irs.VmPlan) => h('span', { class: 'text-12px' }, triggerText(p))
+    render: (p: Api.Irs.UnderlyingPlan) => h('span', { class: 'text-12px' }, triggerText(p))
   },
-  { title: '每次手数', key: 'qty', width: 80, align: 'right' as const, render: (p: Api.Irs.VmPlan) => p.qty ?? '-' },
+  {
+    title: '每次手数',
+    key: 'qty',
+    width: 80,
+    align: 'right' as const,
+    render: (p: Api.Irs.UnderlyingPlan) => p.qty ?? '-'
+  },
   {
     title: '状态',
     key: 'status',
     width: 90,
-    render: (p: Api.Irs.VmPlan) =>
+    render: (p: Api.Irs.UnderlyingPlan) =>
       h(NTag, { size: 'small', bordered: false, type: STATUS_TYPE[p.status] ?? 'default' }, { default: () => p.status })
   },
   {
@@ -230,13 +242,13 @@ const planColumns = [
     key: 'reason',
     width: 200,
     ellipsis: { tooltip: true },
-    render: (p: Api.Irs.VmPlan) => p.reason || '-'
+    render: (p: Api.Irs.UnderlyingPlan) => p.reason || '-'
   },
   {
     title: '操作',
     key: 'action',
     width: 170,
-    render: (p: Api.Irs.VmPlan) =>
+    render: (p: Api.Irs.UnderlyingPlan) =>
       h('div', { class: 'flex gap-8px' }, [
         h(
           NButton,
@@ -264,30 +276,30 @@ const tradeColumns = [
     title: '合约',
     key: 'symbol',
     width: 160,
-    render: (t: VmTrade) => h('span', { style: 'user-select: text' }, t.symbol)
+    render: (t: UnderlyingTrade) => h('span', { style: 'user-select: text' }, t.symbol)
   },
   {
     title: '名称',
     key: 'name',
     width: 160,
     ellipsis: { tooltip: true },
-    render: (t: VmTrade) => t.name ?? '-'
+    render: (t: UnderlyingTrade) => t.name ?? '-'
   },
   {
     title: '成交时间',
     key: 'trade_time',
     width: 160,
-    render: (t: VmTrade) => t.trade_time?.slice(0, 19).replace('T', ' ') ?? '-'
+    render: (t: UnderlyingTrade) => t.trade_time?.slice(0, 19).replace('T', ' ') ?? '-'
   },
   { title: '买卖', key: 'b_s', width: 44 },
-  { title: '沽购', key: 'c_p', width: 44, render: (t: VmTrade) => t.c_p ?? '-' },
-  { title: '开平', key: 'o_c', width: 44, render: (t: VmTrade) => t.o_c ?? '-' },
+  { title: '沽购', key: 'c_p', width: 44, render: (t: UnderlyingTrade) => t.c_p ?? '-' },
+  { title: '开平', key: 'o_c', width: 44, render: (t: UnderlyingTrade) => t.o_c ?? '-' },
   {
     title: '成交价',
     key: 'price',
     width: 100,
     align: 'right' as const,
-    render: (t: VmTrade) => Number(t.price).toFixed(4)
+    render: (t: UnderlyingTrade) => Number(t.price).toFixed(4)
   },
   { title: '数量', key: 'vol', width: 80, align: 'right' as const },
   {
@@ -295,19 +307,19 @@ const tradeColumns = [
     key: 'amount_act',
     width: 110,
     align: 'right' as const,
-    render: (t: VmTrade) => (t.amount_act != null ? Number(t.amount_act).toFixed(2) : '-')
+    render: (t: UnderlyingTrade) => (t.amount_act != null ? Number(t.amount_act).toFixed(2) : '-')
   },
   {
     title: '剧本',
     key: 'plan_id',
     width: 120,
-    render: (t: VmTrade) => renderPlan(t)
+    render: (t: UnderlyingTrade) => renderPlan(t)
   },
   {
     title: '想法',
     key: 'note_idea',
     width: 120,
-    render: (t: VmTrade) => renderIdea(t)
+    render: (t: UnderlyingTrade) => renderIdea(t)
   },
   { title: '账户', key: 'account', width: 60 }
 ];
@@ -320,7 +332,7 @@ const planLabelMap = computed(() => {
 });
 
 /** 剧本列：点击进入「记一笔」，可改关联剧本；未关联时也提供入口 */
-function renderPlan(t: VmTrade) {
+function renderPlan(t: UnderlyingTrade) {
   if (t.plan_id == null) {
     return h(
       NButton,
@@ -348,7 +360,7 @@ function renderPlan(t: VmTrade) {
 }
 
 /** 想法列：单行省略 + 悬停全文；点击进入「记一笔」 */
-function renderIdea(t: VmTrade) {
+function renderIdea(t: UnderlyingTrade) {
   if (!t.note_idea) {
     return h(
       NButton,
@@ -399,7 +411,7 @@ const accountOptions = computed(() => billsStore.getAccountOptions());
 
 /** 拉取指定页；页码越界（如删了数据）时回退到第 1 页 */
 async function loadTrades(targetPage = page.value) {
-  const { data, error } = await fetchValueMonitorTrades(props.vmId, {
+  const { data, error } = await fetchUnderlyingMonitorTrades(props.umId, {
     page: targetPage,
     pageSize: pageSize.value,
     planId: planFilter.value,
@@ -459,10 +471,10 @@ onMounted(() => {
 
 // ---- 记一笔弹窗（与账单页同一个面板：想法 + 剧本整体保存） ----
 const showNoteModal = ref(false);
-const noteTrade = ref<VmTrade | null>(null);
+const noteTrade = ref<UnderlyingTrade | null>(null);
 const notePanelRef = ref<InstanceType<typeof BillNotePanel> | null>(null);
 
-function openNote(t: VmTrade) {
+function openNote(t: UnderlyingTrade) {
   noteTrade.value = t;
   showNoteModal.value = true;
 }
@@ -498,7 +510,7 @@ watch(
       </span>
       <NButton size="tiny" ghost class="ml-auto" @click="openNew">新增剧本</NButton>
     </div>
-    <VmDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
+    <UnderlyingDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
     <!-- <NEmpty v-if="!plans.length" size="small" description="还没有剧本" class="my-8px" /> -->
 
     <NDivider />
@@ -543,7 +555,7 @@ watch(
       <NButton size="small" @click="resetFilters">重置</NButton>
       <span class="text-12px text-gray-400">点「剧本」或「想法」可关联剧本、写想法</span>
     </div>
-    <VmDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
+    <UnderlyingDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
     <div class="mt-8px flex justify-end">
       <NPagination
         :page="page"

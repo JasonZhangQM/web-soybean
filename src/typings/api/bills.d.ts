@@ -145,13 +145,13 @@ declare namespace Api {
       market: string | null;
       /** 账户 */
       account: string;
-      /** 归属标的（经 bills_group_symbol.vm_symbol；资金流水行恒为 null） */
-      vm_symbol: string | null;
+      /** 归属标的（经 bills_group_symbol.underlying_symbol；资金流水行恒为 null） */
+      underlying_symbol: string | null;
       /** 「想法」正文（bills_bill_note，成交当时的判断） */
       note_idea: string | null;
       /** 「想法」落笔时间（晚于 trade_time = 事后补写） */
       note_idea_at: string | null;
-      /** 该笔记执行的剧本 irs_vm_plan.id（裸 ID，无外键；未关联为 null） */
+      /** 该笔记执行的剧本 irs_um_plan.id（裸 ID，无外键；未关联为 null） */
       plan_id: number | null;
       /** 主键 */
       id: number;
@@ -177,7 +177,7 @@ declare namespace Api {
       content_at: string;
       /** manual=成交当日或次日写；backfill=事后补录（>3 天） */
       source: string;
-      /** 执行的剧本 irs_vm_plan.id（裸 ID，无外键；未归因为 null） */
+      /** 执行的剧本 irs_um_plan.id（裸 ID，无外键；未归因为 null） */
       plan_id: number | null;
       /** 创建时间 */
       create_time: string;
@@ -308,7 +308,7 @@ declare namespace Api {
       /** 资金日结差额 */
       diff_dwt: number | null;
       /** 归属标的（人工列，重算不覆盖；融资融券与未归属为 null） */
-      vm_symbol: string | null;
+      underlying_symbol: string | null;
       /** 风险敞口（人工设置在 Group，此处为同标的各账户之和，编辑联动刷新；null=未设置） */
       risk_exposure: number | null;
       /** 行权价（仅期权交易行返回，经 bds_option_info 查得；其余类别与未登记合约为 null） */
@@ -323,9 +323,9 @@ declare namespace Api {
 
     /** 归属计数（顶部提示「还有多少行没选」；三态之和 = total） */
     interface GroupSymbolCoverage {
-      /** 已归属行数（含 vm_symbol 与同代码自动命中） */
+      /** 已归属行数（含 underlying_symbol 与同代码自动命中） */
       mapped: number;
-      /** 真未归属行数（可归属交易行里既无 vm_symbol、也不同代码），即可操作清单 */
+      /** 真未归属行数（可归属交易行里既无 underlying_symbol、也不同代码），即可操作清单 */
       unmapped: number;
       /**
        * 不参与归属行数：资金流水行（RZRQ / CRJ / SYFY / cash + 理财逆回购）。
@@ -579,7 +579,7 @@ declare namespace Api {
 
     /** 剧本盈亏归因-单剧本行（读 bills_bill_note.plan_id，group by 剧本） */
     interface AttributionPlan {
-      /** 剧本 irs_vm_plan.id（裸 ID） */
+      /** 剧本 irs_um_plan.id（裸 ID） */
       plan_id: number;
       /** 执行笔数（每笔成交只取一条带 plan_id 的笔记，去重） */
       exec_count: number;

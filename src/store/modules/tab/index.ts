@@ -86,7 +86,7 @@ export const useTabStore = defineStore(SetupStoreId.Tab, () => {
       const existing = tabs.value.find(t => t.id === tab.id);
       if (existing) {
         // 标签 id 相同（= path，multiTab 关）时同步 fullPath：页面消费 query 后
-        // router.replace 摘参（如估值监测开完抽屉摘掉 ?vm=），必须回写标签，
+        // router.replace 摘参（如标的监测开完抽屉摘掉 ?um=），必须回写标签，
         // 否则标签上永远挂着陈旧 fullPath——点标签切回时被摘掉的参数复活。
         // fullPath 变化会再次触发 global-tab 的 watch → addTab，形成一次自愈闭环。
         if (existing.fullPath !== tab.fullPath) {

@@ -47,8 +47,8 @@ declare namespace Api {
       message: string;
     }
 
-    /** 估值监测（对应 ValueMonitorOut，主表 27 字段 + 9 个 v3 派生字段） */
-    interface ValueMonitor {
+    /** 标的监测（对应 UnderlyingMonitorOut，主表 27 字段 + 9 个 v3 派生字段） */
+    interface UnderlyingMonitor {
       /** 代码（业务主键，API 禁改） */
       symbol: string;
       /** 名称 */
@@ -127,8 +127,8 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 档位版本（对应 VmVersionOut）：五档 + 现算 pv_* + 状态 + 与上一版差值 */
-    interface VmVersion {
+    /** 档位版本（对应 UnderlyingVersionOut）：五档 + 现算 pv_* + 状态 + 与上一版差值 */
+    interface UnderlyingVersion {
       id: number;
       symbol: string;
       /** 生效日：`effective_date <= D` 的最大版就是 D 日的档位 */
@@ -159,8 +159,8 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 标的研究（对应 VmResearchOut，按 research_date 留版） */
-    interface VmResearch {
+    /** 标的研究（对应 UnderlyingResearchOut，按 research_date 留版） */
+    interface UnderlyingResearch {
       id: number;
       symbol: string;
       research_date: string;
@@ -186,11 +186,11 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 剧本（对应 VmPlanOut，用真实合约代码 + 点位；长期有效、可反复执行） */
-    interface VmPlan {
+    /** 剧本（对应 UnderlyingPlanOut，用真实合约代码 + 点位；长期有效、可反复执行） */
+    interface UnderlyingPlan {
       id: number;
-      /** 归属标的（irs_value_monitor.symbol） */
-      vm_symbol: string;
+      /** 归属标的（irs_underlying_monitor.symbol） */
+      underlying_symbol: string;
       /** 实际下单合约代码 */
       trade_symbol: string;
       /** 序号（同标的同 seq 覆盖） */
@@ -220,15 +220,15 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 投资逻辑（对应 VmLogicOut） */
-    interface VmLogic {
+    /** 投资逻辑（对应 UnderlyingLogicOut） */
+    interface UnderlyingLogic {
       id: number;
       symbol: string;
       seq: number;
       content: string;
       /** 定价依据 */
       pricing: string | null;
-      /** 状态：完好 / 减弱 / 破坏（与 models.VmLogic.STATE_CHOICES 一致） */
+      /** 状态：完好 / 减弱 / 破坏（与 models.UnderlyingLogic.STATE_CHOICES 一致） */
       state: string;
       state_at: string | null;
       evidence: string | null;
@@ -236,8 +236,8 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 证伪条件（对应 VmInvalidateOut） */
-    interface VmInvalidate {
+    /** 证伪条件（对应 UnderlyingInvalidateOut） */
+    interface UnderlyingInvalidate {
       id: number;
       symbol: string;
       logic_id: number | null;
@@ -261,7 +261,7 @@ declare namespace Api {
     }
 
     /** 归属覆盖率行（每个标的的合约行数与成交笔数） */
-    interface VmCoverageRow {
+    interface UnderlyingCoverageRow {
       symbol: string;
       name: string | null;
       group_rows: number | null;
@@ -269,7 +269,7 @@ declare namespace Api {
     }
 
     /** 未归属合约行 */
-    interface VmUnmappedRow {
+    interface UnderlyingUnmappedRow {
       id: number;
       category: string;
       symbol: string;
@@ -279,7 +279,7 @@ declare namespace Api {
     }
 
     /** 状态变更审计日志行（append-only，复盘回放） */
-    interface VmStateLog {
+    interface UnderlyingStateLog {
       id: number;
       /** logic=逻辑；invalidate=证伪 */
       subject_type: 'logic' | 'invalidate';
@@ -292,7 +292,7 @@ declare namespace Api {
     }
 
     /** 标的级目标仓位（决策层，占总资产比例 %） */
-    interface VmTarget {
+    interface UnderlyingTarget {
       id: number;
       symbol: string;
       target_pct: number | null;
@@ -316,7 +316,7 @@ declare namespace Api {
       theme: string | null;
       price: number | null;
       zone: string | null;
-      /** 五档价格（ValueMonitor 主表列直传，键为 pp_el~pp_eh） */
+      /** 五档价格（UnderlyingMonitor 主表列直传，键为 pp_el~pp_eh） */
       pp: Record<'pp_el' | 'pp_l' | 'pp_m' | 'pp_h' | 'pp_eh', number | null> | null;
       /** 距各档 %（键为 pv_el~pv_eh，负值=档位在现价下方） */
       pv: Record<'pv_el' | 'pv_l' | 'pv_m' | 'pv_h' | 'pv_eh', number | null> | null;

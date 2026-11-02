@@ -7,17 +7,17 @@
  * - 选一个**新日期**保存 → 新建一版，那之后的日子都跟这版；
  * - 选一个**已有日期**保存 → 改那一版（会二次确认，明示改的是哪天）。
  *
- * 唯一写入口是 `saveVmVersion`（后端 save_version → refresh_current_pp → 钩子重算 pv_*）。
+ * 唯一写入口是 `saveUnderlyingVersion`（后端 save_version → refresh_current_pp → 钩子重算 pv_*）。
  * 任何地方都不要直写主表 pp_*。
  */
 import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { fetchVmVersions, saveVmVersion, deleteVmVersion } from '@/service/api';
-import VmDataTable from './VmDataTable.vue';
+import { fetchUnderlyingVersions, saveUnderlyingVersion, deleteUnderlyingVersion } from '@/service/api';
+import UnderlyingDataTable from './UnderlyingDataTable.vue';
 
-defineOptions({ name: 'VmVersionTab' });
+defineOptions({ name: 'UnderlyingVersionTab' });
 
-const props = defineProps<{ vmId: number; symbol: string }>();
+const props = defineProps<{ umId: number; symbol: string }>();
 const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const saving = ref(false);
@@ -26,10 +26,10 @@ const deletingId = ref<number | null>(null);
 const warnings = ref<Array<{ level: string; pb_pct: number; message: string }>>([]);
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
-const versions = ref<Api.Irs.VmVersion[]>([]);
+const versions = ref<Api.Irs.UnderlyingVersion[]>([]);
 
 async function loadVersions() {
-  const { data, error } = await fetchVmVersions(props.vmId);
+  const { data, error } = await fetchUnderlyingVersions(props.umId);
   if (!error && data) versions.value = data;
 }
 
@@ -61,7 +61,7 @@ const dateHint = computed(() => {
 });
 
 /** 用某一版回填表单（点行上的「沿用此版」） */
-function fillFrom(v: Api.Irs.VmVersion) {
+function fillFrom(v: Api.Irs.UnderlyingVersion) {
   form.effective_date = v.effective_date;
   form.pp_el = v.pp_el != null ? Number(v.pp_el) : null;
   form.pp_l = v.pp_l != null ? Number(v.pp_l) : null;
@@ -106,7 +106,7 @@ function doSave(force = false) {
   const run = async () => {
     saving.value = true;
     try {
-      const { data, error } = await saveVmVersion(props.vmId, {
+      const { data, error } = await saveUnderlyingVersion(props.umId, {
         symbol: props.symbol,
         effective_date: form.effective_date,
         pp_el: form.pp_el!,
@@ -152,7 +152,7 @@ function doSave(force = false) {
   });
 }
 
-function handleDelete(v: Api.Irs.VmVersion) {
+function handleDelete(v: Api.Irs.UnderlyingVersion) {
   window.$dialog?.warning({
     title: `删除 ${v.effective_date} 这一版档位？`,
     content: '删的是「某一版档位」，不是删标的。删完主表会按剩余版本里日期最新的一版回写五档。',
@@ -161,7 +161,7 @@ function handleDelete(v: Api.Irs.VmVersion) {
     onPositiveClick: async () => {
       deletingId.value = v.id;
       try {
-        const { error } = await deleteVmVersion(props.vmId, v.id);
+        const { error } = await deleteUnderlyingVersion(props.umId, v.id);
         if (!error) {
           window.$message?.success('已删除该版并回写当前档位');
           await loadVersions();
@@ -202,7 +202,7 @@ const statusType: Record<string, 'success' | 'default' | 'warning'> = {
 
 // ---------------- 分页 ----------------
 /**
- * 每页 10 条：页大小交给共用 `VmDataTable`（与列表页同款分页器），
+ * 每页 10 条：页大小交给共用 `UnderlyingDataTable`（与列表页同款分页器），
  * 它内部还负责页码钳制 —— 删掉一版后 `versions` 变短，页码会自动回退，
  * 不会停在一张空白页上。
  */
@@ -214,23 +214,53 @@ const columns = [
     title: '状态',
     key: 'status',
     width: 90,
-    render: (row: Api.Irs.VmVersion) =>
+    render: (row: Api.Irs.UnderlyingVersion) =>
       h(
         NTag,
         { size: 'small', bordered: false, type: statusType[row.status] ?? 'default' },
         { default: () => statusText[row.status] ?? row.status }
       )
   },
-  { title: '极低', key: 'pp_el', width: 90, align: 'right' as const, render: (r: Api.Irs.VmVersion) => fmt(r.pp_el) },
-  { title: '低', key: 'pp_l', width: 90, align: 'right' as const, render: (r: Api.Irs.VmVersion) => fmt(r.pp_l) },
-  { title: '中', key: 'pp_m', width: 90, align: 'right' as const, render: (r: Api.Irs.VmVersion) => fmt(r.pp_m) },
-  { title: '高', key: 'pp_h', width: 90, align: 'right' as const, render: (r: Api.Irs.VmVersion) => fmt(r.pp_h) },
-  { title: '极高', key: 'pp_eh', width: 90, align: 'right' as const, render: (r: Api.Irs.VmVersion) => fmt(r.pp_eh) },
+  {
+    title: '极低',
+    key: 'pp_el',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Irs.UnderlyingVersion) => fmt(r.pp_el)
+  },
+  {
+    title: '低',
+    key: 'pp_l',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Irs.UnderlyingVersion) => fmt(r.pp_l)
+  },
+  {
+    title: '中',
+    key: 'pp_m',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Irs.UnderlyingVersion) => fmt(r.pp_m)
+  },
+  {
+    title: '高',
+    key: 'pp_h',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Irs.UnderlyingVersion) => fmt(r.pp_h)
+  },
+  {
+    title: '极高',
+    key: 'pp_eh',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Irs.UnderlyingVersion) => fmt(r.pp_eh)
+  },
   {
     title: '相对上一版（低/中/高）',
     key: 'diff',
     width: 200,
-    render: (r: Api.Irs.VmVersion) =>
+    render: (r: Api.Irs.UnderlyingVersion) =>
       h('span', { class: 'text-12px text-gray-500' }, [
         fmtDiff(r.diff?.pp_l),
         ' / ',
@@ -244,13 +274,13 @@ const columns = [
     key: 'note',
     width: 200,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmVersion) => r.note || '-'
+    render: (r: Api.Irs.UnderlyingVersion) => r.note || '-'
   },
   {
     title: '操作',
     key: 'action',
     width: 150,
-    render: (r: Api.Irs.VmVersion) =>
+    render: (r: Api.Irs.UnderlyingVersion) =>
       h('div', { class: 'flex gap-8px' }, [
         h(
           NButton,
@@ -284,7 +314,7 @@ const columns = [
       。
     </NAlert>
 
-    <VmDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" />
+    <UnderlyingDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" />
 
     <NDivider />
 

@@ -11,7 +11,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag, NEmpty } from 'naive-ui';
-import { fetchToday, saveVmTarget, fetchRiskBoard } from '@/service/api';
+import { fetchToday, saveUnderlyingTarget, fetchRiskBoard } from '@/service/api';
 import { syncOptionMarket, fetchSyncTask } from '@/service/api';
 import TierScaleBar from './modules/TierScaleBar.vue';
 
@@ -21,9 +21,9 @@ const router = useRouter();
 const loading = ref(false);
 const items = ref<Api.Irs.TodayItem[]>([]);
 
-/** 标题跳估值监测详情抽屉：复用 ?vm= 入口（openFromQuery 自动开抽屉） */
+/** 标题跳标的监测详情抽屉：复用 ?um= 入口（openFromQuery 自动开抽屉） */
 function goDetail(it: Api.Irs.TodayItem) {
-  router.push({ name: 'irs_value-monitors', query: { vm: it.symbol } });
+  router.push({ name: 'irs_underlying-monitors', query: { um: it.symbol } });
 }
 
 async function load() {
@@ -132,7 +132,7 @@ function startEditTarget(it: Api.Irs.TodayItem) {
 async function saveTarget() {
   savingTarget.value = true;
   try {
-    const { error } = await saveVmTarget(targetSymbol.value, targetValue.value);
+    const { error } = await saveUnderlyingTarget(targetSymbol.value, targetValue.value);
     if (!error) {
       window.$message?.success('目标仓位已保存');
       showTargetModal.value = false;
@@ -253,7 +253,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
     </div>
 
     <NSpin :show="loading">
-      <NEmpty v-if="!items.length" description="还没有估值监测标的" class="mt-24px" />
+      <NEmpty v-if="!items.length" description="还没有标的监测标的" class="mt-24px" />
 
       <!-- 0 命中时的大块提示（P0 ① 验收）：仍列出卡片（弱化），目标仓位看板照常可用 -->
       <div v-if="items.length && !activeCount" class="mb-16px">

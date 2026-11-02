@@ -6,7 +6,7 @@ import {
   fetchBills,
   updateBill,
   deleteBill,
-  fetchValueMonitors,
+  fetchUnderlyingMonitors,
   fetchAllPlans,
   type BillUpdateParams
 } from '@/service/api';
@@ -42,13 +42,13 @@ const pagination = createTablePagination();
 
 // 筛选参数：account/category 单选精确匹配，变更即搜索；
 // keyword 为合并搜索框——代码与名称任一模糊命中即可（后端 OR），回车立即搜索、清空立即重搜；
-// vm_symbol 按归属标的精确筛选（一条流水归属哪个标的由 (category, symbol) 决定，
+// underlying_symbol 按归属标的精确筛选（一条流水归属哪个标的由 (category, symbol) 决定，
 // 见 bills_group_symbol；所以筛出来的是「这个标的名下的全部流水」）
 const searchParams = reactive<{
   account?: string | null;
   category?: string | null;
   keyword?: string;
-  vm_symbol?: string | null;
+  underlying_symbol?: string | null;
   plan_id?: number | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -58,18 +58,18 @@ usePageState({ searchParams, pagination });
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
 const accountOptions = computed(() => billsStore.getAccountOptions());
 
-// ---------------- 归属标的下拉候选（来源：估值监测） ----------------
-// 归属值受控：PATCH /group-symbols/{id}/vm 会校验标的必须已在 irs_value_monitor 里，
-// 所以这份列表覆盖了库里所有可能的 vm_symbol，不需要另开「已用值」接口。
-const vmList = ref<Api.Irs.ValueMonitor[]>([]);
-const vmOptions = computed(() =>
-  vmList.value.map(v => ({ label: `${v.symbol} ${v.name ?? ''}`.trim(), value: v.symbol }))
+// ---------------- 归属标的下拉候选（来源：标的监测） ----------------
+// 归属值受控：PATCH /group-symbols/{id}/um 会校验标的必须已在 irs_underlying_monitor 里，
+// 所以这份列表覆盖了库里所有可能的 underlying_symbol，不需要另开「已用值」接口。
+const umList = ref<Api.Irs.UnderlyingMonitor[]>([]);
+const umOptions = computed(() =>
+  umList.value.map(v => ({ label: `${v.symbol} ${v.name ?? ''}`.trim(), value: v.symbol }))
 );
 
-async function loadVmOptions() {
+async function loadUnderlyingOptions() {
   // 标的就那么几个（当前 9 个），一次取全
-  const { data, error } = await fetchValueMonitors({ limit: 200 });
-  if (!error && data) vmList.value = data.items;
+  const { data, error } = await fetchUnderlyingMonitors({ limit: 200 });
+  if (!error && data) umList.value = data.items;
 }
 
 async function fetchData() {
@@ -83,7 +83,7 @@ async function fetchData() {
       category: searchParams.category || undefined,
       // 合并搜索框清空返回空串
       keyword: searchParams.keyword || undefined,
-      vm_symbol: searchParams.vm_symbol || undefined,
+      underlying_symbol: searchParams.underlying_symbol || undefined,
       plan_id: searchParams.plan_id ?? undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -107,7 +107,7 @@ function handleReset() {
   searchParams.account = null;
   searchParams.category = null;
   searchParams.keyword = '';
-  searchParams.vm_symbol = null;
+  searchParams.underlying_symbol = null;
   searchParams.plan_id = null;
   clearSymbolOptions();
   pagination.page = 1;
@@ -416,12 +416,12 @@ function isAttachable(category: string | undefined | null) {
   return category != null && TRADE_CATS.includes(category);
 }
 
-/** 跳标的档案页并自动开抽屉（该页读 ?vm=SYMBOL） */
-function gotoValueMonitor(symbol: string) {
-  router.push({ name: 'irs_value-monitors', query: { vm: symbol } });
+/** 跳标的档案页并自动开抽屉（该页读 ?um=SYMBOL） */
+function gotoUnderlyingMonitor(symbol: string) {
+  router.push({ name: 'irs_underlying-monitors', query: { um: symbol } });
 }
 
-function renderVmSymbol(row: Api.Bills.Bill) {
+function renderUnderlyingSymbol(row: Api.Bills.Bill) {
   // 不可归属类别：显示「—」，附 tooltip 说明原因
   if (!isAttachable(row.category)) {
     const hint = NON_ATTACHABLE_HINTS[row.category ?? ''] ?? '非交易类别，不参与标的归属';
@@ -430,13 +430,18 @@ function renderVmSymbol(row: Api.Bills.Bill) {
       default: () => hint
     });
   }
-  if (!row.vm_symbol) {
+  if (!row.underlying_symbol) {
     return h('span', { class: 'text-gray-300' }, '未归属');
   }
   return h(
     NButton,
-    { text: true, type: 'primary', size: 'tiny', onClick: () => gotoValueMonitor(row.vm_symbol as string) },
-    { default: () => row.vm_symbol }
+    {
+      text: true,
+      type: 'primary',
+      size: 'tiny',
+      onClick: () => gotoUnderlyingMonitor(row.underlying_symbol as string)
+    },
+    { default: () => row.underlying_symbol }
   );
 }
 
@@ -569,7 +574,12 @@ const columns = [
   },
   { title: '名称', key: 'name', width: 185 },
   // 归属标的、剧本、想法放在左侧：这几列才是本页的「决策载体」，右侧留给行情数字
-  { title: '归属标的', key: 'vm_symbol', width: 130, render: (row: Api.Bills.Bill) => renderVmSymbol(row) },
+  {
+    title: '归属标的',
+    key: 'underlying_symbol',
+    width: 130,
+    render: (row: Api.Bills.Bill) => renderUnderlyingSymbol(row)
+  },
   { title: '剧本', key: 'plan_id', width: 130, render: (row: Api.Bills.Bill) => renderPlan(row) },
   { title: '想法', key: 'note_idea', width: 180, render: (row: Api.Bills.Bill) => renderIdea(row) },
   { title: '总分类', key: 'category', width: 90 },
@@ -628,7 +638,7 @@ async function loadPlanLabels() {
 
 onMounted(() => {
   fetchData();
-  loadVmOptions();
+  loadUnderlyingOptions();
   loadPlanLabels();
   // 确保类别/账户列表已加载（全局 store 会自动去重）
   billsStore.loadCategories();
@@ -662,8 +672,8 @@ onMounted(() => {
         </NFormItem>
         <NFormItem label="归属标的">
           <NSelect
-            v-model:value="searchParams.vm_symbol"
-            :options="vmOptions"
+            v-model:value="searchParams.underlying_symbol"
+            :options="umOptions"
             clearable
             filterable
             placeholder="全部"
@@ -864,7 +874,7 @@ onMounted(() => {
       <div v-if="noteRow" class="mb-12px text-12px text-gray-500">
         {{ noteRow.trade_time?.slice(0, 19).replace('T', ' ') ?? '-' }}
         · {{ noteRow.name }}（{{ noteRow.symbol }}） · {{ noteRow.b_s }}{{ noteRow.o_c ?? '' }}
-        <span v-if="noteRow.vm_symbol">· 归属 {{ noteRow.vm_symbol }}</span>
+        <span v-if="noteRow.underlying_symbol">· 归属 {{ noteRow.underlying_symbol }}</span>
       </div>
       <BillNotePanel
         ref="notePanelRef"

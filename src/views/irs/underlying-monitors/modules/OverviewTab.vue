@@ -2,19 +2,19 @@
 /**
  * 概览 Tab：决策卡 + 档位摘要 + 剧本摘要 + 归属合约（分页）
  *
- * 数据全部来自瘦身版 `GET /value-monitors/{id}/detail`（概览最小集）。
+ * 数据全部来自瘦身版 `GET /underlying-monitors/{id}/detail`（概览最小集）。
  * 各 Tab 明细走懒加载接口（versions/research/logic/invalidate/plans/groups）。
  */
 import { computed, h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag } from 'naive-ui';
-import { fetchVmGroups, type VmGroup, type ValueMonitorDetail } from '@/service/api';
-import VmDataTable from './VmDataTable.vue';
+import { fetchUnderlyingGroups, type UnderlyingGroup, type UnderlyingMonitorDetail } from '@/service/api';
+import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import { STATUS_TYPE, triggerText } from './planFormat';
 
-defineOptions({ name: 'VmOverviewTab' });
+defineOptions({ name: 'UnderlyingOverviewTab' });
 
-const props = defineProps<{ detail: ValueMonitorDetail }>();
+const props = defineProps<{ detail: UnderlyingMonitorDetail }>();
 const emit = defineEmits<{ (e: 'goto', tab: string): void }>();
 
 const router = useRouter();
@@ -36,7 +36,7 @@ const reviewOverdue = computed(() => {
 const activePlanCount = computed(() => props.detail.plans_active_count);
 
 // ---- 对应交易代码：服务端分页（10 条/页，id 倒序）+ 分类精确 / 合约模糊 ----
-const groups = ref<VmGroup[]>([]);
+const groups = ref<UnderlyingGroup[]>([]);
 const groupTotal = ref(props.detail.group_rows);
 const groupPage = ref(1);
 const groupPageSize = ref(10);
@@ -49,7 +49,7 @@ const categoryOptions = computed(() => {
 const hasGroupFilter = computed(() => categoryFilter.value != null || !!symbolFilter.value.trim());
 
 async function loadGroups(targetPage = groupPage.value) {
-  const { data, error } = await fetchVmGroups(props.detail.vm.id, {
+  const { data, error } = await fetchUnderlyingGroups(props.detail.um.id, {
     page: targetPage,
     pageSize: groupPageSize.value,
     category: categoryFilter.value,
@@ -119,21 +119,27 @@ const planColumns = [
     title: '合约',
     key: 'trade_symbol',
     width: 170,
-    render: (p: Api.Irs.VmPlan) => h('span', { style: 'user-select: text' }, p.trade_symbol)
+    render: (p: Api.Irs.UnderlyingPlan) => h('span', { style: 'user-select: text' }, p.trade_symbol)
   },
-  { title: '方向', key: 'dir', width: 70, render: (p: Api.Irs.VmPlan) => `${p.b_s}${p.o_c ?? ''}` },
+  { title: '方向', key: 'dir', width: 70, render: (p: Api.Irs.UnderlyingPlan) => `${p.b_s}${p.o_c ?? ''}` },
   {
     title: '触发条件',
     key: 'trigger',
     width: 240,
-    render: (p: Api.Irs.VmPlan) => h('span', { class: 'text-12px' }, triggerText(p))
+    render: (p: Api.Irs.UnderlyingPlan) => h('span', { class: 'text-12px' }, triggerText(p))
   },
-  { title: '每次手数', key: 'qty', width: 70, align: 'right' as const, render: (p: Api.Irs.VmPlan) => p.qty ?? '-' },
+  {
+    title: '每次手数',
+    key: 'qty',
+    width: 70,
+    align: 'right' as const,
+    render: (p: Api.Irs.UnderlyingPlan) => p.qty ?? '-'
+  },
   {
     title: '状态',
     key: 'status',
     width: 90,
-    render: (p: Api.Irs.VmPlan) =>
+    render: (p: Api.Irs.UnderlyingPlan) =>
       h(NTag, { size: 'small', bordered: false, type: STATUS_TYPE[p.status] ?? 'default' }, { default: () => p.status })
   }
 ];
@@ -148,21 +154,21 @@ const groupColumns = [
     key: 'p_total',
     width: 80,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.p_total != null ? Number(row.p_total).toLocaleString() : '-')
+    render: (row: UnderlyingGroup) => (row.p_total != null ? Number(row.p_total).toLocaleString() : '-')
   },
   {
     title: '持仓成本',
     key: 'cost_total',
     width: 110,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.cost_total != null ? Number(row.cost_total).toFixed(2) : '-')
+    render: (row: UnderlyingGroup) => (row.cost_total != null ? Number(row.cost_total).toFixed(2) : '-')
   },
   {
     title: '最新价',
     key: 'price',
     width: 100,
     align: 'right' as const,
-    render: (row: VmGroup) =>
+    render: (row: UnderlyingGroup) =>
       row.price != null
         ? Number(row.price)
             .toFixed(4)
@@ -174,39 +180,39 @@ const groupColumns = [
     key: 'multiplier',
     width: 70,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.multiplier != null ? row.multiplier : '-')
+    render: (row: UnderlyingGroup) => (row.multiplier != null ? row.multiplier : '-')
   },
   {
     title: '市值',
     key: 'value_total',
     width: 110,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.value_total != null ? Number(row.value_total).toFixed(2) : '-')
+    render: (row: UnderlyingGroup) => (row.value_total != null ? Number(row.value_total).toFixed(2) : '-')
   },
   {
     title: '浮动盈亏',
     key: 'pf_total',
     width: 110,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.pf_total != null ? Number(row.pf_total).toFixed(2) : '-')
+    render: (row: UnderlyingGroup) => (row.pf_total != null ? Number(row.pf_total).toFixed(2) : '-')
   },
   {
     title: '平仓盈亏',
     key: 'pl_all',
     width: 110,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.pl_all != null ? Number(row.pl_all).toFixed(2) : '-')
+    render: (row: UnderlyingGroup) => (row.pl_all != null ? Number(row.pl_all).toFixed(2) : '-')
   },
   {
     title: '盈亏合计',
     key: 'pfl_all',
     width: 110,
     align: 'right' as const,
-    render: (row: VmGroup) => (row.pfl_all != null ? Number(row.pfl_all).toFixed(2) : '-')
+    render: (row: UnderlyingGroup) => (row.pfl_all != null ? Number(row.pfl_all).toFixed(2) : '-')
   }
 ];
 
-// ---- 档位表格：五档横排，VmDataTable 样式与剧本 / 对应交易代码统一 ----
+// ---- 档位表格：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 ----
 const LEVEL_META = [
   { key: 'pp_el', label: '极低' },
   { key: 'pp_l', label: '低' },
@@ -219,7 +225,7 @@ const LEVEL_META = [
 const levelRows = computed(() => [
   LEVEL_META.reduce(
     (acc, m) => {
-      (acc as any)[m.key] = fmtNum((props.detail.vm as any)[m.key]);
+      (acc as any)[m.key] = fmtNum((props.detail.um as any)[m.key]);
       return acc;
     },
     {} as Record<string, string>
@@ -326,8 +332,14 @@ const levelColumns = LEVEL_META.map(m => ({
       <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
     </div>
 
-    <!-- 档位摘要：五档横排，VmDataTable 样式与剧本 / 对应交易代码统一 -->
-    <VmDataTable v-if="currentVersion" :columns="levelColumns" :data="levelRows" :page-size="0" class="mb-16px" />
+    <!-- 档位摘要：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 -->
+    <UnderlyingDataTable
+      v-if="currentVersion"
+      :columns="levelColumns"
+      :data="levelRows"
+      :page-size="0"
+      class="mb-16px"
+    />
 
     <NDivider />
 
@@ -338,7 +350,13 @@ const levelColumns = LEVEL_META.map(m => ({
     </div>
 
     <!-- 剧本明细（只读）：只展示生效剧本，暂停的留给「剧本与成交」Tab 看全量 -->
-    <VmDataTable v-if="activePlans.length" :columns="planColumns" :data="activePlans" :page-size="0" class="mb-8px" />
+    <UnderlyingDataTable
+      v-if="activePlans.length"
+      :columns="planColumns"
+      :data="activePlans"
+      :page-size="0"
+      class="mb-8px"
+    />
 
     <NDivider />
 
@@ -368,7 +386,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <span class="text-12px text-gray-400">共 {{ groupTotal }} 个合约行（融资融券不计）</span>
       <NButton size="tiny" text class="ml-auto" @click="gotoGroupSymbols">去合约页维护归属</NButton>
     </div>
-    <VmDataTable :columns="groupColumns" :data="groups" :page-size="0" />
+    <UnderlyingDataTable :columns="groupColumns" :data="groups" :page-size="0" />
     <div class="mt-8px flex justify-end">
       <NPagination
         :page="groupPage"

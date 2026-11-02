@@ -9,19 +9,19 @@
 import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import {
-  fetchVmResearch,
-  saveVmResearch,
-  deleteVmResearch,
-  fetchVmStateLog,
+  fetchUnderlyingResearch,
+  saveUnderlyingResearch,
+  deleteUnderlyingResearch,
+  fetchUnderlyingStateLog,
   fetchAttributionByPlan,
-  fetchVmPlans
+  fetchUnderlyingPlans
 } from '@/service/api';
-import VmDataTable from './VmDataTable.vue';
+import UnderlyingDataTable from './UnderlyingDataTable.vue';
 
-defineOptions({ name: 'VmResearchVersionPanel' });
+defineOptions({ name: 'UnderlyingResearchVersionPanel' });
 
 const props = defineProps<{
-  vmId: number;
+  umId: number;
   symbol: string;
   /** 概览透传的轻量计数（软校验完成度提示用，不需要全量列表） */
   logicCount: number;
@@ -33,9 +33,9 @@ const saving = ref(false);
 const deleting = ref(false);
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
-const research = ref<Api.Irs.VmResearch[]>([]);
+const research = ref<Api.Irs.UnderlyingResearch[]>([]);
 async function loadResearch() {
-  const { data, error } = await fetchVmResearch(props.vmId);
+  const { data, error } = await fetchUnderlyingResearch(props.umId);
   if (!error && data) research.value = data;
 }
 
@@ -89,7 +89,7 @@ const dateHint = computed(() => {
 });
 
 /** 用某一版回填表单 */
-function loadVersion(r: Api.Irs.VmResearch) {
+function loadVersion(r: Api.Irs.UnderlyingResearch) {
   form.research_date = r.research_date;
   form.thesis = r.thesis ?? '';
   form.conclusion = r.conclusion ?? '';
@@ -163,7 +163,7 @@ function doSave(force = false, skipSoft = false) {
   const run = async () => {
     saving.value = true;
     try {
-      const { data, error } = await saveVmResearch(props.vmId, {
+      const { data, error } = await saveUnderlyingResearch(props.umId, {
         research_date: form.research_date as string,
         thesis: form.thesis || null,
         conclusion: form.conclusion || null,
@@ -208,7 +208,7 @@ function handleDelete() {
     onPositiveClick: async () => {
       deleting.value = true;
       try {
-        const { error } = await deleteVmResearch(props.vmId, form.research_date as string);
+        const { error } = await deleteUnderlyingResearch(props.umId, form.research_date as string);
         if (!error) {
           window.$message?.success('已删除该版研究');
           startNew();
@@ -233,20 +233,20 @@ const columns = [
     key: 'conclusion',
     width: 200,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmResearch) => r.conclusion || '未填'
+    render: (r: Api.Irs.UnderlyingResearch) => r.conclusion || '未填'
   },
   {
     title: '下次复核',
     key: 'next_review',
     width: 110,
-    render: (r: Api.Irs.VmResearch) =>
+    render: (r: Api.Irs.UnderlyingResearch) =>
       h('span', { class: r.next_review && r.next_review < today() ? 'text-red-500' : '' }, r.next_review || '未填')
   },
   {
     title: '标记',
     key: 'flag',
     width: 100,
-    render: (r: Api.Irs.VmResearch) =>
+    render: (r: Api.Irs.UnderlyingResearch) =>
       r.research_date > today()
         ? h(NTag, { size: 'small', bordered: false, type: 'warning' }, { default: () => '未来日' })
         : null
@@ -255,7 +255,7 @@ const columns = [
     title: '操作',
     key: 'action',
     width: 90,
-    render: (r: Api.Irs.VmResearch) =>
+    render: (r: Api.Irs.UnderlyingResearch) =>
       h(
         NButton,
         { text: true, size: 'tiny', type: 'primary', onClick: () => loadVersion(r) },
@@ -267,9 +267,9 @@ const columns = [
 ];
 
 // ---------------- 复盘视图：状态演化 + 剧本盈亏归因 ----------------
-const stateLog = ref<Api.Irs.VmStateLog[]>([]);
+const stateLog = ref<Api.Irs.UnderlyingStateLog[]>([]);
 const attribution = ref<Api.Bills.AttributionByPlan | null>(null);
-const allPlans = ref<Api.Irs.VmPlan[]>([]);
+const allPlans = ref<Api.Irs.UnderlyingPlan[]>([]);
 const attributionLoading = ref(false);
 
 function subjectLabel(t: string) {
@@ -278,15 +278,15 @@ function subjectLabel(t: string) {
 
 /** 状态演化：本标的逻辑/证伪的 append-only 日志，正序回放「首次 → 当前」 */
 async function loadStateLog() {
-  const { data } = await fetchVmStateLog(props.vmId);
+  const { data } = await fetchUnderlyingStateLog(props.umId);
   if (data) stateLog.value = data;
 }
 
-/** 剧本盈亏归因：只统计本标的（传 vm_symbol），plan_id → 剧本名靠 /irs/plans 映射 */
+/** 剧本盈亏归因：只统计本标的（传 underlying_symbol），plan_id → 剧本名靠 /irs/plans 映射 */
 async function loadAttribution() {
   attributionLoading.value = true;
   try {
-    const [attr, plans] = await Promise.all([fetchAttributionByPlan(props.symbol), fetchVmPlans(props.vmId)]);
+    const [attr, plans] = await Promise.all([fetchAttributionByPlan(props.symbol), fetchUnderlyingPlans(props.umId)]);
     if (!attr.error && attr.data) attribution.value = attr.data;
     if (!plans.error && plans.data) allPlans.value = plans.data;
   } finally {
@@ -295,7 +295,7 @@ async function loadAttribution() {
 }
 
 const planMap = computed(() => {
-  const m = new Map<number, Api.Irs.VmPlan>();
+  const m = new Map<number, Api.Irs.UnderlyingPlan>();
   for (const p of allPlans.value) m.set(p.id, p);
   return m;
 });
@@ -307,7 +307,7 @@ const attributionRows = computed<AttributionRow[]>(() => {
   if (!attribution.value) return [];
   return attribution.value.items.map(it => {
     const p = planMap.value.get(it.plan_id);
-    return { plan_label: p ? `${p.vm_symbol} ${p.trade_symbol}` : `#${it.plan_id}`, ...it };
+    return { plan_label: p ? `${p.underlying_symbol} ${p.trade_symbol}` : `#${it.plan_id}`, ...it };
   });
 });
 
@@ -379,7 +379,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       </span>
       <NButton size="tiny" ghost class="ml-auto" @click="startNew">新建一版</NButton>
     </div>
-    <VmDataTable :columns="columns" :data="research" :page-size="10" />
+    <UnderlyingDataTable :columns="columns" :data="research" :page-size="10" />
     <!-- <NEmpty v-if="!research.length" size="small" description="还没有研究版本" class="my-8px" /> -->
 
     <NDivider />
@@ -523,10 +523,15 @@ function countClass(k: keyof typeof LIMITS, v: string) {
 
     <div class="mb-8px flex flex-wrap items-center gap-8px">
       <span class="font-500">剧本盈亏归因</span>
-      <span class="text-12px text-gray-400">只统计本标的的剧本（vm_symbol 过滤）；未归因成交显式标注</span>
+      <span class="text-12px text-gray-400">只统计本标的的剧本（underlying_symbol 过滤）；未归因成交显式标注</span>
     </div>
     <NSpin :show="attributionLoading">
-      <VmDataTable v-if="attributionRows.length" :columns="attributionColumns" :data="attributionRows" :page-size="0" />
+      <UnderlyingDataTable
+        v-if="attributionRows.length"
+        :columns="attributionColumns"
+        :data="attributionRows"
+        :page-size="0"
+      />
       <NEmpty v-else-if="!attributionLoading" size="small" description="还没有带剧本标记的成交" class="my-8px" />
     </NSpin>
     <NAlert v-if="attribution" type="info" :bordered="false" class="mt-8px">

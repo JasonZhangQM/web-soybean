@@ -260,7 +260,7 @@ const local: App.I18n.Schema = {
     'bills_risk-board': '风险看板',
     'irs_discounts-monitor': '贴水监测',
     'irs_valuation-percent': '估值分位',
-    'irs_value-monitors': '标的监测',
+    'irs_underlying-monitors': '标的监测',
     'irs_option-quote': '期权监测',
     'irs_macro-framework': '中国宏观',
     'irs_us-economic-dashboard': '美国宏观'

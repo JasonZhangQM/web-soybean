@@ -36,7 +36,7 @@ export function fmtPlanNum(v: number | string | null | undefined) {
  * 有效触发价的说明文案：显式价 / 引用档位。
  * 有效值由后端算好放在 `effective_trigger`，前端只显示不重算。
  */
-export function triggerText(p: Api.Irs.VmPlan): string {
+export function triggerText(p: Api.Irs.UnderlyingPlan): string {
   const op = OP_LABEL[p.trigger_op] ?? p.trigger_op;
   const eff = fmtPlanNum(p.effective_trigger);
   if (p.trigger_price != null) return `${op} ${eff}（写死）`;

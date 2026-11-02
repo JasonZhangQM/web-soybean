@@ -11,7 +11,7 @@
  */
 import { ref, computed, watch } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { fetchValueMonitorDetail, type ValueMonitorDetail } from '@/service/api';
+import { fetchUnderlyingMonitorDetail, type UnderlyingMonitorDetail } from '@/service/api';
 import OverviewTab from './OverviewTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
 import ReviewTab from './ReviewTab.vue';
@@ -19,23 +19,23 @@ import VersionTab from './VersionTab.vue';
 import LogicTab from './LogicTab.vue';
 import PlanTab from './PlanTab.vue';
 
-defineOptions({ name: 'VmDetailDrawer' });
+defineOptions({ name: 'UnderlyingDetailDrawer' });
 
 const props = defineProps<{
   show: boolean;
   /** 列表行；只用于首屏骨架，真实数据以 detail 为准 */
-  row: Api.Irs.ValueMonitor | null;
+  row: Api.Irs.UnderlyingMonitor | null;
 }>();
 
 const emit = defineEmits<{
   (e: 'update:show', v: boolean): void;
-  (e: 'edit', row: Api.Irs.ValueMonitor): void;
+  (e: 'edit', row: Api.Irs.UnderlyingMonitor): void;
   /** 抽屉关闭时通知父组件刷列表（可能主题/zone/结论等列表字段变了） */
   (e: 'changed'): void;
 }>();
 
 const loading = ref(false);
-const detail = ref<ValueMonitorDetail | null>(null);
+const detail = ref<UnderlyingMonitorDetail | null>(null);
 const tab = ref('overview');
 /** 抽屉打开期间有无任何写操作 — 决定关闭时要不要 emit('changed') */
 let dirty = false;
@@ -45,17 +45,17 @@ const visible = computed({
   set: v => emit('update:show', v)
 });
 
-const vm = computed(() => detail.value?.vm ?? props.row);
+const um = computed(() => detail.value?.um ?? props.row);
 
 const title = computed(() => {
-  const v = vm.value;
+  const v = um.value;
   if (!v) return '标的档案';
   return `${v.symbol} ${v.name ?? ''}`.trim();
 });
 
 /** 头部标签：主题 / 类型 / 最新研究结论 / 复核到期 */
 const headerTags = computed(() => {
-  const v = vm.value;
+  const v = um.value;
   if (!v) return [];
   const tags: Array<{ text: string; type: 'default' | 'info' | 'warning' | 'error' | 'success' }> = [];
   if (v.theme) tags.push({ text: v.theme, type: 'info' });
@@ -79,7 +79,7 @@ async function load() {
   if (!props.row) return;
   loading.value = true;
   try {
-    const { data, error } = await fetchValueMonitorDetail(props.row.id);
+    const { data, error } = await fetchUnderlyingMonitorDetail(props.row.id);
     if (!error && data) detail.value = data;
   } finally {
     loading.value = false;
@@ -149,8 +149,8 @@ function goTab(name: string) {
           <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
           <NTabPane name="research" tab="研究" display-directive="show:lazy">
             <ResearchVersionPanel
-              :vm-id="detail.vm.id"
-              :symbol="detail.vm.symbol"
+              :um-id="detail.um.id"
+              :symbol="detail.um.symbol"
               :logic-count="detail.logic_total_count"
               :invalidate-count="detail.invalidate_total_count"
               @dirty="markDirty"
@@ -158,16 +158,16 @@ function goTab(name: string) {
             />
           </NTabPane>
           <NTabPane name="review" tab="复盘" display-directive="show:lazy">
-            <ReviewTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
+            <ReviewTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="version" tab="档位" display-directive="show:lazy">
-            <VersionTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
+            <VersionTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="logic" tab="逻辑与证伪" display-directive="show:lazy">
-            <LogicTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
+            <LogicTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="plan" tab="剧本与成交" display-directive="show:lazy">
-            <PlanTab :vm-id="detail.vm.id" :symbol="detail.vm.symbol" @dirty="markDirty" />
+            <PlanTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
         </NTabs>
       </NSpin>

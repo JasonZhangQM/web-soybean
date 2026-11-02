@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 抽屉内统一数据表 —— 与列表页 `/irs/value-monitors` 用同一套 `NDataTable` + 内置分页器。
+ * 抽屉内统一数据表 —— 与列表页 `/irs/underlying-monitors` 用同一套 `NDataTable` + 内置分页器。
  *
  * 为什么换掉原来的裸 NDataTable + 自建 `MiniPager`：
  * 抽屉和列表页是同一套信息架构，行高、表头、分页条（「共 N 条」+ 页码 + 每页条数）
@@ -17,7 +17,7 @@
 import { computed, ref } from 'vue';
 import type { DataTableColumns, PaginationProps } from 'naive-ui';
 
-defineOptions({ name: 'VmDataTable' });
+defineOptions({ name: 'UnderlyingDataTable' });
 
 const props = withDefaults(
   defineProps<{
@@ -104,7 +104,7 @@ const scrollX = computed(() => {
     :bordered="false"
     :scroll-x="scrollX"
     table-layout="fixed"
-    class="vm-data-table"
+    class="um-data-table"
   />
 </template>
 
@@ -114,8 +114,8 @@ const scrollX = computed(() => {
  * 必须用 :deep()：NDataTable 的 th/td 是子组件渲染的，scoped 属性加不到它们身上。
  * 也必须在组件内部自带——抽屉 teleport 到 body，父级 index.vue 的 scoped 兜不到这里。
  */
-.vm-data-table :deep(.n-data-table-th),
-.vm-data-table :deep(.n-data-table-td) {
+.um-data-table :deep(.n-data-table-th),
+.um-data-table :deep(.n-data-table-td) {
   white-space: nowrap;
 }
 </style>

@@ -3,7 +3,7 @@
  * 逻辑与证伪 Tab（批次二：可编辑）
  *
  * 两条数据模型事实决定了这里的交互：
- * 1. **不是版本化的**：`irs_vm_logic` / `irs_vm_invalidate` 的唯一键是 (symbol, seq)，
+ * 1. **不是版本化的**：`irs_um_logic` / `irs_um_invalidate` 的唯一键是 (symbol, seq)，
  *    只有当前态，不像研究那样按日期留史。所以这里改的是"现在怎么认为"，不是"当时怎么认为"。
  * 2. **改 state 是周级动作**：复盘第一步就是"哪条逻辑坏了"。所以状态做成表格里的行内下拉，
  *    点一下即存，不进弹窗（进弹窗要多三次点击，高频动作不能这么贵）。
@@ -18,38 +18,38 @@
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NDrawerContent, NEllipsis, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
 import {
-  fetchVmLogic,
-  fetchVmInvalidate,
-  saveVmLogic,
-  deleteVmLogic,
-  saveVmInvalidate,
-  deleteVmInvalidate,
-  type VmLogicSaveParams
+  fetchUnderlyingLogic,
+  fetchUnderlyingInvalidate,
+  saveUnderlyingLogic,
+  deleteUnderlyingLogic,
+  saveUnderlyingInvalidate,
+  deleteUnderlyingInvalidate,
+  type UnderlyingLogicSaveParams
 } from '@/service/api';
-import VmDataTable from './VmDataTable.vue';
+import UnderlyingDataTable from './UnderlyingDataTable.vue';
 
-defineOptions({ name: 'VmLogicTab' });
+defineOptions({ name: 'UnderlyingLogicTab' });
 
-const props = defineProps<{ vmId: number; symbol: string }>();
+const props = defineProps<{ umId: number; symbol: string }>();
 const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
-const logic = ref<Api.Irs.VmLogic[]>([]);
-const invalidate = ref<Api.Irs.VmInvalidate[]>([]);
+const logic = ref<Api.Irs.UnderlyingLogic[]>([]);
+const invalidate = ref<Api.Irs.UnderlyingInvalidate[]>([]);
 
 async function loadLogic() {
-  const { data, error } = await fetchVmLogic(props.vmId);
+  const { data, error } = await fetchUnderlyingLogic(props.umId);
   if (!error && data) logic.value = data;
 }
 async function loadInvalidate() {
-  const { data, error } = await fetchVmInvalidate(props.vmId);
+  const { data, error } = await fetchUnderlyingInvalidate(props.umId);
   if (!error && data) invalidate.value = data;
 }
 onMounted(async () => {
   await Promise.all([loadLogic(), loadInvalidate()]);
 });
 
-/** 状态取值以 `models.VmLogic.STATE_CHOICES` 为准；这里曾写成「受损」，会让按 state 聚合漏数 */
+/** 状态取值以 `models.UnderlyingLogic.STATE_CHOICES` 为准；这里曾写成「受损」，会让按 state 聚合漏数 */
 const STATE_OPTIONS = [
   { value: '完好', label: '完好' },
   { value: '减弱', label: '减弱' },
@@ -116,7 +116,7 @@ function openLogicNew() {
   showLogicModal.value = true;
 }
 
-function openLogicEdit(row: Api.Irs.VmLogic) {
+function openLogicEdit(row: Api.Irs.UnderlyingLogic) {
   logicForm.seq = row.seq;
   logicForm.content = row.content;
   logicForm.pricing = row.pricing;
@@ -132,14 +132,14 @@ async function saveLogic() {
   }
   saving.value = true;
   try {
-    const payload: VmLogicSaveParams = {
+    const payload: UnderlyingLogicSaveParams = {
       seq: logicForm.seq,
       content: logicForm.content.trim(),
       pricing: logicForm.pricing,
       state: logicForm.state,
       evidence: logicForm.evidence.trim() || null
     };
-    const { data, error } = await saveVmLogic(props.vmId, payload);
+    const { data, error } = await saveUnderlyingLogic(props.umId, payload);
     if (!error) {
       if (data?.warning) window.$message?.warning(data.warning);
       else window.$message?.success(data?.action === 'created' ? '已新增一条逻辑' : '已保存');
@@ -153,13 +153,13 @@ async function saveLogic() {
 }
 
 /** 行内改状态：立刻落库（有 state_at 留痕，改错能改回，所以不做二次确认） */
-async function changeLogicState(row: Api.Irs.VmLogic, state: string) {
+async function changeLogicState(row: Api.Irs.UnderlyingLogic, state: string) {
   if (!state || state === row.state) return;
   stateDraft.value.set(row.seq, state);
   stateSavingSeq.value = row.seq;
   try {
     // 全字段回填：后端无条件覆盖 content/pricing/evidence，漏了就清空
-    const { error } = await saveVmLogic(props.vmId, {
+    const { error } = await saveUnderlyingLogic(props.umId, {
       seq: row.seq,
       content: row.content,
       pricing: row.pricing,
@@ -178,7 +178,7 @@ async function changeLogicState(row: Api.Irs.VmLogic, state: string) {
   }
 }
 
-function handleDeleteLogic(row: Api.Irs.VmLogic) {
+function handleDeleteLogic(row: Api.Irs.UnderlyingLogic) {
   const refs = invalidate.value.filter(i => i.logic_id === row.id).map(i => i.seq);
   const content = refs.length
     ? `第 ${refs.join('、')} 条证伪条件引用了这条逻辑，删除后这些证伪的「对应逻辑」会变成空引用。` +
@@ -192,7 +192,7 @@ function handleDeleteLogic(row: Api.Irs.VmLogic) {
     onPositiveClick: async () => {
       deletingLogicSeq.value = row.seq;
       try {
-        const { error } = await deleteVmLogic(props.vmId, row.seq);
+        const { error } = await deleteUnderlyingLogic(props.umId, row.seq);
         if (!error) {
           window.$message?.success('已删除');
           await loadLogic();
@@ -258,7 +258,7 @@ function openInvNew() {
   showInvModal.value = true;
 }
 
-function openInvEdit(row: Api.Irs.VmInvalidate) {
+function openInvEdit(row: Api.Irs.UnderlyingInvalidate) {
   invForm.seq = row.seq;
   invForm.proposition = row.proposition;
   invForm.signal = row.signal;
@@ -283,7 +283,7 @@ async function saveInv() {
   }
   saving.value = true;
   try {
-    const { data, error } = await saveVmInvalidate(props.vmId, {
+    const { data, error } = await saveUnderlyingInvalidate(props.umId, {
       seq: invForm.seq,
       proposition: invForm.proposition.trim(),
       signal: invForm.signal.trim(),
@@ -307,7 +307,7 @@ async function saveInv() {
   }
 }
 
-function handleDeleteInv(row: Api.Irs.VmInvalidate) {
+function handleDeleteInv(row: Api.Irs.UnderlyingInvalidate) {
   window.$dialog?.warning({
     title: `删除第 ${row.seq} 条证伪条件？`,
     content: `证伪信号：${row.signal}。如果判据已经不再适用（比如标的逻辑变了），改状态为「已失效」比删除好——将来复盘能看到"当时以为会怎么坏"。`,
@@ -316,7 +316,7 @@ function handleDeleteInv(row: Api.Irs.VmInvalidate) {
     onPositiveClick: async () => {
       deletingInvalidateSeq.value = row.seq;
       try {
-        const { error } = await deleteVmInvalidate(props.vmId, row.seq);
+        const { error } = await deleteUnderlyingInvalidate(props.umId, row.seq);
         if (!error) {
           window.$message?.success('已删除');
           await loadInvalidate();
@@ -330,7 +330,7 @@ function handleDeleteInv(row: Api.Irs.VmInvalidate) {
 }
 
 // ---------------------------------------------------------------- 表格列
-/** 全部列用 width（不用 minWidth），VmDataTable 才能按列宽和自动喂 scroll-x */
+/** 全部列用 width（不用 minWidth），UnderlyingDataTable 才能按列宽和自动喂 scroll-x */
 const logicColumns = [
   { title: '序', key: 'seq', width: 50 },
   {
@@ -338,20 +338,20 @@ const logicColumns = [
     key: 'content',
     width: 300,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmLogic) => r.content
+    render: (r: Api.Irs.UnderlyingLogic) => r.content
   },
   {
     title: '定价依据',
     key: 'pricing',
     width: 100,
-    render: (r: Api.Irs.VmLogic) => r.pricing || '-'
+    render: (r: Api.Irs.UnderlyingLogic) => r.pricing || '-'
   },
   {
     title: '状态',
     key: 'state',
     width: 110,
     // 行内下拉：改 state 是周级高频动作，点一下即存（后端有 state_at 留痕）
-    render: (r: Api.Irs.VmLogic) =>
+    render: (r: Api.Irs.UnderlyingLogic) =>
       h(NSelect, {
         value: stateDraft.value.get(r.seq) ?? r.state,
         options: STATE_OPTIONS,
@@ -365,20 +365,20 @@ const logicColumns = [
     title: '状态变更',
     key: 'state_at',
     width: 140,
-    render: (r: Api.Irs.VmLogic) => (r.state_at ? r.state_at.replace('T', ' ').slice(0, 16) : '-')
+    render: (r: Api.Irs.UnderlyingLogic) => (r.state_at ? r.state_at.replace('T', ' ').slice(0, 16) : '-')
   },
   {
     title: '证据',
     key: 'evidence',
     width: 200,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmLogic) => r.evidence || '-'
+    render: (r: Api.Irs.UnderlyingLogic) => r.evidence || '-'
   },
   {
     title: '操作',
     key: 'action',
     width: 110,
-    render: (r: Api.Irs.VmLogic) =>
+    render: (r: Api.Irs.UnderlyingLogic) =>
       h('div', { class: 'flex gap-8px' }, [
         h(
           NButton,
@@ -406,15 +406,15 @@ const invalidateColumns = [
     title: '命题',
     key: 'proposition',
     width: 240,
-    // 列级 ellipsis 在 VmDataTable 内未生效，与「证伪信号」列同款：flex + NEllipsis 强制收缩
-    render: (r: Api.Irs.VmInvalidate) =>
+    // 列级 ellipsis 在 UnderlyingDataTable 内未生效，与「证伪信号」列同款：flex + NEllipsis 强制收缩
+    render: (r: Api.Irs.UnderlyingInvalidate) =>
       h('div', { class: 'flex items-center' }, [h(NEllipsis, { class: 'flex-1' }, { default: () => r.proposition })])
   },
   {
     title: '证伪信号',
     key: 'signal',
     width: 300,
-    render: (r: Api.Irs.VmInvalidate) =>
+    render: (r: Api.Irs.UnderlyingInvalidate) =>
       h('div', { class: 'flex items-center gap-6px' }, [
         // 自定义 render 下列级 ellipsis 不生效，用 NEllipsis 截断（hover 显示完整内容）
         h(NEllipsis, { class: `flex-1${r.quantified ? '' : ' text-red-500'}` }, { default: () => r.signal }),
@@ -425,7 +425,7 @@ const invalidateColumns = [
     title: '自动判定',
     key: 'auto_judged',
     width: 200,
-    render: (r: Api.Irs.VmInvalidate & { auto_judged?: any }) => {
+    render: (r: Api.Irs.UnderlyingInvalidate & { auto_judged?: any }) => {
       const aj = r.auto_judged;
       if (!aj) return h('span', { class: 'text-gray-300' }, '—');
       if (aj.candidate) {
@@ -446,7 +446,7 @@ const invalidateColumns = [
     title: '对应逻辑',
     key: 'logic_id',
     width: 100,
-    render: (r: Api.Irs.VmInvalidate) => {
+    render: (r: Api.Irs.UnderlyingInvalidate) => {
       const l = logic.value.find(x => x.id === r.logic_id);
       return l ? `第${l.seq}条` : '-';
     }
@@ -456,20 +456,20 @@ const invalidateColumns = [
     key: 'source',
     width: 130,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmInvalidate) => r.source || '-'
+    render: (r: Api.Irs.UnderlyingInvalidate) => r.source || '-'
   },
   {
     title: '动作',
     key: 'action',
     width: 130,
     ellipsis: { tooltip: true },
-    render: (r: Api.Irs.VmInvalidate) => r.action || '-'
+    render: (r: Api.Irs.UnderlyingInvalidate) => r.action || '-'
   },
   {
     title: '状态',
     key: 'status',
     width: 90,
-    render: (r: Api.Irs.VmInvalidate) =>
+    render: (r: Api.Irs.UnderlyingInvalidate) =>
       h(
         NTag,
         {
@@ -484,13 +484,13 @@ const invalidateColumns = [
     title: '触发日',
     key: 'triggered_at',
     width: 110,
-    render: (r: Api.Irs.VmInvalidate) => r.triggered_at || '-'
+    render: (r: Api.Irs.UnderlyingInvalidate) => r.triggered_at || '-'
   },
   {
     title: '操作',
     key: 'action2',
     width: 110,
-    render: (r: Api.Irs.VmInvalidate) =>
+    render: (r: Api.Irs.UnderlyingInvalidate) =>
       h('div', { class: 'flex gap-8px' }, [
         h(
           NButton,
@@ -532,7 +532,7 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
       <span class="text-12px text-gray-400">状态在表格里直接改，点一下即存；基调是 2-4 条，超了不拦</span>
       <NButton size="tiny" ghost class="ml-auto" @click="openLogicNew">新增逻辑</NButton>
     </div>
-    <VmDataTable :columns="logicColumns" :data="logic" :page-size="10" />
+    <UnderlyingDataTable :columns="logicColumns" :data="logic" :page-size="10" />
 
     <NDivider />
 
@@ -542,7 +542,7 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
       <span class="text-12px text-gray-400">纲领要求 ≥3 条且覆盖研究报告第五章每条；只登记，不自动计算触发</span>
       <NButton size="tiny" ghost class="ml-auto" @click="openInvNew">新增证伪</NButton>
     </div>
-    <VmDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
+    <UnderlyingDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
     <!-- <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" /> -->
 
     <!-- 投资逻辑抽屉（左侧） -->

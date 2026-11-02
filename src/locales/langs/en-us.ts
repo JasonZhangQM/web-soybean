@@ -264,7 +264,7 @@ const local: App.I18n.Schema = {
     'bills_risk-board': 'Risk Board',
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_valuation-percent': 'Valuation Percentile',
-    'irs_value-monitors': 'Value Monitors',
+    'irs_underlying-monitors': 'Underlying Monitors',
     'irs_option-quote': 'Option Quote',
     'irs_macro-framework': 'China Macro',
     'irs_us-economic-dashboard': 'US Macro'

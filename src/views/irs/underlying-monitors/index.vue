@@ -2,7 +2,13 @@
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
-import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
+import {
+  fetchUnderlyingMonitors,
+  createUnderlyingMonitor,
+  updateUnderlyingMonitor,
+  deleteUnderlyingMonitor,
+  syncIrs
+} from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
@@ -10,7 +16,7 @@ import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
 import DetailDrawer from './modules/DetailDrawer.vue';
 
-defineOptions({ name: 'IrsValueMonitorsPage' });
+defineOptions({ name: 'IrsUnderlyingMonitorsPage' });
 
 const route = useRoute();
 const router = useRouter();
@@ -20,7 +26,7 @@ const loading = ref(false);
 const syncYearLoading = ref(false);
 // 同步实时行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncLoading = ref(false);
-const tableData = ref<Api.Irs.ValueMonitor[]>([]);
+const tableData = ref<Api.Irs.UnderlyingMonitor[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
@@ -55,7 +61,7 @@ const themeList = ref<string[]>([]);
 const themeOptions = computed(() => themeList.value.map(t => ({ label: t, value: t })));
 
 async function loadThemeOptions() {
-  const { data, error } = await fetchValueMonitors({ limit: 200 });
+  const { data, error } = await fetchUnderlyingMonitors({ limit: 200 });
   if (!error && data) {
     themeList.value = Array.from(new Set(data.items.map(i => i.theme).filter((t): t is string => !!t))).sort();
   }
@@ -66,11 +72,11 @@ const researchStateOptions = [
   { label: '复核已到期', value: 'due' }
 ];
 
-// 拉取估值监测列表
+// 拉取标的监测列表
 async function fetchData() {
   loading.value = true;
   try {
-    const { data, error } = await fetchValueMonitors({
+    const { data, error } = await fetchUnderlyingMonitors({
       symbol: searchParams.symbol || undefined,
       theme: searchParams.theme?.length ? searchParams.theme : undefined,
       research_state: searchParams.research_state || undefined,
@@ -103,19 +109,19 @@ function handleReset() {
 
 // 触发同步年度行情（gm history 拉取上年末至今数据，更新 py_close/y_high/y_low）
 async function handleSyncYear() {
-  await executeSync(() => syncIrs('value-monitor-hlc'), syncYearLoading, fetchData);
+  await executeSync(() => syncIrs('underlying-monitor-hlc'), syncYearLoading, fetchData);
 }
 
 // 触发同步实时行情（gm current 获取最新价，触发钩子计算 pv_* 指标）
 async function handleSync() {
-  await executeSync(() => syncIrs('value-monitor'), syncLoading, fetchData);
+  await executeSync(() => syncIrs('underlying-monitor'), syncLoading, fetchData);
 }
 
 // ===== 档案抽屉 =====
 const showDrawer = ref(false);
-const drawerRow = ref<Api.Irs.ValueMonitor | null>(null);
+const drawerRow = ref<Api.Irs.UnderlyingMonitor | null>(null);
 
-function openDrawer(row: Api.Irs.ValueMonitor) {
+function openDrawer(row: Api.Irs.UnderlyingMonitor) {
   drawerRow.value = row;
   showDrawer.value = true;
 }
@@ -126,22 +132,22 @@ function onDetailChanged() {
 }
 
 /**
- * 外部跳转进入：`?vm=SYMBOL` 自动开抽屉
+ * 外部跳转进入：`?um=SYMBOL` 自动开抽屉
  *
  * 账单页/合约页的「归属标的」链接都走这个入口，省掉"先搜再点"。
  */
 async function openFromQuery() {
-  const sym = route.query.vm;
+  const sym = route.query.um;
   if (typeof sym !== 'string' || !sym) return;
-  // 消费即摘除：否则 vm 参数留在标签 fullPath 里，每次切回本页组件重挂载
+  // 消费即摘除：否则 um 参数留在标签 fullPath 里，每次切回本页组件重挂载
   // 都会重新触发 onMounted → openFromQuery，抽屉跟着再弹一次。
-  // replace 不产生历史记录；vm: undefined 在 vue-router 里即删除该键。
-  router.replace({ query: { ...route.query, vm: undefined } });
-  const { data, error } = await fetchValueMonitors({ symbol: sym, limit: 1 });
+  // replace 不产生历史记录；um: undefined 在 vue-router 里即删除该键。
+  router.replace({ query: { ...route.query, um: undefined } });
+  const { data, error } = await fetchUnderlyingMonitors({ symbol: sym, limit: 1 });
   if (!error && data?.items?.length) {
     openDrawer(data.items[0]);
   } else if (!error) {
-    window.$message?.warning(`标的 ${sym} 不在估值监测里`);
+    window.$message?.warning(`标的 ${sym} 不在标的监测里`);
   }
 }
 
@@ -181,7 +187,7 @@ function handleSymbolChange(symbol: string | null) {
 }
 
 // 抽屉标题：新增/编辑动态切换
-const modalTitle = computed(() => (editingId.value === null ? '新增估值监测' : '编辑估值监测'));
+const modalTitle = computed(() => (editingId.value === null ? '新增标的监测' : '编辑标的监测'));
 
 // 表单校验规则
 const formRules = {
@@ -197,7 +203,7 @@ function handleAdd() {
 }
 
 /** 打开编辑抽屉：回填 name/theme/行情（档位版本去档位 Tab 改） */
-function handleEdit(row: Api.Irs.ValueMonitor) {
+function handleEdit(row: Api.Irs.UnderlyingMonitor) {
   resetForm();
   editingId.value = row.id;
   formData.symbol = row.symbol;
@@ -240,7 +246,7 @@ async function handleSubmit() {
     let error;
     if (editingId.value === null) {
       // 新增：只传基础字段，档位版本后续去详情抽屉的「档位」Tab 建
-      ({ error } = await createValueMonitor({
+      ({ error } = await createUnderlyingMonitor({
         symbol: formData.symbol,
         name: formData.name,
         theme: formData.theme || null
@@ -248,7 +254,7 @@ async function handleSubmit() {
     } else {
       // 编辑：只改名称/主题/行情，**不碰五档**（档位版本去档位 Tab 改）
       const quoteExpanded = quoteExpandedNames.value.includes('quote');
-      ({ error } = await updateValueMonitor(editingId.value, {
+      ({ error } = await updateUnderlyingMonitor(editingId.value, {
         name: formData.name,
         theme: formData.theme || null,
         ...(quoteExpanded
@@ -291,7 +297,7 @@ async function handleDelete() {
   submitLoading.value = true;
   try {
     // 第一次尝试：不 cascade
-    const { data, error } = await deleteValueMonitor(id, false);
+    const { data, error } = await deleteUnderlyingMonitor(id, false);
     if (!error && data) {
       // 没有子数据，直接删成功
       window.$message?.success('删除成功');
@@ -326,7 +332,7 @@ async function handleDelete() {
       positiveText: '确认删除',
       negativeText: '取消',
       onPositiveClick: async () => {
-        const res = await deleteValueMonitor(id, true);
+        const res = await deleteUnderlyingMonitor(id, true);
         if (!res.error) {
           window.$message?.success('删除成功');
           showModal.value = false;
@@ -354,7 +360,7 @@ function handlePageSizeChange(pageSize: number) {
 }
 
 // 行情字段：名称含 ETF 保留 3 位小数，否则保留 2 位小数，空值显示 '-'
-const fmtQuote = (row: Api.Irs.ValueMonitor, v: number | null) => {
+const fmtQuote = (row: Api.Irs.UnderlyingMonitor, v: number | null) => {
   if (v == null) return '-';
   return Number(v).toFixed(row.name?.includes('ETF') ? 3 : 2);
 };
@@ -372,7 +378,7 @@ const fmtPriceMerged = (price: number | null, pct: number | null, pctY: number |
   return `${p}(${pPct},${pPctY})`;
 };
 // 行情合并列：主值按ETF规则保留小数，后追加(y值%)，如 5064.27(9.38%)
-const fmtQuoteMerged = (row: Api.Irs.ValueMonitor, main: number | null, y: number | null) => {
+const fmtQuoteMerged = (row: Api.Irs.UnderlyingMonitor, main: number | null, y: number | null) => {
   const m = main != null ? Number(main).toFixed(row.name?.includes('ETF') ? 3 : 2) : '-';
   return y != null ? `${m}(${Number(y).toFixed(2)}%)` : m;
 };
@@ -386,7 +392,7 @@ const columns = [
     title: '名称',
     key: 'name',
     width: 100,
-    render: (row: Api.Irs.ValueMonitor) =>
+    render: (row: Api.Irs.UnderlyingMonitor) =>
       h(
         NButton,
         { text: true, type: 'primary', onClick: () => openDrawer(row) },
@@ -399,7 +405,7 @@ const columns = [
     key: 'theme',
     width: 80,
     ellipsis: { tooltip: true },
-    render: (row: Api.Irs.ValueMonitor) => row.theme || '-'
+    render: (row: Api.Irs.UnderlyingMonitor) => row.theme || '-'
   },
   {
     // 结论取自最新一版研究（≤今天），不是主表的列
@@ -407,7 +413,7 @@ const columns = [
     key: 'research_conclusion',
     width: 60,
     ellipsis: { tooltip: true },
-    render: (row: Api.Irs.ValueMonitor) =>
+    render: (row: Api.Irs.UnderlyingMonitor) =>
       row.research_conclusion ? row.research_conclusion : h('span', { class: 'text-gray-300' }, '未填')
   },
   {
@@ -415,7 +421,7 @@ const columns = [
     title: '档位带',
     key: 'zone',
     width: 110,
-    render: (row: Api.Irs.ValueMonitor) =>
+    render: (row: Api.Irs.UnderlyingMonitor) =>
       row.zone
         ? h(NTag, { size: 'tiny', bordered: false, type: 'info' }, { default: () => row.zone })
         : h('span', { class: 'text-gray-300' }, '—')
@@ -425,7 +431,7 @@ const columns = [
     title: 'PE分位(10y)',
     key: 'pe_pct',
     width: 100,
-    render: (row: Api.Irs.ValueMonitor) => {
+    render: (row: Api.Irs.UnderlyingMonitor) => {
       const pe = row.pe_pct;
       return pe != null
         ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${Number(pe).toFixed(1)}%` })
@@ -437,7 +443,7 @@ const columns = [
     title: 'PB分位(10y)',
     key: 'pb_pct',
     width: 100,
-    render: (row: Api.Irs.ValueMonitor) => {
+    render: (row: Api.Irs.UnderlyingMonitor) => {
       const pb = row.pb_pct;
       return pb != null
         ? h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `${Number(pb).toFixed(1)}%` })
@@ -449,7 +455,7 @@ const columns = [
     title: '剧本',
     key: 'plan',
     width: 100,
-    render: (row: Api.Irs.ValueMonitor) => {
+    render: (row: Api.Irs.UnderlyingMonitor) => {
       const active = row.plan_active ?? 0;
       if (!active) return h('span', { class: 'text-gray-300' }, '-');
       return h(NTag, { size: 'tiny', bordered: false, type: 'warning' }, { default: () => `剧本 ${active}` });
@@ -460,64 +466,69 @@ const columns = [
     title: '复核',
     key: 'next_review',
     width: 115,
-    render: (row: Api.Irs.ValueMonitor) => {
+    render: (row: Api.Irs.UnderlyingMonitor) => {
       if (!row.next_review) return h('span', { class: 'text-gray-300' }, '未填');
       const overdue = row.next_review < TODAY;
       return h('span', { class: overdue ? 'text-red-500' : '' }, row.next_review);
     }
   },
   // 行情字段（合并 % 列：主值后追加 %）
-  { title: '上年末', key: 'py_close', width: 100, render: (row: Api.Irs.ValueMonitor) => fmtQuote(row, row.py_close) },
+  {
+    title: '上年末',
+    key: 'py_close',
+    width: 100,
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtQuote(row, row.py_close)
+  },
   {
     title: '最新价',
     key: 'price',
     width: 150,
-    render: (row: Api.Irs.ValueMonitor) =>
+    render: (row: Api.Irs.UnderlyingMonitor) =>
       h('span', { style: 'font-weight: bold' }, fmtQuoteMerged(row, row.price, row.pv_yy))
   },
   {
     title: '年高',
     key: 'y_high',
     width: 140,
-    render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtQuoteMerged(row, row.y_high, row.pv_yh)
   },
   {
     title: '年低',
     key: 'y_low',
     width: 140,
-    render: (row: Api.Irs.ValueMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtQuoteMerged(row, row.y_low, row.pv_yl)
   },
   // 估值区间（合并 % 和 y% 列）
   {
     title: '极低',
     key: 'pp_el',
     width: 190,
-    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtPriceMerged(row.pp_el, row.pv_el, row.pv_el_y)
   },
   {
     title: '低',
     key: 'pp_l',
     width: 190,
-    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtPriceMerged(row.pp_l, row.pv_l, row.pv_l_y)
   },
   {
     title: '中',
     key: 'pp_m',
     width: 190,
-    render: (row: Api.Irs.ValueMonitor) =>
+    render: (row: Api.Irs.UnderlyingMonitor) =>
       h('span', { style: 'font-weight: bold' }, fmtPriceMerged(row.pp_m, row.pv_m, row.pv_m_y))
   },
   {
     title: '高',
     key: 'pp_h',
     width: 190,
-    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtPriceMerged(row.pp_h, row.pv_h, row.pv_h_y)
   },
   {
     title: '极高',
     key: 'pp_eh',
     width: 190,
-    render: (row: Api.Irs.ValueMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y)
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtPriceMerged(row.pp_eh, row.pv_eh, row.pv_eh_y)
   }
 ];
 

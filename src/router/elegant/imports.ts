@@ -48,8 +48,8 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "irs_discounts-monitor": () => import("@/views/irs/discounts-monitor/index.vue"),
   "irs_macro-framework": () => import("@/views/irs/macro-framework/index.vue"),
   "irs_option-quote": () => import("@/views/irs/option-quote/index.vue"),
+  "irs_underlying-monitors": () => import("@/views/irs/underlying-monitors/index.vue"),
   "irs_us-economic-dashboard": () => import("@/views/irs/us-economic-dashboard/index.vue"),
   "irs_valuation-percent": () => import("@/views/irs/valuation-percent/index.vue"),
-  "irs_value-monitors": () => import("@/views/irs/value-monitors/index.vue"),
   today: () => import("@/views/today/index.vue"),
 };

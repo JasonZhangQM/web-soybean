@@ -22,7 +22,7 @@ defineOptions({ name: 'BillNotePanel' });
 /** 剧本下拉的数据形态：账单页自己拉全量，标的页直接传该标的已有的剧本 */
 type PlanLite = {
   id: number;
-  vm_symbol: string;
+  underlying_symbol: string;
   trade_symbol: string;
   b_s: string;
   o_c?: string | null;
@@ -73,7 +73,7 @@ function buildOptions(list: PlanLite[]) {
     .filter(p => !p.is_cancelled)
     .map(p => ({
       value: p.id,
-      label: `${p.vm_symbol} ${p.trade_symbol} ${p.b_s}${p.o_c || ''} — ${(p.reason || p.trigger_op || '').slice(0, 14)}`
+      label: `${p.underlying_symbol} ${p.trade_symbol} ${p.b_s}${p.o_c || ''} — ${(p.reason || p.trigger_op || '').slice(0, 14)}`
     }));
 }
 

@@ -40,7 +40,7 @@ interface BillQueryParams {
   /** 合并搜索：代码或名称任一模糊命中（OR） */
   keyword?: string;
   /** 归属标的（精确，经 bills_group_symbol 关联） */
-  vm_symbol?: string;
+  underlying_symbol?: string;
   /** 关联剧本（精确匹配笔记的 plan_id） */
   plan_id?: number;
   /** 每页条数 */
@@ -115,7 +115,7 @@ interface GroupSymbolQueryParams {
   /** 归属筛选：yes=已归属；no=未归属（排除融资融券，它本来就不归属） */
   mapped?: 'yes' | 'no';
   /** 按归属标的精确筛选（如 SHSE.000300） */
-  vm_symbol?: string;
+  underlying_symbol?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -160,19 +160,19 @@ export function fetchGroupSymbolOptions(category = '期权交易') {
 }
 
 /** 归属标的修改参数（null = 清空归属） */
-export interface GroupSymbolVmParams {
-  vm_symbol: string | null;
+export interface GroupSymbolUnderlyingParams {
+  underlying_symbol: string | null;
 }
 
 /**
- * 修改归属标的（PATCH /bills/group-symbols/{id}/vm）
+ * 修改归属标的（PATCH /bills/group-symbols/{id}/um）
  *
- * GroupSymbol 唯一的人工列。后端只写 vm_symbol（白名单），派生列不受影响；
- * 资金流水行传非空值 -> 400；标的必须已存在于估值监测。
+ * GroupSymbol 唯一的人工列。后端只写 underlying_symbol（白名单），派生列不受影响；
+ * 资金流水行传非空值 -> 400；标的必须已存在于标的监测。
  */
-export function updateGroupSymbolVm(id: number, params: GroupSymbolVmParams) {
-  return request<{ status: string; vm_symbol: string | null }>({
-    url: `/api/v1/bills/group-symbols/${id}/vm`,
+export function updateGroupSymbolUnderlying(id: number, params: GroupSymbolUnderlyingParams) {
+  return request<{ status: string; underlying_symbol: string | null }>({
+    url: `/api/v1/bills/group-symbols/${id}/um`,
     method: 'patch',
     data: params
   });
@@ -338,12 +338,12 @@ export function saveBillNote(id: number, kind: BillNoteKind, content: string, pl
   });
 }
 
-/** 剧本盈亏归因（读 bills_bill_note.plan_id，group by 剧本；剧本名前端按 plan_id 映射；传 vmSymbol 只统计该标的） */
-export function fetchAttributionByPlan(vmSymbol?: string) {
+/** 剧本盈亏归因（读 bills_bill_note.plan_id，group by 剧本；剧本名前端按 plan_id 映射；传 umSymbol 只统计该标的） */
+export function fetchAttributionByPlan(umSymbol?: string) {
   return request<Api.Bills.AttributionByPlan>({
     url: '/api/v1/bills/attribution/by-plan',
     method: 'get',
-    params: vmSymbol ? { vm_symbol: vmSymbol } : undefined
+    params: umSymbol ? { underlying_symbol: umSymbol } : undefined
   });
 }
 
@@ -369,7 +369,7 @@ export interface UnplannedBill {
   o_c: string | null;
   price: number;
   vol: number;
-  vm_symbol: string;
+  underlying_symbol: string;
   /** 该标的首条计划的建立时间；null = 一笔计划都没有 */
   first_plan_at: string | null;
 }
