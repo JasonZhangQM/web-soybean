@@ -404,17 +404,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_index-valuation',
-        path: '/irs/index-valuation',
-        component: 'view.irs_index-valuation',
-        meta: {
-          title: 'irs_index-valuation',
-          i18nKey: 'route.irs_index-valuation',
-          order: 3,
-          constant: true
-        }
-      },
-      {
         name: 'irs_macro-framework',
         path: '/irs/macro-framework',
         component: 'view.irs_macro-framework',
@@ -444,6 +433,17 @@ export const generatedRoutes = [
           title: 'irs_us-economic-dashboard',
           i18nKey: 'route.irs_us-economic-dashboard',
           order: 7,
+          constant: true
+        }
+      },
+      {
+        name: 'irs_valuation-percent',
+        path: '/irs/valuation-percent',
+        component: 'view.irs_valuation-percent',
+        meta: {
+          title: 'irs_valuation-percent',
+          i18nKey: 'route.irs_valuation-percent',
+          order: 3,
           constant: true
         }
       },

@@ -54,10 +54,10 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
     "irs_discounts-monitor": "/irs/discounts-monitor";
-    "irs_index-valuation": "/irs/index-valuation";
     "irs_macro-framework": "/irs/macro-framework";
     "irs_option-quote": "/irs/option-quote";
     "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
+    "irs_valuation-percent": "/irs/valuation-percent";
     "irs_value-monitors": "/irs/value-monitors";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "today": "/today";
@@ -151,10 +151,10 @@ declare module "@elegant-router/types" {
     | "bills_risk-board"
     | "home"
     | "irs_discounts-monitor"
-    | "irs_index-valuation"
     | "irs_macro-framework"
     | "irs_option-quote"
     | "irs_us-economic-dashboard"
+    | "irs_valuation-percent"
     | "irs_value-monitors"
     | "today"
   >;

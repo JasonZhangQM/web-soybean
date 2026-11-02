@@ -14,7 +14,7 @@ defineOptions({ name: 'IndexValuationPage' });
  * 指数估值原始数据（`bds_index_valuation`）
  *
  * 分工：本页只做**原始数据展示**（行式分页 + 筛选），图表/分位统计在
- * `/irs/index-valuation`。与「中国宏观」的分工同构——`/bds/macro-research/economic-indicators`
+ * `/irs/valuation-percent`。与「中国宏观」的分工同构——`/bds/macro-research/economic-indicators`
  * 是纯表，`/irs/macro-framework` 是纯图表。
  *
  * **本页不放写操作**：重算已任务化，收口到「批量同步 → 指数估值重算」卡片
@@ -272,7 +272,7 @@ function goRecalc() {
 /** 跳 IRs 图表页；把当前筛选的指数带过去，避免跳过去还要重选 */
 function goChart() {
   const codes = searchParams.index_codes?.length ? searchParams.index_codes.join(',') : undefined;
-  router.push({ name: 'irs_index-valuation', query: codes ? { index_codes: codes } : {} });
+  router.push({ name: 'irs_valuation-percent', query: codes ? { index_codes: codes } : {} });
 }
 
 onMounted(() => fetchData());

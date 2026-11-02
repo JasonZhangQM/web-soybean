@@ -263,7 +263,7 @@ const local: App.I18n.Schema = {
     'bills_profit-years': 'Profit Years',
     'bills_risk-board': 'Risk Board',
     'irs_discounts-monitor': 'Discounts Monitor',
-    'irs_index-valuation': 'Index Valuation Percentile',
+    'irs_valuation-percent': 'Valuation Percentile',
     'irs_value-monitors': 'Value Monitors',
     'irs_option-quote': 'Option Quote',
     'irs_macro-framework': 'China Macro',

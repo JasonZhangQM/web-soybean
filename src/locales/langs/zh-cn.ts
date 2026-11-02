@@ -259,7 +259,7 @@ const local: App.I18n.Schema = {
     'bills_profit-years': '年度收益',
     'bills_risk-board': '风险看板',
     'irs_discounts-monitor': '贴水监测',
-    'irs_index-valuation': '指数分位',
+    'irs_valuation-percent': '估值分位',
     'irs_value-monitors': '标的监测',
     'irs_option-quote': '期权监测',
     'irs_macro-framework': '中国宏观',
