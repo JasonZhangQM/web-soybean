@@ -13,6 +13,7 @@ import { useRouter } from 'vue-router';
 import { NButton, NTag, NEmpty } from 'naive-ui';
 import { fetchToday, saveVmTarget, fetchRiskBoard } from '@/service/api';
 import { syncOptionMarket, fetchSyncTask } from '@/service/api';
+import TierScaleBar from './modules/TierScaleBar.vue';
 
 defineOptions({ name: 'IrsTodayPage' });
 
@@ -177,6 +178,16 @@ function driftClass(drift: number | null | undefined) {
 function cardClass(it: Api.Irs.TodayItem) {
   return it.priority >= 5 ? 'opacity-55' : '';
 }
+
+/**
+ * 刻度条可渲染条件：五档价齐全且严格递增、有现价（防手填数据错序）。
+ * 不满足时回退旧的「zone 标签 + 距档位」文案。
+ */
+function tierBarOk(it: Api.Irs.TodayItem) {
+  if (!it.pp || !it.pv || it.price == null) return false;
+  const seq = [it.pp.pp_el, it.pp.pp_l, it.pp.pp_m, it.pp.pp_h, it.pp.pp_eh];
+  return seq.every(v => v != null) && seq.every((v, i) => i === 0 || Number(seq[i - 1]) < Number(v));
+}
 </script>
 
 <template>
@@ -268,9 +279,11 @@ function cardClass(it: Api.Irs.TodayItem) {
           </template>
 
           <div class="flex flex-col gap-8px">
-            <!-- 现价 + 档位带 + 距最近档位 -->
-            <div class="flex flex-wrap items-center gap-8px">
-              <span class="text-20px font-600">{{ fmtPrice(it.price) }}</span>
+            <!-- 现价 + 档位刻度条（五档价与距档 % 直接标在刻度下，见 TierScaleBar） -->
+            <span class="text-20px font-600">{{ fmtPrice(it.price) }}</span>
+            <TierScaleBar v-if="tierBarOk(it)" :item="it" />
+            <!-- 数据无效（无版本/档位缺/错序）回退旧文案 -->
+            <div v-else class="flex flex-wrap items-center gap-8px">
               <NTag size="small" :bordered="false" type="info">{{ it.zone || '—' }}</NTag>
               <span class="text-12px text-gray-400">距档位 {{ fmtPct(it.nearest_level_pct) }}</span>
             </div>

@@ -316,6 +316,10 @@ declare namespace Api {
       theme: string | null;
       price: number | null;
       zone: string | null;
+      /** 五档价格（ValueMonitor 主表列直传，键为 pp_el~pp_eh） */
+      pp: Record<'pp_el' | 'pp_l' | 'pp_m' | 'pp_h' | 'pp_eh', number | null> | null;
+      /** 距各档 %（键为 pv_el~pv_eh，负值=档位在现价下方） */
+      pv: Record<'pv_el' | 'pv_l' | 'pv_m' | 'pv_h' | 'pv_eh', number | null> | null;
       /** 距最近档位 %（负值=档位在下方） */
       nearest_level_pct: number | null;
       pe_pct: number | null;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { fetchValueMonitors, createValueMonitor, updateValueMonitor, deleteValueMonitor, syncIrs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
@@ -13,6 +13,7 @@ import DetailDrawer from './modules/DetailDrawer.vue';
 defineOptions({ name: 'IrsValueMonitorsPage' });
 
 const route = useRoute();
+const router = useRouter();
 
 const loading = ref(false);
 // 同步年度行情专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
@@ -132,6 +133,10 @@ function onDetailChanged() {
 async function openFromQuery() {
   const sym = route.query.vm;
   if (typeof sym !== 'string' || !sym) return;
+  // 消费即摘除：否则 vm 参数留在标签 fullPath 里，每次切回本页组件重挂载
+  // 都会重新触发 onMounted → openFromQuery，抽屉跟着再弹一次。
+  // replace 不产生历史记录；vm: undefined 在 vue-router 里即删除该键。
+  router.replace({ query: { ...route.query, vm: undefined } });
   const { data, error } = await fetchValueMonitors({ symbol: sym, limit: 1 });
   if (!error && data?.items?.length) {
     openDrawer(data.items[0]);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, h } from 'vue';
 import { NButton, NSelect, NTag, NTooltip } from 'naive-ui';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import {
   fetchGroupSymbols,
   fetchGroupSymbolsCoverage,
@@ -19,6 +19,7 @@ import { createTablePagination } from '@/hooks/common/table';
 defineOptions({ name: 'BillsGroupSymbolsPage' });
 
 const route = useRoute();
+const router = useRouter();
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
 const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
@@ -291,8 +292,11 @@ function nonAttachableHint(row: Api.Bills.GroupSymbol) {
   return NON_ATTACHABLE_HINTS[row.category] ?? `${row.category}：非交易类别，不参与标的归属`;
 }
 
-// 归属列渲染（只读，编辑统一走抽屉）：
-// 不可归属 ⇒ 「—」（附原因，不是漏配）；未归属 ⇒ 灰字；已归属 ⇒ 「代码 名称」
+// 归属列渲染（列内只读展示，编辑统一走抽屉）：
+// 不可归属 ⇒ 「—」（附原因，不是漏配）；未归属 ⇒ 灰字；
+// 已归属 ⇒ 「代码 名称」链接，跳估值监测页 ?vm=SYMBOL 自动开标的档案抽屉
+// （对端 openFromQuery 消费即摘除参数，不会污染标签 fullPath 反复弹抽屉）。
+// 用 span 而不是 NButton：与代码列同理由——naive-ui 按钮样式带 user-select:none，文本没法选中复制
 function renderVmSymbol(row: Api.Bills.GroupSymbol) {
   if (!isAttachable(row)) {
     return h(NTooltip, null, {
@@ -304,7 +308,16 @@ function renderVmSymbol(row: Api.Bills.GroupSymbol) {
     return h('span', { class: 'text-gray-300' }, '未归属');
   }
   const nm = vmNameMap.value[row.vm_symbol] ?? '';
-  return h('span', { class: 'whitespace-nowrap' }, `${row.vm_symbol} ${nm}`.trim());
+  const vm = row.vm_symbol;
+  return h(
+    'span',
+    {
+      class: 'text-primary hover:underline cursor-pointer whitespace-nowrap',
+      style: 'user-select: text',
+      onClick: () => router.push({ name: 'irs_value-monitors', query: { vm } })
+    },
+    `${vm} ${nm}`.trim()
+  );
 }
 
 // ---------------- 合约行编辑抽屉（归属标的，GroupSymbol 唯一人工列） ----------------
