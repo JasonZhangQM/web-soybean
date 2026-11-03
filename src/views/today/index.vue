@@ -11,8 +11,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag, NEmpty } from 'naive-ui';
-import { fetchToday, saveUnderlyingTarget, fetchRiskBoard } from '@/service/api';
+import { fetchToday, saveUnderlyingTarget, fetchRiskBoard, syncIrs } from '@/service/api';
 import { syncOptionMarket, fetchSyncTask } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
 import TierScaleBar from './modules/TierScaleBar.vue';
 
 defineOptions({ name: 'IrsTodayPage' });
@@ -179,6 +180,14 @@ function cardClass(it: Api.Irs.TodayItem) {
   return it.priority >= 5 ? 'opacity-55' : '';
 }
 
+// ---------------- 同步实时行情（与估值监测页同接口：syncIrs('underlying-monitor')） ----------------
+const quoteSyncLoading = ref(false);
+
+/** gm current 拉最新价并重算 pv_*，成功后重拉今日清单（刻度条/分位随价格更新） */
+async function handleSyncQuote() {
+  await executeSync(() => syncIrs('underlying-monitor'), quoteSyncLoading, load);
+}
+
 /**
  * 刻度条可渲染条件：五档价齐全且严格递增、有现价（防手填数据错序）。
  * 不满足时回退旧的「zone 标签 + 距档位」文案。
@@ -196,7 +205,8 @@ function tierBarOk(it: Api.Irs.TodayItem) {
       <span class="text-16px font-600">今日待办</span>
       <NTag v-if="activeCount" type="error" size="small" :bordered="false" round>{{ activeCount }} 个需要动作</NTag>
       <NTag v-else type="success" size="small" :bordered="false" round>今天没事</NTag>
-      <NButton size="tiny" text class="ml-auto" @click="load">刷新</NButton>
+      <NButton size="tiny" text class="ml-auto" :loading="quoteSyncLoading" @click="handleSyncQuote">同步行情</NButton>
+      <NButton size="tiny" text @click="load">刷新</NButton>
     </div>
 
     <!-- P3-1 组合风险快照：前端只读聚合 risk-board，全账户视角 -->
@@ -288,7 +298,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
               <span class="text-12px text-gray-400">距档位 {{ fmtPct(it.nearest_level_pct) }}</span>
             </div>
 
-            <!-- 档位对应 PE/PB 分位（P0-4 纠偏，仅指数标的有值，与手填档位同屏、不同底色） -->
+            <!-- 档位对应 PE/PB 分位（P0-4 纠偏，指数 + 在市 A 股个股均有值，与手填档位同屏、不同底色） -->
             <div v-if="it.pe_pct != null || it.pb_pct != null" class="text-12px">
               <NTag size="tiny" :bordered="false" type="warning">
                 PE {{ fmtPct100(it.pe_pct) }} / PB {{ fmtPct100(it.pb_pct) }}
