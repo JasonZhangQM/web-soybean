@@ -590,6 +590,14 @@ export function startValuationPctSync(req: Api.Bds.ValuationPctSyncRequest = {})
   });
 }
 
+/** 估值分位落盘候选标的（只读；落表已有 + 指数源表尚未落盘的） */
+export function fetchValuationPctSubjects() {
+  return request<Api.Bds.ValuationPctSubject[]>({
+    url: '/api/v1/bds/valuation-percentile/subjects',
+    method: 'get'
+  });
+}
+
 /** 获取各指数成分核查水位（只读） */
 export function fetchIndexConstituentSyncStatus() {
   return request<{ items: Api.Bds.IndexConstituentSyncStatus[]; total: number }>({

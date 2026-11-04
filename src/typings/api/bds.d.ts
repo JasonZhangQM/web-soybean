@@ -1045,10 +1045,29 @@ declare namespace Api {
     interface ValuationPctSyncRequest {
       /** M1 增量追加 / M2 全量重建（默认、推荐） / M3 区间重算 / auto 按 input_fp 自动 */
       mode?: 'M1' | 'M2' | 'M3' | 'auto';
-      /** 标的代码清单；不传 = L1 默认 6 个（2 指数 + 4 个股） */
+      /** 标的代码清单；不传 = 运行时从标的监测表推导（过滤无估值数据的标的） */
       subjects?: string[];
       /** M3 的修订起始日（含当日），M3 必填 */
       from_date?: string | null;
+      /** 危险操作：默认 false；仅在「不传 subjects + M2/auto」时生效，传 subjects 一律忽略 */
+      prune_orphans?: boolean;
+    }
+
+    /** 估值分位落盘候选标的（GET /bds/valuation-percentile/subjects，以监测表运行时清单为基准） */
+    interface ValuationPctSubject {
+      symbol: string;
+      subject_type: 'index' | 'stock';
+      first_date: string | null;
+      last_date: string | null;
+      row_count: number;
+      /** 是否已在落表中存在 */
+      in_store: boolean;
+      /** 是否属于本次运行时默认清单（标的监测表 ∧ 上游有可算分位的数据） */
+      in_default: boolean;
+      /** 上游估值表是否有可算分位的数据；无数据的标的不会落盘 */
+      has_data: boolean;
+      /** 落表已有但监测表已移除；历史行默认保留，需显式 prune 才清理 */
+      orphan_in_store: boolean;
     }
 
     /** 分位重算审计（bds_sync_task.result，scope=valuation_pct） */
@@ -1058,7 +1077,21 @@ declare namespace Api {
       metrics: string[];
       windows: string[];
       source_as_of: string | null;
+      /** 各 subject 所属源表末日（指数 / 个股可能不同，P1-6） */
+      source_as_of_by_subject?: Record<string, string | null>;
       subjects: string[];
+      /** 默认清单来源：irs_underlying_monitor / L1_fallback（监测表读取失败时） */
+      subject_source?: string;
+      /** 本次运行时默认清单（监测表全部标的过滤掉无估值数据后） */
+      default_subjects?: string[];
+      /** 监测表原始全部标的（含 SPX / GC00Y 这类无数据的） */
+      monitor_subjects?: string[];
+      /** 因上游无估值数据被过滤、不落盘的标的 */
+      excluded_no_data?: string[];
+      /** 落表有历史行但监测表已移除的标的（默认保留，需显式 prune 才删） */
+      orphan_in_store?: string[];
+      /** 监测表读取失败 / 空表，已回退兜底常量 */
+      monitor_fallback?: boolean;
       as_of_range: (string | null)[];
       rows_total: number;
       rows_upserted: number;
@@ -1070,6 +1103,17 @@ declare namespace Api {
       skipped_count: number;
       /** window_cut 不是日历对日口径、被强制全量重建的标的 */
       cut_stale_subjects: string[];
+      /** calc_at 早于 schema_epoch：新增列 / 改结构后历史行须回填 */
+      schema_stale_subjects?: string[];
+      schema_epoch?: string;
+      /** input_fp 变化（上游历史/同日修订）被强制全量重建的标的 */
+      fp_changed_subjects: string[];
+      /** 因口径陈旧或 fp 变化被强制全量的标的数（去重） */
+      forced_full_count: number;
+      /** 本次是否真的执行了孤儿清理（需显式开启 + 默认清单 + M2/auto） */
+      prune_orphans: boolean;
+      /** 请求是否显式传了 subjects（传了就永不删孤儿） */
+      subjects_explicit: boolean;
       audit: {
         changed: number;
         max_pct: number;
