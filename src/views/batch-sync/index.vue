@@ -14,6 +14,7 @@ import {
 } from '@/service/api';
 import { useBdsStore } from '@/store/modules/bds';
 import MacroSyncCard from './modules/macro-sync-card.vue';
+import ValuationPctCard from './modules/valuation-pct-card.vue';
 
 defineOptions({ name: 'BatchSyncPage' });
 
@@ -281,7 +282,9 @@ const NON_BATCH_SCOPES = [
   'macro_sync',
   'bills_import',
   'option_info',
-  'option_market'
+  'option_market',
+  // 估值分位按日落盘（独立卡片，组件内自行按 scope 认领任务；漏了会被卡片 1 抢走误填表单）
+  'valuation_pct'
 ];
 
 async function loadBatchTask(id?: number) {
@@ -1405,5 +1408,8 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </NCard>
+
+    <!-- ===== 卡片 5：估值分位按日落盘（独立组件，自行按 scope 认领任务） ===== -->
+    <ValuationPctCard />
   </div>
 </template>

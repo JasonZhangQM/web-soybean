@@ -573,6 +573,23 @@ export function syncIndexValuation(req: Api.Bds.IndexValuationSyncRequest) {
   });
 }
 
+/**
+ * 启动估值分位按日落盘重算（后台任务，立即返回 task）
+ *
+ * 与批量同步 / 成分 / 指数估值共用 bds_sync_task（全库一把锁），有 running 任务会 409；
+ * 必须排在「批量同步 → 成分增量 → 指数估值增量」之后。系统没有 scheduler，日频靠手动点。
+ * 进度轮询 `/sync-tasks/{id}`，停止用 `stopBatchSync(taskId)`。
+ */
+export function startValuationPctSync(req: Api.Bds.ValuationPctSyncRequest = {}) {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/sync/valuation-percentile',
+    method: 'post',
+    data: req,
+    // 建任务后立即返回，实际执行在后台线程
+    timeout: 30 * 1000
+  });
+}
+
 /** 获取各指数成分核查水位（只读） */
 export function fetchIndexConstituentSyncStatus() {
   return request<{ items: Api.Bds.IndexConstituentSyncStatus[]; total: number }>({

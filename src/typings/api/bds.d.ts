@@ -1041,6 +1041,46 @@ declare namespace Api {
       with_median?: boolean;
     }
 
+    /** 估值分位按日落盘重算请求体（POST /bds/sync/valuation-percentile，2026-11-04 P2） */
+    interface ValuationPctSyncRequest {
+      /** M1 增量追加 / M2 全量重建（默认、推荐） / M3 区间重算 / auto 按 input_fp 自动 */
+      mode?: 'M1' | 'M2' | 'M3' | 'auto';
+      /** 标的代码清单；不传 = L1 默认 6 个（2 指数 + 4 个股） */
+      subjects?: string[];
+      /** M3 的修订起始日（含当日），M3 必填 */
+      from_date?: string | null;
+    }
+
+    /** 分位重算审计（bds_sync_task.result，scope=valuation_pct） */
+    interface ValuationPctResult {
+      mode: string;
+      window_mode: string;
+      metrics: string[];
+      windows: string[];
+      source_as_of: string | null;
+      subjects: string[];
+      as_of_range: (string | null)[];
+      rows_total: number;
+      rows_upserted: number;
+      /** MySQL ON DUPLICATE KEY UPDATE 的 rowcount，值未变时语义混合，仅供排查 */
+      rows_rowcount: number;
+      orphans_deleted: number;
+      /** 输入指纹 / 源末日 / 窗口口径三者均未变而未重写的标的（恒定性推论） */
+      skipped_subjects: string[];
+      skipped_count: number;
+      /** window_cut 不是日历对日口径、被强制全量重建的标的 */
+      cut_stale_subjects: string[];
+      audit: {
+        changed: number;
+        max_pct: number;
+        appeared: number;
+        vanished: number;
+        samples: any[];
+      };
+      input_fp: Record<string, string>;
+      duration_ms: number;
+    }
+
     /** 各指数成分核查水位（`/index-constituent-sync-status`） */
     interface IndexConstituentSyncStatus {
       index_code: string;

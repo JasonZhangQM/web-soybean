@@ -8,8 +8,9 @@ defineOptions({ name: 'ValuationTable' });
  *
  * 所有数字都来自后端分位接口（指数 `/bds/index-valuation-percentiles`、
  * 个股 `/bds/stock-valuation-percentiles`），本组件不做任何计算，只做格式化。
- * 窗口口径：自然日回溯（3/5/10 年 = 1095/1825/3650 天），由后端保证唯一——
- * 前端若自己算窗口，必然与后端出现两套口径。
+ * 窗口口径：日历对日回溯 3/5/10 年（as_of=2025-10-23 的 10 年窗口左界 2015-10-23，
+ * 2/29 clamp 到 2/28），由后端保证唯一——前端若自己算窗口，必然与后端出现两套口径。
+ * 2026-11 起由「自然日 1095/1825/3650 天」改为对日，历史报告引用的旧口径数字不回改。
  */
 interface Props {
   items: (Api.Bds.IndexValuationPercentile | Api.Bds.StockValuationPercentile)[];
