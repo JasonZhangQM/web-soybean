@@ -336,5 +336,35 @@ declare namespace Api {
       drift: number | null;
       priority: number;
     }
+
+    /** 最新分位表单标的行（GET /irs/um-percentile/stats） */
+    interface UmPctLatestSubject {
+      /** 标的代码（gm 格式） */
+      symbol: string;
+      /** index / stock */
+      subject_type: string;
+      /** 锚点：该标的上游估值序列最后一个交易日 */
+      as_of: string | null;
+      /** PE 10 年分位（0~100，status 非 ok 时为 null） */
+      pe_pct_10y: number | null;
+      /** PB 10 年分位（0~100） */
+      pb_pct_10y: number | null;
+      /** ok / loss / no_data */
+      status_pe: string;
+      status_pb: string;
+    }
+
+    /** 最新分位表状态（一标的一行，范围固定=标的监测表） */
+    interface UmPctLatestStats {
+      /** 表内行数（≤ 监测表标的数） */
+      rows: number;
+      /** 最近一次刷新时刻 */
+      calc_at: string | null;
+      /** 表内最老刷新时刻（多标的不同批写入时用于判新鲜度） */
+      oldest_calc_at: string | null;
+      subjects: UmPctLatestSubject[];
+      /** 各标的所属上游估值表末日 */
+      source_as_of: Record<string, string | null>;
+    }
   }
 }

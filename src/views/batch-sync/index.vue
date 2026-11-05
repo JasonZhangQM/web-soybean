@@ -15,6 +15,7 @@ import {
 import { useBdsStore } from '@/store/modules/bds';
 import MacroSyncCard from './modules/macro-sync-card.vue';
 import ValuationPctCard from './modules/valuation-pct-card.vue';
+import UmPctLatestCard from './modules/um-pct-latest-card.vue';
 
 defineOptions({ name: 'BatchSyncPage' });
 
@@ -284,7 +285,9 @@ const NON_BATCH_SCOPES = [
   'option_info',
   'option_market',
   // 估值分位按日落盘（独立卡片，组件内自行按 scope 认领任务；漏了会被卡片 1 抢走误填表单）
-  'valuation_pct'
+  'valuation_pct',
+  // 最新估值分位截面（同上；/today 与标的监测页的数据源）
+  'um_pct_latest'
 ];
 
 async function loadBatchTask(id?: number) {
@@ -1411,5 +1414,8 @@ onBeforeUnmount(() => {
 
     <!-- ===== 卡片 5：估值分位按日落盘（独立组件，自行按 scope 认领任务） ===== -->
     <ValuationPctCard />
+
+    <!-- ===== 卡片 6：最新估值分位截面（/today 与标的监测页的数据源，范围固定） ===== -->
+    <UmPctLatestCard />
   </div>
 </template>

@@ -632,3 +632,27 @@ export function syncIrs(target: IrsSyncTarget) {
     method: 'post'
   });
 }
+
+/**
+ * 刷新最新估值分位截面表（`irs_um_percentile`）
+ *
+ * 范围**固定**为 `/irs/underlying-monitors` 的标的，无入参；上游两张估值表都查不到的
+ * 标的（SPX / GC00Y）由后端自动剔除并在结果里回报。返回任务对象，进度靠 `fetchSyncTask` 轮询。
+ * ⚠️ 与批量同步共用全局任务锁，任意任务 running 时会返回 409。
+ */
+export function startUmPctLatestSync() {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/irs/sync/um-percentile',
+    method: 'post',
+    // 建任务后立即返回，实际执行在后台线程
+    timeout: 30 * 1000
+  });
+}
+
+/** 最新分位表只读状态（行数 / calc_at / 各标的 as_of 与 PE、PB 10 年分位） */
+export function fetchUmPctLatestStats() {
+  return request<Api.Irs.UmPctLatestStats>({
+    url: '/api/v1/irs/um-percentile/stats',
+    method: 'get'
+  });
+}
