@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { fmtMoney, fmtRatio, firstCallLabel, firstCallLevel, levelColor, ratioLevel } from './utils';
+import { fmtMoney, fmtRatio, firstCallLabel, firstCallLevel, levelColor, ratioLevel, realOverLine } from './utils';
 
 defineOptions({ name: 'AccountRiskCards' });
 
@@ -87,6 +87,15 @@ function handleSelect(row: AccountRow) {
           <span class="acct-name">{{ row.account === 'ALL' ? '组合' : row.account }}</span>
           <NTag v-if="row.idle" size="small" type="default">空账户</NTag>
           <NTag v-else-if="row.firstCall?.direction === 'now'" size="small" type="error">已追保</NTag>
+          <template v-else-if="realOverLine(row.real)">
+            <NTooltip trigger="hover">
+              <template #trigger>
+                <NTag size="small" type="warning" :bordered="false">真实口径越线</NTag>
+              </template>
+              保证金 {{ fmtMoney(row.margin) }} 已超过自有净值 {{ fmtMoney(row.net) }}， 缺口由融资
+              {{ fmtMoney(row.fin) }} 填补。交易所口径尚未触发券商追保， 但自有资金已无缓冲。
+            </NTooltip>
+          </template>
         </div>
         <div class="acct-line">
           <span class="acct-label">净资产</span>

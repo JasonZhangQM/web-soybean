@@ -7,6 +7,7 @@ import {
   firstCallLevel,
   levelColor,
   ratioLevel,
+  realOverLine,
   staleLabel,
   staleLevel
 } from './utils';
@@ -76,7 +77,10 @@ const firstCallHint = computed(() => {
           <span class="kpi-sep">/</span>
           <span :style="{ color: levelColor(ratioLevel(exch)) }">{{ fmtRatio(exch) }}</span>
         </div>
-        <div class="kpi-hint">追保判定只看交易所口径（≥1 触发）</div>
+        <div class="kpi-hint">
+          追保判定看交易所口径
+          <span v-if="realOverLine(real)" class="hint-alarm">· 真实口径已越线，保证金靠融资支撑</span>
+        </div>
       </NCard>
     </NGi>
     <NGi span="24 s:12 m:8 l:4">
@@ -126,5 +130,9 @@ const firstCallHint = computed(() => {
   margin-top: 6px;
   font-size: 12px;
   color: #909399;
+}
+
+.hint-alarm {
+  color: #d03050;
 }
 </style>

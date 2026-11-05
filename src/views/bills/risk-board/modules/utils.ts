@@ -51,6 +51,16 @@ export function ratioLevel(real: number | null | undefined): RiskLevel {
   return 'ok';
 }
 
+/**
+ * 真实口径是否已越线（保证金占用 ≥ 自有净值）。
+ *
+ * 交易所口径含融资，未到 100% 券商不会追保，但真实口径越线意味着
+ * 「保证金已经是借来的钱在交」——必须单独提示，否则看板一片绿会误导。
+ */
+export function realOverLine(real: number | null | undefined): boolean {
+  return real !== null && real !== undefined && !Number.isNaN(Number(real)) && Number(real) >= 1;
+}
+
 /** 首个追保跌幅分档：<5% 红 / 5~10% 橙 / ≥10% 绿；已追保直接红 */
 export function firstCallLevel(fc: Api.Bills.RiskBoardFirstCall | null | undefined): RiskLevel {
   if (!fc) return 'ok';

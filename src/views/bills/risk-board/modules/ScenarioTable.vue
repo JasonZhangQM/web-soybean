@@ -108,13 +108,20 @@ function rowProps(row: Row) {
     :row-props="rowProps"
     :pagination="false"
     :bordered="false"
-    size="small"
     :row-key="(r: Row) => r.drop"
+    :scroll-x="790"
   />
   <div class="table-note">负数=涨幅（上行情景），正数=跌幅；红色行=该账户首个触发追保的档位。</div>
 </template>
 
 <style scoped>
+/* 单元格不折行：11 档情景表窄列多，换行会把行高参差拉开，与全站列表页不一致。
+   :deep() 是必须的——th/td 由 NDataTable 子组件渲染，scoped 属性加不到它们身上。 */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+
 .table-note {
   margin-top: 8px;
   font-size: 12px;

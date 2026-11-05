@@ -60,7 +60,7 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
   {
     title: '合约',
     key: 'symbol',
-    width: 130,
+    width: 175,
     fixed: 'left' as const,
     render: (p: Api.Bills.RiskBoardPosition) =>
       h(
@@ -143,8 +143,8 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
       :data="rows"
       :pagination="false"
       :bordered="false"
-      size="small"
       :row-key="(p: Api.Bills.RiskBoardPosition) => `${p.acct}-${p.symbol}`"
+      :scroll-x="1215"
       :max-height="420"
       virtual-scroll
     />
@@ -152,6 +152,18 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
 </template>
 
 <style scoped>
+/*
+ * 单元格一律不折行：合约名（CFFEX.IO2611-P-4000）在 130px 列里会断成两行，
+ * 把行高撑成两倍，与全站其他列表页不一致。
+ * :deep() 是必须的——th/td 由 NDataTable 子组件渲染，scoped 属性加不到它们身上，
+ * 直接写 .n-data-table-td 无效且不报错。
+ * 配合 columns 宽度（合计 1215）与 scroll-x，列宽才是硬约束。
+ */
+:deep(.n-data-table-th),
+:deep(.n-data-table-td) {
+  white-space: nowrap;
+}
+
 .contract-header {
   display: flex;
   align-items: baseline;
