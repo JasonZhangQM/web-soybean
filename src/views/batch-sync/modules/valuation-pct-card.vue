@@ -8,6 +8,7 @@ import {
   startValuationPctSync,
   stopBatchSync
 } from '@/service/api';
+import SyncTaskPanel from './sync-task-panel.vue';
 
 defineOptions({ name: 'ValuationPctCard' });
 
@@ -63,8 +64,23 @@ const defaultCount = computed(() => subjectList.value.filter(item => item.in_def
 const defaultPlaceholder = computed(() => `不选 = 标的监测表全部有效标的（当前 ${defaultCount.value} 个）`);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
-const progressValue = computed(() => Number(task.value?.progress || 0));
 const result = computed(() => (task.value?.result as Api.Bds.ValuationPctResult | null) ?? null);
+
+/** 任务摘要：本任务 total_count 是「待算 as_of 行数」，不是标的数，必须写明 */
+const taskDescription = computed(() => {
+  if (!task.value) return '';
+  const scopedMode = (task.value.scope_params as Record<string, any> | null)?.mode;
+  return `任务 #${task.value.id}${scopedMode ? ` · 模式 ${scopedMode}` : ''} · 进度按「待算 as_of 行数」计`;
+});
+
+/** 统计格：写入行数与标的数分开，跳过标的来自 result（运行中尚无值） */
+const taskStats = computed(() => [
+  { label: '已完成 / 待算行数', value: `${task.value?.done_count ?? 0} / ${task.value?.total_count ?? 0}` },
+  { label: '写入行数', value: task.value?.success_count ?? 0, color: '#18a058' },
+  { label: '跳过标的（非失败）', value: result.value?.skipped_count ?? 0 },
+  { label: '失败', value: task.value?.error_count ?? 0, color: '#d03050' }
+]);
+
 const sourceBySubjectText = computed(() => {
   const m = result.value?.source_as_of_by_subject;
   return m
@@ -219,145 +235,128 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
     <template #header>估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）</template>
     <template #header-extra>
-      <NTag
-        v-if="task"
-        :type="task.status === 'done' ? 'success' : task.status === 'failed' ? 'error' : 'warning'"
-        size="small"
-      >
-        #{{ task.id }} {{ task.status }}
-      </NTag>
+      <NButton type="primary" ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
+        启动
+      </NButton>
+      <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
-    <NSpace vertical :size="12">
-      <div class="text-12px" style="color: #999; line-height: 1.7">
-        一行 = 一个标的一个观察日（as_of）。窗口按
-        <b>日历对日</b>
-        回溯（如观察日 2025-10-23 的 10 年窗口左界 2015-10-23），
-        锚点是各标的最后一个有值交易日；分位值恒定，时间推移只追加新行。
-        <br />
-        默认范围
-        <b>运行时从标的监测表读取</b>
-        （自动过滤无估值数据的标的，如 SPX / GC00Y）； 监测表增删标的后
-        <b>需重跑一次本任务</b>
-        才会跟上，不会自动触发。
-        <br />
-        ⚠️ 与批量同步共用全局任务锁：请按「批量同步 → 成分增量 → 指数估值增量 →
-        <b>本任务最后</b>
-        」串行执行； 系统没有定时器，需每日手动点或外部定时调 HTTP。
-      </div>
+    <div style="font-size: 12px; color: #999; line-height: 1.7">
+      一行 = 一个标的一个观察日（as_of）。窗口按
+      <b>日历对日</b>
+      回溯（如观察日 2025-10-23 的 10 年窗口左界 2015-10-23），
+      锚点是各标的最后一个有值交易日；分位值恒定，时间推移只追加新行。
+      <br />
+      默认范围
+      <b>运行时从标的监测表读取</b>
+      （自动过滤无估值数据的标的，如 SPX / GC00Y）； 监测表增删标的后
+      <b>需重跑一次本任务</b>
+      才会跟上，不会自动触发。
+      <br />
+      ⚠️ 与批量同步共用全局任务锁：请按「批量同步 → 成分增量 → 指数估值增量 →
+      <b>本任务最后</b>
+      」串行执行； 系统没有定时器，需每日手动点或外部定时调 HTTP。
+    </div>
 
-      <NSpace align="center" :size="10" wrap>
-        <span class="text-12px" style="color: #666">标的范围</span>
-        <NSelect
-          v-model:value="selectedSubjects"
-          multiple
-          filterable
-          clearable
-          :options="subjectOptions"
-          :disabled="isRunning"
-          :placeholder="defaultPlaceholder"
-          style="width: 420px"
-        />
-        <span class="text-12px" style="color: #999">仅重算选中标的；单标的 / 子集重算永不删其它标的历史行</span>
-      </NSpace>
-
-      <NSpace align="center" :size="10" wrap>
-        <span class="text-12px" style="color: #666">单标的落盘</span>
-        <NSelect
-          v-model:value="singleSymbol"
-          filterable
-          tag
-          clearable
-          :options="subjectOptions"
-          :disabled="isRunning"
-          placeholder="选择或输入标的代码"
-          style="width: 260px"
-        />
-        <NButton :loading="starting" :disabled="isRunning || !singleSymbol" @click="handleSingle">
-          按单个标的落盘（M1 增量）
-        </NButton>
-        <span class="text-12px" style="color: #999">只补该标的新增交易日；上游历史修订请跑 M2 全量</span>
-      </NSpace>
-
-      <NSpace align="center" :size="10" wrap>
-        <NSelect v-model:value="mode" :options="MODE_OPTIONS" :disabled="isRunning" style="width: 300px" />
-        <NCheckbox v-model:checked="prune" :disabled="isRunning">
-          <span style="color: #d03050">清理孤儿标的（危险，默认关）</span>
-        </NCheckbox>
-        <span v-if="selectedSubjects.length && prune" class="text-12px" style="color: #d03050">
-          本次指定了标的，后端会忽略该开关
-        </span>
-        <NInput
-          v-if="mode === 'M3'"
-          v-model:value="fromDate"
-          placeholder="修订起始日 YYYY-MM-DD"
-          style="width: 200px"
-        />
-        <NButton type="primary" :loading="starting" :disabled="isRunning" @click="handleStart">启动重算</NButton>
-        <NButton v-if="isRunning" :loading="stopping" @click="handleStop">停止</NButton>
-      </NSpace>
-
-      <template v-if="task">
-        <NProgress type="line" :percentage="progressValue" :height="10" />
-        <div class="text-12px">
-          进度 {{ task.done_count }} / {{ task.total_count }}（{{ task.progress }}%）
-          <template v-if="task.errors?.length">· 失败 {{ task.errors.length }} 条</template>
-        </div>
-        <template v-if="result">
-          <div v-if="result.audit.changed > 0" class="text-12px" style="color: #d03050">
-            ⚠️ 本次有 {{ result.audit.changed }} 行分位发生变化（最大 {{ result.audit.max_pct }} pct）
-            ——上游历史修订或口径变更时会发生，请核对。
-          </div>
-          <div class="text-12px" style="color: #666; line-height: 1.8">
-            模式 {{ result.mode }} · 窗口 {{ result.window_mode }} · 源末日 {{ result.source_as_of ?? '—' }} · 区间
-            {{ result.as_of_range?.[0] ?? '—' }} ~ {{ result.as_of_range?.[1] ?? '—' }}
-            <br />
-            写入 {{ result.rows_upserted }} 行 · 变更 {{ result.audit.changed }} · 新增 {{ result.audit.appeared }} ·
-            消失 {{ result.audit.vanished }} · 孤儿清理 {{ result.orphans_deleted }}
-            <template v-if="result.prune_orphans">（已开启清理）</template>
-            · 耗时 {{ result.duration_ms }} ms
-            <br />
-            <template v-if="result.skipped_count > 0">
-              {{ result.skipped_count }} 个标的输入指纹、源末日、窗口口径均未变，按分位恒定性跳过写入（非失败）
-            </template>
-            <template v-if="result.cut_stale_subjects?.length">
-              ⚠️ {{ result.cut_stale_subjects.length }} 个标的窗口口径陈旧，已强制全量重建
-            </template>
-            <template v-if="result.schema_stale_subjects?.length">
-              <br />
-              🧱 {{ result.schema_stale_subjects.length }} 个标的因表结构变更触发历史行回填（schema_epoch
-              {{ result.schema_epoch ?? '—' }}）
-            </template>
-            <template v-if="result.fp_changed_subjects?.length">
-              <br />
-              🔄 {{ result.forced_full_count }} 个标的因输入指纹变化 / 口径陈旧 / 结构变更被强制全量重建（指纹变化：{{
-                result.fp_changed_subjects.join('、')
-              }}）——上游历史修订会改动上千行，只重写最新行是错的
-            </template>
-            <template v-if="sourceBySubjectText">
-              <br />
-              各标的源末日：{{ sourceBySubjectText }}
-            </template>
-            <template v-if="result.default_subjects">
-              <br />
-              默认清单 {{ result.default_subjects.length }} 个（来源：{{ result.subject_source ?? '标的监测表' }}）
-              <template v-if="result.excluded_no_data?.length">
-                · 无估值数据被过滤：{{ result.excluded_no_data.join('、') }}
-              </template>
-              <template v-if="result.orphan_in_store?.length">
-                <br />
-                ⚠️ 监测表已移除但落表仍有历史行：{{
-                  result.orphan_in_store.join('、')
-                }}（默认保留；需显式勾选「清理孤儿标的」才删）
-              </template>
-            </template>
-            <template v-if="result.monitor_fallback">
-              <br />
-              ⚠️ 标的监测表读取失败，本次已回退兜底常量，请检查数据库
-            </template>
-          </div>
-        </template>
-      </template>
+    <NSpace align="center" :size="10" wrap style="margin-top: 8px">
+      <span class="text-12px" style="color: #666">标的范围</span>
+      <NSelect
+        v-model:value="selectedSubjects"
+        multiple
+        filterable
+        clearable
+        :options="subjectOptions"
+        :disabled="isRunning"
+        :placeholder="defaultPlaceholder"
+        style="width: 420px"
+      />
+      <span class="text-12px" style="color: #999">仅重算选中标的；单标的 / 子集重算永不删其它标的历史行</span>
     </NSpace>
+
+    <NSpace align="center" :size="10" wrap style="margin-top: 8px">
+      <span class="text-12px" style="color: #666">单标的落盘</span>
+      <NSelect
+        v-model:value="singleSymbol"
+        filterable
+        tag
+        clearable
+        :options="subjectOptions"
+        :disabled="isRunning"
+        placeholder="选择或输入标的代码"
+        style="width: 260px"
+      />
+      <NButton :loading="starting" :disabled="isRunning || !singleSymbol" @click="handleSingle">
+        按单个标的落盘（M1 增量）
+      </NButton>
+      <span class="text-12px" style="color: #999">只补该标的新增交易日；上游历史修订请跑 M2 全量</span>
+    </NSpace>
+
+    <NSpace align="center" :size="10" wrap style="margin-top: 8px">
+      <NSelect v-model:value="mode" :options="MODE_OPTIONS" :disabled="isRunning" style="width: 300px" />
+      <NCheckbox v-model:checked="prune" :disabled="isRunning">
+        <span style="color: #d03050">清理孤儿标的（危险，默认关）</span>
+      </NCheckbox>
+      <span v-if="selectedSubjects.length && prune" class="text-12px" style="color: #d03050">
+        本次指定了标的，后端会忽略该开关
+      </span>
+      <NInput v-if="mode === 'M3'" v-model:value="fromDate" placeholder="修订起始日 YYYY-MM-DD" style="width: 200px" />
+    </NSpace>
+
+    <SyncTaskPanel :task="task" :running="isRunning" :description="taskDescription" :stats="taskStats">
+      <div v-if="result" style="margin-top: 8px">
+        <div v-if="result.audit.changed > 0" class="text-12px" style="color: #d03050">
+          ⚠️ 本次有 {{ result.audit.changed }} 行分位发生变化（最大 {{ result.audit.max_pct }} pct）
+          ——上游历史修订或口径变更时会发生，请核对。
+        </div>
+        <div class="text-12px" style="color: #666; line-height: 1.8; margin-top: 8px">
+          模式 {{ result.mode }} · 窗口 {{ result.window_mode }} · 源末日 {{ result.source_as_of ?? '—' }} · 区间
+          {{ result.as_of_range?.[0] ?? '—' }} ~ {{ result.as_of_range?.[1] ?? '—' }}
+          <br />
+          写入 {{ result.rows_upserted }} 行 · 变更 {{ result.audit.changed }} · 新增 {{ result.audit.appeared }} · 消失
+          {{ result.audit.vanished }} · 孤儿清理 {{ result.orphans_deleted }}
+          <template v-if="result.prune_orphans">（已开启清理）</template>
+          · 耗时 {{ result.duration_ms }} ms
+          <br />
+          <template v-if="result.skipped_count > 0">
+            {{ result.skipped_count }} 个标的输入指纹、源末日、窗口口径均未变，按分位恒定性跳过写入（非失败）
+          </template>
+          <template v-if="result.cut_stale_subjects?.length">
+            ⚠️ {{ result.cut_stale_subjects.length }} 个标的窗口口径陈旧，已强制全量重建
+          </template>
+          <template v-if="result.schema_stale_subjects?.length">
+            <br />
+            🧱 {{ result.schema_stale_subjects.length }} 个标的因表结构变更触发历史行回填（schema_epoch
+            {{ result.schema_epoch ?? '—' }}）
+          </template>
+          <template v-if="result.fp_changed_subjects?.length">
+            <br />
+            🔄 {{ result.forced_full_count }} 个标的因输入指纹变化 / 口径陈旧 / 结构变更被强制全量重建（指纹变化：{{
+              result.fp_changed_subjects.join('、')
+            }}）——上游历史修订会改动上千行，只重写最新行是错的
+          </template>
+          <template v-if="sourceBySubjectText">
+            <br />
+            各标的源末日：{{ sourceBySubjectText }}
+          </template>
+          <template v-if="result.default_subjects">
+            <br />
+            默认清单 {{ result.default_subjects.length }} 个（来源：{{ result.subject_source ?? '标的监测表' }}）
+            <template v-if="result.excluded_no_data?.length">
+              · 无估值数据被过滤：{{ result.excluded_no_data.join('、') }}
+            </template>
+            <template v-if="result.orphan_in_store?.length">
+              <br />
+              ⚠️ 监测表已移除但落表仍有历史行：{{
+                result.orphan_in_store.join('、')
+              }}（默认保留；需显式勾选「清理孤儿标的」才删）
+            </template>
+          </template>
+          <template v-if="result.monitor_fallback">
+            <br />
+            ⚠️ 标的监测表读取失败，本次已回退兜底常量，请检查数据库
+          </template>
+        </div>
+      </div>
+    </SyncTaskPanel>
   </NCard>
 </template>
