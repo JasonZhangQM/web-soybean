@@ -1,43 +1,74 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
-import { fetchIndexHistories, syncIndexHistory } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { ref, reactive, onMounted } from 'vue';
+import { fetchIndexHistories, fetchSymbolInfos } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
-import { useBdsStore } from '@/store/modules/bds';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IndexHistoriesPage' });
 
-const bdsStore = useBdsStore();
-// 指数代码下拉选项：computed 包裹保证 store 数据异步加载完成后响应式更新
-const symbolOptions = computed(() => bdsStore.getIndexCodeOptions());
-// 首次进入页面时主动触发加载（App.vue 已加载但可能尚未完成）
-bdsStore.loadIndexCodes();
-
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bds.IndexHistory[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 单选精确匹配，start_date 开始日期
+// 代码下拉：远程搜索（数据源 bds_symbol_info，按代码/名称/拼音模糊匹配）
+const symbolOptions = ref<Array<{ label: string; value: string }>>([]);
+const symbolLoading = ref(false);
+
+// 标的类型选项：不选 = 全部（个股 + 指数）
+const typeOptions = [
+  { label: '个股', value: 'stock' as const },
+  { label: '指数', value: 'index' as const }
+];
+
 const searchParams = reactive<{
   symbol?: string | null;
+  sec_type?: 'stock' | 'index' | null;
   start_date?: string | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
-// 拉取指数历史行情列表
+/** 远程搜索证券信息，最多返回 50 条作为下拉候选 */
+async function handleSymbolSearch(query: string) {
+  if (!query) {
+    symbolOptions.value = [];
+    return;
+  }
+  symbolLoading.value = true;
+  try {
+    const { data, error } = await fetchSymbolInfos({ keyword: query, limit: 50 });
+    if (!error) {
+      symbolOptions.value = (data.items ?? []).map(item => ({
+        label: `${item.symbol} ${item.name}`,
+        value: item.symbol
+      }));
+    }
+  } finally {
+    symbolLoading.value = false;
+  }
+}
+
+/** 回填当前选中代码的显示名（会话恢复/刷新后 NSelect 需要对应的 option 才显示） */
+async function ensureSelectedSymbolOption() {
+  if (!searchParams.symbol) return;
+  const { data, error } = await fetchSymbolInfos({ symbol: searchParams.symbol, limit: 1 });
+  const item = !error ? data.items?.[0] : null;
+  if (item) {
+    symbolOptions.value = [{ label: `${item.symbol} ${item.name}`, value: item.symbol }];
+  }
+}
+
+// 拉取历史行情列表（个股 + 指数）
 async function fetchData() {
   loading.value = true;
   try {
     const { data, error } = await fetchIndexHistories({
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
+      sec_type: searchParams.sec_type || undefined,
       start_date: searchParams.start_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -60,7 +91,9 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.symbol = null;
+  searchParams.sec_type = null;
   searchParams.start_date = null;
+  symbolOptions.value = [];
   pagination.page = 1;
   fetchData();
 }
@@ -76,30 +109,39 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-// 触发后端同步指数历史行情
-async function handleSync() {
-  await executeSync(syncIndexHistory, syncLoading, fetchData);
-}
-
 // 数值格式化：后端 Decimal 字段返回字符串，需 Number() 转换后保留 2 位小数
 function fmtNum(val: unknown) {
   return val != null ? Number(val).toFixed(2) : '-';
 }
 
+// 类型标签：存量行 sec_type 为空，由后端统一返回 index
+function typeLabel(row: Api.Bds.IndexHistory) {
+  return row.sec_type === 'stock' ? '个股' : '指数';
+}
+
 const columns = [
-  { title: '代码', key: 'symbol', width: 120 },
-  { title: '指数名称', key: 'sec_name', width: 120 },
+  { title: '代码', key: 'symbol', width: 130 },
+  { title: '名称', key: 'sec_name', width: 130 },
+  {
+    title: '类型',
+    key: 'sec_type',
+    width: 90,
+    render: (row: Api.Bds.IndexHistory) => typeLabel(row)
+  },
   { title: '交易日期', key: 'trade_date', width: 120 },
-  { title: '开盘价', key: 'open', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.open) },
-  { title: '最高价', key: 'high', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.high) },
-  { title: '最低价', key: 'low', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.low) },
-  { title: '收盘价', key: 'close', width: 120, render: (row: Api.Bds.IndexHistory) => fmtNum(row.close) },
-  { title: '成交额', key: 'amount', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount) },
-  { title: '成交量', key: 'volume', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume) },
-  { title: '持仓量', key: 'position', width: 140, render: (row: Api.Bds.IndexHistory) => fmtNum(row.position) }
+  { title: '开盘价', key: 'open', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.open) },
+  { title: '最高价', key: 'high', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.high) },
+  { title: '最低价', key: 'low', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.low) },
+  { title: '收盘价', key: 'close', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.close) },
+  { title: '成交额', key: 'amount', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount) },
+  { title: '成交量', key: 'volume', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume) },
+  { title: '持仓量', key: 'position', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.position) }
 ];
 
-onMounted(() => fetchData());
+onMounted(async () => {
+  await ensureSelectedSymbolOption();
+  await fetchData();
+});
 </script>
 
 <template>
@@ -110,9 +152,23 @@ onMounted(() => fetchData());
           <NSelect
             v-model:value="searchParams.symbol"
             :options="symbolOptions"
+            :loading="symbolLoading"
+            filterable
+            remote
             clearable
-            placeholder="单选精确匹配"
-            style="width: 150px"
+            placeholder="输入代码 / 名称搜索"
+            style="width: 220px"
+            @search="handleSymbolSearch"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
+        <NFormItem label="类型">
+          <NSelect
+            v-model:value="searchParams.sec_type"
+            :options="typeOptions"
+            clearable
+            placeholder="全部"
+            style="width: 120px"
             @update:value="handleSearch"
           />
         </NFormItem>
@@ -133,15 +189,12 @@ onMounted(() => fetchData());
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="syncLoading" @click="handleSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            同步
-          </NButton>
-        </NFormItem>
       </NForm>
     </NCard>
     <NCard :bordered="false" class="card-wrapper">
+      <NAlert type="info" :bordered="false" class="mb-12px">
+        价格口径：个股为后复权（仅新增行写入，历史行不重刷），指数为不复权。
+      </NAlert>
       <NDataTable
         :columns="columns"
         :data="tableData"

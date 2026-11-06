@@ -88,10 +88,14 @@ export function syncSymbolInfo() {
   });
 }
 
-/** 指数历史行情查询参数 */
+/** 历史行情查询参数（个股 + 指数） */
 interface IndexHistoryQueryParams {
-  /** 代码（单选精确匹配） */
+  /** 代码（精确匹配） */
   symbol?: string;
+  /** 代码 / 名称模糊搜索（远程搜索用） */
+  keyword?: string;
+  /** 标的类型筛选：stock=个股，index=指数；不传=全部 */
+  sec_type?: 'stock' | 'index';
   /** 开始日期（YYYY-MM-DD） */
   start_date?: string;
   /** 每页条数 */
@@ -100,7 +104,7 @@ interface IndexHistoryQueryParams {
   offset?: number;
 }
 
-/** 查询指数历史行情列表 */
+/** 查询历史行情列表（个股 + 指数） */
 export function fetchIndexHistories(params?: IndexHistoryQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.IndexHistory>>({
     url: '/api/v1/bds/index-histories',
@@ -114,6 +118,27 @@ export function syncIndexHistory() {
   return request<Api.Bds.SyncResult>({
     url: '/api/v1/bds/sync/index-history',
     method: 'post'
+  });
+}
+
+/** 历史行情目标校验参数（监测标的 / 手写清单启动前预览） */
+export interface HistoryTargetsResolveParams {
+  /** 待校验的标的代码清单 */
+  symbols: string[];
+  /** watch=监测标的 / explicit=手写清单（仅影响提示文案） */
+  scope?: 'watch' | 'explicit';
+}
+
+/**
+ * 校验历史行情目标清单（只读，不触发同步）
+ *
+ * 只做 bds 侧（证券信息表）校验：代码是否存在、标的类型、是否命中本轮跳过清单。
+ */
+export function resolveHistoryTargets(params: HistoryTargetsResolveParams) {
+  return request<Api.Bds.HistoryTargetsResolveResult>({
+    url: '/api/v1/bds/sync/targets/resolve',
+    method: 'post',
+    data: params
   });
 }
 
@@ -423,7 +448,7 @@ export function startMacroSync(req: MacroSyncRequest = {}) {
 
 /** 批量同步请求体 */
 export interface BatchSyncRequest {
-  /** 同步范围: all/index/industry/explicit */
+  /** 同步范围: all/index/industry/explicit/watch */
   scope: string;
   /**
    * scope=index 时的指数代码清单（多选）
@@ -434,7 +459,7 @@ export interface BatchSyncRequest {
   index_code?: string;
   /** scope=industry 时填行业名，如 银行 */
   industry?: string;
-  /** scope=explicit 时填手写清单 */
+  /** scope=explicit 时填手写清单；scope=watch 时填监测标的清单（前端从 irs 取后提交） */
   symbols?: string[];
   /** 要同步的表列表，默认 6 张全跑 */
   tables?: string[];

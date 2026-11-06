@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue';
-import { useMessage } from 'naive-ui';
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch, h } from 'vue';
+import { useDialog, useMessage } from 'naive-ui';
 import {
   startBatchSync,
   fetchLatestSyncTask,
@@ -9,6 +9,8 @@ import {
   startIndexConstituentSync,
   fetchIndexConstituentSyncStatus,
   syncIndexValuation,
+  fetchUnderlyingMonitors,
+  resolveHistoryTargets,
   type BatchSyncRequest,
   type IndexConstituentSyncRequest
 } from '@/service/api';
@@ -20,6 +22,7 @@ import UmPctLatestCard from './modules/um-pct-latest-card.vue';
 defineOptions({ name: 'BatchSyncPage' });
 
 const message = useMessage();
+const dialog = useDialog();
 const bdsStore = useBdsStore();
 
 // ===================== 共用：指数下拉 / 行业下拉 =====================
@@ -42,8 +45,13 @@ const TABLE_OPTIONS = [
   { label: '现金流量表', value: 'fund-cashflow' },
   { label: '财务指标', value: 'finance-deriv' },
   { label: '每日估值', value: 'daily-valuation' },
-  { label: '每日市值', value: 'daily-mktvalue' }
+  { label: '每日市值', value: 'daily-mktvalue' },
+  // 历史行情（个股后复权 / 指数不复权）：长周期回填，默认不勾，且「全选」不含它
+  { label: '历史行情', value: 'history' }
 ];
+
+/** 默认不勾选、也不被「全选」选中的表 */
+const DEFAULT_UNCHECKED_TABLES = ['history'];
 
 /** 同步表 → 数据查看页链接（checkbox 文字后的 ↗，点击跳转不触发勾选） */
 const TABLE_LINKS: Record<string, string> = {
@@ -52,20 +60,23 @@ const TABLE_LINKS: Record<string, string> = {
   'fund-cashflow': '/bds/fund-data/fund-cashflows',
   'finance-deriv': '/bds/fund-data/finance-derivs',
   'daily-valuation': '/bds/market-data/daily-valuations',
-  'daily-mktvalue': '/bds/market-data/daily-mktvalues'
+  'daily-mktvalue': '/bds/market-data/daily-mktvalues',
+  history: '/bds/market-data/index-histories'
 };
 
 const scopeOptions = [
   { label: '全市场', value: 'all' },
   { label: '指数成分股', value: 'index' },
   { label: '指定行业', value: 'industry' },
-  { label: '手写清单', value: 'explicit' }
+  { label: '手写清单', value: 'explicit' },
+  // 监测标的：清单由前端从 irs.underlying-monitors 取后随 symbols 提交（bds 不跨层读 irs 表）
+  { label: '监测标的', value: 'watch' }
 ];
 
 /**
  * 退市口径（三态）
  * 仅作用于 全市场 / 指数成分股 / 指定行业 三个范围；
- * 手写清单 = 用户显式意图，系统不做二次过滤（下拉在该范围下禁用）
+ * 手写清单 / 监测标的 = 用户显式意图，系统不做二次过滤（下拉在这两个范围下禁用）
  */
 const TRADING_STATUS_OPTIONS = [
   { label: '仅在市', value: 'trading' },
@@ -73,13 +84,18 @@ const TRADING_STATUS_OPTIONS = [
   { label: '全部', value: 'all' }
 ];
 
-/** 解析同步表记忆值：无记忆→全选；用户主动清空→沿用空；全部失效→回落全选 */
+/** 除「历史行情」外的全部表 = 默认勾选 / 全选集合 */
+const DEFAULT_TABLES = TABLE_OPTIONS
+  .map(o => o.value)
+  .filter(t => !DEFAULT_UNCHECKED_TABLES.includes(t));
+
+/** 解析同步表记忆值：无记忆→除历史行情外全选；用户主动清空→沿用空；全部失效→回落默认 */
 function resolveTables(stored: string[] | undefined) {
   const tableValues = TABLE_OPTIONS.map(o => o.value);
-  if (!stored) return tableValues;
+  if (!stored) return [...DEFAULT_TABLES];
   if (stored.length === 0) return [];
   const kept = stored.filter(t => tableValues.includes(t));
-  return kept.length > 0 ? kept : tableValues;
+  return kept.length > 0 ? kept : [...DEFAULT_TABLES];
 }
 
 /** 跳过已同步的日期不允许选未来：未来日期下没有任何 sync_at，等价于不跳过，容易误解 */
@@ -130,9 +146,9 @@ const form = reactive(buildInitialForm());
 // 表单任何变化即写回 store（会话内保持；不落 localStorage）
 watch(form, val => bdsStore.setBatchSyncForm({ ...val }), { deep: true });
 
-/** 同步表全选 / 清空 */
+/** 同步表全选 / 清空（全选**不含**历史行情，避免误触发长周期回填） */
 function selectAllTables() {
-  form.tables = TABLE_OPTIONS.map(o => o.value);
+  form.tables = [...DEFAULT_TABLES];
 }
 function clearTables() {
   form.tables = [];
@@ -142,6 +158,72 @@ const starting = ref(false);
 const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
 
+// ===================== 监测标的（scope=watch） =====================
+// 清单来源：irs 的标的监测表，前端取列表后随 symbols 提交；bds 不跨层读 irs 表
+const watchSymbols = ref<string[]>([]);
+const watchLoading = ref(false);
+const validating = ref(false);
+
+async function loadWatchSymbols() {
+  watchLoading.value = true;
+  try {
+    // 监测池规模很小（个位数~几十只），一次取满即可
+    const { data, error } = await fetchUnderlyingMonitors({ limit: 500 });
+    if (!error) watchSymbols.value = (data.items ?? []).map(item => item.symbol);
+  } finally {
+    watchLoading.value = false;
+  }
+}
+
+// 切到「监测标的」时按需拉取，避免每次进页面都多打一次 irs 接口
+watch(
+  () => form.scope,
+  scope => {
+    if (scope === 'watch' && watchSymbols.value.length === 0) loadWatchSymbols();
+  },
+  { immediate: true }
+);
+
+/** 校验范围：手写清单取输入串，监测标的取 irs 清单 */
+function resolveTargetSymbols() {
+  if (form.scope === 'watch') return [...watchSymbols.value];
+  return form.symbols.split(/[\s,，]+/).filter(Boolean);
+}
+
+/** 启动前校验（只读）：暴露不存在 / 类型无法判定 / 本轮跳过的标的 */
+async function handleValidateTargets() {
+  const symbols = resolveTargetSymbols();
+  if (symbols.length === 0) {
+    message.warning('没有可校验的代码');
+    return;
+  }
+  validating.value = true;
+  try {
+    const { data, error } = await resolveHistoryTargets({
+      symbols,
+      scope: form.scope === 'watch' ? 'watch' : 'explicit'
+    });
+    if (error) {
+      message.error(error.message || '校验失败');
+      return;
+    }
+    const dup = data.duplicates.length ? `，重复 ${data.duplicates.length} 个` : '';
+    if (data.invalid.length === 0) {
+      message.success(`校验通过：${data.valid.length} 只可用${dup}`);
+      return;
+    }
+    const detail = data.invalid.map(it => `${it.symbol}${it.name ? ` ${it.name}` : ''}：${it.reason}`);
+    dialog.warning({
+      title: `${data.valid.length} 只可用 / ${data.invalid.length} 只不可用${dup}`,
+      content: () =>
+        h('div', { style: 'max-height: 320px; overflow: auto; white-space: pre-line' }, detail.join('\n')),
+      positiveText: '知道了'
+    });
+  } finally {
+    validating.value = false;
+  }
+}
+
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
 const progressValue = computed(() => Number(task.value?.progress || 0));
 const errorList = computed(() => task.value?.errors || []);
@@ -150,7 +232,8 @@ const scopeLabelMap: Record<string, string> = {
   all: '全市场',
   index: '指数成分股',
   industry: '指定行业',
-  explicit: '手写清单'
+  explicit: '手写清单',
+  watch: '监测标的'
 };
 const scopeExtraLabel = computed(() => {
   if (!task.value?.scope_params) return '';
@@ -189,9 +272,32 @@ async function handleStart() {
     message.warning('请输入股票代码清单');
     return;
   }
+  if (form.scope === 'watch' && watchSymbols.value.length === 0) {
+    message.warning('监测标的为空，请先刷新清单');
+    return;
+  }
   if (form.tables.length === 0) {
     message.warning('请至少选择一张同步表');
     return;
+  }
+
+  // 历史行情是长周期回填（个股首次全量数千行/只），启动前二次确认
+  if (form.tables.includes('history')) {
+    const confirmed = await new Promise<boolean>(resolve => {
+      dialog.warning({
+        title: '确认同步历史行情？',
+        content:
+          `历史行情按标的全量/增量拉取：个股为后复权、指数为不复权。` +
+          `当前范围「${scopeLabelMap[form.scope] || form.scope}」，数据量大、耗时长，且历史行情不参与「标记已同步」。确定继续？`,
+        positiveText: '继续',
+        negativeText: '取消',
+        onPositiveClick: () => resolve(true),
+        onNegativeClick: () => resolve(false),
+        onClose: () => resolve(false),
+        onMaskClick: () => resolve(false)
+      });
+    });
+    if (!confirmed) return;
   }
 
   starting.value = true;
@@ -209,6 +315,10 @@ async function handleStart() {
     if (form.scope === 'industry') payload.industry = form.industry;
     if (form.scope === 'explicit') {
       payload.symbols = form.symbols.split(/[\s,，]+/).filter(Boolean);
+    }
+    if (form.scope === 'watch') {
+      // 监测标的：清单来自 irs，后端按「用户显式清单」语义处理（不跨层读表）
+      payload.symbols = [...watchSymbols.value];
     }
     const { data, error } = await startBatchSync(payload);
     if (error) {
@@ -252,6 +362,10 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
   form.index_codes = parseTaskIndexCodes(p);
   form.industry = (p.industry_name as string) || (p.industry as string) || '';
   form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
+  // 监测标的的清单不在 form.symbols 里展示，运行中回填到 watchSymbols 供计数/校验使用
+  if (data.scope === 'watch' && Array.isArray(p.symbols)) {
+    watchSymbols.value = p.symbols as string[];
+  }
   if (Array.isArray(data.tables) && data.tables.length > 0) form.tables = data.tables as typeof form.tables;
   form.mark_synced = data.mark_synced === 1;
   form.exclude_synced_since = data.exclude_synced_since ?? null;
@@ -920,6 +1034,35 @@ onBeforeUnmount(() => {
         </NFormItem>
         <NFormItem v-if="form.scope === 'explicit'" label="代码清单" label-width="70px">
           <NInput v-model:value="form.symbols" placeholder="空格或逗号分隔" style="width: 260px" />
+          <NButton
+            size="tiny"
+            secondary
+            style="margin-left: 8px"
+            :loading="validating"
+            :disabled="isRunning"
+            @click="handleValidateTargets"
+          >
+            校验
+          </NButton>
+        </NFormItem>
+        <!-- 监测标的：清单由前端从 irs.underlying-monitors 拉取后随 symbols 提交 -->
+        <NFormItem v-if="form.scope === 'watch'" label="监测标的" label-width="70px">
+          <span style="font-size: 13px; color: #666; margin-right: 8px">
+            共 {{ watchSymbols.length }} 只
+          </span>
+          <NButton size="tiny" secondary :loading="watchLoading" :disabled="isRunning" @click="loadWatchSymbols">
+            刷新
+          </NButton>
+          <NButton
+            size="tiny"
+            secondary
+            style="margin-left: 8px"
+            :loading="validating"
+            :disabled="isRunning"
+            @click="handleValidateTargets"
+          >
+            校验
+          </NButton>
         </NFormItem>
       </NForm>
 
@@ -944,7 +1087,7 @@ onBeforeUnmount(() => {
           <NSelect
             v-model:value="form.trading_status"
             :options="TRADING_STATUS_OPTIONS"
-            :disabled="form.scope === 'explicit'"
+            :disabled="form.scope === 'explicit' || form.scope === 'watch'"
             style="width: 110px"
           />
           <!--
@@ -962,7 +1105,8 @@ onBeforeUnmount(() => {
         </NFormItem>
         <NFormItem label="标记同步" label-width="80px">
           <NSwitch v-model:value="form.mark_synced" />
-          <!-- <span style="margin-left: 6px; font-size: 12px; color: #999">写 sync_at</span> -->
+          <!-- 历史行情恒不参与标记：单跑历史行情不会写 sync_at，也不会因此误跳过财务表 -->
+          <span style="margin-left: 6px; font-size: 12px; color: #999">历史行情不参与</span>
         </NFormItem>
         <NFormItem label="跳过报告期校验" label-width="120px">
           <NSwitch v-model:value="form.skip_latest_rpt_check" />

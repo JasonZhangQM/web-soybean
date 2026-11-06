@@ -72,12 +72,16 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 指数历史行情 */
+    /** 历史行情（个股 + 指数，共用 bds_index_history） */
     interface IndexHistory {
       /** 主键 */
       id: number;
       /** 代码 */
       symbol: string;
+      /** 标的类型：stock=个股 / index=指数（升级前的存量行按 index 返回） */
+      sec_type?: 'stock' | 'index' | null;
+      /** 复权口径：post=后复权（个股）/ none=不复权（指数）；存量行为 null */
+      adjust?: 'post' | 'none' | null;
       /** 交易日期（YYYY-MM-DD） */
       trade_date: string;
       /** 开盘价 */
@@ -94,7 +98,7 @@ declare namespace Api {
       volume: number | null;
       /** 持仓量 */
       position: number | null;
-      /** 指数名称（从 Config.INDEX_CODE 查找，不存数据库） */
+      /** 名称（证券信息表优先，Config.INDEX_CODE 兜底） */
       sec_name: string | null;
       /** 创建时间 */
       create_time: string;
@@ -149,6 +153,33 @@ declare namespace Api {
       max_drawdown: Record<string, (number | null)[]>;
       /** 实时行情数据源标识（'gm' / 'yfinance' / 'mixed' / null） */
       realtime_source?: string | null;
+    }
+
+    /** 历史行情目标校验结果（POST /bds/sync/targets/resolve） */
+    interface HistoryTargetsResolveItem {
+      /** 代码 */
+      symbol: string;
+      /** 名称（信息表取不到时为 null） */
+      name: string | null;
+      /** 标的类型：stock=个股 / index=指数 */
+      sec_type: 'stock' | 'index' | null;
+      /** 是否可用 */
+      ok: boolean;
+      /** 不可用原因 */
+      reason?: string;
+    }
+
+    interface HistoryTargetsResolveResult {
+      /** 逐项校验结果（按提交顺序） */
+      items: HistoryTargetsResolveItem[];
+      /** 可用代码 */
+      valid: string[];
+      /** 不可用项 */
+      invalid: HistoryTargetsResolveItem[];
+      /** 重复代码（去重后仅保留首次出现） */
+      duplicates: string[];
+      /** 请求侧 scope（watch / explicit） */
+      scope?: string;
     }
 
     /** 同步结果（{status, message}） */

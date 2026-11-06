@@ -97,6 +97,8 @@ function resetGroupFilters() {
   searchGroupsFromFirst();
 }
 
+// 排序在后端 SQL 里做（risk_exposure 倒序、NULL 最后、id 兜底），前端不再本页内二次排序
+
 onMounted(() => {
   loadGroups(1);
   loadBudget();
@@ -191,6 +193,14 @@ const groupColumns = [
     width: 110,
     align: 'right' as const,
     render: (row: UnderlyingGroup) => (row.cost_total != null ? Number(row.cost_total).toFixed(2) : '-')
+  },
+  {
+    // GroupSymbol 维度：同 (分类, 合约) 各 Group 的 risk_exposure 汇总，NULL=未设置
+    title: '风险敞口',
+    key: 'risk_exposure',
+    width: 110,
+    align: 'right' as const,
+    render: (row: UnderlyingGroup) => (row.risk_exposure != null ? Number(row.risk_exposure).toFixed(2) : '-')
   },
   {
     title: '最新价',

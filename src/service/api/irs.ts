@@ -136,6 +136,8 @@ export interface UnderlyingGroup {
   p_total: number | null;
   /** 持仓成本 */
   cost_total: number | null;
+  /** 风险敞口（bills_group_symbol 维度，同 (分类, 合约) 各 Group 汇总；null=未设置） */
+  risk_exposure: number | null;
   /** 最新价 */
   price: number | null;
   /** 乘数 */

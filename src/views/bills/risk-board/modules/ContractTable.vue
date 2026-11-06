@@ -78,7 +78,6 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
     title: '合约',
     key: 'symbol',
     width: 175,
-    fixed: 'left' as const,
     render: (p: Api.Bills.RiskBoardPosition) =>
       h(
         'span',
