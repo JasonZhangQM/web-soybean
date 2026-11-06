@@ -51,6 +51,23 @@ function renderMaxLoss(p: Api.Bills.RiskBoardPosition) {
   return fmtMoney(p.max_loss);
 }
 
+/**
+ * 保证金效率 = |delta × 名义市值| ÷ 当前保证金（方案改造 5 的减仓排序键）。
+ * 每 1 元保证金换来多少方向敞口：越低越该先平。
+ * 名义敞口排不出序（卖 put 的名义远大于保证金），必须用 delta 加权。
+ */
+function marginEfficiency(p: Api.Bills.RiskBoardPosition): number | null {
+  if (!p.margin_now || p.delta === null) return null;
+  return (Math.abs(p.delta) * p.nominal) / p.margin_now;
+}
+
+function renderEfficiency(p: Api.Bills.RiskBoardPosition) {
+  const v = marginEfficiency(p);
+  if (v === null) return '—';
+  // <1 说明保证金买不到等量的方向敞口，标红提示优先处置
+  return h('span', { style: v < 1 ? 'color: #d03050; font-weight: 600' : '' }, v.toFixed(2));
+}
+
 /** 期权行情页：行情只覆盖配置清单内的合约，缺行情时去这里补 */
 function goOptionQuote() {
   router.push({ name: 'irs_option-quote' });
@@ -126,6 +143,13 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
     width: 110,
     align: 'right' as const,
     render: (p: Api.Bills.RiskBoardPosition) => renderMaxLoss(p)
+  },
+  {
+    title: '保证金效率',
+    key: 'margin_eff',
+    width: 110,
+    align: 'right' as const,
+    render: (p: Api.Bills.RiskBoardPosition) => renderEfficiency(p)
   }
 ];
 </script>
@@ -144,7 +168,7 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
       :pagination="false"
       :bordered="false"
       :row-key="(p: Api.Bills.RiskBoardPosition) => `${p.acct}-${p.symbol}`"
-      :scroll-x="1215"
+      :scroll-x="1325"
       :max-height="420"
       virtual-scroll
     />
@@ -157,7 +181,7 @@ const columns: DataTableColumns<Api.Bills.RiskBoardPosition> = [
  * 把行高撑成两倍，与全站其他列表页不一致。
  * :deep() 是必须的——th/td 由 NDataTable 子组件渲染，scoped 属性加不到它们身上，
  * 直接写 .n-data-table-td 无效且不报错。
- * 配合 columns 宽度（合计 1215）与 scroll-x，列宽才是硬约束。
+ * 配合 columns 宽度（合计 1325）与 scroll-x，列宽才是硬约束。
  */
 :deep(.n-data-table-th),
 :deep(.n-data-table-td) {

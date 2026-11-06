@@ -8,7 +8,13 @@
 import { computed, h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag } from 'naive-ui';
-import { fetchUnderlyingGroups, type UnderlyingGroup, type UnderlyingMonitorDetail } from '@/service/api';
+import {
+  fetchUnderlyingGroups,
+  fetchUmBudget,
+  type UmBudget,
+  type UnderlyingGroup,
+  type UnderlyingMonitorDetail
+} from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import { STATUS_TYPE, triggerText } from './planFormat';
 
@@ -91,7 +97,30 @@ function resetGroupFilters() {
   searchGroupsFromFirst();
 }
 
-onMounted(() => loadGroups(1));
+onMounted(() => {
+  loadGroups(1);
+  loadBudget();
+});
+
+// ---- 加仓额度（改造 4）：能不能加、还能加几手、卡在哪个约束 ----
+// 数值全部来自后端 bills/services/budget.py，这里不做任何算术——
+// 前端拼装两次跨时点的数，就是 2026-10-23 那个错误的微缩版。
+const umBudget = ref<UmBudget | null>(null);
+
+async function loadBudget() {
+  const { data, error } = await fetchUmBudget(props.detail.um.symbol);
+  if (!error && data) umBudget.value = data;
+}
+
+/** 预算标签文案：verdict 为 null 表示该标的无保证金品种组（个股），不判 */
+const budgetTag = computed(() => {
+  const v = umBudget.value;
+  if (!v) return null;
+  if (v.verdict === 'block') return { type: 'error' as const, text: '禁开新仓' };
+  if (v.verdict === 'over') return { type: 'warning' as const, text: '品种组超限' };
+  if (v.verdict === 'ok') return { type: 'success' as const, text: '有额度' };
+  return { type: 'default' as const, text: '不判' };
+});
 
 /** 概览只展示生效剧本（暂停的留给「剧本与成交」Tab 看全量） */
 const activePlans = computed(() => props.detail.plans_preview.filter(p => !p.is_cancelled));
@@ -340,6 +369,17 @@ const levelColumns = LEVEL_META.map(m => ({
       :page-size="0"
       class="mb-16px"
     />
+
+    <NDivider />
+
+    <!-- 加仓额度：R2 的执行前提。档位说到「到价加仓」，这里回答「钱够不够」 -->
+    <div class="mb-8px flex flex-wrap items-center gap-8px">
+      <span class="font-500">加仓额度</span>
+      <NTag v-if="budgetTag" size="small" :bordered="false" :type="budgetTag.type">{{ budgetTag.text }}</NTag>
+      <span class="text-12px text-gray-400">{{ umBudget?.note || '计算中…' }}</span>
+      <span v-if="umBudget?.as_of" class="text-12px text-gray-400">行情 {{ umBudget.as_of }}</span>
+      <NButton size="tiny" text class="ml-auto" @click="router.push({ name: 'bills_risk-board' })">去风险看板</NButton>
+    </div>
 
     <NDivider />
 

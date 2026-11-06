@@ -656,3 +656,51 @@ export function fetchUmPctLatestStats() {
     method: 'get'
   });
 }
+
+/** 单品种组的加仓额度读数 */
+export interface UmBudgetScopeRow {
+  scope: string;
+  scope_name: string;
+  /** false = 该品种组当前无保证金持仓（无法反推每手保证金） */
+  found: boolean;
+  account?: string;
+  verdict?: string;
+  /** 卡在哪个约束：品种组名 / total@now / total@stress */
+  binding?: string;
+  /** 取 min 后的可开额度（压力口径） */
+  headroom?: number | null;
+  gate_now?: number | null;
+  gate_stress?: number | null;
+  scope_headroom?: number | null;
+  pct?: number | null;
+  cap?: number | null;
+  lots?: number;
+  per_lot_margin?: number | null;
+  note?: string;
+}
+
+/** 标的加仓可行性（GET /irs/um-budget） */
+export interface UmBudget {
+  symbol: string;
+  scopes: UmBudgetScopeRow[];
+  /** 最严的那一条（能不能加仓由它决定） */
+  binding: { account: string; scope: string; headroom: number | null; verdict: string } | null;
+  lots?: number;
+  per_lot_margin?: number | null;
+  /** block / over / ok / skip；null = 该标的无保证金品种组，不判 */
+  verdict: string | null;
+  as_of?: string | null;
+  note: string;
+}
+
+/**
+ * 标的是否还有加仓额度。额度唯一实现在后端（bills/services/budget.py），
+ * 前端**不得**自己拼装——两次请求跨时点就是 10-23 那个错误的微缩版。
+ */
+export function fetchUmBudget(symbol: string, account?: string) {
+  return request<UmBudget>({
+    url: '/api/v1/irs/um-budget',
+    method: 'get',
+    params: { symbol, account: account || undefined }
+  });
+}

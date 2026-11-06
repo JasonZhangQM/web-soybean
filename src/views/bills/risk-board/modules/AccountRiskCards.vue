@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { fmtMoney, fmtRatio, firstCallLabel, firstCallLevel, levelColor, ratioLevel, realOverLine } from './utils';
+import {
+  bindingLabel,
+  fmtMoney,
+  fmtMoneyShort,
+  fmtRatio,
+  firstCallLabel,
+  firstCallLevel,
+  levelColor,
+  ratioLevel,
+  realOverLine,
+  verdictLevel
+} from './utils';
 
 defineOptions({ name: 'AccountRiskCards' });
 
@@ -28,6 +39,8 @@ interface AccountRow {
   firstCall: Api.Bills.RiskBoardFirstCall | null;
   /** 空账户：无净值且无保证金，后端豁免追保判定 */
   idle: boolean;
+  /** 预算卡；组合行为 null */
+  budget: Api.Bills.BudgetAccount | null;
 }
 
 /** 组合行在前，其余按账户名排序 */
@@ -43,7 +56,8 @@ const rows = computed<AccountRow[]>(() => {
     real: props.board.real_total,
     exch: props.board.grid.sync?.['0.0']?.ALL?.exch ?? null,
     firstCall: props.board.first_call.sync ?? null,
-    idle: false
+    idle: false,
+    budget: null
   };
 
   const acctRows = Object.keys(props.board.accounts)
@@ -60,7 +74,8 @@ const rows = computed<AccountRow[]>(() => {
         real: card.real,
         exch: card.exch,
         firstCall: props.board.first_call_all.sync?.[name] ?? null,
-        idle: Math.abs(card.net0) < 1e-6 && Math.abs(card.margin) < 1e-6
+        idle: Math.abs(card.net0) < 1e-6 && Math.abs(card.margin) < 1e-6,
+        budget: props.board.budget.accounts[name] ?? null
       };
     });
 
@@ -70,6 +85,31 @@ const rows = computed<AccountRow[]>(() => {
 /** 点击卡片切换账户视角（组合会掩盖单账户爆仓，需能逐户下钻） */
 function handleSelect(row: AccountRow) {
   emit('select', row.account);
+}
+
+/**
+ * 预算行文案。缺口一律注明「压力口径」——那是跌 15% 之后的保证金，
+ * 与即期缺口差好几倍，不注明会被读成"现在就亏了这么多"。
+ */
+function budgetText(row: AccountRow): string {
+  const card = row.budget;
+  if (!card) {
+    const s = props.board.budget.summary;
+    if (s.verdict === 'skip') return '不判（无保证金持仓）';
+    return s.headroom_total !== null && s.headroom_total < 0
+      ? `合计缺口 ${fmtMoneyShort(-s.headroom_total)}（压力口径）`
+      : '额度为正，但单账户均不足一手';
+  }
+  if (card.verdict === 'skip') return '不判（无保证金持仓）';
+  if (card.lots > 0) return `可开 ${card.lots} 手（卡在 ${bindingLabel(card.binding, card)}）`;
+  if (card.headroom !== null && card.headroom < 0) return `可开 0 手（压力口径缺口 ${fmtMoneyShort(-card.headroom)}）`;
+  return `可开 0 手（额度 ${fmtMoneyShort(card.headroom)} 不足一手）`;
+}
+
+/** 预算行配色：block 红 / over 橙 / ok 绿 / 不判灰 */
+function budgetColor(row: AccountRow): string {
+  const v = row.budget ? row.budget.verdict : props.board.budget.summary.verdict;
+  return levelColor(verdictLevel(v));
 }
 </script>
 
@@ -122,6 +162,10 @@ function handleSelect(row: AccountRow) {
           <span class="acct-value" :style="{ color: levelColor(firstCallLevel(row.firstCall)) }">
             {{ row.idle ? '豁免' : firstCallLabel(row.firstCall) }}
           </span>
+        </div>
+        <div class="acct-line">
+          <span class="acct-label">可开额度</span>
+          <span class="acct-value" :style="{ color: budgetColor(row) }">{{ budgetText(row) }}</span>
         </div>
       </NCard>
     </NGi>

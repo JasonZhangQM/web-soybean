@@ -509,6 +509,86 @@ declare namespace Api {
       margin: number | null;
     }
 
+    /** 单个品种组的额度读数（budget.by_scope） */
+    interface BudgetScope {
+      /** index_fut / gold / opt_short / etf_short / equity / other */
+      scope: string;
+      /** 中文名 */
+      name: string;
+      /** 该组当前保证金占用 */
+      margin: number;
+      /** 占账户净值比例 */
+      pct: number | null;
+      /** 上限；null=未设上限（只报不判） */
+      cap: number | null;
+      /** 额度 = net0 × cap − margin */
+      headroom: number | null;
+      /** 该组当前每手保证金（组内最大） */
+      per_lot: number | null;
+      /** 还能开几手 */
+      lots: number;
+      /** ok / over / unknown */
+      status: string;
+    }
+
+    /** 账户总闸四档读数 */
+    interface BudgetTotal {
+      /** 保证金占用上限（0.85） */
+      cap: number;
+      /** 只留给预设加仓点的一块（0.15） */
+      reserve: number;
+      /** 日常可开比例 = cap − reserve（0.70） */
+      usable: number;
+      /** net0 × usable − margin(0) */
+      gate_now: number;
+      /** 判据：net(+stress) × usable − margin(+stress) */
+      gate_stress: number;
+      /** 含加仓包的极限，仅展示不参与取 min */
+      gate_stress_max: number;
+      /** ok / over / block / skip */
+      status: string;
+    }
+
+    /** 单账户预算卡 */
+    interface BudgetAccount {
+      net0: number;
+      /** 账面净值（acc_aset − diff_br） */
+      book_net: number;
+      /** net0 − 账面净，非 0 时必须提示（BS 重估差） */
+      book_gap: number;
+      margin: number;
+      total: BudgetTotal;
+      by_scope: BudgetScope[];
+      /** 取 min 后的可开额度 */
+      headroom: number | null;
+      /** 取到 min 的约束：品种组名 / total@now / total@stress */
+      binding: string;
+      /** 可开手数 */
+      lots: number;
+      /** 额度>0 且够一手才算能开 */
+      openable: boolean;
+      per_lot_margin: number | null;
+      /** block / over / ok / skip */
+      verdict: string;
+    }
+
+    /** 风险预算块（bills/services/budget.py） */
+    interface Budget {
+      /** 压力档，0.15 = 标的再跌 15% */
+      stress_drop: number;
+      /** 固定 sync */
+      mode: string;
+      accounts: Record<string, BudgetAccount>;
+      /** 合约 → {acct, scope}，加仓点查额度用 */
+      symbols: Record<string, Record<string, string>>;
+      summary: {
+        verdict: string;
+        judged_accounts: number;
+        blocked_accounts: string[];
+        headroom_total: number | null;
+      };
+    }
+
     /** 风险看板完整响应（GET /bills/risk-board） */
     interface RiskBoard {
       /** 引擎版本 */
@@ -543,6 +623,8 @@ declare namespace Api {
       first_call: Record<string, RiskBoardFirstCall | null>;
       /** [mode][account] 追保点 */
       first_call_all: Record<string, Record<string, RiskBoardFirstCall | null>>;
+      /** 风险预算与加仓额度 */
+      budget: Budget;
       /** 情景模式中文名 */
       mode_names: Record<string, string>;
       /** 情景档位（负数=涨幅） */

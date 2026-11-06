@@ -98,3 +98,37 @@ export function marginGroupOf(d: Api.Bills.RiskBoardDetail): string {
   if (d.mtype === 'shex') return '商品期权';
   return '其他';
 }
+
+/** 金额口语化：|v| ≥ 1 万用「万」，否则原值（额度缺口动辄几十万，原值读不动） */
+export function fmtMoneyShort(v: number | null | undefined): string {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+  const n = Number(v);
+  if (Math.abs(n) >= 10000) return `${(n / 10000).toFixed(1)} 万`;
+  return fmtMoney(n);
+}
+
+/** 预算约束的人话名：total@stress → 总闸·压力，品种组 → 中文名 */
+export function bindingLabel(binding: string | null | undefined, acct: Api.Bills.BudgetAccount | null): string {
+  if (!binding) return '-';
+  if (binding === 'total@stress') return '总闸·压力(+15%)';
+  if (binding === 'total@now') return '总闸·即期';
+  const hit = acct?.by_scope.find(s => s.scope === binding);
+  return hit ? `${hit.name}额度` : binding;
+}
+
+/** 预算判定等级：block 红 / over 橙 / ok 绿 / skip 灰 */
+export function verdictLevel(verdict: string | null | undefined): RiskLevel {
+  if (verdict === 'block') return 'danger';
+  if (verdict === 'over') return 'hot';
+  if (verdict === 'ok') return 'ok';
+  return 'none';
+}
+
+/** 预算判定人话 */
+export function verdictLabel(verdict: string | null | undefined, lots: number): string {
+  if (verdict === 'skip') return '不判（无保证金持仓）';
+  if (verdict === 'block') return '禁开新仓';
+  if (lots > 0) return `可开 ${lots} 手`;
+  if (verdict === 'over') return '禁开（品种组超限，可减不可加）';
+  return '禁开（额度不足一手）';
+}
