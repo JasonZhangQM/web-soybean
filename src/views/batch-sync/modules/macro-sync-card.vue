@@ -10,11 +10,11 @@ const message = useMessage();
 // ===================== 段定义 =====================
 
 /** 九个同步段；其中交易明细导入是 bills 模块的独立后台任务（scope='bills_import'），
- *  其余八段由后端固定为 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold */
+ *  其余八段由后端固定为 trade_date → symbol_info → history_market → option_info → option_market → wscn → daily → gold */
 type StageKey =
   | 'trade_date'
   | 'symbol_info'
-  | 'index_history'
+  | 'history_market'
   | 'option_info'
   | 'option_market'
   | 'bills_import'
@@ -34,7 +34,7 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
     options: [
       { label: '交易日历', value: 'trade_date' },
       { label: '证券信息', value: 'symbol_info' },
-      { label: '指数行情', value: 'index_history' },
+      { label: '历史行情', value: 'history_market' },
       // 🔴 必须排在「期权行情」之前：行情同步要从字典取逐合约乘数与权威到期日，
       // 当天新挂牌的合约若还没进字典就会被跳过（后端也固定这个顺序）
       { label: '期权合约字典', value: 'option_info' },
@@ -60,7 +60,7 @@ const STAGE_OPTIONS: StageOption[] = STAGE_GROUPS.flatMap(g => g.options);
 const STAGE_LINKS: Record<StageKey, string> = {
   trade_date: '/bds/trade-dates',
   symbol_info: '/bds/symbol-infos',
-  index_history: '/bds/market-data/index-histories',
+  history_market: '/bds/market-data/history-markets',
   option_info: '/bds/option-info',
   option_market: '/bds/market-data/option-market',
   bills_import: '/bills/bills',
@@ -79,7 +79,7 @@ const STAGE_LINKS: Record<StageKey, string> = {
  * - 不勾「交易明细导入」：12 步重度流水线（读账单 Excel + 抓实时市值），只在有新账单
  *   入库后按需勾选，避免每日一键同步都白跑一遍全量重算
  */
-const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'index_history', 'option_info', 'option_market', 'wscn', 'daily'];
+const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'history_market', 'option_info', 'option_market', 'wscn', 'daily'];
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 

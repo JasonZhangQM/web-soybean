@@ -246,7 +246,7 @@ const local: App.I18n.Schema = {
     'bds_fund-data_fund-cashflows': 'Cash Flow Statement',
     'bds_fund-data_finance-derivs': 'Finance Derivs',
     'bds_market-data': 'Market Data',
-    'bds_market-data_index-histories': 'Index Quote',
+    'bds_market-data_history-markets': 'History Market',
     'bds_market-data_daily-valuations': 'Daily Valuations',
     'bds_market-data_daily-mktvalues': 'Daily Market Value',
     'bds_option-info': 'Option Contracts',

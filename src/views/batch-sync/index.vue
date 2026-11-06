@@ -47,11 +47,11 @@ const TABLE_OPTIONS = [
   { label: '每日估值', value: 'daily-valuation' },
   { label: '每日市值', value: 'daily-mktvalue' },
   // 历史行情（个股后复权 / 指数不复权）：长周期回填，默认不勾，且「全选」不含它
-  { label: '历史行情', value: 'history' }
+  { label: '历史行情', value: 'history_market' }
 ];
 
 /** 默认不勾选、也不被「全选」选中的表 */
-const DEFAULT_UNCHECKED_TABLES = ['history'];
+const DEFAULT_UNCHECKED_TABLES = ['history_market'];
 
 /** 同步表 → 数据查看页链接（checkbox 文字后的 ↗，点击跳转不触发勾选） */
 const TABLE_LINKS: Record<string, string> = {
@@ -61,7 +61,7 @@ const TABLE_LINKS: Record<string, string> = {
   'finance-deriv': '/bds/fund-data/finance-derivs',
   'daily-valuation': '/bds/market-data/daily-valuations',
   'daily-mktvalue': '/bds/market-data/daily-mktvalues',
-  history: '/bds/market-data/index-histories'
+  history_market: '/bds/market-data/history-markets'
 };
 
 const scopeOptions = [
@@ -279,7 +279,7 @@ async function handleStart() {
   }
 
   // 历史行情是长周期回填（个股首次全量数千行/只），启动前二次确认
-  if (form.tables.includes('history')) {
+  if (form.tables.includes('history_market')) {
     const confirmed = await new Promise<boolean>(resolve => {
       dialog.warning({
         title: '确认同步历史行情？',

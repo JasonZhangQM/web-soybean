@@ -242,7 +242,7 @@ const local: App.I18n.Schema = {
     'bds_fund-data_fund-cashflows': '现金流量表',
     'bds_fund-data_finance-derivs': '财务指标',
     'bds_market-data': '行情数据',
-    'bds_market-data_index-histories': '指数行情',
+    'bds_market-data_history-markets': '历史行情',
     'bds_market-data_daily-valuations': '估值指标',
     'bds_market-data_daily-mktvalues': '每日市值',
     'bds_option-info': '期权合约',

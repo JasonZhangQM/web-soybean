@@ -89,7 +89,7 @@ export function syncSymbolInfo() {
 }
 
 /** 历史行情查询参数（个股 + 指数） */
-interface IndexHistoryQueryParams {
+interface HistoryMarketQueryParams {
   /** 代码（精确匹配） */
   symbol?: string;
   /** 代码 / 名称模糊搜索（远程搜索用） */
@@ -105,18 +105,18 @@ interface IndexHistoryQueryParams {
 }
 
 /** 查询历史行情列表（个股 + 指数） */
-export function fetchIndexHistories(params?: IndexHistoryQueryParams) {
-  return request<Api.Common.PageResponse<Api.Bds.IndexHistory>>({
-    url: '/api/v1/bds/index-histories',
+export function fetchHistoryMarkets(params?: HistoryMarketQueryParams) {
+  return request<Api.Common.PageResponse<Api.Bds.HistoryMarket>>({
+    url: '/api/v1/bds/history-markets',
     method: 'get',
     params
   });
 }
 
 /** 同步指数历史行情 */
-export function syncIndexHistory() {
+export function syncHistoryMarketIndex() {
   return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/index-history',
+    url: '/api/v1/bds/sync/history-market-index',
     method: 'post'
   });
 }
@@ -417,21 +417,21 @@ export interface MacroSyncRequest {
    * 要同步的段（可只选部分）
    * - trade_date: 交易日历（仅在跨年时才真写库）
    * - symbol_info: 证券信息（东财 Excel + gm 两条通道）
-   * - index_history: 指数行情（按 Config.INDEX_CODE 逐指数增量）
+   * - history_market: 历史行情（按 Config.INDEX_CODE 逐指数增量）
    * - option_info: 期权合约字典（openctp 全量刷新 25,910 行，累积不删）
    * - option_market: 期权行情（按「品种 × 到期月」逐组，范围由「期权同步清单」决定）
    * - wscn: 经济指标（华尔街见闻）
    * - daily: 美债收益率（FRED，含 2 项信用利差）
    * - gold: 黄金储备（IMF）
    *
-   * 后端**固定按 trade_date → symbol_info → index_history → option_info → option_market → wscn → daily → gold 顺序执行**，
-   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + index_history + option_info + option_market + wscn + daily）
+   * 后端**固定按 trade_date → symbol_info → history_market → option_info → option_market → wscn → daily → gold 顺序执行**，
+   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + history_market + option_info + option_market + wscn + daily）
    *
    * 🔴 option_info 必须排在 option_market **之前**：行情同步要从字典取逐合约乘数与权威
    * 到期日，当天新挂牌的合约若还没进字典就会被跳过。
    */
   stages?: Array<
-    'trade_date' | 'symbol_info' | 'index_history' | 'option_info' | 'option_market' | 'wscn' | 'daily' | 'gold'
+    'trade_date' | 'symbol_info' | 'history_market' | 'option_info' | 'option_market' | 'wscn' | 'daily' | 'gold'
   >;
 }
 

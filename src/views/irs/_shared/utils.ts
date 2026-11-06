@@ -113,15 +113,15 @@ export function getSeries(
  */
 export function alignByDate(
   macroDates: string[],
-  stockIndex: Api.Bds.IndexHistory[]
-): Array<{ date: string; stock: Api.Bds.IndexHistory | null }> {
+  stockIndex: Api.Bds.HistoryMarket[]
+): Array<{ date: string; stock: Api.Bds.HistoryMarket | null }> {
   if (!stockIndex.length) return macroDates.map(date => ({ date, stock: null }));
   const sortedStock = [...stockIndex].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
   return macroDates.map(date => {
     // 二分查找：找 trade_date <= date 的最近一条
     let lo = 0;
     let hi = sortedStock.length - 1;
-    let result: Api.Bds.IndexHistory | null = null;
+    let result: Api.Bds.HistoryMarket | null = null;
     while (lo <= hi) {
       const mid = (lo + hi) >> 1;
       if (sortedStock[mid].trade_date <= date) {

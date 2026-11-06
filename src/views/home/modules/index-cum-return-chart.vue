@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useAppStore } from '@/store/modules/app';
 import { useThemeStore } from '@/store/modules/theme';
 import { useEcharts } from '@/hooks/common/echarts';
-import { fetchIndexCumReturns, syncIndexHistory } from '@/service/api';
+import { fetchIndexCumReturns, syncHistoryMarketIndex } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 
@@ -279,9 +279,9 @@ async function initData() {
 // 同步专用 loading：控制同步图标旋转动画
 const syncLoading = ref(false);
 
-// 触发指数历史行情同步（与 bds/market-data/index-histories 页面同步按钮调用相同接口）
+// 触发指数历史行情同步（与 bds/market-data/history-markets 页面同步按钮调用相同接口）
 async function handleSync() {
-  await executeSync(syncIndexHistory, syncLoading, initData);
+  await executeSync(syncHistoryMarketIndex, syncLoading, initData);
 }
 
 // 语言切换时刷新

@@ -5,7 +5,7 @@ interface SyncResultData {
   status?: string;
   message?: string;
   steps?: Array<{ step: string; result: unknown }>;
-  /** 成功更新的记录/代码数量（bds index-history 同步时返回） */
+  /** 成功更新的记录/代码数量（bds history-market-index 同步时返回） */
   updated_count?: number;
 }
 
@@ -69,7 +69,7 @@ export async function executeSync<T extends SyncResultData>(
 /**
  * 构建同步消息文本（不限成功场景）：
  * - bills 接口返回 steps 数组：拼接为「步骤名:结果」分号连接
- * - bds index-history 接口返回 updated_count：展示更新的指数数量
+ * - bds history-market-index 接口返回 updated_count：展示更新的指数数量
  * - bds/irs 接口返回 message 字符串：直接追加
  * - 都没有：仅返回「同步成功」
  */

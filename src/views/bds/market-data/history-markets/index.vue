@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchIndexHistories, fetchSymbolInfos } from '@/service/api';
+import { fetchHistoryMarkets, fetchSymbolInfos } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 
-defineOptions({ name: 'IndexHistoriesPage' });
+defineOptions({ name: 'HistoryMarketsPage' });
 
 const loading = ref(false);
-const tableData = ref<Api.Bds.IndexHistory[]>([]);
+const tableData = ref<Api.Bds.HistoryMarket[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
@@ -65,7 +65,7 @@ async function ensureSelectedSymbolOption() {
 async function fetchData() {
   loading.value = true;
   try {
-    const { data, error } = await fetchIndexHistories({
+    const { data, error } = await fetchHistoryMarkets({
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       sec_type: searchParams.sec_type || undefined,
@@ -115,7 +115,7 @@ function fmtNum(val: unknown) {
 }
 
 // 类型标签：存量行 sec_type 为空，由后端统一返回 index
-function typeLabel(row: Api.Bds.IndexHistory) {
+function typeLabel(row: Api.Bds.HistoryMarket) {
   return row.sec_type === 'stock' ? '个股' : '指数';
 }
 
@@ -126,7 +126,7 @@ const columns = [
     title: '类型',
     key: 'sec_type',
     width: 90,
-    render: (row: Api.Bds.IndexHistory) => typeLabel(row)
+    render: (row: Api.Bds.HistoryMarket) => typeLabel(row)
   },
   { title: '交易日期', key: 'trade_date', width: 120 },
   {
@@ -134,49 +134,49 @@ const columns = [
     key: 'open',
     width: 120,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.open)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.open)
   },
   {
     title: '最高价',
     key: 'high',
     width: 120,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.high)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.high)
   },
   {
     title: '最低价',
     key: 'low',
     width: 120,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.low)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.low)
   },
   {
     title: '收盘价',
     key: 'close',
     width: 120,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.close)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.close)
   },
   {
     title: '成交额',
     key: 'amount',
     width: 140,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.amount)
   },
   {
     title: '成交量',
     key: 'volume',
     width: 140,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.volume)
   },
   {
     title: '持仓量',
     key: 'position',
     width: 140,
     align: 'right' as const,
-    render: (row: Api.Bds.IndexHistory) => fmtNum(row.position)
+    render: (row: Api.Bds.HistoryMarket) => fmtNum(row.position)
   }
 ];
 

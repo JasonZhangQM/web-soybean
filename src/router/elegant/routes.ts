@@ -215,12 +215,12 @@ export const generatedRoutes = [
             }
           },
           {
-            name: 'bds_market-data_index-histories',
-            path: '/bds/market-data/index-histories',
-            component: 'view.bds_market-data_index-histories',
+            name: 'bds_market-data_history-markets',
+            path: '/bds/market-data/history-markets',
+            component: 'view.bds_market-data_history-markets',
             meta: {
-              title: 'bds_market-data_index-histories',
-              i18nKey: 'route.bds_market-data_index-histories',
+              title: 'bds_market-data_history-markets',
+              i18nKey: 'route.bds_market-data_history-markets',
               constant: true
             }
           },

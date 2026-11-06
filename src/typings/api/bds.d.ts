@@ -72,8 +72,8 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 历史行情（个股 + 指数，共用 bds_index_history） */
-    interface IndexHistory {
+    /** 历史行情（个股 + 指数，共用 bds_history_market） */
+    interface HistoryMarket {
       /** 主键 */
       id: number;
       /** 代码 */
@@ -188,7 +188,7 @@ declare namespace Api {
       status: string;
       /** 同步消息 */
       message: string;
-      /** 成功更新的指数代码数量（index-history 同步时返回） */
+      /** 成功更新的指数代码数量（history-market-index 同步时返回） */
       updated_count?: number;
       /** 分步执行结果（symbol-info 串行同步时返回），前端拼成「步骤名:更新N条」 */
       steps?: Array<{ step: string; result: unknown }>;
@@ -860,7 +860,7 @@ declare namespace Api {
       sec_name: string | null;
       /** 交易日期（YYYY-MM-DD） */
       trade_date: string;
-      /** 指数收盘价（来自 bds_index_history） */
+      /** 指数收盘价（来自 bds_history_market） */
       close: number | null;
       /** 整体法 PE_TTM（亏损计入，主口径） */
       pe_ttm: number | null;
