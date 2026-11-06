@@ -129,13 +129,55 @@ const columns = [
     render: (row: Api.Bds.IndexHistory) => typeLabel(row)
   },
   { title: '交易日期', key: 'trade_date', width: 120 },
-  { title: '开盘价', key: 'open', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.open) },
-  { title: '最高价', key: 'high', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.high) },
-  { title: '最低价', key: 'low', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.low) },
-  { title: '收盘价', key: 'close', width: 120, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.close) },
-  { title: '成交额', key: 'amount', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount) },
-  { title: '成交量', key: 'volume', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume) },
-  { title: '持仓量', key: 'position', width: 140, align: 'right' as const, render: (row: Api.Bds.IndexHistory) => fmtNum(row.position) }
+  {
+    title: '开盘价',
+    key: 'open',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.open)
+  },
+  {
+    title: '最高价',
+    key: 'high',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.high)
+  },
+  {
+    title: '最低价',
+    key: 'low',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.low)
+  },
+  {
+    title: '收盘价',
+    key: 'close',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.close)
+  },
+  {
+    title: '成交额',
+    key: 'amount',
+    width: 140,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.amount)
+  },
+  {
+    title: '成交量',
+    key: 'volume',
+    width: 140,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.volume)
+  },
+  {
+    title: '持仓量',
+    key: 'position',
+    width: 140,
+    align: 'right' as const,
+    render: (row: Api.Bds.IndexHistory) => fmtNum(row.position)
+  }
 ];
 
 onMounted(async () => {

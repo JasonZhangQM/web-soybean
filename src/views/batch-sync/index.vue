@@ -85,9 +85,7 @@ const TRADING_STATUS_OPTIONS = [
 ];
 
 /** 除「历史行情」外的全部表 = 默认勾选 / 全选集合 */
-const DEFAULT_TABLES = TABLE_OPTIONS
-  .map(o => o.value)
-  .filter(t => !DEFAULT_UNCHECKED_TABLES.includes(t));
+const DEFAULT_TABLES = TABLE_OPTIONS.map(o => o.value).filter(t => !DEFAULT_UNCHECKED_TABLES.includes(t));
 
 /** 解析同步表记忆值：无记忆→除历史行情外全选；用户主动清空→沿用空；全部失效→回落默认 */
 function resolveTables(stored: string[] | undefined) {
@@ -215,8 +213,7 @@ async function handleValidateTargets() {
     const detail = data.invalid.map(it => `${it.symbol}${it.name ? ` ${it.name}` : ''}：${it.reason}`);
     dialog.warning({
       title: `${data.valid.length} 只可用 / ${data.invalid.length} 只不可用${dup}`,
-      content: () =>
-        h('div', { style: 'max-height: 320px; overflow: auto; white-space: pre-line' }, detail.join('\n')),
+      content: () => h('div', { style: 'max-height: 320px; overflow: auto; white-space: pre-line' }, detail.join('\n')),
       positiveText: '知道了'
     });
   } finally {
@@ -1047,9 +1044,7 @@ onBeforeUnmount(() => {
         </NFormItem>
         <!-- 监测标的：清单由前端从 irs.underlying-monitors 拉取后随 symbols 提交 -->
         <NFormItem v-if="form.scope === 'watch'" label="监测标的" label-width="70px">
-          <span style="font-size: 13px; color: #666; margin-right: 8px">
-            共 {{ watchSymbols.length }} 只
-          </span>
+          <span style="font-size: 13px; color: #666; margin-right: 8px">共 {{ watchSymbols.length }} 只</span>
           <NButton size="tiny" secondary :loading="watchLoading" :disabled="isRunning" @click="loadWatchSymbols">
             刷新
           </NButton>
