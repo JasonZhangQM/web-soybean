@@ -8,7 +8,7 @@ defineOptions({ name: 'ScenarioTable' });
 
 const props = defineProps<{
   /** 看板数据 */
-  board: Api.Bills.RiskBoard;
+  board: Api.Irs.RiskBoard;
   /** 情景模式 */
   mode: string;
   /** 当前账户：ALL 或具体账户 */

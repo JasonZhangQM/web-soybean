@@ -17,7 +17,7 @@ defineOptions({ name: 'AccountRiskCards' });
 
 const props = defineProps<{
   /** 看板数据 */
-  board: Api.Bills.RiskBoard;
+  board: Api.Irs.RiskBoard;
   /** 当前账户：ALL 或具体账户 */
   account: string;
 }>();
@@ -28,7 +28,7 @@ interface AccountRow {
   /** 账户名；ALL 表示组合 */
   account: string;
   /** 账户卡；组合行为 null */
-  card: Api.Bills.RiskBoardAccount | null;
+  card: Api.Irs.RiskBoardAccount | null;
   net: number;
   fin: number;
   eq: number;
@@ -36,11 +36,11 @@ interface AccountRow {
   real: number | null;
   exch: number | null;
   /** 该账户首个追保点 */
-  firstCall: Api.Bills.RiskBoardFirstCall | null;
+  firstCall: Api.Irs.RiskBoardFirstCall | null;
   /** 空账户：无净值且无保证金，后端豁免追保判定 */
   idle: boolean;
   /** 预算卡；组合行为 null */
-  budget: Api.Bills.BudgetAccount | null;
+  budget: Api.Irs.BudgetAccount | null;
 }
 
 /** 组合行在前，其余按账户名排序 */

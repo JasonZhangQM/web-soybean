@@ -32,7 +32,7 @@ export function scenarioLabel(drop: number): string {
 }
 
 /** 追保点标签：下跌 4.35% / 上涨 12.00% / 当前已追保 */
-export function firstCallLabel(fc: Api.Bills.RiskBoardFirstCall | null | undefined): string {
+export function firstCallLabel(fc: Api.Irs.RiskBoardFirstCall | null | undefined): string {
   if (!fc) return '不触发';
   if (fc.direction === 'now') return '当前已追保';
   const pct = Math.abs(fc.drop * 100).toFixed(2);
@@ -62,7 +62,7 @@ export function realOverLine(real: number | null | undefined): boolean {
 }
 
 /** 首个追保跌幅分档：<5% 红 / 5~10% 橙 / ≥10% 绿；已追保直接红 */
-export function firstCallLevel(fc: Api.Bills.RiskBoardFirstCall | null | undefined): RiskLevel {
+export function firstCallLevel(fc: Api.Irs.RiskBoardFirstCall | null | undefined): RiskLevel {
   if (!fc) return 'ok';
   if (fc.direction === 'now') return 'danger';
   const abs = Math.abs(fc.drop);
@@ -90,7 +90,7 @@ export function staleLabel(staleDays: number, dataAsOf: string | null): string {
 }
 
 /** 保证金结构图分组：期货 / 股指期权 / ETF期权 / 商品期权 / 其他 */
-export function marginGroupOf(d: Api.Bills.RiskBoardDetail): string {
+export function marginGroupOf(d: Api.Irs.RiskBoardDetail): string {
   if (d.kind === 'fut') return '期货';
   if (d.kind === 'sec') return '其他';
   if (d.mtype === 'cffex') return '股指期权';
@@ -108,7 +108,7 @@ export function fmtMoneyShort(v: number | null | undefined): string {
 }
 
 /** 预算约束的人话名：total@stress → 总闸·压力，品种组 → 中文名 */
-export function bindingLabel(binding: string | null | undefined, acct: Api.Bills.BudgetAccount | null): string {
+export function bindingLabel(binding: string | null | undefined, acct: Api.Irs.BudgetAccount | null): string {
   if (!binding) return '-';
   if (binding === 'total@stress') return '总闸·压力(+15%)';
   if (binding === 'total@now') return '总闸·即期';

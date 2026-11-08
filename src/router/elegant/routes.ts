@@ -342,16 +342,6 @@ export const generatedRoutes = [
           i18nKey: 'route.bills_profits',
           constant: true
         }
-      },
-      {
-        name: 'bills_risk-board',
-        path: '/bills/risk-board',
-        component: 'view.bills_risk-board',
-        meta: {
-          title: 'bills_risk-board',
-          i18nKey: 'route.bills_risk-board',
-          constant: true
-        }
       }
     ]
   },
@@ -399,7 +389,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_discounts-monitor',
           i18nKey: 'route.irs_discounts-monitor',
-          order: 4,
+          order: 5,
           constant: true
         }
       },
@@ -410,7 +400,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_macro-framework',
           i18nKey: 'route.irs_macro-framework',
-          order: 6,
+          order: 7,
           constant: true
         }
       },
@@ -421,7 +411,18 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_option-quote',
           i18nKey: 'route.irs_option-quote',
-          order: 5,
+          order: 6,
+          constant: true
+        }
+      },
+      {
+        name: 'irs_risk-board',
+        path: '/irs/risk-board',
+        component: 'view.irs_risk-board',
+        meta: {
+          title: 'irs_risk-board',
+          i18nKey: 'route.irs_risk-board',
+          order: 3,
           constant: true
         }
       },
@@ -443,7 +444,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_us-economic-dashboard',
           i18nKey: 'route.irs_us-economic-dashboard',
-          order: 7,
+          order: 8,
           constant: true
         }
       },
@@ -454,7 +455,7 @@ export const generatedRoutes = [
         meta: {
           title: 'irs_valuation-percent',
           i18nKey: 'route.irs_valuation-percent',
-          order: 3,
+          order: 4,
           constant: true
         }
       }

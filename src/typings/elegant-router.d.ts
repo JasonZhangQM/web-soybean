@@ -49,13 +49,13 @@ declare module "@elegant-router/types" {
     "bills_group-symbols": "/bills/group-symbols";
     "bills_profit-years": "/bills/profit-years";
     "bills_profits": "/bills/profits";
-    "bills_risk-board": "/bills/risk-board";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "irs": "/irs";
     "irs_discounts-monitor": "/irs/discounts-monitor";
     "irs_macro-framework": "/irs/macro-framework";
     "irs_option-quote": "/irs/option-quote";
+    "irs_risk-board": "/irs/risk-board";
     "irs_underlying-monitors": "/irs/underlying-monitors";
     "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
     "irs_valuation-percent": "/irs/valuation-percent";
@@ -148,11 +148,11 @@ declare module "@elegant-router/types" {
     | "bills_group"
     | "bills_profit-years"
     | "bills_profits"
-    | "bills_risk-board"
     | "home"
     | "irs_discounts-monitor"
     | "irs_macro-framework"
     | "irs_option-quote"
+    | "irs_risk-board"
     | "irs_underlying-monitors"
     | "irs_us-economic-dashboard"
     | "irs_valuation-percent"

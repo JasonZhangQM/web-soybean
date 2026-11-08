@@ -388,7 +388,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-if="budgetTag" size="small" :bordered="false" :type="budgetTag.type">{{ budgetTag.text }}</NTag>
       <span class="text-12px text-gray-400">{{ umBudget?.note || '计算中…' }}</span>
       <span v-if="umBudget?.as_of" class="text-12px text-gray-400">行情 {{ umBudget.as_of }}</span>
-      <NButton size="tiny" text class="ml-auto" @click="router.push({ name: 'bills_risk-board' })">去风险看板</NButton>
+      <NButton size="tiny" text class="ml-auto" @click="router.push({ name: 'irs_risk-board' })">去风险看板</NButton>
     </div>
 
     <NDivider />

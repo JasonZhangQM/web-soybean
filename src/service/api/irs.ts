@@ -696,7 +696,7 @@ export interface UmBudget {
 }
 
 /**
- * 标的是否还有加仓额度。额度唯一实现在后端（bills/services/budget.py），
+ * 标的是否还有加仓额度。额度唯一实现在后端（irs/service/budget.py），
  * 前端**不得**自己拼装——两次请求跨时点就是 10-23 那个错误的微缩版。
  */
 export function fetchUmBudget(symbol: string, account?: string) {
@@ -704,5 +704,41 @@ export function fetchUmBudget(symbol: string, account?: string) {
     url: '/api/v1/irs/um-budget',
     method: 'get',
     params: { symbol, account: account || undefined }
+  });
+}
+
+// ---------------------------------------------------------------- 风险看板
+// 2026-11-08 自 service/api/bills.ts 整体迁入
+
+/** 风险看板查询参数 */
+export interface RiskBoardQueryParams {
+  /** 时点口径：now=即期 / expiry=到期 */
+  horizon?: 'now' | 'expiry';
+  /** IV 冲击倍数 */
+  iv_mult?: number;
+  /** 是否返回逐仓情景明细（保证金结构图用） */
+  detail?: boolean;
+}
+
+/**
+ * 风险看板实时计算（GET /irs/risk-board，只读）
+ *
+ * 组合风险快照。409 = 数据阻断态（行情过期/混日），error 里有 detail。
+ * 传 silent: true 不弹全局 toast——页面用内联阻断态展示（today 页用），风险看板页保持默认 toast。
+ */
+export function fetchRiskBoard(params?: RiskBoardQueryParams, opts?: { silent?: boolean }) {
+  return request<Api.Irs.RiskBoard>({
+    url: '/api/v1/irs/risk-board',
+    method: 'get',
+    params,
+    silent: opts?.silent
+  });
+}
+
+/** 风险看板日终重算并落库（POST /irs/run/risk-board） */
+export function runRiskBoard() {
+  return request<Api.Irs.RiskBoardRunResult>({
+    url: '/api/v1/irs/run/risk-board',
+    method: 'post'
   });
 }

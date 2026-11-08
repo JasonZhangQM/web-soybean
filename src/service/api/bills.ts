@@ -409,34 +409,5 @@ export function updateGroup(id: number, params: GroupUpdateParams) {
   });
 }
 
-/** 风险看板查询参数 */
-export interface RiskBoardQueryParams {
-  /** 时点口径：now=即期 / expiry=到期 */
-  horizon?: 'now' | 'expiry';
-  /** IV 冲击倍数 */
-  iv_mult?: number;
-  /** 是否返回逐仓情景明细（保证金结构图用） */
-  detail?: boolean;
-}
-
-/** 风险看板实时计算（GET /bills/risk-board，只读） */
-/**
- * 组合风险快照。409 = 数据阻断态（行情过期/混日），error 里有 detail。
- * 传 silent: true 不弹全局 toast——页面用内联阻断态展示（today 页用），风险看板页保持默认 toast。
- */
-export function fetchRiskBoard(params?: RiskBoardQueryParams, opts?: { silent?: boolean }) {
-  return request<Api.Bills.RiskBoard>({
-    url: '/api/v1/bills/risk-board',
-    method: 'get',
-    params,
-    silent: opts?.silent
-  });
-}
-
-/** 风险看板日终重算并落库（POST /bills/run/risk-board） */
-export function runRiskBoard() {
-  return request<Api.Bills.RiskBoardRunResult>({
-    url: '/api/v1/bills/run/risk-board',
-    method: 'post'
-  });
-}
+// 风险看板 API（fetchRiskBoard / runRiskBoard / RiskBoardQueryParams）
+// 已于 2026-11-08 整体迁至 service/api/irs.ts

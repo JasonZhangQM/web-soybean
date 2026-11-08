@@ -20,7 +20,7 @@ defineOptions({ name: 'RiskKpiCards' });
 
 const props = defineProps<{
   /** 看板数据 */
-  board: Api.Bills.RiskBoard;
+  board: Api.Irs.RiskBoard;
   /** 当前账户：ALL 或具体账户 */
   account: string;
 }>();

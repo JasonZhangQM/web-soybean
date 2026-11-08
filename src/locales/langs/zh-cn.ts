@@ -257,7 +257,7 @@ const local: App.I18n.Schema = {
     'bills_group-accs': '账户汇总',
     'bills_group-symbols': '标的汇总',
     'bills_profit-years': '年度收益',
-    'bills_risk-board': '风险看板',
+    'irs_risk-board': '风险看板',
     'irs_discounts-monitor': '贴水监测',
     'irs_valuation-percent': '估值分位',
     'irs_underlying-monitors': '标的监测',

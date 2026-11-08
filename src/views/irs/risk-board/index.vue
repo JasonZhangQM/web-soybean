@@ -17,7 +17,7 @@ const router = useRouter();
 const loading = ref(false);
 const runLoading = ref(false);
 /** 看板数据；409 等业务错误时置空 */
-const board = ref<Api.Bills.RiskBoard | null>(null);
+const board = ref<Api.Irs.RiskBoard | null>(null);
 /** 阻断/失败原因（后端 detail 原样透出） */
 const blockMsg = ref('');
 

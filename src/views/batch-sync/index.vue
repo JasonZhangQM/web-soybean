@@ -400,8 +400,8 @@ const NON_BATCH_SCOPES = [
   // 最新估值分位截面（同上；/today 与标的监测页的数据源）
   'um_pct_latest',
   // 风险情景网格落库（/bills/sync/group 末段自动触发，无人手动轮询；但它会成为「最新任务」，
-  // 不排除就会被卡片 1 抢走并误填表单）
-  'bills_risk'
+  // 不排除就会被卡片 1 抢走并误填表单；风险看板已迁至 irs，scope 同步改名）
+  'irs_risk'
 ];
 
 async function loadBatchTask(id?: number) {

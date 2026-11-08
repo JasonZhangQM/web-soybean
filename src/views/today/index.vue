@@ -40,7 +40,7 @@ async function load() {
 onMounted(load);
 
 // ---------------- P3-1 组合风险快照 ----------------
-const riskBoard = ref<Api.Bills.RiskBoard | null>(null);
+const riskBoard = ref<Api.Irs.RiskBoard | null>(null);
 const riskLoading = ref(false);
 /** 阻断态原因（后端 detail 原样透出，如「在仓期权的行情日期不一致…」） */
 const riskBlockMsg = ref('');
