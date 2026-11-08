@@ -13,6 +13,7 @@ import { ref, computed, watch } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { fetchUnderlyingMonitorDetail, type UnderlyingMonitorDetail } from '@/service/api';
 import OverviewTab from './OverviewTab.vue';
+import MarketStatsTab from './MarketStatsTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
 import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
@@ -146,6 +147,10 @@ function goTab(name: string) {
           <!-- 概览：首屏直接渲染，跟 detail 接口一起秒开 -->
           <NTabPane name="overview" tab="概览" display-directive="show">
             <OverviewTab :detail="detail" @goto="goTab" />
+          </NTabPane>
+          <!-- 估值与走势（2026-11-08）：懒加载，一次拉分位/估值/收益/回撤；关联键用 symbol -->
+          <NTabPane name="market" tab="估值与走势" display-directive="show:lazy">
+            <MarketStatsTab :symbol="detail.um.symbol" />
           </NTabPane>
           <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
           <NTabPane name="research" tab="研究" display-directive="show:lazy">

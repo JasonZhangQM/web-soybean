@@ -858,3 +858,25 @@ export function runRiskBoard() {
     method: 'post'
   });
 }
+
+// ------------------------------------------------ 标的监测抽屉「估值与走势」
+// 2026-11-08：懒加载，一次返回估值分位 / 估值序列 / 累计收益率 / 回撤四块。
+// 关联键用 symbol（主表 id 会漂移）；口径全在后端算，前端只渲染。
+
+export interface UmMarketStatsQuery {
+  /** 标的代码（= irs_underlying_monitor.symbol） */
+  symbol: string;
+  /** 1y / 3y / 5y / 10y / ytd / all，默认 5y */
+  range?: string;
+  /** pe_ttm / pb_mrq / ps_ttm / dy_ttm，默认 pe_ttm */
+  metric?: string;
+}
+
+/** 标的估值与走势聚合数据（GET /irs/um-market-stats） */
+export function fetchUmMarketStats(params: UmMarketStatsQuery) {
+  return request<Api.Irs.UmMarketStats>({
+    url: '/api/v1/irs/um-market-stats',
+    method: 'get',
+    params
+  });
+}

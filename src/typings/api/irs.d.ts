@@ -626,5 +626,103 @@ declare namespace Api {
       /** 数据降级/兜底提示 */
       warnings: string[];
     }
+
+    // ============ 标的监测抽屉「估值与走势」Tab（2026-11-08） ============
+    /** 单指标 3/5/10 年分位（日历对日口径，来自 irs_um_percentile） */
+    interface UmMarketPctTriple {
+      '3y': number | null;
+      '5y': number | null;
+      '10y': number | null;
+    }
+
+    /** 最新估值分位截面整行：只做展示，前端不重算分位 */
+    interface UmMarketPercentile {
+      symbol: string;
+      /** index / stock */
+      subject_type: string;
+      as_of: string | null;
+      source_as_of: string | null;
+      calc_at: string | null;
+      first_date: string | null;
+      raw_n: number | null;
+      status_note: string | null;
+      /** 4 指标当前值 */
+      current: Record<string, number | null>;
+      /** 4 指标 × 3 窗口分位 */
+      pct: Record<string, UmMarketPctTriple>;
+      /** ok / loss / no_data */
+      status: Record<string, string>;
+    }
+
+    /** 估值原始值序列（不是分位序列） */
+    interface UmMarketValuation {
+      dates: string[];
+      values: (number | null)[];
+      as_of: string | null;
+      current: number | null;
+    }
+
+    /** 区间收益/回撤摘要，数值与日期全部后端算好 */
+    interface UmMarketPerformanceSummary {
+      start_date: string | null;
+      end_date: string | null;
+      cum_return: number | null;
+      current_drawdown: number | null;
+      max_drawdown: number | null;
+      max_dd_peak_date: string | null;
+      max_dd_trough_date: string | null;
+      max_dd_peak_value: number | null;
+      max_dd_trough_value: number | null;
+      recovered: boolean;
+      recover_date: string | null;
+    }
+
+    interface UmMarketPerformance {
+      dates: string[];
+      cum_return: (number | null)[];
+      drawdown: (number | null)[];
+      summary: UmMarketPerformanceSummary;
+      /** post=个股后复权 / none=指数不复权 */
+      adjust: string;
+      first_close: number;
+      last_close: number;
+    }
+
+    /** 无估值/行情标的的降级展示（主表行情字段） */
+    interface UmMarketFallback {
+      price: number | null;
+      py_close: number | null;
+      y_high: number | null;
+      y_low: number | null;
+      ytd_return_pct: number | null;
+      to_high_pct: number | null;
+      to_low_pct: number | null;
+    }
+
+    interface UmMarketFreshness {
+      latest_trade_date: string | null;
+      percentile_as_of: string | null;
+      percentile_source_as_of: string | null;
+      valuation_as_of: string | null;
+      price_as_of: string | null;
+      stale_days: number | null;
+    }
+
+    /** GET /irs/um-market-stats 响应：四块数据一次返回 */
+    interface UmMarketStats {
+      symbol: string;
+      subject_type: string | null;
+      range: string;
+      metric: string;
+      metric_label: string;
+      coverage: { percentile: boolean; valuation: boolean; price: boolean };
+      percentile: UmMarketPercentile | null;
+      valuation: UmMarketValuation | null;
+      performance: UmMarketPerformance | null;
+      fallback: UmMarketFallback | null;
+      freshness: UmMarketFreshness;
+      /** 无数据 / 部分缺失时的人话说明 */
+      message: string | null;
+    }
   }
 }
