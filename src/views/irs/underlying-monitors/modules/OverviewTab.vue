@@ -368,7 +368,10 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-if="currentVersion" size="small" :bordered="false">生效 {{ currentVersion.effective_date }}</NTag>
       <NTag v-else size="small" :bordered="false" type="warning">无生效版本</NTag>
       <span v-if="currentVersion?.note" class="text-12px text-gray-400">备注：{{ currentVersion.note }}</span>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
+      <div class="ml-auto flex gap-8px">
+        <NButton size="tiny" text type="primary" @click="emit('goto', 'level')">看五档持仓情景</NButton>
+        <NButton size="tiny" text @click="emit('goto', 'version')">去档位 Tab 维护</NButton>
+      </div>
     </div>
 
     <!-- 档位摘要：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 -->

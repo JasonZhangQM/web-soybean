@@ -216,6 +216,122 @@ export function fetchUnderlyingGroups(
   });
 }
 
+/** 到档情景：单个标的到五档时的持仓盈亏 / 保证金 / 风险指标（只读现算，不落库） */
+export interface LevelScenarioPosition {
+  account: string;
+  category: string | null;
+  symbol: string | null;
+  name: string | null;
+  kind: string;
+  cp: string | null;
+  strike: number | null;
+  days: number | null;
+  qty: number | null;
+  mult: number | null;
+  delta: number | null;
+  sigma: number | null;
+  mtype: string | null;
+  und_key: string | null;
+  price_now: number | null;
+  price_at: number | null;
+  value_now: number;
+  delta_pnl: number;
+  margin_at: number;
+  margin_delta: number;
+  risk_exposure: number | null;
+}
+
+export interface LevelScenarioTotal {
+  delta_pnl: number;
+  pf_now: number;
+  pf_at_level: number;
+  margin_at: number;
+  margin_delta: number;
+  risk_exposure: number | null;
+  drawdown_ratio: number | null;
+  pf_at_note: string;
+}
+
+export interface LevelScenarioCombo {
+  net_at: number;
+  margin_total: number;
+  real: number | null;
+  exch: number | null;
+  loss: number;
+}
+
+export interface LevelScenarioAccount {
+  account: string;
+  net_at: number;
+  eq_at: number;
+  margin_at: number;
+  real: number | null;
+  exch: number | null;
+  coverage: number | null;
+  breached: boolean;
+}
+
+export interface LevelScenarioLevel {
+  label: string;
+  pp: number;
+  pct: number;
+  shift: number;
+  horizon: string;
+  positions: LevelScenarioPosition[];
+  total: LevelScenarioTotal;
+  combo: LevelScenarioCombo;
+  accounts: LevelScenarioAccount[];
+}
+
+export interface LevelScenarioCompare {
+  horizon: string;
+  delta_pnl: number;
+  margin_at: number;
+  margin_delta: number;
+  combo: LevelScenarioCombo;
+  breached_accounts: string[];
+}
+
+export interface LevelScenario {
+  as_of: string;
+  data_as_of: string | null;
+  stale_days: number;
+  engine_ver: string;
+  symbol: string;
+  name: string | null;
+  horizon: string;
+  iv_mult: number;
+  zone: string | null;
+  price_basis: {
+    um_price: number;
+    engine_prices: Array<{ symbol: string | null; und_key: string | null; base: number }>;
+    comparable_count: number;
+    gap_pct: number | null;
+  };
+  mapping: {
+    owned_group_rows: number;
+    in_position_group_rows: number;
+    matched_positions: number;
+    target_symbols: string[];
+    target_symbols_total: number;
+    unmapped: { rows: number; value_total: number; symbols: string[] };
+  };
+  level_order: string[];
+  level_labels: Record<string, string>;
+  levels: Record<string, LevelScenarioLevel>;
+  horizon_compare: Record<string, LevelScenarioCompare>;
+  warnings: string[];
+}
+
+/** 到档情景（horizon：now=即期 BS / expiry=到期内在价值；首版不暴露 IV 冲击） */
+export function fetchUnderlyingLevelScenario(id: number, horizon: 'now' | 'expiry' = 'now') {
+  return request<LevelScenario>({
+    url: `/api/v1/irs/underlying-monitors/${id}/level-scenario`,
+    method: 'get',
+    params: { horizon }
+  });
+}
+
 /** 分页查询标的成交（含「想法」笔记与关联剧本；融资融券不在其中） */
 export function fetchUnderlyingMonitorTrades(
   id: number,
