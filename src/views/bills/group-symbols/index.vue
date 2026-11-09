@@ -620,7 +620,7 @@ onMounted(async () => {
         <template #footer>
           <NSpace>
             <NButton @click="metaDrawerShow = false">取消</NButton>
-            <NButton type="primary" :loading="metaSaving" @click="handleMetaSave">保存</NButton>
+            <NButton :loading="metaSaving" @click="handleMetaSave">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

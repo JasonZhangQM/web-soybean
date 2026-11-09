@@ -215,7 +215,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
       <div class="flex flex-wrap items-center gap-8px">
         <span class="font-500">风险快照不可用</span>
         <span class="text-12px">{{ riskBlockMsg }}</span>
-        <NButton size="tiny" type="primary" class="ml-auto" :loading="syncRunning" @click="syncOptionThenRetry">
+        <NButton size="tiny" class="ml-auto" :loading="syncRunning" @click="syncOptionThenRetry">
           {{ syncRunning ? '同步中…' : '同步期权行情并重试' }}
         </NButton>
       </div>
@@ -278,7 +278,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
         <NCard v-for="it in items" :key="it.symbol" size="small" :class="cardClass(it)">
           <template #header>
             <div class="flex flex-wrap items-center gap-8px">
-              <NButton text type="primary" class="font-600" @click="goDetail(it)">
+              <NButton text class="font-600" @click="goDetail(it)">
                 {{ it.name || it.symbol }}
               </NButton>
               <span class="text-12px text-gray-400">{{ it.symbol }}</span>
@@ -343,7 +343,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
                 漂移
                 <b>{{ fmtPct(it.drift) }}</b>
               </span>
-              <NButton size="tiny" text type="primary" class="ml-auto" @click="startEditTarget(it)">设目标</NButton>
+              <NButton size="tiny" text class="ml-auto" @click="startEditTarget(it)">设目标</NButton>
             </div>
           </div>
         </NCard>
@@ -370,7 +370,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showTargetModal = false">取消</NButton>
-            <NButton type="primary" :loading="savingTarget" @click="saveTarget">保存</NButton>
+            <NButton :loading="savingTarget" @click="saveTarget">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

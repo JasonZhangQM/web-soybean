@@ -466,7 +466,7 @@ onMounted(() => {
           </NButton>
           <template v-if="riskRef.isFormula && riskRef.cost != null">
             <span>｜持仓成本：{{ fmtRef(riskRef.cost) }}</span>
-            <NButton text type="primary" size="tiny" @click="formData.risk_exposure = Number(riskRef.cost!.toFixed(2))">
+            <NButton text size="tiny" @click="formData.risk_exposure = Number(riskRef.cost!.toFixed(2))">
               填入成本
             </NButton>
           </template>

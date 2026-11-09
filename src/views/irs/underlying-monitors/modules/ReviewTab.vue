@@ -178,7 +178,7 @@ async function handleDelete(r: UnderlyingReview) {
           </span>
           <span class="text-12px text-gray-400">落笔 {{ r.review_date }}</span>
           <div class="ml-auto flex gap-8px">
-            <NButton text size="tiny" type="primary" @click="openEdit(r)">编辑</NButton>
+            <NButton text size="tiny" @click="openEdit(r)">编辑</NButton>
             <NPopconfirm @positive-click="handleDelete(r)">
               <template #trigger>
                 <NButton text size="tiny" type="error" :loading="deletingId === r.id">删除</NButton>
@@ -215,7 +215,7 @@ async function handleDelete(r: UnderlyingReview) {
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showModal = false">取消</NButton>
-            <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
+            <NButton :loading="saving" @click="handleSave">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

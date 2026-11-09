@@ -68,6 +68,7 @@ const LIMITS = {
   thesis: 200,
   conclusion: 200,
   max_risk: 200,
+  expectation_gap: 200,
   pre_condition: 200,
   research_brief: 800,
   research_log: 2000
@@ -412,7 +413,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <span class="text-12px text-gray-400">
         选新日期 = 新建一版，选已有日期 = 改那一版；列表页的「结论」取 ≤今天 的最新一版
       </span>
-      <NButton size="tiny" type="primary" class="ml-auto" @click="openNew()">新增一版研究</NButton>
+      <NButton size="tiny" class="ml-auto" @click="openNew()">新增一版研究</NButton>
     </div>
     <UnderlyingDataTable :columns="columns" :data="research" :page-size="10" />
 
@@ -532,7 +533,13 @@ function countClass(k: keyof typeof LIMITS, v: string) {
             />
           </NFormItem>
           <NFormItem label="预期差">
-            <NInput v-model:value="form.expectation_gap" placeholder="我与市场看法不同在哪" />
+            <NInput
+              v-model:value="form.expectation_gap"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              :maxlength="LIMITS.expectation_gap"
+              placeholder="我与市场看法不同在哪"
+            />
           </NFormItem>
           <NFormItem label="前提条件">
             <NInput
@@ -584,8 +591,8 @@ function countClass(k: keyof typeof LIMITS, v: string) {
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showDrawer = false">取消</NButton>
-            <NButton v-if="hit" type="error" ghost :loading="deleting" @click="handleDelete">删除该版</NButton>
-            <NButton type="primary" :loading="saving" @click="doSave()">保存</NButton>
+            <NButton v-if="hit" :loading="deleting" @click="handleDelete">删除该版</NButton>
+            <NButton :loading="saving" @click="doSave()">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

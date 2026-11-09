@@ -235,9 +235,7 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
     <template #header>估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）</template>
     <template #header-extra>
-      <NButton type="primary" ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
-        启动
-      </NButton>
+      <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 

@@ -365,7 +365,7 @@ const columns = [
 
     <div class="mb-8px flex items-center gap-8px">
       <span class="font-500">档位版本</span>
-      <NButton size="tiny" type="primary" class="ml-auto" @click="openNew()">新增档位版本</NButton>
+      <NButton size="tiny" class="ml-auto" @click="openNew()">新增档位版本</NButton>
     </div>
 
     <UnderlyingDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" />
@@ -445,7 +445,7 @@ const columns = [
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showDrawer = false">取消</NButton>
-            <NButton type="primary" :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
+            <NButton :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

@@ -369,9 +369,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-else size="small" :bordered="false" type="warning">无生效版本</NTag>
       <span v-if="currentVersion?.note" class="text-12px text-gray-400">备注：{{ currentVersion.note }}</span>
       <div class="ml-auto flex gap-8px">
-        <NButton size="tiny" text type="primary" @click="emit('goto', 'version')">
-          去档位 Tab（维护档位 / 五档持仓情景）
-        </NButton>
+        <NButton size="tiny" text @click="emit('goto', 'version')">去档位 Tab（维护档位 / 五档持仓情景）</NButton>
       </div>
     </div>
 

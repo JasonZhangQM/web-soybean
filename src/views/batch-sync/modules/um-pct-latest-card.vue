@@ -157,9 +157,7 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
     <template #header>最新估值分位（/today 与标的监测页的数据源）</template>
     <template #header-extra>
-      <NButton type="primary" ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">
-        启动
-      </NButton>
+      <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 

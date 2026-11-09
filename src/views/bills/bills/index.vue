@@ -885,7 +885,7 @@ onMounted(() => {
       <template #footer>
         <NSpace justify="end">
           <NButton @click="showNoteModal = false">关闭</NButton>
-          <NButton type="primary" @click="handleNoteSave">保存</NButton>
+          <NButton @click="handleNoteSave">保存</NButton>
         </NSpace>
       </template>
     </NModal>
