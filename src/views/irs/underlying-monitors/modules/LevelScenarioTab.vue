@@ -92,6 +92,7 @@ interface LevelRow {
   label: string;
   pp: number;
   pct: number;
+  pf_now: number;
   delta_pnl: number;
   other_delta_pnl: number | null;
   margin_at: number;
@@ -114,6 +115,7 @@ const levelRows = computed<LevelRow[]>(() => {
       label: lv.label,
       pp: lv.pp,
       pct: lv.pct,
+      pf_now: lv.total.pf_now,
       delta_pnl: lv.total.delta_pnl,
       other_delta_pnl: cmp?.delta_pnl ?? null,
       margin_at: lv.total.margin_at,
@@ -127,7 +129,7 @@ const levelRows = computed<LevelRow[]>(() => {
   });
 });
 
-const levelColumns: DataTableColumns<LevelRow> = [
+const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
   {
     title: '档位',
     key: 'label',
@@ -146,6 +148,13 @@ const levelColumns: DataTableColumns<LevelRow> = [
       )
   },
   { title: '到档涨跌', key: 'pct', width: 100, align: 'right' as const, render: (r: LevelRow) => pct(r.pct) },
+  {
+    title: '当前盈亏',
+    key: 'pf_now',
+    width: 130,
+    align: 'right' as const,
+    render: (r: LevelRow) => pnl(r.pf_now)
+  },
   {
     title: '标的 Δ盈亏',
     key: 'delta_pnl',
@@ -198,7 +207,7 @@ const levelColumns: DataTableColumns<LevelRow> = [
     render: (r: LevelRow) =>
       r.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => `${r.breached} 个` }) : '—'
   }
-];
+]);
 
 function kindLabel(p: LevelScenarioPosition) {
   if (p.kind === 'fut') return '期货';
@@ -208,7 +217,7 @@ function kindLabel(p: LevelScenarioPosition) {
   return p.kind;
 }
 
-const positionColumns: DataTableColumns<LevelScenarioPosition> = [
+const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => [
   { title: '账户', key: 'account', width: 80 },
   { title: '合约', key: 'symbol', width: 190 },
   { title: '类别', key: 'kind', width: 90, render: (p: LevelScenarioPosition) => kindLabel(p) },
@@ -234,11 +243,25 @@ const positionColumns: DataTableColumns<LevelScenarioPosition> = [
     render: (p: LevelScenarioPosition) => `${fmtPrice(p.price_now)} → ${fmtPrice(p.price_at)}`
   },
   {
-    title: 'Δ盈亏',
+    title: '当前盈亏',
+    key: 'pf_now',
+    width: 130,
+    align: 'right' as const,
+    render: (p: LevelScenarioPosition) => pnl(p.pf_now)
+  },
+  {
+    title: '标的 Δ盈亏',
     key: 'delta_pnl',
     width: 130,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => pnl(p.delta_pnl)
+  },
+  {
+    title: `${otherLabel.value} Δ盈亏`,
+    key: 'other_delta_pnl',
+    width: 130,
+    align: 'right' as const,
+    render: (p: LevelScenarioPosition) => pnl(p.other_delta_pnl)
   },
   {
     title: '到档保证金',
@@ -261,10 +284,31 @@ const positionColumns: DataTableColumns<LevelScenarioPosition> = [
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => fmtMoney(p.risk_exposure)
   }
-];
+]);
 
-const accountColumns: DataTableColumns<LevelScenarioAccount> = [
+const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
   { title: '账户', key: 'account', width: 90 },
+  {
+    title: '账户当前盈亏',
+    key: 'pf_now',
+    width: 140,
+    align: 'right' as const,
+    render: (a: LevelScenarioAccount) => pnl(a.pf_now)
+  },
+  {
+    title: '标的 Δ盈亏',
+    key: 'delta_pnl',
+    width: 120,
+    align: 'right' as const,
+    render: (a: LevelScenarioAccount) => pnl(a.delta_pnl)
+  },
+  {
+    title: `${otherLabel.value} Δ盈亏`,
+    key: 'other_delta_pnl',
+    width: 130,
+    align: 'right' as const,
+    render: (a: LevelScenarioAccount) => pnl(a.other_delta_pnl)
+  },
   {
     title: '到档净值',
     key: 'net_at',
@@ -314,7 +358,7 @@ const accountColumns: DataTableColumns<LevelScenarioAccount> = [
     render: (a: LevelScenarioAccount) =>
       a.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => '越线' }) : '—'
   }
-];
+]);
 
 const basisText = computed(() => {
   const b = data.value?.price_basis;
@@ -374,12 +418,15 @@ const basisText = computed(() => {
 
         <div class="mb-8px flex flex-wrap items-center gap-8px">
           <span class="font-500">五档 × 组合风险指标</span>
-          <span class="text-12px text-gray-400">点击档位名切换下方明细；「{{ otherLabel }} Δ盈亏」为双时点对照列</span>
+          <span class="text-12px text-gray-400">
+            点击档位名切换下方明细；「当前盈亏」为账面浮动盈亏、五档恒定；「{{ otherLabel }} Δ盈亏」为双时点对照列
+          </span>
         </div>
         <UnderlyingDataTable :columns="levelColumns" :data="levelRows" :page-size="0" class="mb-16px" />
         <div class="mb-16px text-12px text-gray-400">
           组合保证金 / 净值 / 风险度为账户全部持仓口径，含本情景中价格冻结的其它持仓。 追保只判交易所口径；真实口径 ≥1
-          而交易所口径 &lt;1 时须单独留意。
+          而交易所口径 &lt;1 时须单独留意。「当前盈亏」是账面口径（五档表 / 逐仓为该标的项下，分账户表为账户全部持仓），
+          「标的 Δ盈亏」是模型盯市口径，两者基准不同，不可相加对账。
         </div>
 
         <template v-if="current">
@@ -399,7 +446,12 @@ const basisText = computed(() => {
           </div>
           <UnderlyingDataTable :columns="positionColumns" :data="current.positions" :page-size="0" class="mb-16px" />
 
-          <div class="mb-8px font-500">{{ current.label }}档 · 分账户风险指标</div>
+          <div class="mb-8px flex flex-wrap items-center gap-8px">
+            <span class="font-500">{{ current.label }}档 · 分账户风险指标</span>
+            <span class="text-12px text-gray-400">
+              「账户当前盈亏」为账户层面全部持仓账面浮盈，与该标的项下口径无关；两个 Δ盈亏仍只统计该标的项下持仓
+            </span>
+          </div>
           <UnderlyingDataTable :columns="accountColumns" :data="current.accounts" :page-size="0" class="mb-16px" />
         </template>
 
