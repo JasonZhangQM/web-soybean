@@ -129,12 +129,20 @@ const valuationVisible = computed(() => [stats.value?.metric ?? 'pe_ttm']);
 const summary = computed(() => stats.value?.performance?.summary ?? null);
 const freshness = computed(() => stats.value?.freshness ?? null);
 
+/**
+ * 交易日口径（复用风险引擎 _stale_days，按 bds_trade_date 计数）：
+ * 0=当日、1=T−1（收盘后同步，正常状态）、≥2 才是真滞后。
+ * 数据齐全时也只报数据末日，不报最新交易日（那是日历，不是数据）。
+ */
 const freshnessTag = computed(() => {
   const f = freshness.value;
   if (!f) return null;
   if (f.stale_days == null) return { type: 'default' as const, text: '无落表行情' };
-  if (f.stale_days > 0) return { type: 'warning' as const, text: `数据滞后 ${f.stale_days} 天` };
-  return { type: 'success' as const, text: `数据截至 ${f.latest_trade_date ?? '—'}` };
+  const asOf = f.price_as_of ?? '—';
+  if (f.stale_days >= 2)
+    return { type: 'warning' as const, text: `数据截至 ${asOf} · T−${f.stale_days} 个交易日（滞后）` };
+  if (f.stale_days === 1) return { type: 'success' as const, text: `数据截至 ${asOf} · T−1（收盘后同步）` };
+  return { type: 'success' as const, text: `数据截至 ${asOf}（当日）` };
 });
 
 const subjectLabel = computed(() => {

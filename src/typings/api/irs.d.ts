@@ -705,6 +705,7 @@ declare namespace Api {
       percentile_source_as_of: string | null;
       valuation_as_of: string | null;
       price_as_of: string | null;
+      /** 数据末日落后几个交易日（0=当日、1=T−1），按 bds_trade_date 计数、与风险看板同口径；null=无落表行情 */
       stale_days: number | null;
     }
 
