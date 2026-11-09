@@ -1,6 +1,8 @@
 <script setup lang="ts">
 /**
- * 到档情景 Tab：五档并列、假设到价，展示该标的项下持仓的盈亏 / 保证金 / 风险指标。
+ * 到档情景面板（2026-11-09 起并入「档位」Tab 的折叠区，不再是独立 Tab）：
+ * 五档并列、假设到价，展示该标的项下持仓的盈亏 / 保证金 / 风险指标。
+ * 由父组件的折叠区决定是否挂载；`defineExpose({ load })` 供保存档位后重算。
  *
  * 口径全部由后端 `GET /underlying-monitors/{id}/level-scenario` 给出，本组件不自算任何
  * 保证金、净值或风险度（铁律 4.13：前端禁自算）。红亏绿盈与风险度配色复用风险看板 utils。
@@ -48,6 +50,8 @@ async function load() {
 
 onMounted(load);
 watch(horizon, load);
+/** 供档位 Tab 在保存 / 删除档位后重算（仅在折叠区已展开、组件已挂载时调用） */
+defineExpose({ load });
 /** 换标的时清空重算：umId 是主键，symbol 一并监听可防 id 漂移（抽屉注释里那条历史坑） */
 watch(
   () => [props.umId, props.symbol] as const,

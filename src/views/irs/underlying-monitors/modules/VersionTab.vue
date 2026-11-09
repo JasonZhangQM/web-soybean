@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 档位 Tab：档位版本链 + 按日期新建/改写
+ * 档位 Tab：档位版本链 + 到档情景（2026-11-09 两个 Tab 合并）
  *
  * 语义（这是全页最容易搞错的一点）：**某日档位 = `effective_date <= D` 的最大版**，
  * 不是每日快照。所以：
@@ -9,11 +9,18 @@
  *
  * 唯一写入口是 `saveUnderlyingVersion`（后端 save_version → refresh_current_pp → 钩子重算 pv_*）。
  * 任何地方都不要直写主表 pp_*。
+ *
+ * 录入统一走左侧抽屉（与 LogicTab / PlanTab / ReviewTab 同规格）：顶部「新增档位版本」
+ * + 行内「编辑」共用同一个抽屉；编辑锁生效日，避免按日期 upsert 时误复制成新一版。
+ *
+ * 「到档情景」默认折叠，展开才挂载子组件并发一次 /level-scenario（五档 × 双时点 × 全持仓）。
+ * 保存档位成功后若情景已展开，主动重拉一次，避免主表 pp_* 已改而情景仍是旧数。
  */
 import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { fetchUnderlyingVersions, saveUnderlyingVersion, deleteUnderlyingVersion } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
+import LevelScenarioTab from './LevelScenarioTab.vue';
 
 defineOptions({ name: 'UnderlyingVersionTab' });
 
@@ -24,6 +31,13 @@ const saving = ref(false);
 const deletingId = ref<number | null>(null);
 /** P2-4 档位分位校验告警：保存后若后端返回 warnings，显示红标 */
 const warnings = ref<Array<{ level: string; pb_pct: number; message: string }>>([]);
+
+/** 左侧录入抽屉：editingDate=null 表示新增，非 null 表示改写该日版本（生效日锁定） */
+const showDrawer = ref(false);
+const editingDate = ref<string | null>(null);
+/** 到档情景折叠区：空数组 = 折叠，不挂载组件、不发请求 */
+const scenarioExpanded = ref<string[]>([]);
+const scenarioRef = ref<InstanceType<typeof LevelScenarioTab> | null>(null);
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
 const versions = ref<Api.Irs.UnderlyingVersion[]>([]);
@@ -53,6 +67,7 @@ const hitVersion = computed(() => versions.value.find(v => v.effective_date === 
 
 /** 表单日期所处状态的中文说明 */
 const dateHint = computed(() => {
+  if (editingDate.value) return `编辑 ${editingDate.value} 这一版（生效日锁定）——保存将改写该日档位`;
   if (!form.effective_date) return '请选择生效日';
   const d = form.effective_date;
   if (hitVersion.value) return `该日已有版本（${d}）——保存将改写这一版`;
@@ -60,7 +75,7 @@ const dateHint = computed(() => {
   return `新日期 ${d}：保存将新建一版，自该日起生效`;
 });
 
-/** 用某一版回填表单（点行上的「沿用此版」） */
+/** 用某一版回填五档与日期 */
 function fillFrom(v: Api.Irs.UnderlyingVersion) {
   form.effective_date = v.effective_date;
   form.pp_el = v.pp_el != null ? Number(v.pp_el) : null;
@@ -70,15 +85,34 @@ function fillFrom(v: Api.Irs.UnderlyingVersion) {
   form.pp_eh = v.pp_eh != null ? Number(v.pp_eh) : null;
 }
 
-// 打开时用当前生效版预填，避免每次从空白开始
-watch(
-  () => versions.value,
-  list => {
-    const cur = list.find(v => v.status === 'current');
-    if (cur && form.pp_el == null && form.pp_eh == null) fillFrom(cur);
-  },
-  { immediate: true }
-);
+function clearLevels() {
+  form.pp_el = null;
+  form.pp_l = null;
+  form.pp_m = null;
+  form.pp_h = null;
+  form.pp_eh = null;
+}
+
+/** 新增：默认拿当前生效版五档预填、日期设今天；传 template 时以该版为模板「沿用新建」 */
+function openNew(template?: Api.Irs.UnderlyingVersion) {
+  editingDate.value = null;
+  const base = template ?? versions.value.find(v => v.status === 'current') ?? null;
+  if (base) fillFrom(base);
+  else clearLevels();
+  form.effective_date = today();
+  form.note = '';
+  warnings.value = [];
+  showDrawer.value = true;
+}
+
+/** 编辑：回填该版全部字段，生效日锁定（后端按 (symbol, effective_date) upsert） */
+function openEdit(v: Api.Irs.UnderlyingVersion) {
+  editingDate.value = v.effective_date;
+  fillFrom(v);
+  form.note = v.note ?? '';
+  warnings.value = [];
+  showDrawer.value = true;
+}
 
 // 「中」自动取低与高的平均：与主表口径一致，减少手填错位
 watch(
@@ -123,13 +157,17 @@ function doSave(force = false) {
           unchanged: '五档没变，未新建版本'
         };
         window.$message?.success(map[data?.action ?? ''] ?? '已保存');
-        // P2-4：捕获后端返回的档位分位校验告警
+        // P2-4：捕获后端返回的档位分位校验告警（留在主区，关抽屉后仍可见）
         warnings.value = (data?.warnings as Array<{ level: string; pb_pct: number; message: string }>) ?? [];
         // 保存后清掉 note，但保留日期与五档，方便连续微调
         form.note = '';
         // 只刷 versions + 标记 dirty（抽屉关闭时才全量刷列表）
         await loadVersions();
         emit('dirty');
+        // 主表 pp_* 已被 refresh_current_pp 刷新：情景若已展开则重算，未展开不发请求
+        scenarioRef.value?.load();
+        // 失败时保持抽屉打开，不丢已填内容
+        showDrawer.value = false;
       }
     } finally {
       saving.value = false;
@@ -166,6 +204,7 @@ function handleDelete(v: Api.Irs.UnderlyingVersion) {
           window.$message?.success('已删除该版并回写当前档位');
           await loadVersions();
           emit('dirty');
+          scenarioRef.value?.load();
         }
       } finally {
         deletingId.value = null;
@@ -279,13 +318,23 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 150,
+    width: 200,
     render: (r: Api.Irs.UnderlyingVersion) =>
       h('div', { class: 'flex gap-8px' }, [
         h(
           NButton,
-          { text: true, size: 'tiny', type: 'primary', onClick: () => fillFrom(r) },
-          { default: () => '沿用此版' }
+          {
+            text: true,
+            size: 'tiny',
+            title: '以该版五档为模板新建，生效日设为今天；若今天已有版本则为改写',
+            onClick: () => openNew(r)
+          },
+          { default: () => '沿用新建' }
+        ),
+        h(
+          NButton,
+          { text: true, size: 'tiny', type: 'primary', onClick: () => openEdit(r) },
+          { default: () => '编辑' }
         ),
         h(
           NButton,
@@ -314,44 +363,12 @@ const columns = [
       。
     </NAlert>
 
+    <div class="mb-8px flex items-center gap-8px">
+      <span class="font-500">档位版本</span>
+      <NButton size="tiny" type="primary" class="ml-auto" @click="openNew()">新增档位版本</NButton>
+    </div>
+
     <UnderlyingDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" />
-
-    <NDivider />
-
-    <div class="mb-8px font-500">保存一版档位</div>
-    <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap items-end gap-12px">
-      <NFormItem label="生效日">
-        <NDatePicker
-          v-model:formatted-value="form.effective_date"
-          type="date"
-          value-format="yyyy-MM-dd"
-          clearable
-          style="width: 150px"
-        />
-      </NFormItem>
-      <NFormItem label="极低">
-        <NInputNumber v-model:value="form.pp_el" :precision="4" :step="0.0001" style="width: 120px" />
-      </NFormItem>
-      <NFormItem label="低">
-        <NInputNumber v-model:value="form.pp_l" :precision="4" :step="0.0001" style="width: 120px" />
-      </NFormItem>
-      <NFormItem label="中">
-        <NInputNumber v-model:value="form.pp_m" :precision="4" :step="0.0001" disabled style="width: 120px" />
-      </NFormItem>
-      <NFormItem label="高">
-        <NInputNumber v-model:value="form.pp_h" :precision="4" :step="0.0001" style="width: 120px" />
-      </NFormItem>
-      <NFormItem label="极高">
-        <NInputNumber v-model:value="form.pp_eh" :precision="4" :step="0.0001" style="width: 120px" />
-      </NFormItem>
-      <NFormItem label="备注" style="flex: 1; min-width: 240px">
-        <NInput v-model:value="form.note" placeholder="为什么调：如 三季报后下调中枢" />
-      </NFormItem>
-      <NFormItem>
-        <NButton :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
-      </NFormItem>
-    </NForm>
-    <div class="text-12px" :class="hitVersion ? 'text-orange-500' : 'text-gray-400'">{{ dateHint }}</div>
 
     <!-- P2-4 档位分位校验告警（只提示，绝不自动改档位） -->
     <NAlert
@@ -369,5 +386,69 @@ const columns = [
         最终是否需要调档由研究报告结论决定。
       </div>
     </NAlert>
+
+    <NDivider />
+
+    <div class="mb-8px text-12px text-gray-400">
+      到档情景默认折叠；展开后才计算（五档 × 双时点 × 全持仓），保存或删除档位后若已展开会自动重算。
+    </div>
+    <NCollapse v-model:expanded-names="scenarioExpanded">
+      <NCollapseItem title="到档情景 · 五档持仓盈亏 / 保证金 / 风险指标" name="scenario">
+        <LevelScenarioTab
+          v-if="scenarioExpanded.includes('scenario')"
+          ref="scenarioRef"
+          :um-id="umId"
+          :symbol="symbol"
+        />
+      </NCollapseItem>
+    </NCollapse>
+
+    <!-- 档位录入抽屉（左侧），与逻辑 / 证伪 / 剧本 / 复盘抽屉同规格 -->
+    <NDrawer v-model:show="showDrawer" placement="left" width="520px" :mask-closable="false">
+      <NDrawerContent
+        :title="editingDate ? `编辑 ${editingDate} 这一版档位` : '新增一版档位'"
+        closable
+        :native-scrollbar="false"
+      >
+        <NForm label-placement="left" label-width="90px" :show-feedback="false">
+          <NFormItem label="生效日">
+            <NDatePicker
+              v-model:formatted-value="form.effective_date"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              :disabled="editingDate !== null"
+              class="w-full"
+            />
+          </NFormItem>
+          <NFormItem label="极低">
+            <NInputNumber v-model:value="form.pp_el" :precision="4" :step="0.0001" class="w-full" />
+          </NFormItem>
+          <NFormItem label="低">
+            <NInputNumber v-model:value="form.pp_l" :precision="4" :step="0.0001" class="w-full" />
+          </NFormItem>
+          <NFormItem label="中">
+            <NInputNumber v-model:value="form.pp_m" :precision="4" :step="0.0001" disabled class="w-full" />
+          </NFormItem>
+          <NFormItem label="高">
+            <NInputNumber v-model:value="form.pp_h" :precision="4" :step="0.0001" class="w-full" />
+          </NFormItem>
+          <NFormItem label="极高">
+            <NInputNumber v-model:value="form.pp_eh" :precision="4" :step="0.0001" class="w-full" />
+          </NFormItem>
+          <NFormItem label="备注">
+            <NInput v-model:value="form.note" placeholder="为什么调：如 三季报后下调中枢" />
+          </NFormItem>
+        </NForm>
+        <div class="mt-8px text-12px" :class="hitVersion ? 'text-orange-500' : 'text-gray-400'">{{ dateHint }}</div>
+
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showDrawer = false">取消</NButton>
+            <NButton type="primary" :loading="saving" :disabled="!canSave" @click="doSave()">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>

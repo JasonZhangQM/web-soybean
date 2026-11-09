@@ -17,7 +17,6 @@ import MarketStatsTab from './MarketStatsTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
 import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
-import LevelScenarioTab from './LevelScenarioTab.vue';
 import LogicTab from './LogicTab.vue';
 import PlanTab from './PlanTab.vue';
 
@@ -166,11 +165,9 @@ function goTab(name: string) {
           <NTabPane name="review" tab="复盘" display-directive="show:lazy">
             <ReviewTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
+          <!-- 档位 + 到档情景（2026-11-09 合并；情景在档位 Tab 内折叠按需加载） -->
           <NTabPane name="version" tab="档位" display-directive="show:lazy">
             <VersionTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
-          </NTabPane>
-          <NTabPane name="level" tab="到档情景" display-directive="show:lazy">
-            <LevelScenarioTab :um-id="detail.um.id" :symbol="detail.um.symbol" />
           </NTabPane>
           <NTabPane name="logic" tab="逻辑与证伪" display-directive="show:lazy">
             <LogicTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
