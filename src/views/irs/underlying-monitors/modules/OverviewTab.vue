@@ -292,7 +292,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-if="reviewOverdue" size="small" :bordered="false" type="error">
         复核已到期（{{ latestResearch?.next_review }}）
       </NTag>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'research')">去研究 Tab 维护</NButton>
+      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'research')">去研究与逻辑 Tab 维护</NButton>
     </div>
 
     <!--
@@ -339,14 +339,14 @@ const levelColumns = LEVEL_META.map(m => ({
     </NDescriptions>
 
     <NAlert v-else type="info" :bordered="false" class="mb-16px">
-      这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究」Tab 按日期新建一版。
+      这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究与逻辑」Tab 按日期新建一版。
     </NAlert>
 
     <NDivider />
 
     <!--
       逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
-      概览只展示计数（轻量），状态分布留给「逻辑与证伪」Tab 看全量。
+      概览只展示计数（轻量），状态分布留给「研究与逻辑」Tab 看全量。
       纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
     -->
     <div class="mb-8px flex flex-wrap items-center gap-8px">
@@ -357,7 +357,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag size="small" :bordered="false" :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'">
         证伪 {{ detail.invalidate_total_count }} 条
       </NTag>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'logic')">去逻辑与证伪 Tab</NButton>
+      <span class="ml-auto text-12px text-gray-400">明细在「研究与逻辑」Tab 维护</span>
     </div>
 
     <NDivider />

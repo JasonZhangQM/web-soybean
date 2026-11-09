@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 逻辑与证伪 Tab（批次二：可编辑）
+ * 逻辑与证伪（批次二：可编辑；2026-11-09 起并入「研究与逻辑」Tab，不再是顶层 TabPane）
  *
  * 两条数据模型事实决定了这里的交互：
  * 1. **不是版本化的**：`irs_um_logic` / `irs_um_invalidate` 的唯一键是 (symbol, seq)，
@@ -15,7 +15,7 @@
  * `[><≥≤=]\s*\d` 或 `\d+\s*%` 判定，判定不过的整行标红——"分位偏高"这类说法不算填了。
  * 前端照抄同一条正则做实时提示，但**不阻断保存**：先登记、后补数字是正常节奏。
  */
-import { ref, reactive, computed, h, onMounted } from 'vue';
+import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NDrawerContent, NEllipsis, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
 import {
   fetchUnderlyingLogic,
@@ -31,11 +31,22 @@ import UnderlyingDataTable from './UnderlyingDataTable.vue';
 defineOptions({ name: 'UnderlyingLogicTab' });
 
 const props = defineProps<{ umId: number; symbol: string }>();
-const emit = defineEmits<{ (e: 'dirty'): void }>();
+const emit = defineEmits<{
+  (e: 'dirty'): void;
+  /** 合并后由父组件（ResearchVersionPanel）拿去驱动完成度提示与保存软校验 */
+  (e: 'counts', v: { logic: number; invalidate: number }): void;
+}>();
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
 const logic = ref<Api.Irs.UnderlyingLogic[]>([]);
 const invalidate = ref<Api.Irs.UnderlyingInvalidate[]>([]);
+
+/** 条数变化即上报：新增/删除/状态改动后父组件的完成度提示要立刻更新 */
+watch(
+  () => [logic.value.length, invalidate.value.length],
+  () => emit('counts', { logic: logic.value.length, invalidate: invalidate.value.length }),
+  { immediate: true }
+);
 
 async function loadLogic() {
   const { data, error } = await fetchUnderlyingLogic(props.umId);

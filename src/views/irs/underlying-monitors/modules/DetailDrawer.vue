@@ -17,7 +17,6 @@ import MarketStatsTab from './MarketStatsTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
 import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
-import LogicTab from './LogicTab.vue';
 import PlanTab from './PlanTab.vue';
 
 defineOptions({ name: 'UnderlyingDetailDrawer' });
@@ -152,15 +151,9 @@ function goTab(name: string) {
             <MarketStatsTab :symbol="detail.um.symbol" />
           </NTabPane>
           <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
-          <NTabPane name="research" tab="研究" display-directive="show:lazy">
-            <ResearchVersionPanel
-              :um-id="detail.um.id"
-              :symbol="detail.um.symbol"
-              :logic-count="detail.logic_total_count"
-              :invalidate-count="detail.invalidate_total_count"
-              @dirty="markDirty"
-              @goto="goTab"
-            />
+          <!-- 研究 + 逻辑与证伪（2026-11-09 合并；逻辑/证伪作为子组件嵌在 ResearchVersionPanel 内） -->
+          <NTabPane name="research" tab="研究与逻辑" display-directive="show:lazy">
+            <ResearchVersionPanel :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="review" tab="复盘" display-directive="show:lazy">
             <ReviewTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
@@ -168,9 +161,6 @@ function goTab(name: string) {
           <!-- 档位 + 到档情景（2026-11-09 合并；情景在档位 Tab 内折叠按需加载） -->
           <NTabPane name="version" tab="档位" display-directive="show:lazy">
             <VersionTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
-          </NTabPane>
-          <NTabPane name="logic" tab="逻辑与证伪" display-directive="show:lazy">
-            <LogicTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <NTabPane name="plan" tab="剧本与成交" display-directive="show:lazy">
             <PlanTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />

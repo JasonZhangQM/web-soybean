@@ -1,12 +1,20 @@
 <script setup lang="ts">
 /**
- * 研究 Tab：研究版本列表 + 按日期新建/编辑
+ * 研究与逻辑 Tab（2026-11-09 两个 Tab 合并 + 研究录入改左侧抽屉）
  *
  * 语义同档位：**选新日期 = 新建一版，选已有日期 = 改那一版**。
  * 系统只存「决策与执行状态」（摘要 ≤800 字、单条逻辑/风险 ≤200 字、研究过程 ≤2000 字），
  * 报告正文留在知识库——所以这里的字段全是短的，长文请写进 research_note 指向知识库。
+ *
+ * 录入统一走左侧抽屉（与 VersionTab / LogicTab / PlanTab / ReviewTab 同规格 520px）：
+ * 顶部「新增一版研究」+ 行内「编辑」/「沿用新建」共用；编辑锁**定稿日**，避免按日期 upsert 时
+ * 静默复制成新一版。保存成功才关抽屉，失败保留已填内容。完成度提示留主区（关抽屉就看不见）。
+ *
+ * 「逻辑与证伪」不再单独占一个 Tab，作为子组件插在完成度提示之后、状态演化之前；
+ * 完成度与软校验的条数改由子组件实时上报，不再吃概览透传的轻量计数（合并的实收益）。
+ * 内容顺序：研究版本表 → 完成度 → 逻辑/证伪 → 状态演化 → 剧本盈亏归因。
  */
-import { ref, reactive, computed, watch, h, onMounted } from 'vue';
+import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import {
   fetchUnderlyingResearch,
@@ -17,20 +25,32 @@ import {
   fetchUnderlyingPlans
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
+import LogicTab from './LogicTab.vue';
 
 defineOptions({ name: 'UnderlyingResearchVersionPanel' });
 
-const props = defineProps<{
-  umId: number;
-  symbol: string;
-  /** 概览透传的轻量计数（软校验完成度提示用，不需要全量列表） */
-  logicCount: number;
-  invalidateCount: number;
-}>();
-const emit = defineEmits<{ (e: 'dirty'): void; (e: 'goto', tab: string): void }>();
+const props = defineProps<{ umId: number; symbol: string }>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const saving = ref(false);
 const deleting = ref(false);
+
+/** 左侧录入抽屉：editingDate=null 表示新增，非 null 表示改写该日版本（定稿日锁定） */
+const showDrawer = ref(false);
+const editingDate = ref<string | null>(null);
+/** 逻辑/证伪条数由子组件实时上报；写完一条立刻反映到完成度提示与保存软校验 */
+const logicCounts = reactive({ logic: 0, invalidate: 0 });
+
+function onCounts(v: { logic: number; invalidate: number }) {
+  logicCounts.logic = v.logic;
+  logicCounts.invalidate = v.invalidate;
+}
+
+/** 逻辑/证伪状态变更会追加 state_log，合并后同屏可见 ⇒ 顺手重拉时间线 */
+function onChildDirty() {
+  loadStateLog();
+  emit('dirty');
+}
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
 const research = ref<Api.Irs.UnderlyingResearch[]>([]);
@@ -81,6 +101,7 @@ const form = reactive<{
 const hit = computed(() => research.value.find(r => r.research_date === form.research_date) ?? null);
 
 const dateHint = computed(() => {
+  if (editingDate.value) return `编辑 ${editingDate.value} 这一版（定稿日锁定）——保存将改写该日结论`;
   if (!form.research_date) return '请选择研究定稿日';
   if (hit.value) return `该日已有一版研究——保存将改写 ${form.research_date} 的结论`;
   if (form.research_date > today())
@@ -102,17 +123,7 @@ function loadVersion(r: Api.Irs.UnderlyingResearch) {
   form.research_log = r.research_log ?? '';
 }
 
-// 打开时若有最新一版，直接载入，省一次点击
-watch(
-  () => research.value,
-  list => {
-    if (list.length && !form.thesis && !form.conclusion) loadVersion(list[0]);
-  },
-  { immediate: true }
-);
-
-/** 新建：清空但保留日期选择权 */
-function startNew() {
+function clearForm() {
   form.thesis = '';
   form.conclusion = '';
   form.max_risk = '';
@@ -123,6 +134,22 @@ function startNew() {
   form.research_brief = '';
   form.research_log = '';
   form.research_date = today();
+}
+
+/** 新增：清空后日期设今天；传 template 时以该版为底稿另起一版（沿用新建） */
+function openNew(template?: Api.Irs.UnderlyingResearch) {
+  editingDate.value = null;
+  if (template) loadVersion(template);
+  else clearForm();
+  form.research_date = today();
+  showDrawer.value = true;
+}
+
+/** 编辑：回填该版全部字段，定稿日锁定（后端按 (symbol, research_date) upsert） */
+function openEdit(r: Api.Irs.UnderlyingResearch) {
+  editingDate.value = r.research_date;
+  loadVersion(r);
+  showDrawer.value = true;
 }
 
 function overLimit() {
@@ -145,17 +172,17 @@ function doSave(force = false, skipSoft = false) {
     return;
   }
   // 软校验：纲领要求证伪 ≥3 条且覆盖第五章每条。**只提示不阻断**——
-  // 研究与证伪是两个 Tab，硬拦会让人为了能保存去凑三条废话证伪，比缺着更糟。
+  // 合并后证伪就在同一 Tab 下方，点「先补证伪」可就地补；硬拦会让人为凑数写废话判据。
   const soft =
-    props.invalidateCount < 3
-      ? `本标的目前只有 ${props.invalidateCount} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
+    logicCounts.invalidate < 3
+      ? `本标的目前只有 ${logicCounts.invalidate} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
       : null;
   if (soft && !skipSoft) {
     window.$dialog?.warning({
       title: '证伪条数不足',
       content: `${soft}。研究可以照存，但这份结论暂时没有可证伪的判据——将来无法判断逻辑坏没坏。`,
       positiveText: '仍然保存',
-      negativeText: '先去补证伪',
+      negativeText: '先补证伪',
       onPositiveClick: () => doSave(force, true)
     });
     return;
@@ -179,6 +206,8 @@ function doSave(force = false, skipSoft = false) {
         window.$message?.success(data?.action === 'created' ? '已新建一版研究' : '已改写该日研究');
         await loadResearch();
         emit('dirty');
+        // 失败时保持抽屉打开，不丢已填内容
+        showDrawer.value = false;
       }
     } finally {
       saving.value = false;
@@ -211,7 +240,7 @@ function handleDelete() {
         const { error } = await deleteUnderlyingResearch(props.umId, form.research_date as string);
         if (!error) {
           window.$message?.success('已删除该版研究');
-          startNew();
+          showDrawer.value = false;
           await loadResearch();
           emit('dirty');
         }
@@ -222,9 +251,9 @@ function handleDelete() {
   });
 }
 
-/** 完成度提示：研究 = 结论 + 逻辑 + 证伪，后两者在另一个 Tab，所以这里给出口 */
-const logicShort = computed(() => props.logicCount < 2);
-const invShort = computed(() => props.invalidateCount < 3);
+/** 完成度提示：研究 = 结论 + 逻辑 + 证伪；合并后后两者就在本 Tab 下方 */
+const logicShort = computed(() => logicCounts.logic < 2);
+const invShort = computed(() => logicCounts.invalidate < 3);
 
 const columns = [
   { title: '定稿日', key: 'research_date', width: 110 },
@@ -254,15 +283,21 @@ const columns = [
   {
     title: '操作',
     key: 'action',
-    width: 90,
+    width: 180,
     render: (r: Api.Irs.UnderlyingResearch) =>
-      h(
-        NButton,
-        { text: true, size: 'tiny', type: 'primary', onClick: () => loadVersion(r) },
-        {
-          default: () => '编辑'
-        }
-      )
+      h('div', { class: 'flex gap-8px' }, [
+        h(
+          NButton,
+          {
+            text: true,
+            size: 'tiny',
+            title: '以该版内容为底稿另起一版，定稿日设为今天；若今天已有版本则为改写',
+            onClick: () => openNew(r)
+          },
+          { default: () => '沿用新建' }
+        ),
+        h(NButton, { text: true, size: 'tiny', type: 'primary', onClick: () => openEdit(r) }, { default: () => '编辑' })
+      ])
   }
 ];
 
@@ -377,125 +412,34 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <span class="text-12px text-gray-400">
         选新日期 = 新建一版，选已有日期 = 改那一版；列表页的「结论」取 ≤今天 的最新一版
       </span>
-      <NButton size="tiny" ghost class="ml-auto" @click="startNew">新建一版</NButton>
+      <NButton size="tiny" type="primary" class="ml-auto" @click="openNew()">新增一版研究</NButton>
     </div>
     <UnderlyingDataTable :columns="columns" :data="research" :page-size="10" />
-    <!-- <NEmpty v-if="!research.length" size="small" description="还没有研究版本" class="my-8px" /> -->
-
-    <NDivider />
-
-    <NForm label-placement="left" label-width="90px" :show-feedback="false">
-      <NFormItem label="定稿日">
-        <NDatePicker
-          v-model:formatted-value="form.research_date"
-          type="date"
-          value-format="yyyy-MM-dd"
-          clearable
-          style="width: 160px"
-        />
-        <span class="ml-8px text-12px" :class="hit && form.research_date ? 'text-orange-500' : 'text-gray-400'">
-          {{ dateHint }}
-        </span>
-      </NFormItem>
-      <NFormItem label="结论">
-        <NInput
-          v-model:value="form.conclusion"
-          placeholder="如：维持观望 / 下调至回避 / 加仓"
-          :maxlength="LIMITS.conclusion"
-        />
-        <span class="ml-8px text-12px" :class="countClass('conclusion', form.conclusion)">
-          {{ form.conclusion.length }}/{{ LIMITS.conclusion }}
-        </span>
-      </NFormItem>
-      <NFormItem label="核心论点">
-        <NInput
-          v-model:value="form.thesis"
-          type="textarea"
-          :autosize="{ minRows: 2, maxRows: 4 }"
-          :maxlength="LIMITS.thesis"
-          placeholder="一句话说清赚什么钱（贴水/股息/成长/均值回归），不写故事"
-        />
-      </NFormItem>
-      <NFormItem label="最大风险">
-        <NInput
-          v-model:value="form.max_risk"
-          type="textarea"
-          :autosize="{ minRows: 1, maxRows: 3 }"
-          :maxlength="LIMITS.max_risk"
-          placeholder="最可能让我亏钱的那件事，要具体"
-        />
-      </NFormItem>
-      <NFormItem label="预期差">
-        <NInput v-model:value="form.expectation_gap" placeholder="我与市场看法不同在哪" />
-      </NFormItem>
-      <NFormItem label="前提条件">
-        <NInput
-          v-model:value="form.pre_condition"
-          type="textarea"
-          :autosize="{ minRows: 1, maxRows: 3 }"
-          :maxlength="LIMITS.pre_condition"
-          placeholder="逻辑成立必须先满足什么（如贴水不收敛、政策不变）"
-        />
-      </NFormItem>
-      <NFormItem label="下次复核">
-        <NDatePicker
-          v-model:formatted-value="form.next_review"
-          type="date"
-          value-format="yyyy-MM-dd"
-          clearable
-          style="width: 160px"
-        />
-        <span class="ml-8px text-12px text-gray-400">到期后本页「复核」列标红</span>
-      </NFormItem>
-      <NFormItem label="研究笔记">
-        <NInput v-model:value="form.research_note" placeholder="知识库文件名或编号（报告正文不进系统）" />
-      </NFormItem>
-      <NFormItem label="摘要">
-        <NInput
-          v-model:value="form.research_brief"
-          type="textarea"
-          :autosize="{ minRows: 2, maxRows: 5 }"
-          :maxlength="LIMITS.research_brief"
-          show-count
-          placeholder="给三个月后的自己看：当时为什么这么判断"
-        />
-      </NFormItem>
-      <NFormItem label="研究过程">
-        <NInput
-          v-model:value="form.research_log"
-          type="textarea"
-          :autosize="{ minRows: 3, maxRows: 8 }"
-          :maxlength="LIMITS.research_log"
-          show-count
-          placeholder="看过哪些数据、排除了哪些可能、怎么定的档位"
-        />
-      </NFormItem>
-    </NForm>
 
     <!--
-      完成度：研究 = 结论 + 逻辑 + 证伪。后两者在「逻辑与证伪」Tab，
-      放在这里是因为**填研究的人此刻最想知道"档案还缺什么"**，跳出去才想起来就晚了。
+      完成度：研究 = 结论 + 逻辑 + 证伪。合并后后两者就在本 Tab 下方，
+      条数由 LogicTab 实时上报，补完一条提示立刻变；不再需要跳转按钮。
       橙色只提示不阻断——录完研究、回头补证伪是正常顺序。
     -->
-    <NAlert :type="logicShort || invShort ? 'warning' : 'success'" :bordered="false" class="mb-12px">
+    <NAlert :type="logicShort || invShort ? 'warning' : 'success'" :bordered="false" class="my-12px">
       <div class="flex flex-wrap items-center gap-8px">
         <span>
           本标的已登记：逻辑
-          <b>{{ props.logicCount }}</b>
+          <b>{{ logicCounts.logic }}</b>
           条（纲领 2-4）、证伪
-          <b>{{ props.invalidateCount }}</b>
+          <b>{{ logicCounts.invalidate }}</b>
           条（纲领 ≥3，且覆盖第五章每条）
         </span>
         <NTag v-if="logicShort" size="small" :bordered="false" type="warning">逻辑不足 2 条</NTag>
         <NTag v-if="invShort" size="small" :bordered="false" type="warning">证伪不足 3 条</NTag>
-        <NButton size="tiny" ghost class="ml-auto" @click="emit('goto', 'logic')">去登记逻辑与证伪</NButton>
+        <span class="text-12px text-gray-400">缺的直接在下方补</span>
       </div>
     </NAlert>
 
-    <NSpace>
-      <NButton :loading="saving" @click="doSave()">保存</NButton>
-      <NButton v-if="hit" type="error" ghost :loading="deleting" @click="handleDelete">删除该版</NButton>
-    </NSpace>
+    <NDivider />
+
+    <!-- 逻辑与证伪（原独立 Tab，2026-11-09 并入；内部两张表 + 两个左侧抽屉自治） -->
+    <LogicTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" @counts="onCounts" />
 
     <NDivider />
 
@@ -540,5 +484,111 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       笔，累计平仓盈亏
       <b>{{ fmtPl(attribution.unattributed.total_pl) }}</b>
     </NAlert>
+
+    <!-- 研究录入抽屉（左侧），与逻辑 / 证伪 / 档位 / 剧本 / 复盘抽屉同规格 -->
+    <NDrawer v-model:show="showDrawer" placement="left" width="520px" :mask-closable="false">
+      <NDrawerContent
+        :title="editingDate ? `编辑 ${editingDate} 这一版研究` : '新增一版研究'"
+        closable
+        :native-scrollbar="false"
+      >
+        <NForm label-placement="left" label-width="90px" :show-feedback="false">
+          <NFormItem label="定稿日">
+            <NDatePicker
+              v-model:formatted-value="form.research_date"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              :disabled="editingDate !== null"
+              style="width: 160px"
+            />
+          </NFormItem>
+          <NFormItem label="结论">
+            <NInput
+              v-model:value="form.conclusion"
+              placeholder="如：维持观望 / 下调至回避 / 加仓"
+              :maxlength="LIMITS.conclusion"
+            />
+            <span class="ml-8px text-12px" :class="countClass('conclusion', form.conclusion)">
+              {{ form.conclusion.length }}/{{ LIMITS.conclusion }}
+            </span>
+          </NFormItem>
+          <NFormItem label="核心论点">
+            <NInput
+              v-model:value="form.thesis"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+              :maxlength="LIMITS.thesis"
+              placeholder="一句话说清赚什么钱（贴水/股息/成长/均值回归），不写故事"
+            />
+          </NFormItem>
+          <NFormItem label="最大风险">
+            <NInput
+              v-model:value="form.max_risk"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              :maxlength="LIMITS.max_risk"
+              placeholder="最可能让我亏钱的那件事，要具体"
+            />
+          </NFormItem>
+          <NFormItem label="预期差">
+            <NInput v-model:value="form.expectation_gap" placeholder="我与市场看法不同在哪" />
+          </NFormItem>
+          <NFormItem label="前提条件">
+            <NInput
+              v-model:value="form.pre_condition"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              :maxlength="LIMITS.pre_condition"
+              placeholder="逻辑成立必须先满足什么（如贴水不收敛、政策不变）"
+            />
+          </NFormItem>
+          <NFormItem label="下次复核">
+            <NDatePicker
+              v-model:formatted-value="form.next_review"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              style="width: 160px"
+            />
+            <span class="ml-8px text-12px text-gray-400">到期后本页「复核」列标红</span>
+          </NFormItem>
+          <NFormItem label="研究笔记">
+            <NInput v-model:value="form.research_note" placeholder="知识库文件名或编号（报告正文不进系统）" />
+          </NFormItem>
+          <NFormItem label="摘要">
+            <NInput
+              v-model:value="form.research_brief"
+              type="textarea"
+              :autosize="{ minRows: 2, maxRows: 5 }"
+              :maxlength="LIMITS.research_brief"
+              show-count
+              placeholder="给三个月后的自己看：当时为什么这么判断"
+            />
+          </NFormItem>
+          <NFormItem label="研究过程">
+            <NInput
+              v-model:value="form.research_log"
+              type="textarea"
+              :autosize="{ minRows: 3, maxRows: 8 }"
+              :maxlength="LIMITS.research_log"
+              show-count
+              placeholder="看过哪些数据、排除了哪些可能、怎么定的档位"
+            />
+          </NFormItem>
+        </NForm>
+        <div class="mt-8px text-12px" :class="hit && form.research_date ? 'text-orange-500' : 'text-gray-400'">
+          {{ dateHint }}
+        </div>
+
+        <template #footer>
+          <NSpace justify="end">
+            <NButton @click="showDrawer = false">取消</NButton>
+            <NButton v-if="hit" type="error" ghost :loading="deleting" @click="handleDelete">删除该版</NButton>
+            <NButton type="primary" :loading="saving" @click="doSave()">保存</NButton>
+          </NSpace>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
