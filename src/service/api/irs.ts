@@ -866,7 +866,7 @@ export function runRiskBoard() {
 export interface UmMarketStatsQuery {
   /** 标的代码（= irs_underlying_monitor.symbol） */
   symbol: string;
-  /** 1y / 3y / 5y / 10y / ytd / all，默认 5y */
+  /** 1y / 3y / 5y / 10y / ytd / all，默认 10y */
   range?: string;
   /** pe_ttm / pb_mrq / ps_ttm / dy_ttm，默认 pe_ttm */
   metric?: string;

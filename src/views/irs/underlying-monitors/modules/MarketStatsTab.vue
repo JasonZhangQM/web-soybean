@@ -40,8 +40,8 @@ const METRIC_NAMES: Record<string, string> = {
   dy_ttm: '股息率(%)'
 };
 
-/** 默认区间 5 年、默认指标 PE(TTM)（2026-11-08 用户拍板） */
-const range = ref('5y');
+/** 默认区间近 10 年、默认指标 PE(TTM)（2026-11-09 用户改拍板，原 5y） */
+const range = ref('10y');
 const metric = ref('pe_ttm');
 const stats = ref<Api.Irs.UmMarketStats | null>(null);
 const loading = ref(false);
