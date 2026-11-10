@@ -126,7 +126,7 @@ function budgetColor(row: AccountRow): string {
         <div class="acct-head">
           <span class="acct-name">{{ row.account === 'ALL' ? '组合' : row.account }}</span>
           <NTag v-if="row.idle" size="small" type="default">空账户</NTag>
-          <NTag v-else-if="row.firstCall?.direction === 'now'" size="small" type="error">已追保</NTag>
+          <NTag v-else-if="row.firstCall?.direction === 'now'" size="small">已追保</NTag>
           <template v-else-if="realOverLine(row.real)">
             <NTooltip trigger="hover">
               <template #trigger>

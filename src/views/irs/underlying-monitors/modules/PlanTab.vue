@@ -510,7 +510,7 @@ watch(
         长期有效的档位动作，可反复执行；触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随
       </span>
       <template #actions>
-        <NButton size="tiny" ghost @click="openNew">新增剧本</NButton>
+        <NButton size="tiny" @click="openNew">新增剧本</NButton>
       </template>
     </SectionBar>
     <UnderlyingDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" hide-when-fit />

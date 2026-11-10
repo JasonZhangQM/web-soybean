@@ -853,7 +853,7 @@ onMounted(() => {
       </NForm>
       <template #footer>
         <NSpace justify="space-between" align="center">
-          <NButton type="error" ghost :loading="deleteLoading" @click="handleDelete">删除</NButton>
+          <NButton :loading="deleteLoading" @click="handleDelete">删除</NButton>
           <NSpace>
             <NButton @click="handleCancel">取消</NButton>
             <NButton :loading="submitLoading" @click="handleSubmit">保存</NButton>

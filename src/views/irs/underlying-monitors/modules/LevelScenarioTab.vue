@@ -394,7 +394,7 @@ const basisText = computed(() => {
     </NAlert>
 
     <NSpin :show="loading">
-      <NAlert v-if="err" type="error" :bordered="false" class="mb-12px">
+      <NAlert v-if="err" :bordered="false" class="mb-12px">
         {{ err }}
         <div class="mt-8px text-12px">
           常见原因：期权行情陈旧、合约未认领、行情日混用。请到批量同步页同步期权行情后重试。

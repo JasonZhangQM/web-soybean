@@ -289,9 +289,7 @@ const levelColumns = LEVEL_META.map(m => ({
         研究定稿 {{ latestResearch.research_date }}
       </NTag>
       <NTag v-else size="small" :bordered="false" type="warning">还没做过研究</NTag>
-      <NTag v-if="reviewOverdue" size="small" :bordered="false" type="error">
-        复核已到期（{{ latestResearch?.next_review }}）
-      </NTag>
+      <NTag v-if="reviewOverdue" size="small" :bordered="false">复核已到期（{{ latestResearch?.next_review }}）</NTag>
       <template #actions>
         <NButton size="tiny" text @click="emit('goto', 'research')">去研究与逻辑 Tab 维护</NButton>
       </template>

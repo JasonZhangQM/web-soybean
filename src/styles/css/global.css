@@ -47,38 +47,25 @@ html.dark .n-data-table-tr.row-selected > .n-data-table-td--fixed-right {
   background-image: linear-gradient(rgb(var(--primary-color) / 0.32), rgb(var(--primary-color) / 0.32)) !important;
 }
 
-/* ===== 一键同步页（bds/batch-sync）四张卡片的标题区 ===== */
-/* naive 的 .n-card-header 默认只有 padding，既无背景也无下边框；size="small" 下
-   titleFontSizeSmall = fontSize = 14px，与正文同字号 ⇒ 标题和卡片体没有区分度。
-   这里统一补：浅底 + 1px 下边框 + 左侧 3px 主色竖条；标题 15px/600。
-   底色刻意用中性色而非主色：卡片头的「启动」按钮是主色实心块，主色底会把它吃掉。 */
+/* ===== 批量同步页（/batch-sync）六张卡片的标题区 ===== */
+/* 基准 = /irs/underlying-monitors 详情抽屉的通用标题栏
+   views/irs/underlying-monitors/modules/SectionBar.vue：同一中性底色 + 中性左色条 +
+   13px/600 标题 + 4px 圆角 + 无下边框。中性 rgba 在明暗主题下都可读，文字颜色继承父级，
+   所以不再分 html.dark 覆盖，也不再用主色竖条（主色会吃掉「启动」按钮的实心块）。
+   ⚠️ 卡片头是 NCard 的一部分、贴顶占满宽度 ⇒ 不照搬 SectionBar 的 margin:12px 0 8px
+   与 4px 全圆角，这里只做顶部圆角；卡片之间的间距由模板的 margin-top:16px 承担。 */
 /* 选择器统一用 .n-card.bds-sync-card（3 个类）压过 naive 运行时注入的 .n-card > .n-card-header，
    避免依赖样式表加载顺序。 */
 .n-card.bds-sync-card > .n-card-header {
-  position: relative;
-  /* 上下 padding 由 12px 压到 4px：size="small" 下 header 高度由 28px 的「启动」按钮撑起，
-     原 12px 上下留白把它顶到约 53px，与 24px 的标题行高不成比例。压到 4px 后约 37px。 */
-  padding: 4px var(--n-padding-left) 4px calc(var(--n-padding-left) + 6px);
-  background-color: rgba(0, 0, 0, 0.024);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
+  padding: 4px 10px;
+  background-color: rgba(128, 128, 128, 0.1);
+  border-left: 3px solid rgba(128, 128, 128, 0.5);
   border-radius: var(--n-border-radius) var(--n-border-radius) 0 0;
 }
-html.dark .n-card.bds-sync-card > .n-card-header {
-  background-color: rgba(255, 255, 255, 0.04);
-  border-bottom-color: rgba(255, 255, 255, 0.12);
-}
-.n-card.bds-sync-card > .n-card-header::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background-color: rgb(var(--primary-color));
-  border-radius: var(--n-border-radius) 0 0 0;
-}
 .n-card.bds-sync-card > .n-card-header > .n-card-header__main {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  white-space: nowrap;
 }
 .n-card.bds-sync-card > .n-card-header > .n-card-header__extra {
   display: flex;

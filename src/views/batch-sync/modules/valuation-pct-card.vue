@@ -236,7 +236,7 @@ onBeforeUnmount(() => {
     <template #header>估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）</template>
     <template #header-extra>
       <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
-      <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
+      <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
     <div style="font-size: 12px; color: #999; line-height: 1.7">

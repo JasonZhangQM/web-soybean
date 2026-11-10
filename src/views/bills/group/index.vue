@@ -458,7 +458,6 @@ onMounted(() => {
           <NButton
             v-if="riskRef.value != null"
             text
-            type="primary"
             size="tiny"
             @click="formData.risk_exposure = Number(riskRef.value.toFixed(2))"
           >

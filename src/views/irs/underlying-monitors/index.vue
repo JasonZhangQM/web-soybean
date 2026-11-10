@@ -701,12 +701,10 @@ onMounted(async () => {
         <template #footer>
           <NSpace justify="end">
             <NButton @click="handleCancel">取消</NButton>
-            <NButton ghost :loading="submitLoading" @click="handleSubmit">
+            <NButton :loading="submitLoading" @click="handleSubmit">
               {{ editingId === null ? '确定' : '修改' }}
             </NButton>
-            <NButton v-if="editingId !== null" type="error" ghost :loading="submitLoading" @click="handleDelete">
-              删除
-            </NButton>
+            <NButton v-if="editingId !== null" :loading="submitLoading" @click="handleDelete">删除</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

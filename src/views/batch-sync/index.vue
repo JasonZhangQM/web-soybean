@@ -999,8 +999,8 @@ onBeforeUnmount(() => {
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
       <template #header>财务及行情批量同步</template>
       <template #header-extra>
-        <NButton ghost size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
-        <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
+        <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
+        <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
       </template>
 
       <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning">
@@ -1182,26 +1182,10 @@ onBeforeUnmount(() => {
         <RouterLink to="/bds/index-constituents" class="sync-link" @click.stop>↗</RouterLink>
       </template>
       <template #header-extra>
-        <NButton
-          type="primary"
-          ghost
-          size="small"
-          :loading="indexStarting"
-          :disabled="indexIsRunning"
-          @click="handleIndexStart"
-        >
+        <NButton size="small" :loading="indexStarting" :disabled="indexIsRunning" @click="handleIndexStart">
           启动
         </NButton>
-        <NButton
-          v-if="indexIsRunning"
-          type="error"
-          ghost
-          size="small"
-          :loading="indexStopping"
-          @click="handleIndexStop"
-        >
-          停止
-        </NButton>
+        <NButton v-if="indexIsRunning" size="small" :loading="indexStopping" @click="handleIndexStop">停止</NButton>
       </template>
 
       <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
@@ -1345,8 +1329,6 @@ onBeforeUnmount(() => {
       </template>
       <template #header-extra>
         <NButton
-          type="primary"
-          ghost
           size="small"
           :loading="valuationStarting"
           :disabled="valuationIsRunning"
@@ -1354,14 +1336,7 @@ onBeforeUnmount(() => {
         >
           启动
         </NButton>
-        <NButton
-          v-if="valuationIsRunning"
-          type="error"
-          ghost
-          size="small"
-          :loading="valuationStopping"
-          @click="handleValuationStop"
-        >
+        <NButton v-if="valuationIsRunning" size="small" :loading="valuationStopping" @click="handleValuationStop">
           停止
         </NButton>
       </template>

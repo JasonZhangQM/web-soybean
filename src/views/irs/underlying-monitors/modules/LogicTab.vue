@@ -539,19 +539,19 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
 
     <SectionBar :title="`投资逻辑（${logic.length} 条）`">
       <NTag v-if="logicWeakenedCount" size="small" :bordered="false" type="warning">减弱 {{ logicWeakenedCount }}</NTag>
-      <NTag v-if="logicBrokenCount" size="small" :bordered="false" type="error">破坏 {{ logicBrokenCount }}</NTag>
+      <NTag v-if="logicBrokenCount" size="small" :bordered="false">破坏 {{ logicBrokenCount }}</NTag>
       <span class="text-12px text-gray-400">状态在表格里直接改，点一下即存；基调是 2-4 条，超了不拦</span>
       <template #actions>
-        <NButton size="tiny" ghost @click="openLogicNew">新增逻辑</NButton>
+        <NButton size="tiny" @click="openLogicNew">新增逻辑</NButton>
       </template>
     </SectionBar>
     <UnderlyingDataTable :columns="logicColumns" :data="logic" :page-size="5" hide-when-fit />
 
     <SectionBar :title="`证伪条件（${invalidate.length} 条）`">
-      <NTag v-if="invTriggeredCount" size="small" :bordered="false" type="error">已触发 {{ invTriggeredCount }}</NTag>
+      <NTag v-if="invTriggeredCount" size="small" :bordered="false">已触发 {{ invTriggeredCount }}</NTag>
       <span class="text-12px text-gray-400">纲领要求 ≥3 条且覆盖研究报告第五章每条；只登记，不自动计算触发</span>
       <template #actions>
-        <NButton size="tiny" ghost @click="openInvNew">新增证伪</NButton>
+        <NButton size="tiny" @click="openInvNew">新增证伪</NButton>
       </template>
     </SectionBar>
     <UnderlyingDataTable :columns="invalidateColumns" :data="invalidate" :page-size="5" hide-when-fit />

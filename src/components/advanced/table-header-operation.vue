@@ -42,7 +42,7 @@ function refresh() {
   <NSpace :align="itemAlign" wrap justify="end" class="lt-sm:w-200px">
     <slot name="prefix"></slot>
     <slot name="default">
-      <NButton size="small" ghost @click="add">
+      <NButton size="small" @click="add">
         <template #icon>
           <icon-ic-round-plus class="text-icon" />
         </template>
@@ -50,7 +50,7 @@ function refresh() {
       </NButton>
       <NPopconfirm @positive-click="batchDelete">
         <template #trigger>
-          <NButton size="small" ghost type="error" :disabled="disabledDelete">
+          <NButton size="small" :disabled="disabledDelete">
             <template #icon>
               <icon-ic-round-delete class="text-icon" />
             </template>

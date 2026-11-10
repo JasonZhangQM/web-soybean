@@ -203,7 +203,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
   <div class="p-16px">
     <div class="mb-16px flex flex-wrap items-center gap-12px">
       <span class="text-16px font-600">今日待办</span>
-      <NTag v-if="activeCount" type="error" size="small" :bordered="false" round>{{ activeCount }} 个需要动作</NTag>
+      <NTag v-if="activeCount" size="small" :bordered="false" round>{{ activeCount }} 个需要动作</NTag>
       <NTag v-else type="success" size="small" :bordered="false" round>今天没事</NTag>
       <NButton size="tiny" text class="ml-auto" :loading="quoteSyncLoading" @click="handleSyncQuote">同步行情</NButton>
       <NButton size="tiny" text @click="load">刷新</NButton>
@@ -241,7 +241,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
           </b>
         </span>
         <!-- 无上限短 call 标记 -->
-        <NTag v-if="riskBoard.max_exposure_unbounded" size="tiny" type="error" :bordered="false" round>
+        <NTag v-if="riskBoard.max_exposure_unbounded" size="tiny" :bordered="false" round>
           理论上行无上限（短 call）
         </NTag>
         <!-- 首追保点 -->
@@ -322,7 +322,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
                 逻辑 {{ it.logic_total }}
                 <template v-if="it.logic_weak">（减弱 {{ it.logic_weak }}）</template>
               </NTag>
-              <NTag v-if="it.invalidate_triggered" size="tiny" :bordered="false" type="error">
+              <NTag v-if="it.invalidate_triggered" size="tiny" :bordered="false">
                 证伪触发 {{ it.invalidate_triggered }}
               </NTag>
               <NTag v-if="it.review_due" size="tiny" :bordered="false" type="info">复核到期</NTag>

@@ -156,7 +156,7 @@ async function handleDelete(r: UnderlyingReview) {
     <div class="mb-12px flex flex-wrap items-center gap-8px">
       <span class="text-12px text-gray-400">复盘回答的是：这版研究的结论兑现了没有；同一版本可多次复盘</span>
       <span class="ml-auto text-12px text-gray-400">{{ symbol }}</span>
-      <NButton size="tiny" ghost :disabled="!researchList.length" @click="openNew">写复盘</NButton>
+      <NButton size="tiny" :disabled="!researchList.length" @click="openNew">写复盘</NButton>
     </div>
 
     <NAlert v-if="!researchList.length" type="warning" :bordered="false" :show-icon="false" class="mb-12px">
@@ -181,7 +181,7 @@ async function handleDelete(r: UnderlyingReview) {
             <NButton text size="tiny" @click="openEdit(r)">编辑</NButton>
             <NPopconfirm @positive-click="handleDelete(r)">
               <template #trigger>
-                <NButton text size="tiny" type="error" :loading="deletingId === r.id">删除</NButton>
+                <NButton text size="tiny" :loading="deletingId === r.id">删除</NButton>
               </template>
               删除这条复盘？同一研究版本的其他复盘不受影响。
             </NPopconfirm>

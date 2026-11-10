@@ -331,7 +331,7 @@ onMounted(fetchData);
               <template #icon><SvgIcon icon="mdi:refresh" /></template>
               刷新
             </NButton>
-            <NButton type="info" ghost @click="goRawData">
+            <NButton type="info" @click="goRawData">
               <template #icon><SvgIcon icon="mdi:table" /></template>
               原始数据
             </NButton>

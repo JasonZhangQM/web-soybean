@@ -168,9 +168,7 @@ const subjectLabel = computed(() => {
     </div>
 
     <NSpin :show="loading">
-      <NAlert v-if="loadError" type="error" title="估值与走势数据加载失败">
-        换个区间重试，或检查后端同步任务状态。
-      </NAlert>
+      <NAlert v-if="loadError" title="估值与走势数据加载失败">换个区间重试，或检查后端同步任务状态。</NAlert>
 
       <template v-else-if="stats">
         <NAlert v-if="stats.message" type="warning" class="mb-12px">{{ stats.message }}</NAlert>

@@ -158,7 +158,7 @@ onBeforeUnmount(() => {
     <template #header>最新估值分位（/today 与标的监测页的数据源）</template>
     <template #header-extra>
       <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
-      <NButton v-if="isRunning" type="error" ghost size="small" :loading="stopping" @click="handleStop">停止</NButton>
+      <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
     <div style="font-size: 12px; color: #999; line-height: 1.7">
