@@ -387,6 +387,8 @@ declare namespace Api {
       coverage: number | null;
       /** 是否已触发追保（交易所口径）；账户卡不返回，仅情景行提供 */
       breached?: boolean;
+      /** 账户层面全部持仓的账面浮盈（bills_group_acc.pf_total，排除合计） */
+      pf_now: number;
     }
 
     /** 风险看板-逐仓持仓 */
@@ -409,6 +411,8 @@ declare namespace Api {
       drop1_loss: number;
       /** 当前保证金 */
       margin_now: number;
+      /** 当前盈亏：该合约在本账户的账面浮盈（bills_group.pf_total，按账户×合约聚合） */
+      pf_now: number;
       /** C=认购 / P=认沽（仅期权） */
       cp: string | null;
       /** long=买方 / short=卖方（仅期权） */
@@ -443,6 +447,8 @@ declare namespace Api {
       margin: number;
       /** 该情景下的盈亏（正=亏） */
       loss: number;
+      /** 另一时点（now ⇄ expiry）逐仓盈亏（正=亏）；仅 detail=true */
+      loss_other: number | null;
     }
 
     /** 风险看板-单情景 × 账户 */
@@ -581,6 +587,8 @@ declare namespace Api {
       max_exposure: number;
       /** 是否存在理论上行无上限的卖认购 */
       max_exposure_unbounded: boolean;
+      /** 组合账面浮盈（ALL 视角 = 各账户之和，已排除合计行） */
+      pf_now_total: number;
       /** 分账户风险卡 */
       accounts: Record<string, RiskBoardAccount>;
       /** 逐仓明细 */

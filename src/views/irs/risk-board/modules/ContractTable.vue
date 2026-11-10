@@ -3,7 +3,7 @@ import { computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { fmtMoney, fmtPrice } from './utils';
+import { fmtMoney, fmtPrice, pnl, scenarioLabel } from './utils';
 
 defineOptions({ name: 'ContractTable' });
 
@@ -12,6 +12,10 @@ const props = defineProps<{
   board: Api.Irs.RiskBoard;
   /** 当前账户：ALL 或具体账户 */
   account: string;
+  /** 情景模式（与情景压力表一致） */
+  mode: string;
+  /** 情景压力表当前选中的档位；默认 0% */
+  step: number;
 }>();
 
 const router = useRouter();
@@ -21,6 +25,32 @@ const rows = computed<Api.Irs.RiskBoardPosition[]>(() => {
   const all = props.board.positions ?? [];
   return props.account === 'ALL' ? all : all.filter(p => p.acct === props.account);
 });
+
+/** 后端 grid 的键：0 写成 '0.0'，其余与 JS 数字串一致 */
+function gridKey(drop: number): string {
+  return drop === 0 ? '0.0' : String(drop);
+}
+
+/** 选中档位下 ALL 行的逐仓情景明细，键 = 账户-合约（与明细表 row-key 一致）。 */
+const detailMap = computed(() => {
+  const m = new Map<string, Api.Irs.RiskBoardDetail>();
+  const cell = props.board.grid[props.mode]?.[gridKey(props.step)]?.ALL;
+  (cell?.detail ?? []).forEach(d => m.set(`${d.acct}-${d.name}`, d));
+  return m;
+});
+
+/** 对照时点列标题：now → 到期，expiry → 即期（避免两列同值） */
+const otherLabel = computed(() => (props.board.horizon === 'now' ? '到期' : '即期'));
+const stepLabel = computed(() => scenarioLabel(props.step));
+
+/**
+ * 模型盯市 Δ 盈亏：后端 loss 正=亏，展示口径正=盈，故取反。
+ * detail 缺失（未开 detail=true 或该合约不在风险上下文）返回 null 显示 '—'，不伪造 0。
+ */
+function deltaPnl(p: Api.Irs.RiskBoardPosition, key: 'loss' | 'loss_other'): number | null {
+  const v = detailMap.value.get(`${p.acct}-${p.symbol}`)?.[key];
+  return v === null || v === undefined ? null : -Number(v);
+}
 
 /** 品种标签：期货 / 认购 / 认沽 / 其他 */
 function kindLabel(p: Api.Irs.RiskBoardPosition): string {
@@ -73,7 +103,8 @@ function goOptionQuote() {
   router.push({ name: 'irs_option-quote' });
 }
 
-const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
+/** 列定义必须是 computed：对照列标题随时点口径变化，静态数组不会更新（🔒 踩过坑）。 */
+const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
   {
     title: '合约',
     key: 'symbol',
@@ -137,6 +168,27 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
     render: (p: Api.Irs.RiskBoardPosition) => fmtMoney(p.margin_now)
   },
   {
+    title: '当前盈亏',
+    key: 'pf_now',
+    width: 120,
+    align: 'right' as const,
+    render: (p: Api.Irs.RiskBoardPosition) => pnl(p.pf_now)
+  },
+  {
+    title: '标的Δ盈亏',
+    key: 'delta_pnl',
+    width: 130,
+    align: 'right' as const,
+    render: (p: Api.Irs.RiskBoardPosition) => pnl(deltaPnl(p, 'loss'))
+  },
+  {
+    title: `${otherLabel.value}Δ盈亏`,
+    key: 'other_delta_pnl',
+    width: 130,
+    align: 'right' as const,
+    render: (p: Api.Irs.RiskBoardPosition) => pnl(deltaPnl(p, 'loss_other'))
+  },
+  {
     title: '最大亏损',
     key: 'max_loss',
     width: 110,
@@ -150,7 +202,7 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
     align: 'right' as const,
     render: (p: Api.Irs.RiskBoardPosition) => renderEfficiency(p)
   }
-];
+]);
 </script>
 
 <template>
@@ -158,6 +210,7 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
     <template #header>
       <div class="contract-header">
         <span>逐张合约（{{ rows.length }}）</span>
+        <span class="contract-note">Δ盈亏对应情景档位：{{ stepLabel }}（点击上方情景压力表切换）</span>
         <span class="contract-note">「无上限」为数学上界，非风险预算</span>
       </div>
     </template>
@@ -167,10 +220,14 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
       :pagination="false"
       :bordered="false"
       :row-key="(p: Api.Irs.RiskBoardPosition) => `${p.acct}-${p.symbol}`"
-      :scroll-x="1325"
+      :scroll-x="1705"
       :max-height="420"
       virtual-scroll
     />
+    <div class="table-note">
+      「当前盈亏」为账单账面浮盈（静态）；两个Δ盈亏为所选情景档位下的模型盯市增量
+      [推算]，正=盈、负=亏，与账面口径不同源、不可相加对账。默认 0% 档时 Δ 盈亏为 0。
+    </div>
   </NCard>
 </template>
 
@@ -180,7 +237,7 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
  * 把行高撑成两倍，与全站其他列表页不一致。
  * :deep() 是必须的——th/td 由 NDataTable 子组件渲染，scoped 属性加不到它们身上，
  * 直接写 .n-data-table-td 无效且不报错。
- * 配合 columns 宽度（合计 1325）与 scroll-x，列宽才是硬约束。
+ * 配合 columns 宽度（合计 1705）与 scroll-x，列宽才是硬约束。
  */
 :deep(.n-data-table-th),
 :deep(.n-data-table-td) {
@@ -196,6 +253,12 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
 .contract-note {
   font-size: 12px;
   font-weight: 400;
+  color: #909399;
+}
+
+.table-note {
+  margin-top: 8px;
+  font-size: 12px;
   color: #909399;
 }
 </style>

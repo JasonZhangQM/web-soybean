@@ -10,11 +10,19 @@
  * 所以不传 `remote` —— NDataTable 自己按 page/pageSize 切数据、自己算 itemCount。
  * 本组件只维护「当前第几页」这一个状态。
  *
- * 📌 `pageSize` 是各表的展示语义，不是用户偏好：计划 5 条、成交 8 条、档位 10 条，
- *    目的是「一屏内看完 + 不挤压上方内容」。所以传进来的默认值优先，
- *    但用户仍可通过分页器的「N 条/页」临时调整（与列表页同一个控件）。
+ * 📌 `pageSize` 是各表的展示语义，不是用户偏好：档位版本 / 剧本 / 研究版本 / 投资逻辑 /
+ *    证伪条件 5 条，其余表传 0 不分页，目的是「一屏内看完 + 不挤压上方内容」。
+ *    所以传进来的默认值优先，但用户仍可通过分页器的「N 条/页」临时调整（与列表页同一个控件）。
+ *
+ * 📌 `hideWhenFit`：一页放得下就隐藏整条分页器（上述五张 5 条/页的表开启，其余表不传）。
+ *    判据用**生效页大小**（含用户临时选的每页条数），不是 props.pageSize —— 否则用户
+ *    改过「N 条/页」后条数再变少，分页器会赖着不走。
+ *
+ * 📌 `rowProps`：整行属性（如五档表「点击整行联动」），直接透传给 NDataTable；
+ *    不传则其它表保持原样。与 `/irs/risk-board` 情景压力表用的是同一个 NDataTable 能力。
  */
 import { computed, ref } from 'vue';
+import type { HTMLAttributes } from 'vue';
 import type { DataTableColumns, PaginationProps } from 'naive-ui';
 
 defineOptions({ name: 'UnderlyingDataTable' });
@@ -25,8 +33,12 @@ const props = withDefaults(
     data: any[];
     /** 每页条数；传 0 表示不分页（整段显示） */
     pageSize?: number;
+    /** 数据一页放得下时隐藏分页器；默认 false（其它表维持原样） */
+    hideWhenFit?: boolean;
+    /** 整行属性（如点击整行联动）；不传则其它表保持原样 */
+    rowProps?: (row: any, index: number) => HTMLAttributes;
   }>(),
-  { pageSize: 0 }
+  { pageSize: 0, hideWhenFit: false, rowProps: undefined }
 );
 
 /** 分页器可选的每页条数，与列表页 `createTablePagination` 的 pageSizes 对齐 */
@@ -78,6 +90,11 @@ const pagination = computed<PaginationProps>(() => ({
   }
 }));
 
+/** 分页器显隐：pageSize=0 本就不分页；开启 hideWhenFit 后「一页放得下」也不显示 */
+const showPagination = computed(
+  () => effPageSize.value > 0 && (!props.hideWhenFit || itemCount.value > effPageSize.value)
+);
+
 /**
  * 列宽和喂 `scroll-x`（铁律 4.11：改任何列宽都要同步，偏小会让浏览器压列、内容折行）。
  *
@@ -100,7 +117,8 @@ const scrollX = computed(() => {
   <NDataTable
     :columns="columns"
     :data="data"
-    :pagination="effPageSize > 0 ? pagination : false"
+    :pagination="showPagination ? pagination : false"
+    :row-props="rowProps"
     :bordered="false"
     :scroll-x="scrollX"
     table-layout="fixed"

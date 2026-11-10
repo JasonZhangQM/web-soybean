@@ -13,14 +13,16 @@
  * 录入统一走左侧抽屉（与 LogicTab / PlanTab / ReviewTab 同规格）：顶部「新增档位版本」
  * + 行内「编辑」共用同一个抽屉；编辑锁生效日，避免按日期 upsert 时误复制成新一版。
  *
- * 「到档情景」默认折叠，展开才挂载子组件并发一次 /level-scenario（五档 × 双时点 × 全持仓）。
- * 保存档位成功后若情景已展开，主动重拉一次，避免主表 pp_* 已改而情景仍是旧数。
+ * 「到档情景」直接展示（2026-11-10 取消折叠）：切到本 Tab 即挂载子组件并发一次
+ * /level-scenario（五档 × 双时点 × 全持仓），无需再手动展开。
+ * 保存 / 删除档位成功后主动重拉一次，避免主表 pp_* 已改而情景仍是旧数。
  */
 import { ref, reactive, computed, watch, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { fetchUnderlyingVersions, saveUnderlyingVersion, deleteUnderlyingVersion } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import LevelScenarioTab from './LevelScenarioTab.vue';
+import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingVersionTab' });
 
@@ -35,8 +37,7 @@ const warnings = ref<Array<{ level: string; pb_pct: number; message: string }>>(
 /** 左侧录入抽屉：editingDate=null 表示新增，非 null 表示改写该日版本（生效日锁定） */
 const showDrawer = ref(false);
 const editingDate = ref<string | null>(null);
-/** 到档情景折叠区：空数组 = 折叠，不挂载组件、不发请求 */
-const scenarioExpanded = ref<string[]>([]);
+/** 到档情景常驻挂载：ref 仅供保存 / 删除档位后主动重算 */
 const scenarioRef = ref<InstanceType<typeof LevelScenarioTab> | null>(null);
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
@@ -164,7 +165,7 @@ function doSave(force = false) {
         // 只刷 versions + 标记 dirty（抽屉关闭时才全量刷列表）
         await loadVersions();
         emit('dirty');
-        // 主表 pp_* 已被 refresh_current_pp 刷新：情景若已展开则重算，未展开不发请求
+        // 主表 pp_* 已被 refresh_current_pp 刷新：情景常驻展示，直接重算
         scenarioRef.value?.load();
         // 失败时保持抽屉打开，不丢已填内容
         showDrawer.value = false;
@@ -241,11 +242,11 @@ const statusType: Record<string, 'success' | 'default' | 'warning'> = {
 
 // ---------------- 分页 ----------------
 /**
- * 每页 10 条：页大小交给共用 `UnderlyingDataTable`（与列表页同款分页器），
- * 它内部还负责页码钳制 —— 删掉一版后 `versions` 变短，页码会自动回退，
- * 不会停在一张空白页上。
+ * 默认每页 5 条；5 条及以下隐藏整条分页器（交给 `UnderlyingDataTable` 的 `hideWhenFit`），
+ * 超过 5 条才显示。页大小仍走共用组件（与列表页同款分页器），它还负责页码钳制 ——
+ * 删掉一版后 `versions` 变短，页码会自动回退，不会停在一张空白页上。
  */
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const columns = [
   { title: '生效日', key: 'effective_date', width: 110 },
@@ -354,21 +355,13 @@ const columns = [
 
 <template>
   <div>
-    <NAlert type="info" :bordered="false" class="mb-12px">
-      某日档位 =
-      <b>生效日 ≤ 该日 的最大一版</b>
-      ，不是每日快照。选新日期 = 新建一版；选已有日期 = 改那一版。 改档位后，引用档位的计划（触发点写「低 / 中 /
-      高」的）会自动跟随新值，
-      <b>不用逐条改计划</b>
-      。
-    </NAlert>
+    <SectionBar title="档位版本">
+      <template #actions>
+        <NButton size="tiny" @click="openNew()">新增档位版本</NButton>
+      </template>
+    </SectionBar>
 
-    <div class="mb-8px flex items-center gap-8px">
-      <span class="font-500">档位版本</span>
-      <NButton size="tiny" class="ml-auto" @click="openNew()">新增档位版本</NButton>
-    </div>
-
-    <UnderlyingDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" />
+    <UnderlyingDataTable :columns="columns" :data="versions" :page-size="PAGE_SIZE" hide-when-fit />
 
     <!-- P2-4 档位分位校验告警（只提示，绝不自动改档位） -->
     <NAlert
@@ -387,21 +380,7 @@ const columns = [
       </div>
     </NAlert>
 
-    <NDivider />
-
-    <div class="mb-8px text-12px text-gray-400">
-      到档情景默认折叠；展开后才计算（五档 × 双时点 × 全持仓），保存或删除档位后若已展开会自动重算。
-    </div>
-    <NCollapse v-model:expanded-names="scenarioExpanded">
-      <NCollapseItem title="到档情景 · 五档持仓盈亏 / 保证金 / 风险指标" name="scenario">
-        <LevelScenarioTab
-          v-if="scenarioExpanded.includes('scenario')"
-          ref="scenarioRef"
-          :um-id="umId"
-          :symbol="symbol"
-        />
-      </NCollapseItem>
-    </NCollapse>
+    <LevelScenarioTab ref="scenarioRef" :um-id="umId" :symbol="symbol" />
 
     <!-- 档位录入抽屉（左侧），与逻辑 / 证伪 / 剧本 / 复盘抽屉同规格 -->
     <NDrawer v-model:show="showDrawer" placement="left" width="520px" :mask-closable="false">

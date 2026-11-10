@@ -4,11 +4,19 @@
  * 核心约定：后端的 `drop_pct` 正数=跌幅、负数=涨幅，展示时必须翻转成正负号，
  * 不能把原始负值直接贴到表头，否则用户会把「涨 20%」读成「跌 20%」。
  */
+import { h } from 'vue';
 
 /** 金额：千分位 + 2 位小数；空值显示 '-' */
 export function fmtMoney(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
   return Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 盈亏染色：沿用项目口径「亏红盈绿」；正=盈、负=亏；空值显示 '-'，不伪造 0 */
+export function pnl(v: number | null | undefined) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+  const n = Number(v);
+  return h('span', { style: { color: n < 0 ? '#d03050' : '#18a058' } }, fmtMoney(n));
 }
 
 /** 风险度：4 位小数；空值显示 '-' */
@@ -17,10 +25,15 @@ export function fmtRatio(v: number | null | undefined): string {
   return Number(v).toFixed(4);
 }
 
-/** 单价/波动率：4 位小数 */
+/**
+ * 单价/波动率：最多 4 位小数，去掉小数末尾多余的 0（4020.0000 → 4020、3.5000 → 3.5）。
+ * 全站价格显示统一走这里；空值显示 '-'。项目内「去尾零」口径一致，勿再各页另写一份。
+ */
 export function fmtPrice(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
-  return Number(v).toFixed(4);
+  return Number(v)
+    .toFixed(4)
+    .replace(/\.?0+$/, '');
 }
 
 /** 情景档位标签：+0.2 → '-20%'，-0.2 → '+20%'，0 → '0%' */

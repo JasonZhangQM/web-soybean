@@ -16,6 +16,7 @@ import {
   type UnderlyingMonitorDetail
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
+import SectionBar from './SectionBar.vue';
 import { STATUS_TYPE, triggerText } from './planFormat';
 
 defineOptions({ name: 'UnderlyingOverviewTab' });
@@ -283,8 +284,7 @@ const levelColumns = LEVEL_META.map(m => ({
 <template>
   <div>
     <!-- 决策卡：数据源 = 最新一条研究版本 -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">决策卡</span>
+    <SectionBar title="决策卡">
       <NTag v-if="latestResearch" size="small" :bordered="false" type="info">
         研究定稿 {{ latestResearch.research_date }}
       </NTag>
@@ -292,8 +292,10 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-if="reviewOverdue" size="small" :bordered="false" type="error">
         复核已到期（{{ latestResearch?.next_review }}）
       </NTag>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'research')">去研究与逻辑 Tab 维护</NButton>
-    </div>
+      <template #actions>
+        <NButton size="tiny" text @click="emit('goto', 'research')">去研究与逻辑 Tab 维护</NButton>
+      </template>
+    </SectionBar>
 
     <!--
       label-style 固定 label 列宽：naive-ui 的 NDescriptions 没有 label-width 属性
@@ -342,36 +344,30 @@ const levelColumns = LEVEL_META.map(m => ({
       这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究与逻辑」Tab 按日期新建一版。
     </NAlert>
 
-    <NDivider />
-
     <!--
       逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
       概览只展示计数（轻量），状态分布留给「研究与逻辑」Tab 看全量。
       纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
     -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">逻辑与证伪</span>
+    <SectionBar title="逻辑与证伪">
       <NTag size="small" :bordered="false" :type="detail.logic_total_count < 2 ? 'warning' : 'default'">
         逻辑 {{ detail.logic_total_count }} 条
       </NTag>
       <NTag size="small" :bordered="false" :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'">
         证伪 {{ detail.invalidate_total_count }} 条
       </NTag>
-      <span class="ml-auto text-12px text-gray-400">明细在「研究与逻辑」Tab 维护</span>
-    </div>
-
-    <NDivider />
+      <span class="text-12px text-gray-400">明细在「研究与逻辑」Tab 维护</span>
+    </SectionBar>
 
     <!-- 档位摘要 -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">当前档位</span>
+    <SectionBar title="当前档位">
       <NTag v-if="currentVersion" size="small" :bordered="false">生效 {{ currentVersion.effective_date }}</NTag>
       <NTag v-else size="small" :bordered="false" type="warning">无生效版本</NTag>
       <span v-if="currentVersion?.note" class="text-12px text-gray-400">备注：{{ currentVersion.note }}</span>
-      <div class="ml-auto flex gap-8px">
+      <template #actions>
         <NButton size="tiny" text @click="emit('goto', 'version')">去档位 Tab（维护档位 / 五档持仓情景）</NButton>
-      </div>
-    </div>
+      </template>
+    </SectionBar>
 
     <!-- 档位摘要：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 -->
     <UnderlyingDataTable
@@ -382,24 +378,22 @@ const levelColumns = LEVEL_META.map(m => ({
       class="mb-16px"
     />
 
-    <NDivider />
-
     <!-- 加仓额度：R2 的执行前提。档位说到「到价加仓」，这里回答「钱够不够」 -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">加仓额度</span>
+    <SectionBar title="加仓额度">
       <NTag v-if="budgetTag" size="small" :bordered="false" :type="budgetTag.type">{{ budgetTag.text }}</NTag>
       <span class="text-12px text-gray-400">{{ umBudget?.note || '计算中…' }}</span>
       <span v-if="umBudget?.as_of" class="text-12px text-gray-400">行情 {{ umBudget.as_of }}</span>
-      <NButton size="tiny" text class="ml-auto" @click="router.push({ name: 'irs_risk-board' })">去风险看板</NButton>
-    </div>
-
-    <NDivider />
+      <template #actions>
+        <NButton size="tiny" text @click="router.push({ name: 'irs_risk-board' })">去风险看板</NButton>
+      </template>
+    </SectionBar>
 
     <!-- 剧本计数 -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">生效剧本({{ activePlanCount }})</span>
-      <NButton size="tiny" text class="ml-auto" @click="emit('goto', 'plan')">去剧本与成交 Tab</NButton>
-    </div>
+    <SectionBar :title="`生效剧本(${activePlanCount})`">
+      <template #actions>
+        <NButton size="tiny" text @click="emit('goto', 'plan')">去剧本与成交 Tab</NButton>
+      </template>
+    </SectionBar>
 
     <!-- 剧本明细（只读）：只展示生效剧本，暂停的留给「剧本与成交」Tab 看全量 -->
     <UnderlyingDataTable
@@ -410,11 +404,14 @@ const levelColumns = LEVEL_META.map(m => ({
       class="mb-8px"
     />
 
-    <NDivider />
-
     <!-- 对应交易代码（只读）：映射的编辑入口在合约页，这里只展示 -->
+    <SectionBar title="对应交易代码">
+      <span class="text-12px text-gray-400">共 {{ groupTotal }} 个合约行（融资融券不计）</span>
+      <template #actions>
+        <NButton size="tiny" text @click="gotoGroupSymbols">去合约页维护归属</NButton>
+      </template>
+    </SectionBar>
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">对应交易代码</span>
       <NSelect
         v-model:value="categoryFilter"
         :options="categoryOptions"
@@ -435,8 +432,6 @@ const levelColumns = LEVEL_META.map(m => ({
       />
       <NButton size="small" @click="searchGroupsFromFirst">搜索</NButton>
       <NButton size="small" @click="resetGroupFilters">重置</NButton>
-      <span class="text-12px text-gray-400">共 {{ groupTotal }} 个合约行（融资融券不计）</span>
-      <NButton size="tiny" text class="ml-auto" @click="gotoGroupSymbols">去合约页维护归属</NButton>
     </div>
     <UnderlyingDataTable :columns="groupColumns" :data="groups" :page-size="0" />
     <div class="mt-8px flex justify-end">

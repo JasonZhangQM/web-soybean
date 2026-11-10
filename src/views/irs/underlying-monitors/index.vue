@@ -14,6 +14,7 @@ import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
+import { fmtPrice } from '@/views/irs/risk-board/modules/utils';
 import DetailDrawer from './modules/DetailDrawer.vue';
 
 defineOptions({ name: 'IrsUnderlyingMonitorsPage' });
@@ -365,13 +366,9 @@ const fmtQuote = (row: Api.Irs.UnderlyingMonitor, v: number | null) => {
   return Number(v).toFixed(row.name?.includes('ETF') ? 3 : 2);
 };
 // 估值价合并列：主值后追加(百分比%,y百分比%)，如 3500(-24.44%,-24.41%)
+// 价格去尾零统一复用共用 fmtPrice（与风险看板、到档情景同口径），勿在此另写一份格式化
 const fmtPriceMerged = (price: number | null, pct: number | null, pctY: number | null) => {
-  const p =
-    price != null
-      ? Number(price)
-          .toFixed(4)
-          .replace(/\.?0+$/, '')
-      : '-';
+  const p = fmtPrice(price);
   if (pct == null && pctY == null) return p;
   const pPct = pct != null ? `${Number(pct).toFixed(2)}%` : '-';
   const pPctY = pctY != null ? `${Number(pctY).toFixed(2)}%` : '-';

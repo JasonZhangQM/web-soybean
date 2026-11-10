@@ -29,6 +29,9 @@ const query = reactive({
   account: 'ALL'
 });
 
+/** 情景压力表选中的档位：默认 0%（Δ 盈亏为 0），点击行切换；内存态不落 localStorage */
+const activeStep = ref(0);
+
 // 会话记忆：切回本页时恢复上次的模式/口径/账户（本页无分页，分页参数仅占位）
 const pagination = createTablePagination();
 usePageState({ searchParams: query, pagination });
@@ -213,7 +216,13 @@ onMounted(fetchData);
         <NGi span="24 m:14">
           <NCard :bordered="false" class="card-wrapper h-full" size="small">
             <template #header>情景压力表（{{ modeHint }}）</template>
-            <ScenarioTable :board="board" :mode="query.mode" :account="query.account" />
+            <ScenarioTable
+              :board="board"
+              :mode="query.mode"
+              :account="query.account"
+              :step="activeStep"
+              @select="val => (activeStep = val)"
+            />
           </NCard>
         </NGi>
         <NGi span="24 m:10">
@@ -225,7 +234,7 @@ onMounted(fetchData);
       </NGrid>
 
       <div class="mt-16px">
-        <ContractTable :board="board" :account="query.account" />
+        <ContractTable :board="board" :account="query.account" :mode="query.mode" :step="activeStep" />
       </div>
     </NSpin>
   </div>

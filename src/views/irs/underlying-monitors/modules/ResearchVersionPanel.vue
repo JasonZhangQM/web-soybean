@@ -26,6 +26,7 @@ import {
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import LogicTab from './LogicTab.vue';
+import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingResearchVersionPanel' });
 
@@ -408,14 +409,15 @@ function countClass(k: keyof typeof LIMITS, v: string) {
 
 <template>
   <div>
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">研究版本</span>
+    <SectionBar title="研究版本">
       <span class="text-12px text-gray-400">
         选新日期 = 新建一版，选已有日期 = 改那一版；列表页的「结论」取 ≤今天 的最新一版
       </span>
-      <NButton size="tiny" class="ml-auto" @click="openNew()">新增一版研究</NButton>
-    </div>
-    <UnderlyingDataTable :columns="columns" :data="research" :page-size="10" />
+      <template #actions>
+        <NButton size="tiny" @click="openNew()">新增一版研究</NButton>
+      </template>
+    </SectionBar>
+    <UnderlyingDataTable :columns="columns" :data="research" :page-size="5" hide-when-fit />
 
     <!--
       完成度：研究 = 结论 + 逻辑 + 证伪。合并后后两者就在本 Tab 下方，
@@ -437,18 +439,13 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       </div>
     </NAlert>
 
-    <NDivider />
-
     <!-- 逻辑与证伪（原独立 Tab，2026-11-09 并入；内部两张表 + 两个左侧抽屉自治） -->
     <LogicTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" @counts="onCounts" />
 
-    <NDivider />
-
     <!-- 复盘视图：状态演化（P2-3）+ 剧本盈亏归因（P3-3） -->
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">状态演化</span>
+    <SectionBar title="状态演化">
       <span class="text-12px text-gray-400">逻辑 state / 证伪 status 的追加日志，改一次记一条，不复写旧值</span>
-    </div>
+    </SectionBar>
     <NEmpty v-if="!stateLog.length" size="small" description="还没有状态变更记录" class="my-8px" />
     <NTimeline v-else class="mt-8px">
       <NTimelineItem
@@ -464,12 +461,9 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       </NTimelineItem>
     </NTimeline>
 
-    <NDivider />
-
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">剧本盈亏归因</span>
+    <SectionBar title="剧本盈亏归因">
       <span class="text-12px text-gray-400">只统计本标的的剧本（underlying_symbol 过滤）；未归因成交显式标注</span>
-    </div>
+    </SectionBar>
     <NSpin :show="attributionLoading">
       <UnderlyingDataTable
         v-if="attributionRows.length"

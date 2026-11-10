@@ -27,6 +27,7 @@ import {
   type UnderlyingLogicSaveParams
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
+import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingLogicTab' });
 
@@ -536,24 +537,24 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
       不可判定，标「不可量化」并标红。
     </NAlert>
 
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">投资逻辑（{{ logic.length }} 条）</span>
+    <SectionBar :title="`投资逻辑（${logic.length} 条）`">
       <NTag v-if="logicWeakenedCount" size="small" :bordered="false" type="warning">减弱 {{ logicWeakenedCount }}</NTag>
       <NTag v-if="logicBrokenCount" size="small" :bordered="false" type="error">破坏 {{ logicBrokenCount }}</NTag>
       <span class="text-12px text-gray-400">状态在表格里直接改，点一下即存；基调是 2-4 条，超了不拦</span>
-      <NButton size="tiny" ghost class="ml-auto" @click="openLogicNew">新增逻辑</NButton>
-    </div>
-    <UnderlyingDataTable :columns="logicColumns" :data="logic" :page-size="10" />
+      <template #actions>
+        <NButton size="tiny" ghost @click="openLogicNew">新增逻辑</NButton>
+      </template>
+    </SectionBar>
+    <UnderlyingDataTable :columns="logicColumns" :data="logic" :page-size="5" hide-when-fit />
 
-    <NDivider />
-
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">证伪条件（{{ invalidate.length }} 条）</span>
+    <SectionBar :title="`证伪条件（${invalidate.length} 条）`">
       <NTag v-if="invTriggeredCount" size="small" :bordered="false" type="error">已触发 {{ invTriggeredCount }}</NTag>
       <span class="text-12px text-gray-400">纲领要求 ≥3 条且覆盖研究报告第五章每条；只登记，不自动计算触发</span>
-      <NButton size="tiny" ghost class="ml-auto" @click="openInvNew">新增证伪</NButton>
-    </div>
-    <UnderlyingDataTable :columns="invalidateColumns" :data="invalidate" :page-size="10" />
+      <template #actions>
+        <NButton size="tiny" ghost @click="openInvNew">新增证伪</NButton>
+      </template>
+    </SectionBar>
+    <UnderlyingDataTable :columns="invalidateColumns" :data="invalidate" :page-size="5" hide-when-fit />
     <!-- <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" /> -->
 
     <!-- 投资逻辑抽屉（左侧） -->

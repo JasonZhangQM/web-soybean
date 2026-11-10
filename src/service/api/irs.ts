@@ -238,7 +238,7 @@ export interface LevelScenarioPosition {
   /** 当前盈亏：该合约在本账户的账面浮动盈亏（账单口径，逐仓按账户×合约拆分） */
   pf_now: number;
   delta_pnl: number;
-  /** 另一时点（即期 ↔ 到期）逐仓对照 Δ盈亏，模型口径 */
+  /** 另一时点（即期 ↔ 到期）逐仓对照Δ盈亏，模型口径 */
   other_delta_pnl: number;
   margin_at: number;
   margin_delta: number;
@@ -268,9 +268,9 @@ export interface LevelScenarioAccount {
   account: string;
   /** 账户当前盈亏：账户层面全部持仓的账面浮动盈亏（bills_group_acc.pf_total，排除合计行） */
   pf_now: number;
-  /** 标的 Δ盈亏：本时点模型盯市口径，仅该标的项下持仓 */
+  /** 标的Δ盈亏：本时点模型盯市口径，仅该标的项下持仓 */
   delta_pnl: number;
-  /** 另一时点逐账户对照 Δ盈亏 */
+  /** 另一时点逐账户对照Δ盈亏 */
   other_delta_pnl: number;
   net_at: number;
   eq_at: number;

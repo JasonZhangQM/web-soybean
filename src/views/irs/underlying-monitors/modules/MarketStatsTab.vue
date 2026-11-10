@@ -13,6 +13,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { fetchUmMarketStats } from '@/service/api';
 import ValuationChart from '@/views/irs/valuation-percent/modules/ValuationChart.vue';
 import PerformanceChart from './PerformanceChart.vue';
+import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingMarketStatsTab' });
 
@@ -175,12 +176,8 @@ const subjectLabel = computed(() => {
         <NAlert v-if="stats.message" type="warning" class="mb-12px">{{ stats.message }}</NAlert>
 
         <!-- 无估值/行情标的：主表行情字段降级（明确不是收益率/回撤） -->
-        <div
-          v-if="!stats.coverage.valuation && !stats.coverage.price && stats.fallback"
-          class="mb-12px rounded-8px p-12px"
-          style="border: 1px solid rgba(128, 128, 128, 0.25)"
-        >
-          <div class="mb-8px text-13px font-500">主表行情字段（降级展示）</div>
+        <section v-if="!stats.coverage.valuation && !stats.coverage.price && stats.fallback" class="mb-16px">
+          <SectionBar title="主表行情字段（降级展示）" />
           <NDescriptions :column="2" bordered size="small">
             <NDescriptionsItem label="最新价">{{ fmt(stats.fallback.price, 4) }}</NDescriptionsItem>
             <NDescriptionsItem label="上年末">{{ fmt(stats.fallback.py_close, 4) }}</NDescriptionsItem>
@@ -197,14 +194,13 @@ const subjectLabel = computed(() => {
           <div class="mt-8px text-12px op-60">
             以上来自标的主表行情字段，非累计收益率、非回撤；该标的暂无日频序列可算。
           </div>
-        </div>
+        </section>
 
         <!-- ① 估值分位：唯一入口 irs_um_percentile 最新截面 -->
         <section v-if="stats.coverage.percentile && stats.percentile" class="mb-16px">
-          <div class="mb-8px flex items-baseline gap-8px">
-            <span class="text-14px font-500">估值分位</span>
+          <SectionBar title="估值分位">
             <span class="text-12px op-60">最新截面 · 4 指标 × 3 窗口（日历对日口径）</span>
-          </div>
+          </SectionBar>
           <div class="grid grid-cols-4 gap-12px">
             <div
               v-for="row in pctRows"
@@ -248,12 +244,11 @@ const subjectLabel = computed(() => {
 
         <!-- ② 估值数据：原始值序列，不是分位序列 -->
         <section v-if="stats.valuation" class="mb-16px">
-          <div class="mb-8px flex items-baseline gap-8px">
-            <span class="text-14px font-500">估值数据 · {{ stats.metric_label }}</span>
+          <SectionBar :title="`估值数据 · ${stats.metric_label}`">
             <span class="text-12px op-60">
               当前值 {{ fmt(stats.valuation.current, 4) }} · 截至 {{ stats.valuation.as_of ?? '—' }}
             </span>
-          </div>
+          </SectionBar>
           <ValuationChart
             :dates="stats.valuation.dates"
             :series="valuationSeries"
@@ -265,13 +260,12 @@ const subjectLabel = computed(() => {
 
         <!-- ③④ 累计收益率 + 回撤：同一条价格序列 -->
         <section v-if="stats.performance" class="mb-16px">
-          <div class="mb-8px flex items-baseline gap-8px">
-            <span class="text-14px font-500">累计收益率与回撤</span>
+          <SectionBar title="累计收益率与回撤">
             <span class="text-12px op-60">
               {{ summary?.start_date ?? '—' }} ~ {{ summary?.end_date ?? '—' }} ·
               {{ stats.performance.adjust === 'post' ? '个股后复权价' : '指数不复权点位' }}
             </span>
-          </div>
+          </SectionBar>
           <div class="mb-12px grid grid-cols-4 gap-12px">
             <div class="rounded-8px p-12px" style="border: 1px solid rgba(128, 128, 128, 0.25)">
               <div class="text-12px op-60">区间累计收益率</div>

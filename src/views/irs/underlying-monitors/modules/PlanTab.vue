@@ -21,6 +21,7 @@ import {
 import BillNotePanel from '@/views/bills/bills/modules/BillNotePanel.vue';
 import { useBillsStore } from '@/store/modules/bills';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
+import SectionBar from './SectionBar.vue';
 import { REF_LABEL, STATUS_TYPE, triggerText } from './planFormat';
 
 defineOptions({ name: 'UnderlyingPlanTab' });
@@ -199,13 +200,14 @@ function handleDelete(p: Api.Irs.UnderlyingPlan) {
 
 // ---------------- 分页 ----------------
 /**
- * 剧本、成交都 10 条/页（2026-10-23 用户定）—— 与列表页默认页大小一致，
- * 翻页器行为、页码密度都跟列表页对得上，不再为两张表各设一个不同的默认值。
+ * 剧本默认 5 条/页、5 条及以下隐藏整条分页器（2026-11-10 用户定，与「档位版本」同款）：
+ * 交给 `UnderlyingDataTable` 的 `hideWhenFit`，判据用生效页大小，不在此自己算显隐。
+ * ⚠️ 归属成交是**服务端分页**、默认仍是 10 条/页（见下面 `pageSize`），本次不改。
  *
  * scroll-x 不手写常量：`UnderlyingDataTable` 按列宽和自动算（铁律 4.11 的漂移问题
  * 就是「改了列宽忘改常量」，交给它算一次解决）。
  */
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 const planColumns = [
   { title: '序', key: 'seq', width: 50 },
@@ -399,7 +401,7 @@ const accountFilter = ref<string | null>(null);
 const symbolFilter = ref('');
 const tradeTotal = ref<number | null>(null);
 const page = ref(1);
-/** 归属成交默认 10 条/页（与概览合约行、剧本表、列表页默认页大小一致） */
+/** 归属成交默认 10 条/页，服务端分页，保持原状；与列表页默认页大小一致 */
 const pageSize = ref(10);
 const planFilterOptions = computed(() => plans.value.map(p => ({ label: `#${p.id} ${p.trade_symbol}`, value: p.id })));
 const categoryFilterOptions = computed(() => {
@@ -503,20 +505,21 @@ watch(
 
 <template>
   <div>
-    <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">剧本({{ plans.length }})</span>
+    <SectionBar :title="`剧本(${plans.length})`">
       <span class="text-12px text-gray-400">
         长期有效的档位动作，可反复执行；触发点写「低 / 中 / 高」= 引用档位，档位改版后自动跟随
       </span>
-      <NButton size="tiny" ghost class="ml-auto" @click="openNew">新增剧本</NButton>
-    </div>
-    <UnderlyingDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" />
+      <template #actions>
+        <NButton size="tiny" ghost @click="openNew">新增剧本</NButton>
+      </template>
+    </SectionBar>
+    <UnderlyingDataTable :columns="planColumns" :data="plans" :page-size="PAGE_SIZE" hide-when-fit />
     <!-- <NEmpty v-if="!plans.length" size="small" description="还没有剧本" class="my-8px" /> -->
 
-    <NDivider />
-
+    <SectionBar :title="`归属成交(${tradeTotal ?? trades.length}笔)`">
+      <span class="text-12px text-gray-400">点「剧本」或「想法」可关联剧本、写想法</span>
+    </SectionBar>
     <div class="mb-8px flex flex-wrap items-center gap-8px">
-      <span class="font-500">归属成交({{ tradeTotal ?? trades.length }}笔)</span>
       <NSelect
         v-model:value="planFilter"
         :options="planFilterOptions"
@@ -553,7 +556,6 @@ watch(
       />
       <NButton size="small" @click="searchFromFirst">搜索</NButton>
       <NButton size="small" @click="resetFilters">重置</NButton>
-      <span class="text-12px text-gray-400">点「剧本」或「想法」可关联剧本、写想法</span>
     </div>
     <UnderlyingDataTable :columns="tradeColumns" :data="trades" :page-size="0" />
     <div class="mt-8px flex justify-end">
