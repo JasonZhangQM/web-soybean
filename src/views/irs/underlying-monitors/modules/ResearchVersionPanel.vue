@@ -8,11 +8,11 @@
  *
  * 录入统一走左侧抽屉（与 VersionTab / LogicTab / PlanTab / ReviewTab 同规格 520px）：
  * 顶部「新增一版研究」+ 行内「编辑」/「沿用新建」共用；编辑锁**定稿日**，避免按日期 upsert 时
- * 静默复制成新一版。保存成功才关抽屉，失败保留已填内容。完成度提示留主区（关抽屉就看不见）。
+ * 静默复制成新一版。保存成功才关抽屉，失败保留已填内容。
  *
- * 「逻辑与证伪」不再单独占一个 Tab，作为子组件插在完成度提示之后、状态演化之前；
- * 完成度与软校验的条数改由子组件实时上报，不再吃概览透传的轻量计数（合并的实收益）。
- * 内容顺序：研究版本表 → 完成度 → 逻辑/证伪 → 状态演化 → 剧本盈亏归因。
+ * 「逻辑与证伪」不再单独占一个 Tab，作为子组件插在研究版本表之后、状态演化之前；
+ * 软校验的条数改由子组件实时上报，不再吃概览透传的轻量计数（合并的实收益）。
+ * 内容顺序：研究版本表 → 逻辑/证伪 → 状态演化 → 剧本盈亏归因。
  */
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
@@ -39,7 +39,7 @@ const deleting = ref(false);
 /** 左侧录入抽屉：editingDate=null 表示新增，非 null 表示改写该日版本（定稿日锁定） */
 const showDrawer = ref(false);
 const editingDate = ref<string | null>(null);
-/** 逻辑/证伪条数由子组件实时上报；写完一条立刻反映到完成度提示与保存软校验 */
+/** 逻辑/证伪条数由子组件实时上报；写完一条立刻反映到保存软校验 */
 const logicCounts = reactive({ logic: 0, invalidate: 0 });
 
 function onCounts(v: { logic: number; invalidate: number }) {
@@ -253,10 +253,6 @@ function handleDelete() {
   });
 }
 
-/** 完成度提示：研究 = 结论 + 逻辑 + 证伪；合并后后两者就在本 Tab 下方 */
-const logicShort = computed(() => logicCounts.logic < 2);
-const invShort = computed(() => logicCounts.invalidate < 3);
-
 const columns = [
   { title: '定稿日', key: 'research_date', width: 110 },
   {
@@ -418,26 +414,6 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       </template>
     </SectionBar>
     <UnderlyingDataTable :columns="columns" :data="research" :page-size="5" hide-when-fit />
-
-    <!--
-      完成度：研究 = 结论 + 逻辑 + 证伪。合并后后两者就在本 Tab 下方，
-      条数由 LogicTab 实时上报，补完一条提示立刻变；不再需要跳转按钮。
-      橙色只提示不阻断——录完研究、回头补证伪是正常顺序。
-    -->
-    <NAlert :type="logicShort || invShort ? 'warning' : 'success'" :bordered="false" class="my-12px">
-      <div class="flex flex-wrap items-center gap-8px">
-        <span>
-          本标的已登记：逻辑
-          <b>{{ logicCounts.logic }}</b>
-          条（纲领 2-4）、证伪
-          <b>{{ logicCounts.invalidate }}</b>
-          条（纲领 ≥3，且覆盖第五章每条）
-        </span>
-        <NTag v-if="logicShort" size="small" :bordered="false" type="warning">逻辑不足 2 条</NTag>
-        <NTag v-if="invShort" size="small" :bordered="false" type="warning">证伪不足 3 条</NTag>
-        <span class="text-12px text-gray-400">缺的直接在下方补</span>
-      </div>
-    </NAlert>
 
     <!-- 逻辑与证伪（原独立 Tab，2026-11-09 并入；内部两张表 + 两个左侧抽屉自治） -->
     <LogicTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" @counts="onCounts" />
