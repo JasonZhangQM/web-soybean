@@ -3,7 +3,7 @@ import { computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { fmtMoney, fmtPrice, pnl, scenarioLabel } from './utils';
+import { deltaPnlHeader, fmtMoney, fmtPrice, pnl, scenarioLabel } from './utils';
 
 defineOptions({ name: 'ContractTable' });
 
@@ -39,7 +39,9 @@ const detailMap = computed(() => {
   return m;
 });
 
-/** 对照时点列标题：now → 到期，expiry → 即期（避免两列同值） */
+/** 两列 Δ 盈亏的时点前缀：主列=当前时点，对照列=另一时点（避免两列同值）。
+ *  列名不写「标的」——那是统计范围，与「到期」不是同一维度。 */
+const mainLabel = computed(() => (props.board.horizon === 'now' ? '即期' : '到期'));
 const otherLabel = computed(() => (props.board.horizon === 'now' ? '到期' : '即期'));
 const stepLabel = computed(() => scenarioLabel(props.step));
 
@@ -175,14 +177,14 @@ const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
     render: (p: Api.Irs.RiskBoardPosition) => pnl(p.pf_now)
   },
   {
-    title: '标的Δ盈亏',
+    title: deltaPnlHeader(mainLabel.value),
     key: 'delta_pnl',
     width: 130,
     align: 'right' as const,
     render: (p: Api.Irs.RiskBoardPosition) => pnl(deltaPnl(p, 'loss'))
   },
   {
-    title: `${otherLabel.value}Δ盈亏`,
+    title: deltaPnlHeader(otherLabel.value),
     key: 'other_delta_pnl',
     width: 130,
     align: 'right' as const,
@@ -225,8 +227,8 @@ const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
       virtual-scroll
     />
     <div class="table-note">
-      「当前盈亏」为账单账面浮盈（静态）；两个Δ盈亏为所选情景档位下的模型盯市增量
-      [推算]，正=盈、负=亏，与账面口径不同源、不可相加对账。默认 0% 档时 Δ 盈亏为 0。
+      「当前盈亏」为账单账面浮盈（静态）；两列Δ盈亏为所选情景档位下的模型盯市增量 [推算]（主列 {{ mainLabel }}、对照列
+      {{ otherLabel }}），正=盈、负=亏，与账面口径不同源、不可相加对账。默认 0% 档时 Δ 盈亏为 0。
     </div>
   </NCard>
 </template>

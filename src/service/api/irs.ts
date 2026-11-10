@@ -268,7 +268,7 @@ export interface LevelScenarioAccount {
   account: string;
   /** 账户当前盈亏：账户层面全部持仓的账面浮动盈亏（bills_group_acc.pf_total，排除合计行） */
   pf_now: number;
-  /** 标的Δ盈亏：本时点模型盯市口径，仅该标的项下持仓 */
+  /** 主时点 Δ 盈亏：模型盯市口径，仅该标的项下持仓；列名随 horizon 显示即期/到期 */
   delta_pnl: number;
   /** 另一时点逐账户对照Δ盈亏 */
   other_delta_pnl: number;

@@ -23,7 +23,14 @@ import {
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import SectionBar from './SectionBar.vue';
-import { fmtMoney, fmtPrice, fmtRatio, levelColor, ratioLevel } from '@/views/irs/risk-board/modules/utils';
+import {
+  deltaPnlHeader,
+  fmtMoney,
+  fmtPrice,
+  fmtRatio,
+  levelColor,
+  ratioLevel
+} from '@/views/irs/risk-board/modules/utils';
 
 defineOptions({ name: 'UnderlyingLevelScenarioTab' });
 
@@ -64,6 +71,10 @@ watch(
 );
 
 const horizonLabel = computed(() => (horizon.value === 'now' ? '即期(BS重估)' : '到期(内在价值)'));
+/** 两列 Δ 盈亏的时点前缀：主列=当前时点、对照列=另一时点。
+ *  列名只写时点（即期 / 到期），统计范围由下方说明承载；
+ *  把范围写进列名会被误读成与时点并列的另一种盈亏。 */
+const mainLabel = computed(() => (horizon.value === 'now' ? '即期' : '到期'));
 const otherLabel = computed(() => (horizon.value === 'now' ? '到期' : '即期'));
 const current = computed<LevelScenarioLevel | null>(() => data.value?.levels[activeLevel.value] ?? null);
 
@@ -150,65 +161,65 @@ const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
   {
     title: '档位',
     key: 'label',
-    width: 118,
+    width: 100,
     render: (r: LevelRow) => h('span', { style: 'font-weight: 600' }, `${r.label} ${fmtPrice(r.pp)}`)
   },
   { title: '到档涨跌', key: 'pct', width: 100, align: 'right' as const, render: (r: LevelRow) => pct(r.pct) },
   {
     title: '当前盈亏',
     key: 'pf_now',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => pnl(r.pf_now)
   },
   {
-    title: '标的Δ盈亏',
+    title: deltaPnlHeader(mainLabel.value),
     key: 'delta_pnl',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => pnl(r.delta_pnl)
   },
   {
-    title: `${otherLabel.value}Δ盈亏`,
+    title: deltaPnlHeader(otherLabel.value),
     key: 'other_delta_pnl',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => pnl(r.other_delta_pnl)
   },
   {
     title: '标的保证金',
     key: 'margin_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => fmtMoney(r.margin_at)
   },
   {
     title: '保证金变化',
     key: 'margin_delta',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => marginDelta(r.margin_delta)
   },
   {
     title: '组合保证金',
     key: 'combo_margin',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => fmtMoney(r.combo_margin)
   },
   {
     title: '组合净值',
     key: 'combo_net',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => fmtMoney(r.combo_net)
   },
   { title: '真实风险度', key: 'real', width: 110, align: 'right' as const, render: (r: LevelRow) => ratio(r.real) },
-  { title: '交易所风险度', key: 'exch', width: 120, align: 'right' as const, render: (r: LevelRow) => ratio(r.exch) },
+  { title: '交易所风险度', key: 'exch', width: 110, align: 'right' as const, render: (r: LevelRow) => ratio(r.exch) },
   {
     title: '追保账户',
     key: 'breached',
-    width: 90,
+    width: 40,
     align: 'right' as const,
     render: (r: LevelRow) =>
       r.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => `${r.breached} 个` }) : '—'
@@ -224,13 +235,13 @@ function kindLabel(p: LevelScenarioPosition) {
 }
 
 const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => [
-  { title: '账户', key: 'account', width: 80 },
+  { title: '账户', key: 'account', width: 40 },
   { title: '合约', key: 'symbol', width: 190 },
-  { title: '类别', key: 'kind', width: 90, render: (p: LevelScenarioPosition) => kindLabel(p) },
+  { title: '类别', key: 'kind', width: 70, render: (p: LevelScenarioPosition) => kindLabel(p) },
   {
     title: '数量',
     key: 'qty',
-    width: 80,
+    width: 60,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => String(p.qty ?? '-')
   },
@@ -251,102 +262,102 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
   {
     title: '当前盈亏',
     key: 'pf_now',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => pnl(p.pf_now)
   },
   {
-    title: '标的Δ盈亏',
+    title: deltaPnlHeader(mainLabel.value),
     key: 'delta_pnl',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => pnl(p.delta_pnl)
   },
   {
-    title: `${otherLabel.value}Δ盈亏`,
+    title: deltaPnlHeader(otherLabel.value),
     key: 'other_delta_pnl',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => pnl(p.other_delta_pnl)
   },
   {
     title: '到档保证金',
     key: 'margin_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => fmtMoney(p.margin_at)
   },
   {
     title: '保证金变化',
     key: 'margin_delta',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => marginDelta(p.margin_delta)
   },
   {
     title: '风险敞口',
     key: 'risk_exposure',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => fmtMoney(p.risk_exposure)
   }
 ]);
 
 const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
-  { title: '账户', key: 'account', width: 90 },
+  { title: '账户', key: 'account', width: 40 },
   {
     title: '账户当前盈亏',
     key: 'pf_now',
-    width: 140,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => pnl(a.pf_now)
   },
   {
-    title: '标的Δ盈亏',
+    title: deltaPnlHeader(mainLabel.value),
     key: 'delta_pnl',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => pnl(a.delta_pnl)
   },
   {
-    title: `${otherLabel.value}Δ盈亏`,
+    title: deltaPnlHeader(otherLabel.value),
     key: 'other_delta_pnl',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => pnl(a.other_delta_pnl)
   },
   {
     title: '到档净值',
     key: 'net_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => fmtMoney(a.net_at)
   },
   {
     title: '客户权益',
     key: 'eq_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => fmtMoney(a.eq_at)
   },
   {
     title: '保证金',
     key: 'margin_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => fmtMoney(a.margin_at)
   },
   {
     title: '真实风险度',
     key: 'real',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => ratio(a.real)
   },
   {
     title: '交易所风险度',
     key: 'exch',
-    width: 120,
+    width: 100,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => ratio(a.exch)
   },
@@ -360,7 +371,7 @@ const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
   {
     title: '追保(模型)',
     key: 'breached',
-    width: 110,
+    width: 100,
     render: (a: LevelScenarioAccount) =>
       a.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => '越线' }) : '—'
   }
@@ -425,7 +436,8 @@ const basisText = computed(() => {
 
         <SectionBar title="五档 × 组合风险指标">
           <span class="text-12px text-gray-400">
-            点击整行切换下方明细；「当前盈亏」为账面浮动盈亏、五档恒定；「{{ otherLabel }}Δ盈亏」为双时点对照列
+            点击整行切换下方明细；「当前盈亏」为账面浮动盈亏、五档恒定；两列 Δ 盈亏为「{{ mainLabel }} /
+            {{ otherLabel }}」双时点对照
           </span>
         </SectionBar>
         <UnderlyingDataTable
@@ -438,14 +450,14 @@ const basisText = computed(() => {
         <div class="mb-16px text-12px text-gray-400">
           组合保证金 / 净值 / 风险度为账户全部持仓口径，含本情景中价格冻结的其它持仓。 追保只判交易所口径；真实口径 ≥1
           而交易所口径 &lt;1 时须单独留意。「当前盈亏」是账面口径（五档表 / 逐仓为该标的项下，分账户表为账户全部持仓），
-          「标的Δ盈亏」是模型盯市口径，两者基准不同，不可相加对账。
+          两列 Δ 盈亏是模型盯市口径、且只统计该标的项下持仓，两者基准不同，不可相加对账。
         </div>
 
         <template v-if="current">
           <SectionBar :title="current.label + '档持仓明细'">
             <NTag size="small" :bordered="false">档位价 {{ fmtPrice(current.pp) }}</NTag>
             <NTag size="small" :bordered="false" :type="current.total.delta_pnl < 0 ? 'error' : 'success'">
-              标的Δ盈亏 {{ fmtMoney(current.total.delta_pnl) }}
+              {{ mainLabel }}Δ盈亏 {{ fmtMoney(current.total.delta_pnl) }}
             </NTag>
             <NTag size="small" :bordered="false" type="warning">
               到档浮盈 {{ fmtMoney(current.total.pf_at_level) }} [推算]
