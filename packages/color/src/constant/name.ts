@@ -978,7 +978,7 @@ export const colorNames: [hex: string, name: string][] = [
   ['#c7bca2', 'Coral Reef'],
   ['#c7c1ff', 'Melrose'],
   ['#c7c4bf', 'Cloud'],
-  ['#c7c9d5', ''],
+  ['#c7c9d5', 'Ghost'],
   ['#c7cd90', 'Pine Glade'],
   ['#c7dde5', 'Botticelli'],
   ['#c88a65', 'Antique Brass'],
