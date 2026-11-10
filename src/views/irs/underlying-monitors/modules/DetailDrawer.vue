@@ -120,9 +120,11 @@ function goTab(name: string) {
 <template>
   <!--
     宽度用百分比：档位/计划/成交三个表加起来最宽 1210px，固定 1080 会把列挤到换行；
-    66% 在 1920 屏上约 1267px，宽屏刚好不滚、窄屏走横向滚动。
+    72%（11-10 定稿：66% → 80% → 75% → 72%；与 bds/option-market 同步清单抽屉统一）：
+    1920 屏约 1382px 能铺开 1210px 的表格，1600 屏约 1152px ⇒ 走横向滚动。
+    框架自带的主题设置面板（400px）不在此列，不动。
   -->
-  <NDrawer v-model:show="visible" width="66%" placement="right" :mask-closable="false">
+  <NDrawer v-model:show="visible" width="72%" placement="right" :mask-closable="false">
     <NDrawerContent :title="title" closable :native-scrollbar="false">
       <template #header>
         <div class="flex flex-wrap items-center gap-8px">

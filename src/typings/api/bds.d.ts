@@ -1286,8 +1286,9 @@ declare namespace Api {
       /** 情景分组键 csi300 / csi500etf / au【只读派生】 */
       und_key: string | null;
       // 🔴 2026-10-27 三次变更：cp / strike / multiplier / margin_type / expiry_date
-      //    五个规格字段已从响应体删除（前端「规格（来自合约字典）」列整列下线）。
-      //    要看规格去「合约字典」页（GET /option-info），本清单只答「同步什么、怎么拉」。
+      //    五个规格字段一度从响应体删除（前端「规格」列整列下线）。
+      //    🔄 2026-11-10：option_type / days_left / strike 三个**只读派生值**加回，
+      //    其余规格（乘数 / 保证金族）仍不返回，要看去「合约字典」页。
       /** akshare 品种名 */
       option_name: string;
       /** 到期年月 YYYYMM；商品期权为 ALL（接口一次返回全部月份） */
@@ -1296,9 +1297,23 @@ declare namespace Api {
       is_enabled: number;
       /** 到期日（YYYY-MM-DD）【只读派生：字典 last_trade_date，权威值】；null=字典里查不到 */
       expiry_date: string | null;
+      /** 认购/认沽【只读派生：字典 cp → call / put】；null=字典里查不到该合约 */
+      option_type: string | null;
+      /**
+       * 剩余自然日 = 到期日 − **今天**【只读派生】；负数=已到期；null=字典查不到该合约。
+       * ⚠️ 与行情表 `OptionMarket.days_left`（到期日 − 行情日）口径不同，别把两处数字对齐。
+       */
+      days_left: number | null;
+      /**
+       * 行权价【只读派生：字典 strike，交易所原始值】；null=字典里查不到该合约。
+       * ⚠️ 后端 Decimal 序列化成字符串（如 "5.7500"），故类型含 string；
+       *    与行情表 `OptionMarket.price_strike`（当日接口口径）来源不同，别强行对齐。
+       */
+      strike: string | number | null;
       // 🔴 2026-10-27 四次变更：source / note 已从表与响应体一并删除
       //    （import-holding 下线后的残留，恒为 holding + 券商码复述）。
       //    本清单可编辑的只有 broker_symbol 与 is_enabled 两个人字段。
+      /** 首次加入同步清单的时间（无时区 ISO，如 2026-10-29T09:35:08）；抽屉「加入日期」取前 10 位 */
       create_time: string;
       update_time: string;
     }

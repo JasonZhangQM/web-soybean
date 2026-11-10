@@ -46,6 +46,20 @@ defineOptions({ name: 'OptionMarketPage' });
  * 🔴 2026-10-27 起，清单里的**合约规格是只读派生值**（来自 `bds_option_info`），
  * 本页不再提供任何规格编辑或「补全规格」入口 —— 规格的权威在交易所字典，
  * 要更新只有一条路：去「合约字典」页点刷新。
+ *
+ * 🔄 2026-11-10 主表与清单都在「合约ID」后加「类型」（字典 cp 派生，不从合约ID 猜码：
+ * ETF 的 8 位数字码根本不含方向）；清单在「到期日」后加「剩余天」。
+ * ⚠️ 两处「剩余天」**口径不同**：主表 = 到期日 − 行情日（历史快照），
+ * 清单 = 到期日 − 今天（当前还剩几天）。基准不同、数字天然不同，不是算错。
+ *
+ * 🔄 2026-11-10 二次：清单「到期月」列下线、「行权价」列上线（字典 `strike` 只读派生）。
+ * 行权价是选合约真正要看的；两处「行权价」来源也不同
+ * （清单=交易所原始值，主表=当日接口口径），别强行对齐。
+ *
+ * 🔄 2026-11-10 三次：「到期月」加回在「行权价」之后，两列并存。它不是到期日的展示变体，
+ * 而是 `end_month` 这个**同步入参**（同步确认弹窗按「品种×到期月」分组据此），
+ * 商品期权（沪金）恒为 ALL = 接口一次返回当日全部到期月，与「到期日」的月份可能不同。
+ * 同日另加「加入日期」（配置 create_time 的日期部分）。
  */
 
 const message = useMessage();
@@ -83,6 +97,17 @@ const typeOptions = [
   { label: '认沽', value: 'put' },
   { label: '认购', value: 'call' }
 ];
+
+/**
+ * 类型显示：后端按合约字典 `cp` 派生（C→call / P→put）。
+ * 不从 contract_id 猜码 —— IO2611-P-4000 / au2612P840 里能看出 P，
+ * 但 ETF 的 8 位数字 contract_id 根本没有方向，猜就会出空值。
+ */
+function optionTypeText(v?: string | null): string {
+  if (v === 'call') return '认购';
+  if (v === 'put') return '认沽';
+  return '-';
+}
 
 /** 价格：小面值（ETF 0.08 级）保留 4 位，大面值（IO/黄金）2 位 */
 function fmtPx(v: unknown): string {
@@ -138,6 +163,13 @@ const columns = [
     render: (r: Api.Bds.OptionMarket) => h('span', { style: 'font-family: monospace' }, r.contract_id)
   },
   {
+    // 与主表「类型」筛选项同口径：call/put 由字典 cp 派生，字典缺行时为 null → '-'
+    title: '类型',
+    key: 'option_type',
+    width: 60,
+    render: (r: Api.Bds.OptionMarket) => optionTypeText(r.option_type)
+  },
+  {
     title: '行权价',
     key: 'price_strike',
     width: 95,
@@ -148,9 +180,17 @@ const columns = [
   {
     title: '剩余天',
     key: 'days_left',
-    width: 80,
+    width: 60,
     align: 'right' as const,
-    render: (r: Api.Bds.OptionMarket) => (r.days_left == null ? '-' : String(r.days_left))
+    // 口径 = 到期日 − **行情日**（历史快照）；同步清单同名列按「今天」算，别对齐
+    render: (r: Api.Bds.OptionMarket) =>
+      r.days_left == null
+        ? '-'
+        : h(
+            'span',
+            { title: '到期日 − 行情日（历史快照口径）；同步清单的剩余天按「今天」算，两处基准不同' },
+            String(r.days_left)
+          )
   },
   {
     title: '现价',
@@ -758,6 +798,13 @@ const configColumns = [
     render: (r: Api.Bds.OptionConfig) => h('span', { style: 'font-family:monospace' }, r.contract_id)
   },
   {
+    // 只读派生（字典 cp）：ETF 的 8 位数字合约ID 不含方向，只有字典能给出认购/认沽
+    title: '类型',
+    key: 'option_type',
+    width: 60,
+    render: (r: Api.Bds.OptionConfig) => optionTypeText(r.option_type)
+  },
+  {
     // 券商码：**本页唯一的可编辑派生业务键**（另一个可编辑列是启用开关）。
     // 240 宽（10-27 由 190 加宽）：19 字符的 CFFEX.IO2611-P-4000 之外，
     // 还要放下拉箭头 + 「（账单里查不到）」这条兜底选项的后缀 —— NSelect 的
@@ -766,36 +813,93 @@ const configColumns = [
     // 那类错在结构上不可能再发生。
     title: '券商码',
     key: 'broker_symbol',
-    width: 240,
+    width: 260,
     render: (r: Api.Bds.OptionConfig) => renderBrokerSymbol(r)
   },
   { title: '品种', key: 'option_name', width: 150 },
   {
+    // 🔄 2026-11-10：到期月列一度下线，换成行权价 —— 选合约真正要看的；
+    //    同日三次变更又把「到期月」加回在本列之后，两列并存（理由见该列注释）。
+    // 只读派生自字典 strike（交易所原始值），**不从标准码解析**：ETF 的 P2612A07000
+    // 带 A 后缀是调整合约，拼出来的行权价会与交易所口径不符。
+    // ⚠️ 与主表 price_strike（当日行情接口口径）来源不同，对账时别要求两者相等。
+    title: '行权价',
+    key: 'strike',
+    width: 90,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionConfig) =>
+      r.strike == null ? dash('字典里查不到该合约，先刷新合约字典') : fmtStrike(r.strike)
+  },
+  {
+    // 🔄 2026-11-10 三次变更加回：本表**物理字段** end_month（YYYYMM），不是从到期日
+    // 派生的展示值 —— 它是一键同步的接口入参，同步确认弹窗「品种×到期月」分组也用它。
+    // 'ALL' 是商品期权（沪金）：接口一次返回当日全部到期月，填实际月份会让人误以为只拉一个月。
+    // ⚠️ 与「到期日」的月份不必然一致（ALL 行尤其明显），别拿它推算到期日。
     title: '到期月',
     key: 'end_month',
-    width: 90,
+    width: 60,
     render: (r: Api.Bds.OptionConfig) => (r.end_month === 'ALL' ? '全部月份' : r.end_month || '-')
   },
   {
     // 到期日：join 字典的 last_trade_date（权威值），纯只读派生（2026-10-27 五次变更加回）。
-    // 到期月 YYYYMM 看不出「具体哪天到期、还剩几天」，续月决策需要日粒度。
+    // 到期月只是 YYYYMM 的同步入参，看不出「具体哪天到期、还剩几天」，续月决策需要日粒度。
     title: '到期日',
     key: 'expiry_date',
     width: 110,
     render: (r: Api.Bds.OptionConfig) => r.expiry_date || dash('字典里查不到该合约，先刷新合约字典')
   },
   {
+    // ⚠️ 与主表「剩余天」同名但口径不同：这里 = 到期日 − 今天（当前决策视图），
+    //    主表 = 到期日 − 行情日（按日快照）。基准不同，数字天然不同，不是算错。
+    title: '剩余天',
+    key: 'days_left',
+    width: 60,
+    align: 'right' as const,
+    render: (r: Api.Bds.OptionConfig) =>
+      r.days_left == null
+        ? dash('字典里查不到该合约，先刷新合约字典')
+        : h(
+            'span',
+            {
+              // 实测清单里确有已到期仍启用的合约（days_left 为负），标红才一眼看得见
+              style: r.days_left < 0 ? 'color:#d03050' : undefined,
+              title: '到期日 − 今天（自然日，负数=已到期）；主表「剩余天」按行情日算，两处基准不同'
+            },
+            String(r.days_left)
+          )
+  },
+  {
     title: '启用',
     key: 'is_enabled',
-    width: 80,
+    width: 60,
     render: (r: Api.Bds.OptionConfig) =>
       h('span', { style: `color:${r.is_enabled ? '#2f9e6e' : '#bbb'}` }, r.is_enabled ? '是' : '否')
+  },
+  {
+    // 「加入日期」= 该合约首次写进同步清单的日期（配置行 create_time 的日期部分）。
+    // 后端给的是无时区 ISO 串（2026-10-29T09:35:08），直接切片、不转 Date，
+    // 否则浏览器时区换算可能把日期挪一天；完整时间戳放 title 里留痕。
+    // ⚠️ 删掉后重新加入会重置；它不是合约上市日，也不是首次同步到行情的日期。
+    title: '加入日期',
+    key: 'create_time',
+    width: 110,
+    render: (r: Api.Bds.OptionConfig) =>
+      r.create_time
+        ? h('span', { title: `首次加入清单：${r.create_time}` }, r.create_time.slice(0, 10))
+        : dash('该行没有创建时间')
   },
   // 🔴 2026-10-27 三次变更：「规格（来自合约字典）」列整列删除。
   //    原因：①方向/行权价/乘数/到期日只是把字典里的值抄到这一页，要看得去「合约字典」页；
   //    ②该列末尾的保证金族（margin_type）压根不来自字典，是品种级派生（`margin_type_of`），
   //    标题「来自合约字典」名不副实。后端响应里的 cp/strike/multiplier/margin_type/
   //    expiry_date 五个字段也随之删除，本清单只回答「同步什么、怎么拉」。
+  // 🔄 2026-11-10 例外：「类型」「剩余天」「行权价」以**独立只读列**加回，
+  //    不再塞进「规格」那一坨；「到期月」先下线、随后又加回在「行权价」之后（两列并存）。
+  //    理由：类型与剩余天是「该不该续月」的依据、行权价是选合约的依据；且
+  //    ETF 的 8 位数字合约ID 不含方向、A 类调整合约不能靠标准码猜行权价。
+  //    口径差异见上方「剩余天」「行权价」两列注释。
+  // 🔄 2026-11-10 再加「加入日期」：取本表既有的 create_time，纯前端展示，后端无改动。
+  // 🔄 2026-11-10 三次：加回「到期月」，end_month 本就在响应体里，纯前端、后端无改动。
   // 🔴 2026-10-27 四次变更：「备注」列删除（同时后端删掉 source / note 两列）。
   //    note 恒为「从持仓导入（券商码）」的复述、source 恒 holding，都是 import-holding
   //    下线后的残留；券商码本身已可内联编辑，这两个字段没有任何信息增量。
@@ -974,7 +1078,12 @@ onUnmounted(stopPolling);
  after-leave 刷主表：券商码在主表也有一列（来自 config join），
          抽屉里改完不重拉的话那一列会停在旧值，核账时容易看错 
 -->
-    <NDrawer v-model:show="configDrawer" width="66%" placement="right" @after-leave="fetchData">
+    <!--
+ 72%（11-10 定稿，66% → 80% → 75% → 72% 逐档试宽）：全站右侧业务抽屉统一宽度，
+         与 irs/underlying-monitors 详情抽屉一致。框架自带的主题设置面板（400px）不在此列，不动。
+         表格 scroll-x 按列宽和现算，更窄的屏仍走横向滚动，不会被压列折行。
+-->
+    <NDrawer v-model:show="configDrawer" width="72%" placement="right" @after-leave="fetchData">
       <NDrawerContent closable>
         <template #header>
           <div class="flex w-full items-center justify-between pr-16px">
@@ -991,18 +1100,37 @@ onUnmounted(stopPolling);
         <div class="mb-8px text-12px" style="color: #999">
           这张清单只决定「
           <b>要同步哪些合约、怎么拉</b>
-          」（合约ID / 券商码 / 品种 / 到期月 / 启用）。
-          <b>合约规格（方向 / 行权价 / 乘数 / 到期日 / 保证金族）不在这张清单里</b>
+          」 （合约ID / 类型 / 券商码 / 品种 / 行权价 / 到期月 / 到期日 / 剩余天 / 启用 / 加入日期）。
+          <b>乘数 / 保证金族等合约规格不在这张清单里</b>
           ——权威是交易所合约字典，要看规格去
           <b>合约字典</b>
-          页（本页 10-27 起不再重复展示）。 新增合约也从字典里选，不再手打代码。
-          商品期权（沪金）的到期月记为「全部月份」：接口一次返回当日全部到期月， 填实际月份会让人以为只拉了一个月。
+          页。类型、行权价、到期日、剩余天都只是字典的
+          <b>只读派生展示</b>
+          ，改不了；新增合约也从字典里选，不再手打代码。 行权价取字典的「交易所原始值」（A
+          类调整合约已调整），与主表按当日接口口径的「行权价」 来源不同，对账时别要求两者相等。 「到期月」是本表的
+          <b>同步入参</b>
+          （YYYYMM，不是到期日的展示变体）；商品期权（沪金）记为
+          <b>全部月份</b>
+          ：接口一次返回当日全部到期月，填实际月份会让人以为只拉了一个月。
+          <br />
+          <b>剩余天 = 到期日 − 今天</b>
+          （自然日，负数=已到期）；主表「剩余天」=
+          <b>到期日 − 行情日</b>
+          （历史快照口径）。两处基准不同、数字天然不同，别当成算错。
           <br />
           <b>券商码可直接点开下拉改</b>
           （候选来自账单标的表，已按持仓中优先排序、剔除资金流水占位码；已被别的合约占用的码
           灰掉不可选）。清空会让该合约
           <b style="color: #d03050">退出风险情景推演</b>
           ——系统靠它认领账单持仓，匹配不上是直接报错。
+          <br />
+          清单顺序由后端给定（到期日 / 品种 / 行权价 倒序，字典查不到的排最后）； 到期日倒序 ⇒
+          <b>最快到期的在最后</b>
+          ，看临期请翻到末页。
+          <br />
+          <b>加入日期 = 首次写进本清单的日期</b>
+          （取配置的创建时间，删掉后重新加入会重置）——不是合约上市日，也不是首次同步到行情的日子；
+          鼠标悬停可看完整时间戳。
         </div>
         <NDataTable
           :columns="configColumns"
@@ -1016,7 +1144,7 @@ onUnmounted(stopPolling);
     </NDrawer>
 
     <!-- 行情手工修改弹窗（抽屉左开，合约与日期固定不可改） -->
-    <NDrawer v-model:show="editDrawer" width="480" placement="left">
+    <NDrawer v-model:show="editDrawer" width="520px" placement="left">
       <NDrawerContent closable>
         <template #header>
           <span>手工修正行情</span>

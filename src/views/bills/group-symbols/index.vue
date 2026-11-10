@@ -596,7 +596,7 @@ onMounted(async () => {
     </NCard>
 
     <!-- 合约行编辑抽屉（点击代码列打开）：归属标的（唯一人工列） -->
-    <NDrawer v-model:show="metaDrawerShow" placement="left" width="440px" :mask-closable="false">
+    <NDrawer v-model:show="metaDrawerShow" placement="left" width="520px" :mask-closable="false">
       <NDrawerContent :title="metaRow ? `编辑：${metaRow.symbol}` : '编辑合约行'" closable>
         <NForm label-placement="left" label-width="90px" :show-feedback="false" class="flex flex-col gap-16px">
           <NFormItem label="归属标的">

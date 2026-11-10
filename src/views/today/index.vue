@@ -351,7 +351,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
     </NSpin>
 
     <!-- 设置目标仓位抽屉（左侧） -->
-    <NDrawer v-model:show="showTargetModal" placement="left" width="360px" :mask-closable="false">
+    <NDrawer v-model:show="showTargetModal" placement="left" width="520px" :mask-closable="false">
       <NDrawerContent title="设置目标仓位" closable :native-scrollbar="false">
         <NForm label-placement="left" label-width="96px" :show-feedback="false">
           <NFormItem label="目标仓位(%)">
