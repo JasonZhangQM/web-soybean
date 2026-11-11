@@ -253,11 +253,11 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
     render: (p: LevelScenarioPosition) => (p.strike != null ? fmtMoney(p.strike) : '-')
   },
   {
-    title: '基准价 → 到档价',
+    title: '基准价→到档价',
     key: 'price_now',
     width: 160,
     align: 'right' as const,
-    render: (p: LevelScenarioPosition) => `${fmtPrice(p.price_now)} → ${fmtPrice(p.price_at)}`
+    render: (p: LevelScenarioPosition) => `${fmtPrice(p.price_now)}→${fmtPrice(p.price_at)}`
   },
   {
     title: '当前盈亏',

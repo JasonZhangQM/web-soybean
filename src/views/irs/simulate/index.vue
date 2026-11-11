@@ -197,28 +197,37 @@ function hypoText(it: Api.Irs.TodayItem) {
   };
 }
 
-/** 标的排序键：取显示用名称，未归属（显示「—」）统一排最后 */
+/** 标的排序键：取显示用名称，未归属（显示「—」）为空串 */
 function subjectLabel(r: Api.Irs.SimulatePositionRow) {
   return r.subject_name || r.subject || '';
 }
 
+/**
+ * 列头 sorter：只比较名称本身，空串按 localeCompare 自然排最前（默认倒序下即最后）。
+ * 不在这里特判空值 —— Naive UI 的 descend 会对整个比较结果取反，特判会把「—」翻到表格顶部。
+ */
 function compareSubject(a: Api.Irs.SimulatePositionRow, b: Api.Irs.SimulatePositionRow) {
-  const ka = subjectLabel(a);
-  const kb = subjectLabel(b);
-  if (!ka || !kb) return ka === kb ? 0 : ka ? -1 : 1;
-  return ka.localeCompare(kb, 'zh-Hans-CN');
+  return subjectLabel(a).localeCompare(subjectLabel(b), 'zh-Hans-CN');
 }
 
-/** 逐仓明细行：默认按标的列升序（同标的聚拢），改价行仍以底色高亮区分；_rk 供 virtual-scroll 稳定复用行 */
+/**
+ * 逐仓明细行：默认按标的列倒序（同标的聚拢），未归属（—）固定排最后；
+ * 改价行仍以底色高亮区分，_rk 供 virtual-scroll 稳定复用行。
+ * 同标的内部按 账户 → 合约 → 行权价 升序，不随标的倒序翻转。
+ */
 const positionRows = computed(() => {
   const rows = result.value?.position_rows ?? [];
-  const sorted = [...rows].sort(
-    (a, b) =>
-      compareSubject(a, b) ||
+  const sorted = [...rows].sort((a, b) => {
+    const ka = subjectLabel(a);
+    const kb = subjectLabel(b);
+    if (!ka || !kb) return ka === kb ? 0 : ka ? -1 : 1;
+    return (
+      kb.localeCompare(ka, 'zh-Hans-CN') ||
       String(a.acct ?? '').localeCompare(String(b.acct ?? '')) ||
       String(a.name ?? '').localeCompare(String(b.name ?? '')) ||
       Number(a.strike ?? 0) - Number(b.strike ?? 0)
-  );
+    );
+  });
   return sorted.map((r, i) => ({ ...r, _rk: `${r.acct}/${r.name}/${r.kind}/${r.strike ?? ''}/${i}` }));
 });
 
@@ -230,9 +239,9 @@ const positionCols = computed(() => [
   {
     key: 'subject',
     title: '标的',
-    width: 130,
+    width: 100,
     sorter: compareSubject,
-    defaultSortOrder: 'ascend' as const,
+    defaultSortOrder: 'descend' as const,
     render: (r: Api.Irs.SimulatePositionRow) => r.subject_name || r.subject || '—'
   },
   { key: 'acct', title: '账户', width: 64 },
@@ -249,9 +258,9 @@ const positionCols = computed(() => [
   { key: 'qty', title: '数量', width: 64, render: (r: Api.Irs.SimulatePositionRow) => Math.abs(Number(r.qty ?? 0)) },
   {
     key: 'price',
-    title: '基准价 → 情景价',
+    title: '基准价→情景价',
     width: 150,
-    render: (r: Api.Irs.SimulatePositionRow) => `${fmtPrice(r.price_now)} → ${fmtPrice(r.price_at)}`
+    render: (r: Api.Irs.SimulatePositionRow) => `${fmtPrice(r.price_now)}→${fmtPrice(r.price_at)}`
   },
   {
     key: 'pf_now',
@@ -588,7 +597,7 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
           <!-- 逐仓明细 -->
           <NCard size="small" class="mb-12px">
             <div class="mb-8px text-12px text-gray-400">
-              逐仓明细（默认按标的升序、同标的聚拢，点击「标的」列头可切换排序；改价行底色高亮；当前主时点
+              逐仓明细（默认按标的倒序、同标的聚拢，点击「标的」列头可切换排序；改价行底色高亮；当前主时点
               {{ horizon === 'now' ? '即期' : '到期' }}， 顶部切换只影响组合摘要；Σ主时点 Δ盈亏 = 组合 Δ盈亏，可对账）
             </div>
             <div class="mb-8px text-11px text-gray-400">
