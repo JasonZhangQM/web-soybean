@@ -14,7 +14,7 @@ import { NButton, NTag, NEmpty } from 'naive-ui';
 import { fetchToday, saveUnderlyingTarget, fetchRiskBoard, syncIrs } from '@/service/api';
 import { syncOptionMarket, fetchSyncTask } from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
-import TierScaleBar from './modules/TierScaleBar.vue';
+import TodayCard from './modules/TodayCard.vue';
 
 defineOptions({ name: 'IrsTodayPage' });
 
@@ -106,17 +106,13 @@ async function syncOptionThenRetry() {
 // 今日页打开就拉一次风险快照；risk-board 是独立的引擎，不依赖 today_items 的命中
 loadRisk();
 
-/** 优先级 → 显示标签与底色（1红 2/3橙黄 4蓝 5灰） */
-const PRIORITY_META: Record<number, { label: string; type: 'error' | 'warning' | 'info' | 'default' }> = {
-  1: { label: '证伪触发', type: 'error' },
-  2: { label: '剧本命中', type: 'warning' },
-  3: { label: '裸仓', type: 'warning' },
-  4: { label: '复核到期', type: 'info' },
-  5: { label: '没事', type: 'default' }
-};
-
 /** 需要动作的标的数（priority < 5）——「今天只有几件事」的一眼答卷 */
 const activeCount = computed(() => items.value.filter(i => i.priority < 5).length);
+
+/** 没事的卡片弱化，把注意力留给需要动作的 */
+function cardClass(it: Api.Irs.TodayItem) {
+  return it.priority >= 5 ? 'opacity-55' : '';
+}
 
 // ---------------- 目标仓位编辑（P3-2） ----------------
 const showTargetModal = ref(false);
@@ -144,58 +140,12 @@ async function saveTarget() {
   }
 }
 
-/** 价格：去尾零的两位小数 */
-function fmtPrice(v: number | null | undefined) {
-  if (v == null) return '—';
-  return String(
-    Number(v)
-      .toFixed(2)
-      .replace(/\.?0+$/, '')
-  );
-}
-
-/** 已经是百分比刻度的值（如 target_pct / current_pct / nearest_level_pct / drift） */
-function fmtPct(v: number | null | undefined) {
-  if (v == null) return '—';
-  return `${Number(v).toFixed(2)}%`;
-}
-
-/** 百分制分位值（pe_pct / pb_pct，后端已返回 0~100），直接补 % */
-function fmtPct100(v: number | null | undefined) {
-  if (v == null) return '—';
-  return `${Number(v).toFixed(1)}%`;
-}
-
-/** 漂移标色：±2% 黄、±5% 红（P3-2 超阈标色） */
-function driftClass(drift: number | null | undefined) {
-  if (drift == null) return '';
-  const a = Math.abs(Number(drift));
-  if (a >= 5) return 'text-red-500';
-  if (a >= 2) return 'text-orange-500';
-  return '';
-}
-
-/** 没事的卡片弱化，把注意力留给需要动作的 */
-function cardClass(it: Api.Irs.TodayItem) {
-  return it.priority >= 5 ? 'opacity-55' : '';
-}
-
 // ---------------- 同步实时行情（与估值监测页同接口：syncIrs('underlying-monitor')） ----------------
 const quoteSyncLoading = ref(false);
 
 /** gm current 拉最新价并重算 pv_*，成功后重拉今日清单（刻度条/分位随价格更新） */
 async function handleSyncQuote() {
   await executeSync(() => syncIrs('underlying-monitor'), quoteSyncLoading, load);
-}
-
-/**
- * 刻度条可渲染条件：五档价齐全且严格递增、有现价（防手填数据错序）。
- * 不满足时回退旧的「zone 标签 + 距档位」文案。
- */
-function tierBarOk(it: Api.Irs.TodayItem) {
-  if (!it.pp || !it.pv || it.price == null) return false;
-  const seq = [it.pp.pp_el, it.pp.pp_l, it.pp.pp_m, it.pp.pp_h, it.pp.pp_eh];
-  return seq.every(v => v != null) && seq.every((v, i) => i === 0 || Number(seq[i - 1]) < Number(v));
 }
 </script>
 
@@ -205,6 +155,8 @@ function tierBarOk(it: Api.Irs.TodayItem) {
       <span class="text-16px font-600">今日待办</span>
       <NTag v-if="activeCount" size="small" :bordered="false" round>{{ activeCount }} 个需要动作</NTag>
       <NTag v-else type="success" size="small" :bordered="false" round>今天没事</NTag>
+      <!-- 推演工作台入口：左侧调价、右侧联动算（独立路由，不挤占今日待办清单） -->
+      <NButton size="tiny" @click="router.push({ name: 'irs_simulate' })">推演工作台</NButton>
       <NButton size="tiny" text class="ml-auto" :loading="quoteSyncLoading" @click="handleSyncQuote">同步行情</NButton>
       <NButton size="tiny" text @click="load">刷新</NButton>
     </div>
@@ -275,78 +227,14 @@ function tierBarOk(it: Api.Irs.TodayItem) {
       </div>
 
       <div v-if="items.length" class="grid grid-cols-1 gap-12px md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        <NCard v-for="it in items" :key="it.symbol" size="small" :class="cardClass(it)">
-          <template #header>
-            <div class="flex flex-wrap items-center gap-8px">
-              <NButton text class="font-600" @click="goDetail(it)">
-                {{ it.name || it.symbol }}
-              </NButton>
-              <span class="text-12px text-gray-400">{{ it.symbol }}</span>
-              <NTag size="tiny" :bordered="false" :type="PRIORITY_META[it.priority]?.type ?? 'default'">
-                {{ PRIORITY_META[it.priority]?.label ?? it.priority }}
-              </NTag>
-            </div>
-          </template>
-
-          <div class="flex flex-col gap-8px">
-            <!-- 现价 + 档位刻度条（五档价与距档 % 直接标在刻度下，见 TierScaleBar） -->
-            <span class="text-20px font-600">{{ fmtPrice(it.price) }}</span>
-            <TierScaleBar v-if="tierBarOk(it)" :item="it" />
-            <!-- 数据无效（无版本/档位缺/错序）回退旧文案 -->
-            <div v-else class="flex flex-wrap items-center gap-8px">
-              <NTag size="small" :bordered="false" type="info">{{ it.zone || '—' }}</NTag>
-              <span class="text-12px text-gray-400">距档位 {{ fmtPct(it.nearest_level_pct) }}</span>
-            </div>
-
-            <!-- 档位对应 PE/PB 分位（P0-4 纠偏，指数 + 在市 A 股个股均有值，与手填档位同屏、不同底色） -->
-            <div v-if="it.pe_pct != null || it.pb_pct != null" class="text-12px">
-              <NTag size="tiny" :bordered="false" type="warning">
-                PE {{ fmtPct100(it.pe_pct) }} / PB {{ fmtPct100(it.pb_pct) }}
-              </NTag>
-              <span class="ml-4px text-gray-400">10y 分位（bds 只读）</span>
-            </div>
-
-            <!-- 命中的剧本动作 -->
-            <div v-if="it.hit_plans.length" class="mt-4px">
-              <div class="mb-4px text-12px text-gray-500">命中剧本</div>
-              <div v-for="(p, i) in it.hit_plans" :key="i" class="mb-4px text-12px">
-                {{ p.trade_symbol }} {{ p.b_s }}{{ p.o_c || '' }}
-                <span class="text-gray-400">@ {{ fmtPrice(p.effective_trigger) }}</span>
-                <div v-if="p.reason" class="text-11px text-gray-400">{{ p.reason }}</div>
-              </div>
-            </div>
-
-            <!-- 逻辑 / 证伪 / 复核 / 裸仓 -->
-            <div class="mt-4px flex flex-wrap gap-6px text-12px">
-              <NTag size="tiny" :bordered="false" :type="it.logic_weak ? 'warning' : 'default'">
-                逻辑 {{ it.logic_total }}
-                <template v-if="it.logic_weak">（减弱 {{ it.logic_weak }}）</template>
-              </NTag>
-              <NTag v-if="it.invalidate_triggered" size="tiny" :bordered="false">
-                证伪触发 {{ it.invalidate_triggered }}
-              </NTag>
-              <NTag v-if="it.review_due" size="tiny" :bordered="false" type="info">复核到期</NTag>
-              <NTag v-if="it.naked" size="tiny" :bordered="false" type="warning">裸仓</NTag>
-            </div>
-
-            <!-- 目标 / 当前 / 漂移（P3-2） -->
-            <div class="mt-4px flex items-center gap-8px border-t border-gray-100 pt-8px text-12px">
-              <span>
-                目标
-                <b>{{ fmtPct(it.target_pct) }}</b>
-              </span>
-              <span>
-                当前
-                <b>{{ fmtPct(it.current_pct) }}</b>
-              </span>
-              <span :class="driftClass(it.drift)">
-                漂移
-                <b>{{ fmtPct(it.drift) }}</b>
-              </span>
-              <NButton size="tiny" text class="ml-auto" @click="startEditTarget(it)">设目标</NButton>
-            </div>
-          </div>
-        </NCard>
+        <TodayCard
+          v-for="it in items"
+          :key="it.symbol"
+          :item="it"
+          :class="cardClass(it)"
+          @detail="goDetail(it)"
+          @edit-target="startEditTarget(it)"
+        />
       </div>
     </NSpin>
 

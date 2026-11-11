@@ -635,6 +635,138 @@ declare namespace Api {
       warnings: string[];
     }
 
+    // ============ 推演工作台（POST /irs/simulate，2026-11-11） ============
+    /** 逐仓情景明细行（全部在仓持仓，含冻结行；Σdelta_pnl 可与 combo.loss 对账） */
+    interface SimulatePositionRow {
+      acct: string;
+      symbol: string | null;
+      name: string;
+      /** fut / call / put 等（risk_scenario 持仓类型） */
+      kind: string;
+      cp: string | null;
+      strike: number | null;
+      qty: number | null;
+      mult: number | null;
+      /** 归属监测标的代码；null = 未归属到任何标的（与是否改价无关） */
+      subject: string | null;
+      /** 归属标的名称；未归属时为 null */
+      subject_name: string | null;
+      /** 是否被本次假设价改价命中（改价行高亮，与 subject 无关） */
+      changed: boolean;
+      price_now: number | null;
+      price_at: number | null;
+      /** 跌幅（正=下跌）；0 = 冻结 */
+      shift: number;
+      /** 账单账面浮盈（静态，不随假设价变化） */
+      pf_now: number;
+      /** 主时点 Δ 盈亏（= 顶部所选时点，供组合对账） */
+      delta_pnl: number;
+      /** 即期 Δ 盈亏（BS 重估口径） */
+      delta_pnl_now: number;
+      /** 到期 Δ 盈亏（内在价值口径） */
+      delta_pnl_expiry: number;
+      margin_at: number;
+      margin_delta: number;
+      /** 人工确认风险敞口（bills_group，按账户+合约拆分）；null = 未设置 */
+      risk_exposure: number | null;
+    }
+
+    /** 分账户风险指标（与档位 Tab 的 LevelScenarioAccount 同构，全部由后端现算） */
+    interface SimulateAccount {
+      account: string;
+      /** 账户层面全部持仓账面浮盈（静态，不随假设价变化） */
+      pf_now: number;
+      /** 主时点 Δ 盈亏（= 顶部所选时点，供组合对账） */
+      delta_pnl: number;
+      /** 即期 Δ 盈亏（BS 重估口径） */
+      delta_pnl_now: number;
+      /** 到期 Δ 盈亏（内在价值口径） */
+      delta_pnl_expiry: number;
+      /** 到档净值（真实口径分母，扣 diff_br） */
+      net_at: number;
+      /** 客户权益（交易所口径分母） */
+      eq_at: number;
+      /** 到档保证金 */
+      margin_at: number;
+      /** 相对 0% 基准的保证金变化（正=占用增加） */
+      margin_delta: number;
+      /** 真实风险度 = 保证金 / 净资产 */
+      real: number | null;
+      /** 交易所风险度 = 保证金 / 客户权益 */
+      exch: number | null;
+      /** 覆盖率 = 净值 / 保证金；无保证金时为 null */
+      coverage: number | null;
+      /** 追保只判交易所口径（breached） */
+      breached: boolean;
+    }
+
+    /** 单标的假设态小结 */
+    interface SimulateSubject {
+      name: string | null;
+      price_now: number;
+      price_at: number;
+      pct: number;
+      zone_now: string | null;
+      zone_at: string | null;
+      /** 全部未取消剧本在假设价下的命中判定 */
+      plans_at: {
+        seq: number;
+        trade_symbol: string | null;
+        b_s: string | null;
+        o_c: string | null;
+        reason: string | null;
+        effective_trigger: number | null;
+        hit_at: boolean;
+      }[];
+      pf_now: number;
+      pf_at_level: number;
+      delta_pnl: number;
+      margin_at: number;
+      margin_delta: number;
+      positions: SimulatePositionRow[];
+      price_basis: Record<string, unknown>;
+    }
+
+    /** 组合层读数（combo，与 level-scenario 同构） */
+    interface SimulateCombo {
+      net_at: number;
+      margin_total: number;
+      /** 组合真实风险度（保证金/净资产） */
+      real: number | null;
+      /** 交易所口径（保证金/客户权益） */
+      exch: number | null;
+      loss: number;
+    }
+
+    /** 推演工作台响应（POST /irs/simulate） */
+    interface SimulateResult {
+      as_of: string;
+      data_as_of: string | null;
+      stale_days: number | null;
+      engine_ver: string;
+      horizon: string;
+      iv_mult: number;
+      changed_symbols: string[];
+      combo: SimulateCombo;
+      /** 0% 基准（overrides 全空时的读数，与 risk-board 同口径，供对照） */
+      baseline_combo: SimulateCombo;
+      budget: {
+        stress_drop: number;
+        summary: {
+          verdict: string;
+          judged_accounts: number;
+          blocked_accounts: string[];
+          headroom_total: number;
+        };
+        note: string;
+      };
+      subjects: Record<string, SimulateSubject>;
+      position_rows: SimulatePositionRow[];
+      /** 分账户风险指标（空账户不展示） */
+      accounts: SimulateAccount[];
+      warnings: string[];
+    }
+
     // ============ 标的监测抽屉「估值与走势」Tab（2026-11-08） ============
     /** 单指标 3/5/10 年分位（日历对日口径，来自 irs_um_percentile） */
     interface UmMarketPctTriple {

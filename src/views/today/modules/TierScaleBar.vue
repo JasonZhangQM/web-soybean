@@ -18,7 +18,11 @@
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-const props = defineProps<{ item: Api.Irs.TodayItem }>();
+const props = defineProps<{
+  item: Api.Irs.TodayItem;
+  /** 假设价（推演工作台滑块）：叠加第二游标，与现价游标同轴；空/未传不渲染 */
+  hypoPrice?: number | null;
+}>();
 
 /** 五档刻度定义 */
 const TIERS = [
@@ -73,6 +77,12 @@ const tickPcts = computed(() => {
 });
 
 const markerPct = computed(() => (axis.value && priceVal.value != null ? toPct(priceVal.value) : null));
+
+/** 假设价游标：钳进轴内（超界只贴边显示，不影响后端口径） */
+const hypoPct = computed(() => {
+  if (!axis.value || props.hypoPrice == null) return null;
+  return Math.min(100, Math.max(0, toPct(Number(props.hypoPrice))));
+});
 
 /** 渐变背景：停靠点跟随各档实际位置（档位挤在一起时渐变同步压缩） */
 const gradientCss = computed(() => {
@@ -221,6 +231,14 @@ function fmtPv(v: number | null) {
             borderRight: '5px solid transparent',
             borderTop: '7px solid currentColor'
           }"
+        />
+      </template>
+      <!-- 假设价游标：圆形点（推演工作台滑块联动） -->
+      <template v-if="hypoPct !== null">
+        <div
+          class="absolute top-4px h-10px w-10px rounded-full border-2px border-white bg-green-500 shadow"
+          :style="{ left: `${hypoPct}%`, transform: 'translateX(-50%)' }"
+          title="假设价（滑块设定）"
         />
       </template>
       <!-- 超界提示 -->

@@ -48,6 +48,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "irs_macro-framework": () => import("@/views/irs/macro-framework/index.vue"),
   "irs_option-quote": () => import("@/views/irs/option-quote/index.vue"),
   "irs_risk-board": () => import("@/views/irs/risk-board/index.vue"),
+  irs_simulate: () => import("@/views/irs/simulate/index.vue"),
   "irs_underlying-monitors": () => import("@/views/irs/underlying-monitors/index.vue"),
   "irs_us-economic-dashboard": () => import("@/views/irs/us-economic-dashboard/index.vue"),
   "irs_valuation-percent": () => import("@/views/irs/valuation-percent/index.vue"),

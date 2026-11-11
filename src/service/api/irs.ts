@@ -869,6 +869,30 @@ export function runRiskBoard() {
   });
 }
 
+// ------------------------------------------------ 推演工作台（2026-11-11）
+
+export interface SimulateQuery {
+  /** {标的代码: 假设价}；空 = 全部现价（0% 基准） */
+  overrides: Record<string, number>;
+  /** now=即期 / expiry=到期 */
+  horizon?: 'now' | 'expiry';
+  /** IV 冲击倍数 */
+  iv_mult?: number;
+}
+
+/**
+ * 推演工作台（POST /irs/simulate，只读不落库）
+ *
+ * 多标的假设价 → 组合风险/收益联动推演。400 = 非法标的/价格/上下文不可用。
+ */
+export function simulateIrs(data: SimulateQuery) {
+  return request<Api.Irs.SimulateResult>({
+    url: '/api/v1/irs/simulate',
+    method: 'post',
+    data
+  });
+}
+
 // ------------------------------------------------ 标的监测抽屉「估值与走势」
 // 2026-11-08：懒加载，一次返回估值分位 / 估值序列 / 累计收益率 / 回撤四块。
 // 关联键用 symbol（主表 id 会漂移）；口径全在后端算，前端只渲染。
