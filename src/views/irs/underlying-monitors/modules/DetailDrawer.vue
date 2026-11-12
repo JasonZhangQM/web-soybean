@@ -153,8 +153,13 @@ function goTab(name: string) {
     1920 屏约 1382px 能铺开 1210px 的表格，1600 屏约 1152px ⇒ 走横向滚动。
     框架自带的主题设置面板（400px）不在此列，不动。
   -->
+  <!--
+    关闭按钮挪到 header 最左（标的代码之前），**保持原生 closable 样式、只调位置**：
+    NDrawerContent 的 close 是 header flex 里的普通节点（__main flex:1 占满剩余宽度），
+    用下方全局样式把它 order:-1 排到最前即可；自绘 NButton 复刻不出 hover 热区，已弃。
+  -->
   <NDrawer v-model:show="visible" width="72%" placement="right" :mask-closable="false">
-    <NDrawerContent :title="title" closable :native-scrollbar="false">
+    <NDrawerContent :title="title" closable header-class="um-detail-drawer-header" :native-scrollbar="false">
       <template #header>
         <div class="flex flex-wrap items-center gap-8px">
           <span class="font-500">{{ title }}</span>
@@ -221,3 +226,19 @@ function goTab(name: string) {
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style>
+/*
+ * 关闭按钮挪到 header 最左：只调位置、不动原生样式。
+ * 不能用 scoped + :deep()：抽屉 teleport 到 body 后，`.n-drawer-header__close` 的祖先链
+ * 上没有带 data-v 标记的元素（它在本组件 slot 之外），前缀选择器选不到它。
+ * 故经 `header-class` 给 header 挂专属类，用全局样式限定作用域，不影响其它抽屉。
+ * `__main` 本身 flex:1 占满剩余宽度，order:-1 即可让原生 close 排到最左；
+ * margin-left:0 覆盖原右侧布局的 6px，与 header 内 gap-8px 对齐。
+ */
+.um-detail-drawer-header .n-drawer-header__close {
+  order: -1;
+  margin-left: 0;
+  margin-right: 8px;
+}
+</style>

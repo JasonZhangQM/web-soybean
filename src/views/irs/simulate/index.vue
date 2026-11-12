@@ -763,10 +763,12 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
             <NTag size="small" :bordered="false">按标的敞口合计 / 逐仓敞口倒序 · 改价行高亮</NTag>
             <span class="text-12px text-gray-400">即期 / 到期两列 Δ 盈亏并列，列名固定</span>
           </SectionBar>
-          <div class="mb-8px text-12px text-gray-400">
+          <!--
+ <div class="mb-8px text-12px text-gray-400">
             先按标的项下持仓敞口合计倒序聚拢，组内按逐仓风险敞口倒序，未归属固定排最后；列头不可切换排序。
             组合摘要与改价小结按即期口径，Σ即期Δ盈亏 = 组合 Δ盈亏，可对账。
-          </div>
+          </div> 
+-->
           <!--
              <div class="mb-8px text-11px text-gray-400">
               数字格式与档位 Tab「某档持仓明细」一致（金额 2 位小数、价格最多 4 位、空值 '-'）；
@@ -790,9 +792,11 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
             <NTag size="small" :bordered="false" type="info">列集合与档位 Tab 逐列一致</NTag>
             <span class="text-12px text-gray-400">即期 / 到期两列 Δ 盈亏并列，列名固定</span>
           </SectionBar>
-          <div class="mb-8px text-12px text-gray-400">
+          <!--
+ <div class="mb-8px text-12px text-gray-400">
             组合摘要按即期口径，Σ即期Δ盈亏 = 组合 Δ盈亏，可对账；追保只判交易所口径。
-          </div>
+          </div> 
+-->
           <!--
  <div class="mb-8px text-11px text-gray-400">
               「账户当前盈亏」为账户层面全部持仓账面浮盈，两列 Δ盈亏为账户全部持仓的模型盯市增量，

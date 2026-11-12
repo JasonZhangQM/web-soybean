@@ -236,11 +236,13 @@ const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
       :max-height="420"
       virtual-scroll
     />
-    <div class="table-note">
+    <!--
+ <div class="table-note">
       「当前盈亏」为账单账面浮盈（静态）；两列Δ盈亏为所选情景档位下的模型盯市增量
       [推算]，列名固定不切换：即期列为组合主口径、到期列为终局对照，正=盈、负=亏，与账面口径不同源、不可相加对账。默认
       0% 档时即期Δ盈亏为 0（到期列仍含时间价值归零）。
-    </div>
+    </div> 
+-->
   </NCard>
 </template>
 

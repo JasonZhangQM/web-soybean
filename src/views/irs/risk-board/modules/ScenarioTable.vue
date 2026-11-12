@@ -134,11 +134,12 @@ function rowProps(row: Row) {
     :row-key="(r: Row) => r.drop"
     :scroll-x="930"
   />
-  <div class="table-note">
+  <!--
+ <div class="table-note">
     涨跌幅列：负数=涨幅、正数=跌幅；盈亏列：正数=盈利、负数=亏损。点击任意行切换下方「逐张合约」的情景档位（默认
     0%，此时 Δ 盈亏为 0）。红色行=该账户首个触发追保的档位。
-  </div>
-</template>
+  </div> 
+--></template>
 
 <style scoped>
 /* 单元格不折行：11 档情景表窄列多，换行会把行高参差拉开，与全站列表页不一致。
