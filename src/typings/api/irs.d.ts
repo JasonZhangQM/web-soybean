@@ -676,6 +676,8 @@ declare namespace Api {
       account: string;
       /** 账户层面全部持仓账面浮盈（静态，不随假设价变化） */
       pf_now: number;
+      /** 账户风险敞口 = bills_group_acc.risk_exposure（人工静态值，含账户全部持仓）；null = 未设置 */
+      risk_exposure: number | null;
       /** 主时点 Δ 盈亏（= 顶部所选时点，供组合对账） */
       delta_pnl: number;
       /** 即期 Δ 盈亏（BS 重估口径） */
@@ -761,6 +763,11 @@ declare namespace Api {
         note: string;
       };
       subjects: Record<string, SimulateSubject>;
+      /**
+       * 标的项下持仓风险敞口合计（按归属标的汇总逐仓 risk_exposure，NULL=未设置不计入）。
+       * 左栏卡片与右栏逐仓明细共用这一份排序依据；静态人工值，不随假设价变化。
+       */
+      subject_exposure: Record<string, number>;
       position_rows: SimulatePositionRow[];
       /** 分账户风险指标（空账户不展示） */
       accounts: SimulateAccount[];
