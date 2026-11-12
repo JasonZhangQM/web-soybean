@@ -11,7 +11,9 @@
  */
 import { ref, computed, watch } from 'vue';
 import { NButton, NTag } from 'naive-ui';
-import { fetchUnderlyingMonitorDetail, type UnderlyingMonitorDetail } from '@/service/api';
+import { fetchUnderlyingMonitorDetail, syncIrs, type UnderlyingMonitorDetail } from '@/service/api';
+import { executeSync } from '@/utils/sync-feedback';
+import { fmtPrice } from '@/views/irs/risk-board/modules/utils';
 import OverviewTab from './OverviewTab.vue';
 import MarketStatsTab from './MarketStatsTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
@@ -35,6 +37,10 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(false);
+/** 标题栏「拉取最新价」专用 loading：与 detail 的 loading 分离，避免刷新时整页闪烁 */
+const quoteLoading = ref(false);
+/** 行情同步成功次数：传给档位 Tab，联动重算到档情景（基准价 um.price 变了） */
+const priceVersion = ref(0);
 const detail = ref<UnderlyingMonitorDetail | null>(null);
 const tab = ref('overview');
 /** 抽屉打开期间有无任何写操作 — 决定关闭时要不要 emit('changed') */
@@ -52,6 +58,10 @@ const title = computed(() => {
   if (!v) return '标的档案';
   return `${v.symbol} ${v.name ?? ''}`.trim();
 });
+
+/** 标题栏直接显示标的当前价（um.price = 最新价）；未登记时不占位。
+ *  价格格式走全站统一 fmtPrice（最多 4 位、去尾零），与其它价格列一致。 */
+const currentPrice = computed(() => um.value?.price ?? null);
 
 /** 头部标签：主题 / 类型 / 最新研究结论 / 复核到期 */
 const headerTags = computed(() => {
@@ -75,15 +85,34 @@ const headerTags = computed(() => {
   return tags;
 });
 
-async function load() {
+/** withSpin=false 用于「只更新数据」的静默重拉（如行情同步后），不闪整页遮罩 */
+async function load(withSpin = true) {
   if (!props.row) return;
-  loading.value = true;
+  if (withSpin) loading.value = true;
   try {
     const { data, error } = await fetchUnderlyingMonitorDetail(props.row.id);
     if (!error && data) detail.value = data;
   } finally {
-    loading.value = false;
+    if (withSpin) loading.value = false;
   }
+}
+
+/**
+ * 标题栏「现价」旁的更新标志：与列表页「行情」按钮同一接口
+ * syncIrs('underlying-monitor')（gm current → 写 um.price → flush 触发 pv_* 钩子）。
+ * 成功后静默重拉 detail 让现价 / zone / 分位标签跟上，并标记 dirty 让关抽屉时刷列表；
+ * priceVersion +1 通知已挂载的档位 Tab 重算到档情景（基准价变了，pct 也随之变）。
+ */
+async function handleRefreshPrice() {
+  await executeSync(
+    () => syncIrs('underlying-monitor'),
+    quoteLoading,
+    async () => {
+      dirty = true;
+      await load(false);
+      priceVersion.value += 1;
+    }
+  );
 }
 
 /** 子 Tab 写操作后标记 dirty，并刷新 detail（让概览 Tab 的计数/剧本列表跟上最新状态） */
@@ -129,6 +158,15 @@ function goTab(name: string) {
       <template #header>
         <div class="flex flex-wrap items-center gap-8px">
           <span class="font-500">{{ title }}</span>
+          <span v-if="currentPrice != null" class="font-600">现价 {{ fmtPrice(currentPrice) }}</span>
+          <NTooltip trigger="hover">
+            <template #trigger>
+              <NButton size="tiny" text :loading="quoteLoading" aria-label="拉取最新价" @click="handleRefreshPrice">
+                <template #icon><SvgIcon icon="mdi:sync" /></template>
+              </NButton>
+            </template>
+            拉取最新价（同步实时行情，与列表页「行情」按钮同接口）
+          </NTooltip>
           <NTag v-for="t in headerTags" :key="t.text" size="small" :bordered="false" :type="t.type">
             {{ t.text }}
           </NTag>
@@ -162,7 +200,12 @@ function goTab(name: string) {
           </NTabPane>
           <!-- 档位 + 到档情景（2026-11-09 合并；2026-11-10 起情景在档位 Tab 内直接展示） -->
           <NTabPane name="version" tab="档位" display-directive="show:lazy">
-            <VersionTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
+            <VersionTab
+              :um-id="detail.um.id"
+              :symbol="detail.um.symbol"
+              :price-version="priceVersion"
+              @dirty="markDirty"
+            />
           </NTabPane>
           <NTabPane name="plan" tab="剧本与成交" display-directive="show:lazy">
             <PlanTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />

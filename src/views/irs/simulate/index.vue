@@ -203,15 +203,8 @@ function subjectLabel(r: Api.Irs.SimulatePositionRow) {
 }
 
 /**
- * 列头 sorter：只比较名称本身，空串按 localeCompare 自然排最前（默认倒序下即最后）。
- * 不在这里特判空值 —— Naive UI 的 descend 会对整个比较结果取反，特判会把「—」翻到表格顶部。
- */
-function compareSubject(a: Api.Irs.SimulatePositionRow, b: Api.Irs.SimulatePositionRow) {
-  return subjectLabel(a).localeCompare(subjectLabel(b), 'zh-Hans-CN');
-}
-
-/**
- * 逐仓明细行：默认按标的列倒序（同标的聚拢），未归属（—）固定排最后；
+ * 逐仓明细行：固定按标的列倒序（同标的聚拢），未归属（—）固定排最后。
+ * 列头不挂 sorter —— 排列顺序只有这一套，不允许点列头改写。
  * 改价行仍以底色高亮区分，_rk 供 virtual-scroll 稳定复用行。
  * 同标的内部按 账户 → 合约 → 行权价 升序，不随标的倒序翻转。
  */
@@ -240,8 +233,6 @@ const positionCols = computed(() => [
     key: 'subject',
     title: '标的',
     width: 100,
-    sorter: compareSubject,
-    defaultSortOrder: 'descend' as const,
     render: (r: Api.Irs.SimulatePositionRow) => r.subject_name || r.subject || '—'
   },
   { key: 'acct', title: '账户', width: 64 },
@@ -265,42 +256,42 @@ const positionCols = computed(() => [
   {
     key: 'pf_now',
     title: '当前盈亏',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => pnlCell(r.pf_now)
   },
   {
     key: 'delta_pnl_now',
-    title: horizon.value === 'now' ? '即期Δ盈亏 · 主' : '即期Δ盈亏',
-    width: 110,
+    title: horizon.value === 'now' ? '即期Δ盈亏·主' : '即期Δ盈亏',
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => pnlCell(r.delta_pnl_now)
   },
   {
     key: 'delta_pnl_expiry',
-    title: horizon.value === 'expiry' ? '到期Δ盈亏 · 主' : '到期Δ盈亏',
-    width: 110,
+    title: horizon.value === 'expiry' ? '到期Δ盈亏·主' : '到期Δ盈亏',
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => pnlCell(r.delta_pnl_expiry)
   },
   {
     key: 'margin_at',
     title: '到档保证金',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => fmtMoney(r.margin_at)
   },
   {
     key: 'margin_delta',
     title: '保证金变化',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => marginCell(r.margin_delta)
   },
   {
     key: 'risk_exposure',
     title: '风险敞口',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => fmtMoney(r.risk_exposure)
   }
@@ -315,49 +306,49 @@ const accountCols = computed(() => [
   {
     key: 'pf_now',
     title: '账户当前盈亏',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => pnlCell(a.pf_now)
   },
   {
     key: 'delta_pnl_now',
-    title: horizon.value === 'now' ? '即期Δ盈亏 · 主' : '即期Δ盈亏',
-    width: 110,
+    title: horizon.value === 'now' ? '即期Δ盈亏·主' : '即期Δ盈亏',
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => pnlCell(a.delta_pnl_now)
   },
   {
     key: 'delta_pnl_expiry',
     title: horizon.value === 'expiry' ? '到期Δ盈亏 · 主' : '到期Δ盈亏',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => pnlCell(a.delta_pnl_expiry)
   },
   {
     key: 'net_at',
     title: '到档净值',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => fmtMoney(a.net_at)
   },
   {
     key: 'eq_at',
     title: '客户权益',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => fmtMoney(a.eq_at)
   },
   {
     key: 'margin_at',
     title: '保证金',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => fmtMoney(a.margin_at)
   },
   {
     key: 'margin_delta',
     title: '保证金变化',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => marginCell(a.margin_delta)
   },
@@ -597,7 +588,7 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
           <!-- 逐仓明细 -->
           <NCard size="small" class="mb-12px">
             <div class="mb-8px text-12px text-gray-400">
-              逐仓明细（默认按标的倒序、同标的聚拢，点击「标的」列头可切换排序；改价行底色高亮；当前主时点
+              逐仓明细（固定按标的倒序、同标的聚拢，列头不可切换排序；改价行底色高亮；当前主时点
               {{ horizon === 'now' ? '即期' : '到期' }}， 顶部切换只影响组合摘要；Σ主时点 Δ盈亏 = 组合 Δ盈亏，可对账）
             </div>
             <div class="mb-8px text-11px text-gray-400">

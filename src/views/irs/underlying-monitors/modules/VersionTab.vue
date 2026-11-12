@@ -26,7 +26,9 @@ import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingVersionTab' });
 
-const props = defineProps<{ umId: number; symbol: string }>();
+const props = withDefaults(defineProps<{ umId: number; symbol: string; priceVersion?: number }>(), {
+  priceVersion: 0
+});
 const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 const saving = ref(false);
@@ -224,6 +226,18 @@ function fmt(v: number | string | null | undefined) {
 }
 
 onMounted(loadVersions);
+
+/** 标题栏「拉取最新价」成功后联动重算：um.price 是到档情景的基准价（price_basis.um_price），
+ *  pct = pp/price−1 也随它变；档位版本表与常驻的情景组件都要重拉，避免新价配旧数。
+ *  初始值 0 不触发（onMounted 已拉过一次）；未切到本 Tab 时组件未挂载，切到时自然取最新。 */
+watch(
+  () => props.priceVersion,
+  v => {
+    if (!v) return;
+    loadVersions();
+    scenarioRef.value?.load();
+  }
+);
 
 /** diff 里正负都要显式带符号，涨跌一眼可见 */
 function fmtDiff(v: number | null | undefined) {

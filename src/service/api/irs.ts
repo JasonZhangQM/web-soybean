@@ -262,10 +262,14 @@ export interface LevelScenarioCombo {
   real: number | null;
   exch: number | null;
   loss: number;
+  /** 组合口径风险敞口：Σ 各账户 bills_group_acc.risk_exposure（排除合计行）；静态值、五档恒定，null = 全部未登记 */
+  risk_exposure: number | null;
 }
 
 export interface LevelScenarioAccount {
   account: string;
+  /** 账户层面风险敞口：bills_group_acc.risk_exposure（账户内全部持仓之和，排除合计行）；null = 未设置 */
+  risk_exposure: number | null;
   /** 账户当前盈亏：账户层面全部持仓的账面浮动盈亏（bills_group_acc.pf_total，排除合计行） */
   pf_now: number;
   /** 主时点 Δ 盈亏：模型盯市口径，仅该标的项下持仓；列名随 horizon 显示即期/到期 */

@@ -7,6 +7,40 @@
 import { h } from 'vue';
 import { NTooltip } from 'naive-ui';
 
+/** 列头统一排版：标题 + 问号同行、不折行 */
+const HEADER_STYLE = 'display:inline-flex;align-items:center;gap:4px;white-space:nowrap';
+
+/**
+ * 列头「?」弹窗：圆形图标 + 悬停多行说明。
+ * 所有带口径说明的列头共用这一个触发器，避免各处另写一份后样式漂移。
+ * lastDim=true 时末行压成灰色小字，用作补充口径。
+ */
+function helpTip(lines: string[], lastDim = false) {
+  return h(
+    NTooltip,
+    { trigger: 'hover', style: { maxWidth: '360px' } },
+    {
+      trigger: () =>
+        h(
+          'span',
+          {
+            style:
+              'cursor:help;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid currentColor;border-radius:50%;font-size:11px;line-height:1;opacity:.6;flex:none'
+          },
+          '?'
+        ),
+      default: () =>
+        h(
+          'div',
+          { style: 'line-height:1.6' },
+          lines.map((line, i) =>
+            h('div', lastDim && i === lines.length - 1 ? { style: 'margin-top:6px;opacity:.8' } : {}, line)
+          )
+        )
+    }
+  );
+}
+
 /**
  * 两列 Δ 盈亏的列头「?」弹窗：标的监测档位表 / 风险看板逐张合约表共用一份口径文案，
  * 避免两个页面各写一份后漂移。label 只认「即期」「到期」，列名也由它生成。
@@ -14,44 +48,26 @@ import { NTooltip } from 'naive-ui';
 export function deltaPnlHeader(label: string) {
   const isNow = label === '即期';
   return () =>
-    h('span', { style: 'display:inline-flex;align-items:center;gap:4px;white-space:nowrap' }, [
+    h('span', { style: HEADER_STYLE }, [
       `${label}Δ盈亏`,
-      h(
-        NTooltip,
-        { trigger: 'hover', style: { maxWidth: '360px' } },
-        {
-          trigger: () =>
-            h(
-              'span',
-              {
-                style:
-                  'cursor:help;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid currentColor;border-radius:50%;font-size:11px;line-height:1;opacity:.6;flex:none'
-              },
-              '?'
-            ),
-          default: () =>
-            h('div', { style: 'line-height:1.6' }, [
-              h(
-                'div',
-                isNow
-                  ? '即期（BS 重估）：假设标的价格现在就到该档位，期权按 BS 公式重估，保留剩余时间价值。'
-                  : '到期（内在价值）：假设撑到到期标的就是该档位价，期权按内在价值结算，时间价值归零，是终局下界。'
-              ),
-              h(
-                'div',
-                isNow
-                  ? '卖 put 深跌档的亏损通常小于到期列，差额约等于时间价值。'
-                  : '卖 put 深跌档的亏损通常大于即期列，差额约等于时间价值。'
-              ),
-              h(
-                'div',
-                { style: 'margin-top:6px;opacity:.8' },
-                '两列都是相对当前的 Δ（V(S1)−V(S0)），只统计该标的项下持仓、其它持仓价格冻结；证券/期货两列恒等，差异只来自期权。与「当前盈亏」的账面口径基准不同，不可相加对账。'
-              )
-            ])
-        }
+      helpTip(
+        [
+          isNow
+            ? '即期（BS 重估）：假设标的价格现在就到该档位，期权按 BS 公式重估，保留剩余时间价值。'
+            : '到期（内在价值）：假设撑到到期标的就是该档位价，期权按内在价值结算，时间价值归零，是终局下界。',
+          isNow
+            ? '卖 put 深跌档的亏损通常小于到期列，差额约等于时间价值。'
+            : '卖 put 深跌档的亏损通常大于即期列，差额约等于时间价值。',
+          '两列都是相对当前的 Δ（V(S1)−V(S0)），只统计该标的项下持仓；其它持仓价格冻结且不随时点重估，两列口径一致。证券/期货两列恒等，差异只来自期权。与「当前盈亏」的账面口径基准不同，不可相加对账。'
+        ],
+        true
       )
     ]);
+}
+
+/** 组合风险指标列头：标题 + 口径说明；文案由调用方按列给，口径与后端 _combo / run() 对齐 */
+export function metricHeader(title: string, lines: string[]) {
+  return () => h('span', { style: HEADER_STYLE }, [title, helpTip(lines)]);
 }
 
 /** 金额：千分位 + 2 位小数；空值显示 '-' */

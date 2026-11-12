@@ -9,10 +9,12 @@
  *
  * 三类表格统一走 UnderlyingDataTable：它自动按列宽求和喂 scroll-x、自带 :deep() 禁折行，
  * 且 NDataTable 不写 size（铁律 4.7 / 4.11）。
+ *
+ * 2026-11-12 起取消「即期 / 到期」切换：主时点固定即期，两列 Δ 盈亏并列且列名固定。
  */
 import { computed, h, onMounted, ref, watch } from 'vue';
 import type { HTMLAttributes } from 'vue';
-import { NAlert, NButton, NDescriptions, NDescriptionsItem, NRadioButton, NRadioGroup, NSpin, NTag } from 'naive-ui';
+import { NAlert, NButton, NSpin, NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
   fetchUnderlyingLevelScenario,
@@ -29,6 +31,7 @@ import {
   fmtPrice,
   fmtRatio,
   levelColor,
+  metricHeader,
   ratioLevel
 } from '@/views/irs/risk-board/modules/utils';
 
@@ -36,29 +39,37 @@ defineOptions({ name: 'UnderlyingLevelScenarioTab' });
 
 const props = defineProps<{ umId: number; symbol: string }>();
 
-const horizon = ref<'now' | 'expiry'>('now');
 const data = ref<LevelScenario | null>(null);
 const loading = ref(false);
 const err = ref('');
 const activeLevel = ref('m');
 
+/**
+ * 五档表按档位倒序展示：后端 level_order 恒为到档价升序（极低 → 低 → 中 → 高 → 极高），
+ * 表格倒过来即「极高 → 高 → 中 → 低 → 极低」。只改行的展示顺序，
+ * levels / horizon_compare 仍按 key 索引，后端契约零改动；默认选中档仍是中档 m。
+ */
+function displayOrder(order: string[]): string[] {
+  return [...order].reverse();
+}
+
 async function load() {
   loading.value = true;
   err.value = '';
-  const { data: d, error } = await fetchUnderlyingLevelScenario(props.umId, horizon.value);
+  // 固定即期：后端一次请求已含两套时点，无需切换重算（详见下方时点口径说明）
+  const { data: d, error } = await fetchUnderlyingLevelScenario(props.umId, 'now');
   if (error || !d) {
     const detail = (error as any)?.response?.data?.detail;
     err.value = typeof detail === 'string' ? detail : '到档情景计算失败，请稍后重试。';
     data.value = null;
   } else {
     data.value = d;
-    if (!d.levels[activeLevel.value]) activeLevel.value = d.level_order[0] ?? '';
+    if (!d.levels[activeLevel.value]) activeLevel.value = displayOrder(d.level_order)[0] ?? '';
   }
   loading.value = false;
 }
 
 onMounted(load);
-watch(horizon, load);
 /** 供档位 Tab 在保存 / 删除档位后重算（组件常驻挂载，可直接调用） */
 defineExpose({ load });
 /** 换标的时清空重算：umId 是主键，symbol 一并监听可防 id 漂移（抽屉注释里那条历史坑） */
@@ -70,12 +81,16 @@ watch(
   }
 );
 
-const horizonLabel = computed(() => (horizon.value === 'now' ? '即期(BS重估)' : '到期(内在价值)'));
-/** 两列 Δ 盈亏的时点前缀：主列=当前时点、对照列=另一时点。
- *  列名只写时点（即期 / 到期），统计范围由下方说明承载；
- *  把范围写进列名会被误读成与时点并列的另一种盈亏。 */
-const mainLabel = computed(() => (horizon.value === 'now' ? '即期' : '到期'));
-const otherLabel = computed(() => (horizon.value === 'now' ? '到期' : '即期'));
+/**
+ * 时点口径固定（2026-11-12 取消「即期 / 到期」切换按钮）：
+ * 后端每档同时跑两个时点，一次请求返回 levels（主时点完整明细）+ horizon_compare（另一时点汇总），
+ * 两列 Δ 盈亏恒定并列；原按钮只是把两列角色对调，数值集合完全不变。
+ * 主时点固定即期：该口径下价格冻结的其它持仓 loss=0，五档 / 逐仓 / 分账户三表 Δ 可对齐；
+ * 若以到期作主时点，其它期权「时间价值归零」会混进全组合 loss，污染净值 / 风险度 / 覆盖率。
+ * 列名只写时点（即期 / 到期），统计范围由下方说明承载。
+ */
+const mainLabel = '即期';
+const otherLabel = '到期';
 const current = computed<LevelScenarioLevel | null>(() => data.value?.levels[activeLevel.value] ?? null);
 
 /** 盈亏染色：沿用风险看板口径，亏红盈绿 */
@@ -112,15 +127,15 @@ interface LevelRow {
   margin_delta: number;
   combo_margin: number;
   combo_net: number;
+  combo_exposure: number | null;
   real: number | null;
   exch: number | null;
-  breached: number;
 }
 
 const levelRows = computed<LevelRow[]>(() => {
   const d = data.value;
   if (!d) return [];
-  return d.level_order.map(key => {
+  return displayOrder(d.level_order).map(key => {
     const lv = d.levels[key];
     const cmp = d.horizon_compare[key];
     return {
@@ -135,9 +150,9 @@ const levelRows = computed<LevelRow[]>(() => {
       margin_delta: lv.total.margin_delta,
       combo_margin: lv.combo.margin_total,
       combo_net: lv.combo.net_at,
+      combo_exposure: lv.combo.risk_exposure,
       real: lv.combo.real,
-      exch: lv.combo.exch,
-      breached: lv.accounts.filter(a => a.breached).length
+      exch: lv.combo.exch
     };
   });
 });
@@ -157,6 +172,39 @@ function levelRowProps(row: LevelRow): HTMLAttributes {
   };
 }
 
+/**
+ * 五档表组合层各列的口径说明，与后端 `um_level_scenario._combo` / `_exposure_by_account`
+ * / `risk_scenario.run` 对齐。分账户表同名列是「单账户」口径（分母只取该账户），
+ * 文案不可复用，故只挂在组合层这几列上。
+ */
+const METRIC_NOTES = {
+  exposure: [
+    '组合口径 = Σ 各账户「风险敞口」（bills_group_acc.risk_exposure），含全部账户全部持仓；与该标的项下无关。',
+    '静态账面值，不随档位或时点变化，五档恒定；与「当前盈亏」同属账面口径，不与模型 Δ 盈亏对账。',
+    '已排除 account=合计 行（该行是各账户之和，重复计会翻倍）；未登记敞口的账户不计入，全部未登记时显示「-」。',
+    '与「X 档持仓明细」逐仓敞口、顶部「敞口」（该标的项下合计）、分账户表账户口径敞口均不同，不可相加对账。'
+  ],
+  margin: [
+    '该档位情景下所有账户的保证金占用合计：全账户口径，含本情景中价格冻结的其它持仓。',
+    '逐仓按到档价重算（期货 |市值|×保证金率、卖方期权按三品种公式、买方期权与证券为 0），不能拿当前值乘系数；下跌时义务仓保证金反而上升。',
+    '是占用金额，不是需要补缴的钱。'
+  ],
+  net: [
+    '到档后全账户自有资金 = 当前系统净值（acc_aset − diff_br，补期权模型盯市差额）− 该情景模型亏损。',
+    '穿仓只看净值 ≤ 0。这是模型推演值，不是账单账面浮盈；与「当前盈亏」「Δ盈亏」基准不同，不可相加对账。'
+  ],
+  real: [
+    '= 组合保证金 ÷ 组合净值，分母是已扣融资余额的自有资金。',
+    '用于预警：≥1 表示保证金占用已超过自有净资产。',
+    '交易所口径的分母含融资，数值通常更低；真实 ≥1 而交易所 <1 时须单独留意。'
+  ],
+  exch: [
+    '= 组合保证金 ÷ Σ客户权益；客户权益 = 情景净值 + 融资余额 diff_br。',
+    '交易所/期货公司口径，也是唯一判追保的口径（≥1 或净值 ≤0）。',
+    '组合层是 Σ÷Σ，不是各账户比率的平均。'
+  ]
+};
+
 const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
   {
     title: '档位',
@@ -166,6 +214,13 @@ const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
   },
   { title: '到档涨跌', key: 'pct', width: 100, align: 'right' as const, render: (r: LevelRow) => pct(r.pct) },
   {
+    title: metricHeader('风险敞口', METRIC_NOTES.exposure),
+    key: 'combo_exposure',
+    width: 110,
+    align: 'right' as const,
+    render: (r: LevelRow) => fmtMoney(r.combo_exposure)
+  },
+  {
     title: '当前盈亏',
     key: 'pf_now',
     width: 110,
@@ -173,14 +228,14 @@ const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
     render: (r: LevelRow) => pnl(r.pf_now)
   },
   {
-    title: deltaPnlHeader(mainLabel.value),
+    title: deltaPnlHeader(mainLabel),
     key: 'delta_pnl',
     width: 110,
     align: 'right' as const,
     render: (r: LevelRow) => pnl(r.delta_pnl)
   },
   {
-    title: deltaPnlHeader(otherLabel.value),
+    title: deltaPnlHeader(otherLabel),
     key: 'other_delta_pnl',
     width: 110,
     align: 'right' as const,
@@ -201,28 +256,32 @@ const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
     render: (r: LevelRow) => marginDelta(r.margin_delta)
   },
   {
-    title: '组合保证金',
+    title: metricHeader('组合保证金', METRIC_NOTES.margin),
     key: 'combo_margin',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: LevelRow) => fmtMoney(r.combo_margin)
   },
   {
-    title: '组合净值',
+    title: metricHeader('组合净值', METRIC_NOTES.net),
     key: 'combo_net',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: LevelRow) => fmtMoney(r.combo_net)
   },
-  { title: '真实风险度', key: 'real', width: 110, align: 'right' as const, render: (r: LevelRow) => ratio(r.real) },
-  { title: '交易所风险度', key: 'exch', width: 110, align: 'right' as const, render: (r: LevelRow) => ratio(r.exch) },
   {
-    title: '追保账户',
-    key: 'breached',
-    width: 40,
+    title: metricHeader('真实风险度', METRIC_NOTES.real),
+    key: 'real',
+    width: 110,
     align: 'right' as const,
-    render: (r: LevelRow) =>
-      r.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => `${r.breached} 个` }) : '—'
+    render: (r: LevelRow) => ratio(r.real)
+  },
+  {
+    title: metricHeader('交易所风险度', METRIC_NOTES.exch),
+    key: 'exch',
+    width: 110,
+    align: 'right' as const,
+    render: (r: LevelRow) => ratio(r.exch)
   }
 ]);
 
@@ -250,7 +309,14 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
     key: 'strike',
     width: 90,
     align: 'right' as const,
-    render: (p: LevelScenarioPosition) => (p.strike != null ? fmtMoney(p.strike) : '-')
+    render: (p: LevelScenarioPosition) => (p.strike != null ? fmtPrice(p.strike) : '-')
+  },
+  {
+    title: '风险敞口',
+    key: 'risk_exposure',
+    width: 110,
+    align: 'right' as const,
+    render: (p: LevelScenarioPosition) => fmtMoney(p.risk_exposure)
   },
   {
     title: '基准价→到档价',
@@ -267,14 +333,14 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
     render: (p: LevelScenarioPosition) => pnl(p.pf_now)
   },
   {
-    title: deltaPnlHeader(mainLabel.value),
+    title: deltaPnlHeader(mainLabel),
     key: 'delta_pnl',
     width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => pnl(p.delta_pnl)
   },
   {
-    title: deltaPnlHeader(otherLabel.value),
+    title: deltaPnlHeader(otherLabel),
     key: 'other_delta_pnl',
     width: 110,
     align: 'right' as const,
@@ -293,18 +359,41 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
     width: 110,
     align: 'right' as const,
     render: (p: LevelScenarioPosition) => marginDelta(p.margin_delta)
-  },
-  {
-    title: '风险敞口',
-    key: 'risk_exposure',
-    width: 110,
-    align: 'right' as const,
-    render: (p: LevelScenarioPosition) => fmtMoney(p.risk_exposure)
   }
 ]);
 
+/**
+ * 分账户表三列的口径说明：风险敞口取账户汇总表静态值，覆盖率 / 追保的分子分母都只取本账户，
+ * 与五档表组合层的 Σ÷Σ 不同，故不复用 METRIC_NOTES；
+ * 文案与后端 `_exposure_by_account` / `_account_rows` / `run()` 的口径对齐。
+ */
+const ACCOUNT_NOTES = {
+  exposure: [
+    '账户层面风险敞口 = bills_group_acc.risk_exposure，即账户内各 Group 敞口之和，含该账户全部持仓；与该标的项下口径无关。',
+    '静态账面值，不随档位或时点变化，五档恒定；NULL（全部未设置）显示「-」，不按 0 计。',
+    '与「X 档持仓明细」的逐仓敞口、顶部「敞口」（该标的项下合计）口径不同，三者不可相加或对账。'
+  ],
+  coverage: [
+    '= 该账户到档净值 ÷ 该账户保证金，即自有资金对保证金占用的覆盖倍数。',
+    '净值为正时恰好是「真实风险度」的倒数：≥1 表示自有资金够覆盖占用，<1 表示保证金已超过自有资金。',
+    '保证金为 0 时显示「-」；净值 ≤0 时会显示 0 或负数。只用本账户数据，不是组合口径。'
+  ],
+  breached: [
+    '模型推演的越线标记，不是券商 / 交易所实际发出的追保通知。',
+    '判据：该账户到档净值 ≤ 0，或交易所风险度（保证金 ÷ 客户权益）≥ 1；空账户（无净值无保证金）豁免。',
+    '只判交易所口径，不看真实风险度：真实 ≥1 而交易所 <1 时这里仍显示「—」，须另行留意。'
+  ]
+};
+
 const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
   { title: '账户', key: 'account', width: 40 },
+  {
+    title: metricHeader('风险敞口', ACCOUNT_NOTES.exposure),
+    key: 'risk_exposure',
+    width: 120,
+    align: 'right' as const,
+    render: (a: LevelScenarioAccount) => fmtMoney(a.risk_exposure)
+  },
   {
     title: '账户当前盈亏',
     key: 'pf_now',
@@ -313,14 +402,14 @@ const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
     render: (a: LevelScenarioAccount) => pnl(a.pf_now)
   },
   {
-    title: deltaPnlHeader(mainLabel.value),
+    title: deltaPnlHeader(mainLabel),
     key: 'delta_pnl',
     width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => pnl(a.delta_pnl)
   },
   {
-    title: deltaPnlHeader(otherLabel.value),
+    title: deltaPnlHeader(otherLabel),
     key: 'other_delta_pnl',
     width: 110,
     align: 'right' as const,
@@ -362,36 +451,26 @@ const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
     render: (a: LevelScenarioAccount) => ratio(a.exch)
   },
   {
-    title: '覆盖率',
+    title: metricHeader('覆盖率', ACCOUNT_NOTES.coverage),
     key: 'coverage',
-    width: 100,
+    width: 110,
     align: 'right' as const,
     render: (a: LevelScenarioAccount) => fmtRatio(a.coverage)
   },
   {
-    title: '追保(模型)',
+    title: metricHeader('追保(模型)', ACCOUNT_NOTES.breached),
     key: 'breached',
-    width: 100,
+    width: 130,
     render: (a: LevelScenarioAccount) =>
       a.breached ? h(NTag, { type: 'error', size: 'small' }, { default: () => '越线' }) : '—'
   }
 ]);
-
-const basisText = computed(() => {
-  const b = data.value?.price_basis;
-  if (!b) return '';
-  const gap = b.gap_pct == null ? '量纲不同，不可比' : `${(b.gap_pct * 100).toFixed(2)}%`;
-  return `监测标的价 ${fmtPrice(b.um_price)}；风险引擎基准价 ${b.comparable_count} 条可比，偏差 ${gap}`;
-});
 </script>
 
 <template>
-  <div>
-    <SectionBar title="到档情景">
-      <NRadioGroup v-model:value="horizon" size="small">
-        <NRadioButton value="now">即期</NRadioButton>
-        <NRadioButton value="expiry">到期</NRadioButton>
-      </NRadioGroup>
+  <div class="level-scenario">
+    <!--
+ <SectionBar title="到档情景">
       <NTag size="small" :bordered="false" type="info">五档并列 · 假设到价</NTag>
       <NTag size="small" :bordered="false" type="warning">保证金 [推算]</NTag>
       <template #actions>
@@ -402,7 +481,8 @@ const basisText = computed(() => {
     <NAlert type="warning" :bordered="false" class="mb-12px">
       全部数值为 [推算]：持仓按同百分比平移（beta=1），义务仓保证金按交易所公式逐档重算，
       未读日结单「持仓汇总」实读值；追保标记为模型口径，不构成追保结论。
-    </NAlert>
+    </NAlert> 
+-->
 
     <NSpin :show="loading">
       <NAlert v-if="err" :bordered="false" class="mb-12px">
@@ -414,30 +494,13 @@ const basisText = computed(() => {
       </NAlert>
 
       <template v-if="data">
-        <NDescriptions :column="2" label-placement="left" bordered size="small" class="mb-12px">
-          <NDescriptionsItem label="计算日 / 行情">
-            {{ data.as_of }} · {{ data.data_as_of || '—' }}（{{
-              data.stale_days <= 0 ? '当日' : `T−${data.stale_days}`
-            }}）
-          </NDescriptionsItem>
-          <NDescriptionsItem label="当前档位带">{{ data.zone || '—' }}</NDescriptionsItem>
-          <NDescriptionsItem label="时点口径">{{ horizonLabel }}</NDescriptionsItem>
-          <NDescriptionsItem label="引擎版本">{{ data.engine_ver }}</NDescriptionsItem>
-          <NDescriptionsItem label="基准价" :span="2">{{ basisText }}</NDescriptionsItem>
-          <NDescriptionsItem label="归属命中" :span="2">
-            在仓归属 {{ data.mapping.in_position_group_rows }} 条 / 命中 {{ data.mapping.matched_positions }} 条持仓；
-            未归属在仓 {{ data.mapping.unmapped.rows }} 条
-          </NDescriptionsItem>
-        </NDescriptions>
-
         <NAlert v-if="!data.mapping.matched_positions" type="info" :bordered="false" class="mb-12px">
           该标的当前无在仓持仓，仅展示档位价；盈亏与保证金为空。
         </NAlert>
 
         <SectionBar title="五档 × 组合风险指标">
           <span class="text-12px text-gray-400">
-            点击整行切换下方明细；「当前盈亏」为账面浮动盈亏、五档恒定；两列 Δ 盈亏为「{{ mainLabel }} /
-            {{ otherLabel }}」双时点对照
+            点击整行切换下方明细；「当前盈亏」为账面浮动盈亏、五档恒定；「即期Δ盈亏 / 到期Δ盈亏」双时点并列、列名固定
           </span>
         </SectionBar>
         <UnderlyingDataTable
@@ -455,21 +518,21 @@ const basisText = computed(() => {
 
         <template v-if="current">
           <SectionBar :title="current.label + '档持仓明细'">
-            <NTag size="small" :bordered="false">档位价 {{ fmtPrice(current.pp) }}</NTag>
+            <NTag size="small" :bordered="false">档位价{{ fmtPrice(current.pp) }}</NTag>
             <NTag size="small" :bordered="false" :type="current.total.delta_pnl < 0 ? 'error' : 'success'">
-              {{ mainLabel }}Δ盈亏 {{ fmtMoney(current.total.delta_pnl) }}
+              即期Δ盈亏 {{ fmtMoney(current.total.delta_pnl) }}
             </NTag>
             <NTag size="small" :bordered="false" type="warning">
               到档浮盈 {{ fmtMoney(current.total.pf_at_level) }} [推算]
             </NTag>
             <span class="text-12px text-gray-400">
-              敞口 {{ fmtMoney(current.total.risk_exposure) }} · 回撤率
+              敞口 {{ fmtMoney(current.total.risk_exposure) }}·回撤率
               {{ current.total.drawdown_ratio == null ? '-' : `${(current.total.drawdown_ratio * 100).toFixed(2)}%` }}
             </span>
           </SectionBar>
           <UnderlyingDataTable :columns="positionColumns" :data="current.positions" :page-size="0" class="mb-16px" />
 
-          <SectionBar :title="current.label + '档 · 分账户风险指标'">
+          <SectionBar :title="current.label + '档·分账户风险指标'">
             <span class="text-12px text-gray-400">
               「账户当前盈亏」为账户层面全部持仓账面浮盈，与该标的项下口径无关；两个Δ盈亏仍只统计该标的项下持仓
             </span>
@@ -487,3 +550,18 @@ const basisText = computed(() => {
     </NSpin>
   </div>
 </template>
+
+<style scoped>
+/*
+ * 到档情景三张表压行高：全局主题已把 medium 的 th/td padding 压到 4px 8px
+ * （theme/shared.ts 的 DataTable 覆盖），这里再收到 2px 8px，每行少 4px。
+ * 只挂在本组件根元素上 ⇒ 抽屉内其它 Tab、列表页、风险看板均不受影响。
+ * 必须用 :deep()：NDataTable 的 th/td 由子组件渲染，scoped 属性加不到它们身上（铁律 4.11）。
+ * 🔒4.7：不写 size="small" —— 全局只压了 medium，small 仍是原生 8px，反而会把行撑高。
+ */
+.level-scenario :deep(.n-data-table-th),
+.level-scenario :deep(.n-data-table-td) {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+</style>
