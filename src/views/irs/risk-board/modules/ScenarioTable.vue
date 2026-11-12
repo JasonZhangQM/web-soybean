@@ -88,7 +88,7 @@ const columns: DataTableColumns<Row> = [
     align: 'right' as const,
     render: (r: Row) => pnl(-r.loss)
   },
-  { title: '剩余净值', key: 'net', width: 130, align: 'right' as const, render: (r: Row) => fmtMoney(r.net) },
+  { title: '账户净值', key: 'net', width: 130, align: 'right' as const, render: (r: Row) => fmtMoney(r.net) },
   { title: '保证金', key: 'margin', width: 130, align: 'right' as const, render: (r: Row) => fmtMoney(r.margin) },
   {
     title: '真实风险度',

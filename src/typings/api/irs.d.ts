@@ -395,6 +395,8 @@ declare namespace Api {
       breached?: boolean;
       /** 账户层面全部持仓的账面浮盈（bills_group_acc.pf_total，排除合计） */
       pf_now: number;
+      /** 账户风险敞口（bills_group_acc.risk_exposure，人工确认口径，含账户全部持仓）；null = 全部未设置 */
+      risk_exposure: number | null;
     }
 
     /** 风险看板-逐仓持仓 */
@@ -595,6 +597,8 @@ declare namespace Api {
       max_exposure_unbounded: boolean;
       /** 组合账面浮盈（ALL 视角 = 各账户之和，已排除合计行） */
       pf_now_total: number;
+      /** 组合风险敞口（各账户 bills_group_acc.risk_exposure 之和；全部未设置=null） */
+      risk_exposure_total: number | null;
       /** 分账户风险卡 */
       accounts: Record<string, RiskBoardAccount>;
       /** 逐仓明细 */

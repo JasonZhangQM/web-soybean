@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import { fetchRiskBoard, runRiskBoard } from '@/service/api';
 import { createTablePagination } from '@/hooks/common/table';
 import { usePageState } from '@/hooks/common/page-state';
-import AccountRiskCards from './modules/AccountRiskCards.vue';
+import AccountRiskList from './modules/AccountRiskList.vue';
 import ContractTable from './modules/ContractTable.vue';
 import MarginStackChart from './modules/MarginStackChart.vue';
 import RiskKpiCards from './modules/RiskKpiCards.vue';
@@ -190,9 +190,9 @@ onMounted(fetchData);
         <RiskKpiCards :board="board" :account="query.account" />
       </div>
 
-      <div class="section-title">账户风险卡（点击切换视角；空账户豁免追保）</div>
+      <div class="section-title">账户风险列表（点击行切换视角；按风险敞口倒序，空账户不列）</div>
       <div class="mb-16px">
-        <AccountRiskCards :board="board" :account="query.account" @select="val => (query.account = val)" />
+        <AccountRiskList :board="board" :account="query.account" @select="val => (query.account = val)" />
       </div>
 
       <NGrid :x-gap="16" :y-gap="16" responsive="screen" item-responsive>
