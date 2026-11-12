@@ -20,7 +20,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps<{
   item: Api.Irs.TodayItem;
-  /** 假设价（推演工作台滑块）：叠加第二游标，与现价游标同轴；空/未传不渲染 */
+  /** 假设价（标的推演滑块）：叠加第二游标，与现价游标同轴；空/未传不渲染 */
   hypoPrice?: number | null;
 }>();
 
@@ -233,7 +233,7 @@ function fmtPv(v: number | null) {
           }"
         />
       </template>
-      <!-- 假设价游标：圆形点（推演工作台滑块联动） -->
+      <!-- 假设价游标：圆形点（标的推演滑块联动） -->
       <template v-if="hypoPct !== null">
         <div
           class="absolute top-4px h-10px w-10px rounded-full border-2px border-white bg-green-500 shadow"

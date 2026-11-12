@@ -14,7 +14,7 @@ import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
-import { fmtPrice } from '@/views/irs/risk-board/modules/utils';
+import { fmtMoney, fmtPrice, metricHeader } from '@/views/irs/risk-board/modules/utils';
 import DetailDrawer from './modules/DetailDrawer.vue';
 
 defineOptions({ name: 'IrsUnderlyingMonitorsPage' });
@@ -383,6 +383,17 @@ const fmtQuoteMerged = (row: Api.Irs.UnderlyingMonitor, main: number | null, y: 
 // 今天：用于「复核到期」标红
 const TODAY = today();
 
+/**
+ * 列表「风险敞口」列头「?」：口径说明与排序来源。
+ * 与抽屉档位 Tab 的 metricHeader 同一套组件样式，不另写一份。
+ */
+const EXPOSURE_NOTES = [
+  '标的项下持仓风险敞口合计：bills_group_symbol 按归属标的（显式 underlying_symbol 优先、否则代码本身）汇总 SUM(risk_exposure)，只计可归属的交易行。',
+  '人工确认的静态值，不随行情、档位或时点变化；空 = 未设置，显示「-」，不伪造 0。与标的推演「标的敞口合计」、抽屉「该标的项下合计」同源。',
+  '含全部账户该标的项下持仓；与档位 Tab 五档表「标的风险敞口」逐值一致，与分账户表「风险敞口」（账户全部持仓口径）不是一回事，不可相加对账。',
+  '列表由后端按该值倒序（NULL 最后、代码升序兜底），排序发生在分页前；列头不可点击切换。'
+];
+
 const columns = [
   {
     // 名称是档案入口：点了开抽屉（编辑标的信息在抽屉头部与右侧「操作」列）
@@ -395,6 +406,14 @@ const columns = [
         { text: true, type: 'primary', onClick: () => openDrawer(row) },
         { default: () => row.name || row.symbol }
       )
+  },
+  {
+    // 标的项下持仓敞口合计：后端算、后端倒序，前端只展示（金额格式与档位 Tab 同源）
+    title: metricHeader('风险敞口', EXPOSURE_NOTES),
+    key: 'risk_exposure',
+    width: 120,
+    align: 'right' as const,
+    render: (row: Api.Irs.UnderlyingMonitor) => fmtMoney(row.risk_exposure)
   },
   {
     // 主题只在标的层维护：合约层的 theme 列 v3 已删除
@@ -532,7 +551,8 @@ const columns = [
 /**
  * 横向滚动宽度 = 各列 width 之和（铁律 4.11：**列宽一改必须重算**，否则
  * scroll-x 偏小会让浏览器压缩列、内容被迫折行——正是「换行」的根源）。
- * 当前 130+100+220+110+100+100+100+115+100+150+140+140+190×5 = 2455。
+ * 实际值由下面的 reduce 自动求和；算式仅作核对（2026-11-12 名称后新增「风险敞口」120）：
+ * 100+120+80+60+110+100+100+100+115+100+150+140+140+190×5 = 2365。
  * 总宽超出容器时由 NDataTable 内部横向滚动接管，页面本身不出现横向滚动条。
  */
 const scrollX = columns.reduce((sum, col) => sum + ((col.width as number) ?? 0), 0);

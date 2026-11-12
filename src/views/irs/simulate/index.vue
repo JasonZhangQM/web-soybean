@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 推演工作台（POST /irs/simulate）
+ * 标的推演（POST /irs/simulate）
  *
  * 左栏：今日标的卡片全量信息（TodayCard 复用）+ 假设价滑块；
  * 右栏：与抽屉档位 Tab 同构 —— SectionBar 直接分节（组合推演 / 改价小结 / 逐仓明细 / 分账户），
@@ -553,7 +553,7 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
   <div class="h-full flex flex-col gap-12px p-16px">
     <!-- 顶栏：IV / 批量档位 / 行情更新；时点口径固定即期，已无切换控件 -->
     <div class="flex flex-wrap items-center gap-12px">
-      <span class="text-16px font-600">推演工作台</span>
+      <span class="text-16px font-600">标的推演</span>
       <NTag size="small" :bordered="false" round>
         {{ changedCount ? `${changedCount} 个标的已改动` : '全部现价（0% 基准）' }}
       </NTag>

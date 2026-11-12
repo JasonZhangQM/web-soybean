@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 今日标的卡片（今日页与推演工作台共用）
+ * 今日标的卡片（今日页与标的推演共用）
  *
  * 信息全部来自 GET /irs/today 的 TodayItem（口径后端算，铁律 4.5）：
  * 标题（优先级标签）→ 现价 + PE/PB 分位 → 档位刻度条（TierScaleBar，支持假设价
@@ -8,7 +8,7 @@
  *
  * 复用约定：
  * - 今日页：默认插槽留空，仅 @detail / @edit-target 两个出口；
- * - 推演工作台：传 hypoPrice（刻度条第二游标 + 「已改动」角标），
+ * - 标的推演：传 hypoPrice（刻度条第二游标 + 「已改动」角标），
  *   用 #footer 插槽放假设价滑块。
  *
  * 刻度条回退守卫 tierBarOk：五档价齐全且严格递增、有现价；不满足回退旧文案。
@@ -18,7 +18,7 @@ import TierScaleBar from './TierScaleBar.vue';
 
 defineProps<{
   item: Api.Irs.TodayItem;
-  /** 假设价（推演工作台）：传了就在刻度条上叠第二游标并亮「已改动」角标 */
+  /** 假设价（标的推演）：传了就在刻度条上叠第二游标并亮「已改动」角标 */
   hypoPrice?: number | null;
   /** 是否与现价不同（驱动「已改动」角标） */
   changed?: boolean;
@@ -153,7 +153,7 @@ function tierBarOk(it: Api.Irs.TodayItem) {
         <NButton size="tiny" text class="ml-auto" @click="emit('editTarget')">设目标</NButton>
       </div>
 
-      <!-- 扩展插槽（推演工作台放假设价滑块） -->
+      <!-- 扩展插槽（标的推演放假设价滑块） -->
       <slot name="footer" />
     </div>
   </NCard>

@@ -127,7 +127,8 @@ interface LevelRow {
   margin_delta: number;
   combo_margin: number;
   combo_net: number;
-  combo_exposure: number | null;
+  /** 标的项下持仓风险敞口合计：取 levels.*.total.risk_exposure，与列表页「风险敞口」同源 */
+  subject_exposure: number | null;
   real: number | null;
   exch: number | null;
 }
@@ -150,7 +151,7 @@ const levelRows = computed<LevelRow[]>(() => {
       margin_delta: lv.total.margin_delta,
       combo_margin: lv.combo.margin_total,
       combo_net: lv.combo.net_at,
-      combo_exposure: lv.combo.risk_exposure,
+      subject_exposure: lv.total.risk_exposure,
       real: lv.combo.real,
       exch: lv.combo.exch
     };
@@ -173,16 +174,16 @@ function levelRowProps(row: LevelRow): HTMLAttributes {
 }
 
 /**
- * 五档表组合层各列的口径说明，与后端 `um_level_scenario._combo` / `_exposure_by_account`
- * / `risk_scenario.run` 对齐。分账户表同名列是「单账户」口径（分母只取该账户），
- * 文案不可复用，故只挂在组合层这几列上。
+ * 五档表各列的口径说明，与后端 `um_level_scenario._combo` / `assemble().total` /
+ * `risk_scenario.run` 对齐。⚠️「标的风险敞口」是标的口径（total.risk_exposure），
+ * 同表其余组合指标才是全账户口径；分账户表同名列又是单账户口径，三者文案不可复用。
  */
 const METRIC_NOTES = {
   exposure: [
-    '组合口径 = Σ 各账户「风险敞口」（bills_group_acc.risk_exposure），含全部账户全部持仓；与该标的项下无关。',
-    '静态账面值，不随档位或时点变化，五档恒定；与「当前盈亏」同属账面口径，不与模型 Δ 盈亏对账。',
-    '已排除 account=合计 行（该行是各账户之和，重复计会翻倍）；未登记敞口的账户不计入，全部未登记时显示「-」。',
-    '与「X 档持仓明细」逐仓敞口、顶部「敞口」（该标的项下合计）、分账户表账户口径敞口均不同，不可相加对账。'
+    '标的风险敞口 = 该标的项下持仓的风险敞口合计：bills_group_symbol 按归属标的（显式 underlying_symbol 优先、否则代码本身）汇总 SUM(risk_exposure)，只计可归属的在仓交易行。',
+    '与列表页「风险敞口」列、本抽屉顶部「敞口」、下方「X 档持仓明细」逐仓敞口之和、回撤率分母同源，逐值一致。',
+    '人工确认的静态值，不随行情、档位或时点变化，五档恒定；NULL = 未设置，显示「-」，不伪造 0。',
+    '与同表「组合保证金 / 组合净值 / 风险度」的全账户口径、分账户表「风险敞口」的账户口径都不同，不可相加对账；与模型 Δ 盈亏也基准不同。'
   ],
   margin: [
     '该档位情景下所有账户的保证金占用合计：全账户口径，含本情景中价格冻结的其它持仓。',
@@ -214,11 +215,11 @@ const levelColumns = computed<DataTableColumns<LevelRow>>(() => [
   },
   { title: '到档涨跌', key: 'pct', width: 100, align: 'right' as const, render: (r: LevelRow) => pct(r.pct) },
   {
-    title: metricHeader('风险敞口', METRIC_NOTES.exposure),
-    key: 'combo_exposure',
-    width: 110,
+    title: metricHeader('标的风险敞口', METRIC_NOTES.exposure),
+    key: 'subject_exposure',
+    width: 130,
     align: 'right' as const,
-    render: (r: LevelRow) => fmtMoney(r.combo_exposure)
+    render: (r: LevelRow) => fmtMoney(r.subject_exposure)
   },
   {
     title: '当前盈亏',
@@ -364,14 +365,14 @@ const positionColumns = computed<DataTableColumns<LevelScenarioPosition>>(() => 
 
 /**
  * 分账户表三列的口径说明：风险敞口取账户汇总表静态值，覆盖率 / 追保的分子分母都只取本账户，
- * 与五档表组合层的 Σ÷Σ 不同，故不复用 METRIC_NOTES；
+ * 与五档表「标的风险敞口」（标的口径）及组合层 Σ÷Σ 都不同，故不复用 METRIC_NOTES；
  * 文案与后端 `_exposure_by_account` / `_account_rows` / `run()` 的口径对齐。
  */
 const ACCOUNT_NOTES = {
   exposure: [
     '账户层面风险敞口 = bills_group_acc.risk_exposure，即账户内各 Group 敞口之和，含该账户全部持仓；与该标的项下口径无关。',
     '静态账面值，不随档位或时点变化，五档恒定；NULL（全部未设置）显示「-」，不按 0 计。',
-    '与「X 档持仓明细」的逐仓敞口、顶部「敞口」（该标的项下合计）口径不同，三者不可相加或对账。'
+    '与五档表「标的风险敞口」、「X 档持仓明细」逐仓敞口、顶部「敞口」（三者均为标的项下口径）不同，不可相加或对账。'
   ],
   coverage: [
     '= 该账户到档净值 ÷ 该账户保证金，即自有资金对保证金占用的覆盖倍数。',
@@ -511,9 +512,10 @@ const accountColumns = computed<DataTableColumns<LevelScenarioAccount>>(() => [
           class="mb-16px"
         />
         <div class="mb-16px text-12px text-gray-400">
-          组合保证金 / 净值 / 风险度为账户全部持仓口径，含本情景中价格冻结的其它持仓。 追保只判交易所口径；真实口径 ≥1
-          而交易所口径 &lt;1 时须单独留意。「当前盈亏」是账面口径（五档表 / 逐仓为该标的项下，分账户表为账户全部持仓），
-          两列 Δ 盈亏是模型盯市口径、且只统计该标的项下持仓，两者基准不同，不可相加对账。
+          「标的风险敞口」为该标的项下持仓口径；组合保证金 / 净值 /
+          风险度为账户全部持仓口径，含本情景中价格冻结的其它持仓。 追保只判交易所口径；真实口径 ≥1 而交易所口径 &lt;1
+          时须单独留意。「当前盈亏」是账面口径（五档表 / 逐仓为该标的项下，分账户表为账户全部持仓）， 两列 Δ
+          盈亏是模型盯市口径、且只统计该标的项下持仓，两者基准不同，不可相加对账。
         </div>
 
         <template v-if="current">

@@ -262,7 +262,11 @@ export interface LevelScenarioCombo {
   real: number | null;
   exch: number | null;
   loss: number;
-  /** 组合口径风险敞口：Σ 各账户 bills_group_acc.risk_exposure（排除合计行）；静态值、五档恒定，null = 全部未登记 */
+  /**
+   * 组合口径风险敞口：Σ 各账户 bills_group_acc.risk_exposure（排除合计行）；静态值、五档恒定，null = 全部未登记。
+   * ⚠️ 五档表「标的风险敞口」已改用 LevelScenarioTotal.risk_exposure（标的项下口径），
+   * 此字段仅保留在接口契约里，不再由该列展示，勿混用。
+   */
   risk_exposure: number | null;
 }
 
@@ -873,7 +877,7 @@ export function runRiskBoard() {
   });
 }
 
-// ------------------------------------------------ 推演工作台（2026-11-11）
+// ------------------------------------------------ 标的推演（2026-11-11）
 
 export interface SimulateQuery {
   /** {标的代码: 假设价}；空 = 全部现价（0% 基准） */
@@ -885,7 +889,7 @@ export interface SimulateQuery {
 }
 
 /**
- * 推演工作台（POST /irs/simulate，只读不落库）
+ * 标的推演（POST /irs/simulate，只读不落库）
  *
  * 多标的假设价 → 组合风险/收益联动推演。400 = 非法标的/价格/上下文不可用。
  */

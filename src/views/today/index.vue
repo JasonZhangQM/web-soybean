@@ -155,8 +155,8 @@ async function handleSyncQuote() {
       <span class="text-16px font-600">今日待办</span>
       <NTag v-if="activeCount" size="small" :bordered="false" round>{{ activeCount }} 个需要动作</NTag>
       <NTag v-else type="success" size="small" :bordered="false" round>今天没事</NTag>
-      <!-- 推演工作台入口：左侧调价、右侧联动算（独立路由，不挤占今日待办清单） -->
-      <NButton size="tiny" @click="router.push({ name: 'irs_simulate' })">推演工作台</NButton>
+      <!-- 标的推演入口：左侧调价、右侧联动算（独立路由，不挤占今日待办清单） -->
+      <NButton size="tiny" @click="router.push({ name: 'irs_simulate' })">标的推演</NButton>
       <NButton size="tiny" text class="ml-auto" :loading="quoteSyncLoading" @click="handleSyncQuote">同步行情</NButton>
       <NButton size="tiny" text @click="load">刷新</NButton>
     </div>

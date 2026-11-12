@@ -119,6 +119,12 @@ declare namespace Api {
       next_review: string | null;
       /** 派生：生效剧本数（未暂停的数量） */
       plan_active: number | null;
+      /**
+       * 派生：标的项下持仓风险敞口合计（bills_group_symbol 按归属汇总 SUM(risk_exposure)）。
+       * 与标的推演 subject_exposure 同源；null = 未设置，列表显示 '-' 且排最后。
+       * 列表在后端按该值倒序（分页前 ORDER BY），前端不二次排序。
+       */
+      risk_exposure: number | null;
       /** 主键（会漂移，关联键一律用 symbol） */
       id: number;
       /** 创建时间 */
@@ -635,7 +641,7 @@ declare namespace Api {
       warnings: string[];
     }
 
-    // ============ 推演工作台（POST /irs/simulate，2026-11-11） ============
+    // ============ 标的推演（POST /irs/simulate，2026-11-11） ============
     /** 逐仓情景明细行（全部在仓持仓，含冻结行；Σdelta_pnl 可与 combo.loss 对账） */
     interface SimulatePositionRow {
       acct: string;
@@ -740,7 +746,7 @@ declare namespace Api {
       loss: number;
     }
 
-    /** 推演工作台响应（POST /irs/simulate） */
+    /** 标的推演响应（POST /irs/simulate） */
     interface SimulateResult {
       as_of: string;
       data_as_of: string | null;
