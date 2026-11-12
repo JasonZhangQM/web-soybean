@@ -39,11 +39,18 @@ const detailMap = computed(() => {
   return m;
 });
 
-/** 两列 Δ 盈亏的时点前缀：主列=当前时点，对照列=另一时点（避免两列同值）。
- *  列名不写「标的」——那是统计范围，与「到期」不是同一维度。 */
-const mainLabel = computed(() => (props.board.horizon === 'now' ? '即期' : '到期'));
-const otherLabel = computed(() => (props.board.horizon === 'now' ? '到期' : '即期'));
+/**
+ * 两列 Δ 盈亏的时点前缀固定（2026-11-12 取消「时点口径」切换，与标的五档风险指标一致）：
+ * 主列恒为即期、对照列恒为到期，列名不再随查询参数变动。
+ * 列名不写「标的」——那是统计范围，与「到期」不是同一维度。
+ */
+const mainLabel = '即期';
+const otherLabel = '到期';
 const stepLabel = computed(() => scenarioLabel(props.step));
+
+/** 逐张合约表的统计范围：全组同跌情景下所有持仓都重估，与「其它持仓冻结」的到档情景不同 */
+const CONTRACT_SCOPE_NOTE =
+  '两列都是该合约在所选情景档位下相对当前的 Δ（V(S1)−V(S0)），全组持仓同步重估、没有冻结行；证券/期货两列恒等，差异只来自期权时间价值。与「当前盈亏」的账面口径基准不同，不可相加对账。';
 
 /**
  * 模型盯市 Δ 盈亏：后端 loss 正=亏，展示口径正=盈，故取反。
@@ -105,8 +112,11 @@ function goOptionQuote() {
   router.push({ name: 'irs_option-quote' });
 }
 
-/** 列定义必须是 computed：对照列标题随时点口径变化，静态数组不会更新（🔒 踩过坑）。 */
-const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
+/**
+ * 时点口径固定后两列标题不再变化，列定义可静态化；render 内仍读 detailMap.value，
+ * 所以情景档位切换照常联动（历史上标题随时点变动才必须用 computed，🔒 踩过坑）。
+ */
+const columns: DataTableColumns<Api.Irs.RiskBoardPosition> = [
   {
     title: '合约',
     key: 'symbol',
@@ -177,14 +187,14 @@ const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
     render: (p: Api.Irs.RiskBoardPosition) => pnl(p.pf_now)
   },
   {
-    title: deltaPnlHeader(mainLabel.value),
+    title: deltaPnlHeader(mainLabel, CONTRACT_SCOPE_NOTE),
     key: 'delta_pnl',
     width: 130,
     align: 'right' as const,
     render: (p: Api.Irs.RiskBoardPosition) => pnl(deltaPnl(p, 'loss'))
   },
   {
-    title: deltaPnlHeader(otherLabel.value),
+    title: deltaPnlHeader(otherLabel, CONTRACT_SCOPE_NOTE),
     key: 'other_delta_pnl',
     width: 130,
     align: 'right' as const,
@@ -204,7 +214,7 @@ const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
     align: 'right' as const,
     render: (p: Api.Irs.RiskBoardPosition) => renderEfficiency(p)
   }
-]);
+];
 </script>
 
 <template>
@@ -227,8 +237,9 @@ const columns = computed<DataTableColumns<Api.Irs.RiskBoardPosition>>(() => [
       virtual-scroll
     />
     <div class="table-note">
-      「当前盈亏」为账单账面浮盈（静态）；两列Δ盈亏为所选情景档位下的模型盯市增量 [推算]（主列 {{ mainLabel }}、对照列
-      {{ otherLabel }}），正=盈、负=亏，与账面口径不同源、不可相加对账。默认 0% 档时 Δ 盈亏为 0。
+      「当前盈亏」为账单账面浮盈（静态）；两列Δ盈亏为所选情景档位下的模型盯市增量
+      [推算]，列名固定不切换：即期列为组合主口径、到期列为终局对照，正=盈、负=亏，与账面口径不同源、不可相加对账。默认
+      0% 档时即期Δ盈亏为 0（到期列仍含时间价值归零）。
     </div>
   </NCard>
 </template>

@@ -21,10 +21,10 @@ const board = ref<Api.Irs.RiskBoard | null>(null);
 /** 阻断/失败原因（后端 detail 原样透出） */
 const blockMsg = ref('');
 
-/** 筛选条件：mode/account 为前端切列，horizon/iv_mult 需回后端重算 */
+/** 筛选条件：mode/account 为前端切列，iv_mult 需回后端重算；
+ *  时点口径固定即期（2026-11-12 取消「即期 / 到期」切换，与标的五档风险指标一致） */
 const query = reactive({
   mode: 'sync',
-  horizon: 'now',
   iv_mult: 1.0,
   account: 'ALL'
 });
@@ -47,11 +47,6 @@ const modeNames = computed(() => board.value?.mode_names ?? MODE_FALLBACK);
 const modeOptions = computed(() =>
   Object.keys(modeNames.value).map(key => ({ label: modeNames.value[key], value: key }))
 );
-
-const horizonOptions = [
-  { label: '即期（BS 重估）', value: 'now' },
-  { label: '到期（内在价值）', value: 'expiry' }
-];
 
 /** 账户下拉：ALL + 后端账户卡（空账户也保留，便于核对豁免口径） */
 const accountOptions = computed(() => {
@@ -77,7 +72,8 @@ async function fetchData() {
   const started = Date.now();
   try {
     const { data, error } = await fetchRiskBoard({
-      horizon: query.horizon as 'now' | 'expiry',
+      // 主时点固定即期：到期只作为「逐张合约」的对照 Δ 列，不参与组合指标重算
+      horizon: 'now',
       iv_mult: query.iv_mult,
       detail: true // 保证金结构图依赖逐仓明细
     });
@@ -113,10 +109,6 @@ watch(
 
 onUnmounted(() => window.clearTimeout(ivTimer));
 
-function handleHorizonChange() {
-  fetchData();
-}
-
 /** 日终重算并落库：任务化入口，与列表页的行情同步互不影响 */
 async function handleRun() {
   if (runLoading.value) return;
@@ -148,14 +140,6 @@ onMounted(fetchData);
         <NFormItem label="情景模式">
           <NSelect v-model:value="query.mode" :options="modeOptions" style="width: 230px" />
         </NFormItem>
-        <NFormItem label="时点口径">
-          <NSelect
-            v-model:value="query.horizon"
-            :options="horizonOptions"
-            style="width: 150px"
-            @update:value="handleHorizonChange"
-          />
-        </NFormItem>
         <NFormItem label="IV 倍数" :show-feedback="false">
           <div class="iv-box">
             <NSlider v-model:value="query.iv_mult" :min="0.8" :max="2.0" :step="0.1" style="width: 150px" />
@@ -174,9 +158,8 @@ onMounted(fetchData);
         </NFormItem>
       </NForm>
       <div class="toolbar-note">
-        当前模式：{{ modeHint }}；{{
-          query.horizon === 'expiry' ? '到期口径=时间价值归零，仅作对照' : '即期口径=BS 重估'
-        }}； 涨幅档以「+」显示，跌幅档以「−」显示。
+        当前模式：{{ modeHint }}；主时点固定即期（BS 重估），到期（时间价值归零）仅作逐仓 Δ
+        盈亏对照；涨幅档以「+」显示，跌幅档以「−」显示。
       </div>
     </NCard>
 

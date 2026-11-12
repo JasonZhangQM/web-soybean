@@ -105,7 +105,6 @@ function resetAll() {
 const changedCount = computed(() => overrides.size);
 
 // ---------------- 右栏：推演结果（debounce 400ms，序号防竞态） ----------------
-const horizon = ref<'now' | 'expiry'>('now');
 const ivMult = ref(1.0);
 const result = ref<Api.Irs.SimulateResult | null>(null);
 const simLoading = ref(false);
@@ -120,7 +119,9 @@ async function runSim() {
   try {
     const { data, error } = await simulateIrs({
       overrides: Object.fromEntries(overrides),
-      horizon: horizon.value,
+      // 主时点固定即期（2026-11-12 取消「即期 / 到期」切换，与标的五档风险指标一致）；
+      // 逐仓 / 分账户两列 Δ 盈亏仍并列，到期列只作终局对照，不作为组合摘要口径。
+      horizon: 'now',
       iv_mult: ivMult.value
     });
     if (seq !== simSeq) return; // 已有更新请求，丢弃旧响应
@@ -136,7 +137,7 @@ async function runSim() {
   }
 }
 
-watch([() => Array.from(overrides.entries()), horizon, ivMult], () => {
+watch([() => Array.from(overrides.entries()), ivMult], () => {
   window.clearTimeout(debounceTimer);
   debounceTimer = window.setTimeout(runSim, 400);
 });
@@ -262,14 +263,14 @@ const positionCols = computed(() => [
   },
   {
     key: 'delta_pnl_now',
-    title: horizon.value === 'now' ? '即期Δ盈亏·主' : '即期Δ盈亏',
+    title: '即期Δ盈亏',
     width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => pnlCell(r.delta_pnl_now)
   },
   {
     key: 'delta_pnl_expiry',
-    title: horizon.value === 'expiry' ? '到期Δ盈亏·主' : '到期Δ盈亏',
+    title: '到期Δ盈亏',
     width: 100,
     align: 'right' as const,
     render: (r: Api.Irs.SimulatePositionRow) => pnlCell(r.delta_pnl_expiry)
@@ -312,14 +313,14 @@ const accountCols = computed(() => [
   },
   {
     key: 'delta_pnl_now',
-    title: horizon.value === 'now' ? '即期Δ盈亏·主' : '即期Δ盈亏',
+    title: '即期Δ盈亏',
     width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => pnlCell(a.delta_pnl_now)
   },
   {
     key: 'delta_pnl_expiry',
-    title: horizon.value === 'expiry' ? '到期Δ盈亏 · 主' : '到期Δ盈亏',
+    title: '到期Δ盈亏',
     width: 100,
     align: 'right' as const,
     render: (a: Api.Irs.SimulateAccount) => pnlCell(a.delta_pnl_expiry)
@@ -396,19 +397,12 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
 
 <template>
   <div class="h-full flex flex-col gap-12px p-16px">
-    <!-- 顶栏：时点 / IV / 重置 -->
+    <!-- 顶栏：IV / 重置；时点口径固定即期，已无切换控件 -->
     <div class="flex flex-wrap items-center gap-12px">
       <span class="text-16px font-600">推演工作台</span>
       <NTag size="small" :bordered="false" round>
         {{ changedCount ? `${changedCount} 个标的已改动` : '全部现价（0% 基准）' }}
       </NTag>
-      <div class="flex items-center gap-6px text-12px">
-        <span class="text-gray-400">时点</span>
-        <NButton size="tiny" :type="horizon === 'now' ? 'primary' : 'default'" @click="horizon = 'now'">即期</NButton>
-        <NButton size="tiny" :type="horizon === 'expiry' ? 'primary' : 'default'" @click="horizon = 'expiry'">
-          到期
-        </NButton>
-      </div>
       <div class="flex items-center gap-6px text-12px">
         <span class="text-gray-400">IV ×</span>
         <NSlider
@@ -472,7 +466,7 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
           <NCard size="small" class="mb-12px">
             <div class="mb-8px flex flex-wrap items-center gap-8px text-12px">
               <span class="font-500">组合推演</span>
-              <NTag size="tiny" :bordered="false" round>{{ result.horizon === 'now' ? '即期' : '到期' }}</NTag>
+              <NTag size="tiny" :bordered="false" round>主时点 即期</NTag>
               <NTag size="tiny" :bordered="false">IV ×{{ result.iv_mult.toFixed(2) }}</NTag>
               <span class="text-gray-400">
                 引擎 {{ result.engine_ver }} · {{ result.as_of || '—' }}
@@ -588,8 +582,8 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
           <!-- 逐仓明细 -->
           <NCard size="small" class="mb-12px">
             <div class="mb-8px text-12px text-gray-400">
-              逐仓明细（固定按标的倒序、同标的聚拢，列头不可切换排序；改价行底色高亮；当前主时点
-              {{ horizon === 'now' ? '即期' : '到期' }}， 顶部切换只影响组合摘要；Σ主时点 Δ盈亏 = 组合 Δ盈亏，可对账）
+              逐仓明细（固定按标的倒序、同标的聚拢，列头不可切换排序；改价行底色高亮；即期 / 到期两列 Δ
+              盈亏并列、列名固定；组合摘要与改价小结按即期口径，Σ即期Δ盈亏 = 组合 Δ盈亏，可对账）
             </div>
             <div class="mb-8px text-11px text-gray-400">
               「当前盈亏」为账单账面静态浮盈，Δ盈亏为模型盯市增量，两者基准不同、不可相加对账；
@@ -613,8 +607,8 @@ const rowProps = (r: Api.Irs.SimulatePositionRow) => ({
           <!-- 分账户风险指标（列集合照搬档位 Tab） -->
           <NCard size="small" class="mb-12px">
             <div class="mb-8px text-12px text-gray-400">
-              分账户风险指标（{{ result.accounts.length }} 个账户；主时点 {{ horizon === 'now' ? '即期' : '到期' }}，
-              顶部切换只影响组合摘要；Σ主时点 Δ盈亏 = 组合 Δ盈亏，可对账）
+              分账户风险指标（{{ result.accounts.length }} 个账户；即期 / 到期两列 Δ
+              盈亏并列、列名固定；组合摘要按即期口径，Σ即期Δ盈亏 = 组合 Δ盈亏，可对账）
             </div>
             <div class="mb-8px text-11px text-gray-400">
               「账户当前盈亏」为账户层面全部持仓账面浮盈，两列 Δ盈亏为账户全部持仓的模型盯市增量，

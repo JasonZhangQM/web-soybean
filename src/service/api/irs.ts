@@ -842,7 +842,7 @@ export function fetchUmBudget(symbol: string, account?: string) {
 
 /** 风险看板查询参数 */
 export interface RiskBoardQueryParams {
-  /** 时点口径：now=即期 / expiry=到期 */
+  /** 时点口径：now=即期 / expiry=到期；页面交互已固定即期，保留供接口复用 */
   horizon?: 'now' | 'expiry';
   /** IV 冲击倍数 */
   iv_mult?: number;
@@ -878,7 +878,7 @@ export function runRiskBoard() {
 export interface SimulateQuery {
   /** {标的代码: 假设价}；空 = 全部现价（0% 基准） */
   overrides: Record<string, number>;
-  /** now=即期 / expiry=到期 */
+  /** now=即期 / expiry=到期；推演页主时点已固定即期，到期只作逐仓 / 分账户对照 */
   horizon?: 'now' | 'expiry';
   /** IV 冲击倍数 */
   iv_mult?: number;

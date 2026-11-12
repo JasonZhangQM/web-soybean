@@ -44,8 +44,10 @@ function helpTip(lines: string[], lastDim = false) {
 /**
  * 两列 Δ 盈亏的列头「?」弹窗：标的监测档位表 / 风险看板逐张合约表共用一份口径文案，
  * 避免两个页面各写一份后漂移。label 只认「即期」「到期」，列名也由它生成。
+ * scopeLine 只覆盖末行「统计范围」：默认写标的到档情景（其它持仓冻结），
+ * 风险看板逐张合约表按全组情景重估，须传入自己的口径，否则会被读错。
  */
-export function deltaPnlHeader(label: string) {
+export function deltaPnlHeader(label: string, scopeLine?: string) {
   const isNow = label === '即期';
   return () =>
     h('span', { style: HEADER_STYLE }, [
@@ -58,7 +60,8 @@ export function deltaPnlHeader(label: string) {
           isNow
             ? '卖 put 深跌档的亏损通常小于到期列，差额约等于时间价值。'
             : '卖 put 深跌档的亏损通常大于即期列，差额约等于时间价值。',
-          '两列都是相对当前的 Δ（V(S1)−V(S0)），只统计该标的项下持仓；其它持仓价格冻结且不随时点重估，两列口径一致。证券/期货两列恒等，差异只来自期权。与「当前盈亏」的账面口径基准不同，不可相加对账。'
+          scopeLine ??
+            '两列都是相对当前的 Δ（V(S1)−V(S0)），只统计该标的项下持仓；其它持仓价格冻结且不随时点重估，两列口径一致。证券/期货两列恒等，差异只来自期权。与「当前盈亏」的账面口径基准不同，不可相加对账。'
         ],
         true
       )
