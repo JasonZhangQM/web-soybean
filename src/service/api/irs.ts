@@ -669,15 +669,7 @@ export function deleteUnderlyingInvalidate(id: number, seq: number) {
   });
 }
 
-// ---------------------------------------------------------------- 今日页 / 横切
-/** 今日页单标的（GET /irs/today 返回裸数组，无 items 包裹） */
-export function fetchToday() {
-  return request<Api.Irs.TodayItem[]>({
-    url: '/api/v1/irs/today',
-    method: 'get'
-  });
-}
-
+// ---------------------------------------------------------------- 横切
 /** 全量计划（跨标的），供归因表 plan_id → 剧本名/标的映射 */
 export function fetchAllPlans() {
   return request<Api.Irs.UnderlyingPlan[]>({
@@ -914,7 +906,7 @@ export interface SimulateLevelsQuery {
  * 五档档位压力（POST /irs/simulate/levels，只读不落库）
  *
  * 全部监测标的同步到同一档，每档用各自的 pp_* 档位价；一次返回五档的组合 /
- * 分账户 / 逐仓三层读数。档位价与 GET /irs/today 的 TodayItem.pp 同源。
+ * 分账户 / 逐仓三层读数。档位价取 um 主表 pp_*（与标的监测同源）。
  * 400 = 非法时点 / 风险上下文不可用。
  */
 export function simulateLevels(data: SimulateLevelsQuery) {

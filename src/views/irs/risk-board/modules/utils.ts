@@ -93,6 +93,86 @@ export function fmtRatio(v: number | null | undefined): string {
 }
 
 /**
+ * 穿仓判据（2026-11-13）：真实风险度 = 保证金 ÷ 净值，净值为负时该值为负、分母非正
+ * ⇒ 风险度失去意义，显示「穿仓」而不是一个负数或平淡的 '-'。
+ * 后端 run() 在净值 ≤ 0 时把 real 置 null（不编造负数），故还需用
+ * 「净值 ≤ 0 且有保证金占用」兜住 null 的情形；空账户（净值 0、保证金 0）不算穿仓。
+ * 账户总表（现价 / 到档两组）与档位压力表共用同一判据，各自传自己的净值与保证金。
+ */
+export function isBusted(
+  real: number | null | undefined,
+  net: number | null | undefined,
+  margin: number | null | undefined
+): boolean {
+  if (typeof real === 'number' && !Number.isNaN(Number(real)) && Number(real) < 0) return true;
+  if (net === null || net === undefined || margin === null || margin === undefined) return false;
+  const n = Number(net);
+  const m = Number(margin);
+  return !Number.isNaN(n) && !Number.isNaN(m) && n <= 0 && m > 0;
+}
+
+/** 「穿仓」文字标签：h() 创建的 VNode 拿不到 <style scoped> 属性 ⇒ 样式全部内联 */
+export function bustedTag() {
+  return h(
+    'span',
+    {
+      style: {
+        display: 'inline-block',
+        padding: '0 4px',
+        borderRadius: '3px',
+        background: 'rgba(208, 48, 80, .12)',
+        color: '#d03050',
+        fontWeight: 600,
+        fontSize: '12px'
+      }
+    },
+    '穿仓'
+  );
+}
+
+/** R/E 分隔符：内联样式保证生效（scoped 样式加不到 h() 生成的节点上） */
+function sepNode() {
+  return h('span', { style: { margin: '0 2px', color: '#c0c4cc' } }, '/');
+}
+
+/**
+ * 风险度 R/E 并列（账户总表现价组 / 到档组、档位压力表共用）：
+ * R 真实着色（预警用真实）、E 交易所着色，各自空值显示 '-'。
+ * R 侧判穿仓时改显「穿仓」标签，E 侧仍给数值 —— 权益含融资，净值转负时
+ * 交易所口径分母可能仍为正，两半边并列正好把差异摆出来。
+ */
+export function ratioPair(real: number | null | undefined, exch: number | null | undefined, busted = false) {
+  return h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, [
+    busted ? bustedTag() : h('span', { style: { color: levelColor(ratioLevel(real)) } }, fmtRatio(real)),
+    sepNode(),
+    h('span', { style: { color: levelColor(ratioLevel(exch)) } }, fmtRatio(exch))
+  ]);
+}
+
+/** 覆盖率配色：覆盖率与风险度互为倒数，用 1/c 复用同一套等级阈值；c ≤ 0 直接最红 */
+function coverageColor(c: number | null | undefined): string {
+  if (c === null || c === undefined || Number.isNaN(Number(c))) return levelColor('none');
+  const n = Number(c);
+  return levelColor(n > 0 ? ratioLevel(1 / n) : 'danger');
+}
+
+/** 覆盖率 R/E 并列：与风险度列同版式；两个值都由后端给，前端不自算（🔒4.13） */
+export function coveragePair(realCov: number | null | undefined, exchCov: number | null | undefined) {
+  return h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, [
+    h('span', { style: { color: coverageColor(realCov) } }, fmtRatio(realCov)),
+    sepNode(),
+    h('span', { style: { color: coverageColor(exchCov) } }, fmtRatio(exchCov))
+  ]);
+}
+
+/** 保证金变化：占用增加染红、减少染绿，显示带符号原值（后端无基准时显示 '—'） */
+export function marginDelta(v: number | null | undefined) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  return h('span', { style: { color: n > 0 ? '#d03050' : '#18a058' } }, `${n > 0 ? '+' : ''}${fmtMoney(n)}`);
+}
+
+/**
  * 单价/波动率：最多 4 位小数，去掉小数末尾多余的 0（4020.0000 → 4020、3.5000 → 3.5）。
  * 全站价格显示统一走这里；空值显示 '-'。项目内「去尾零」口径一致，勿再各页另写一份。
  */

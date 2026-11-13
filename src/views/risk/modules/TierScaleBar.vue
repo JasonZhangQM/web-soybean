@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 档位刻度条（今日页标的卡片专用，GET /irs/today 的 pp/pv 透传字段）
+ * 档位刻度条（风险总览 /risk 左栏标的卡片专用，2026-11-13 自今日页迁入）
  *
  * 真实价格轴：刻度按档位实际价格定位（不再均分），轴域 = [min(极低,现价), max(极高,现价)]，
  * 现价纳入轴域 ⇒ 游标永远在轴内真实位置，无需钳制；现价超界时五档整体内收
@@ -9,29 +9,37 @@
  * 渐变色带：绿（极低）→ 琥珀（中）→ 红（极高），渐变停靠点跟随各档实际位置，
  * 颜色与价格语义对齐。低=便宜=绿，高=贵=红。
  *
- * 数字全部直接展示后端透传值：每档下方 = 档位价格（pp_*）+ 距该档 %（pv_*，
+ * 数字全部直接展示后端透传值：每档下方 = 档位价格（pp）+ 距该档 %（pv，
  * 负 = 档位在现价下方）。不展示「现价 X · 位于低~中」这类冗余文字。
  * 档位挤在一起时标签自动两行交错（按容器实测宽度贪心分行），首尾标签收进容器防出界。
  *
- * 纯几何渲染，口径仍是后端的 zone/pv（铁律 4.5）；数据无效（任一档为空 / 五档
- * 非严格递增 / 无现价）由父组件判断，回退旧文案。
+ * 数据来源已改为 GET /irs/underlying-monitors（今日待办下线），pp/pv 由调用方
+ * 用 types.toSubjectRow 归一化成短键映射；纯几何渲染，口径仍是后端的 zone/pv（铁律 4.5）。
+ * 数据无效（任一档为空 / 五档非严格递增 / 无现价）由父组件判断，回退旧文案。
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { TIER_BANDS, TIER_NAMES, type TierBand, type TierMap } from './types';
 
 const props = defineProps<{
-  item: Api.Irs.TodayItem;
+  /** 五档价；由调用方 Number 化后传入，任一为空即不渲染（父级已判） */
+  pp: TierMap | null;
+  /** 距各档 %（负 = 档位在现价下方） */
+  pv: TierMap | null;
+  /** 现价 */
+  price: number | null;
   /** 假设价（标的推演滑块）：叠加第二游标，与现价游标同轴；空/未传不渲染 */
   hypoPrice?: number | null;
 }>();
 
-/** 五档刻度定义 */
-const TIERS = [
-  { pp: 'pp_el', pv: 'pv_el', name: '极低', tone: 'low' },
-  { pp: 'pp_l', pv: 'pv_l', name: '低', tone: 'low' },
-  { pp: 'pp_m', pv: 'pv_m', name: '中', tone: 'mid' },
-  { pp: 'pp_h', pv: 'pv_h', name: '高', tone: 'high' },
-  { pp: 'pp_eh', pv: 'pv_eh', name: '极高', tone: 'high' }
-] as const;
+/** 五档刻度定义：短键 + 中文名 + 冷暖色调（与 types.TIER_BANDS 同序，禁另写一份顺序） */
+const TONES: Record<TierBand, 'low' | 'mid' | 'high'> = {
+  el: 'low',
+  l: 'low',
+  m: 'mid',
+  h: 'high',
+  eh: 'high'
+};
+const TIERS = TIER_BANDS.map(b => ({ band: b, name: TIER_NAMES[b], tone: TONES[b] }));
 
 /** 渐变停靠色（随各档实际位置布点，绿→琥珀→红） */
 const TIER_COLORS = ['#0F6E56', '#5DCAA5', '#EF9F27', '#F0997B', '#D85A30'];
@@ -46,9 +54,9 @@ function num(v: number | null | undefined) {
   return v == null ? null : Number(v);
 }
 
-const ppVals = computed(() => TIERS.map(t => num(props.item.pp?.[t.pp])));
-const pvVals = computed(() => TIERS.map(t => num(props.item.pv?.[t.pv])));
-const priceVal = computed(() => num(props.item.price));
+const ppVals = computed(() => TIERS.map(t => num(props.pp?.[t.band])));
+const pvVals = computed(() => TIERS.map(t => num(props.pv?.[t.band])));
+const priceVal = computed(() => num(props.price));
 
 /** 估算标签渲染宽度：CJK 12px/字，数字与符号约 6.6px/字（11~12px 字号），+8px 余量 */
 function estLabelWidth(name: string, priceStr: string, pvStr: string) {
@@ -255,7 +263,7 @@ function fmtPv(v: number | null) {
     <div class="relative mt-4px" :style="{ height: labelsHeight }">
       <div
         v-for="(t, i) in TIERS"
-        :key="t.pp"
+        :key="t.band"
         class="absolute text-center"
         :style="labelStyle(i)"
         :title="`${t.name}：档位价 ${fmtPrice(ppVals[i])}，距该档 ${fmtPv(pvVals[i])}`"

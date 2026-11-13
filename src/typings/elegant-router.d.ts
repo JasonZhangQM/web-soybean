@@ -55,12 +55,11 @@ declare module "@elegant-router/types" {
     "irs_discounts-monitor": "/irs/discounts-monitor";
     "irs_macro-framework": "/irs/macro-framework";
     "irs_option-quote": "/irs/option-quote";
-    "irs_simulate": "/irs/simulate";
     "irs_underlying-monitors": "/irs/underlying-monitors";
     "irs_us-economic-dashboard": "/irs/us-economic-dashboard";
     "irs_valuation-percent": "/irs/valuation-percent";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
-    "today": "/today";
+    "risk": "/risk";
   };
 
   /**
@@ -103,7 +102,7 @@ declare module "@elegant-router/types" {
     | "iframe-page"
     | "irs"
     | "login"
-    | "today"
+    | "risk"
   >;
 
   /**
@@ -152,11 +151,10 @@ declare module "@elegant-router/types" {
     | "irs_discounts-monitor"
     | "irs_macro-framework"
     | "irs_option-quote"
-    | "irs_simulate"
     | "irs_underlying-monitors"
     | "irs_us-economic-dashboard"
     | "irs_valuation-percent"
-    | "today"
+    | "risk"
   >;
 
   /**

@@ -416,17 +416,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_simulate',
-        path: '/irs/simulate',
-        component: 'view.irs_simulate',
-        meta: {
-          title: 'irs_simulate',
-          i18nKey: 'route.irs_simulate',
-          order: 3.5,
-          constant: true
-        }
-      },
-      {
         name: 'irs_underlying-monitors',
         path: '/irs/underlying-monitors',
         component: 'view.irs_underlying-monitors',
@@ -474,14 +463,14 @@ export const generatedRoutes = [
     }
   },
   {
-    name: 'today',
-    path: '/today',
-    component: 'layout.base$view.today',
+    name: 'risk',
+    path: '/risk',
+    component: 'layout.base$view.risk',
     meta: {
-      title: 'today',
-      i18nKey: 'route.today',
-      icon: 'mdi:calendar-check',
-      order: 1.5,
+      title: 'risk',
+      i18nKey: 'route.risk',
+      icon: 'mdi:gauge',
+      order: 0.5,
       constant: true
     }
   }

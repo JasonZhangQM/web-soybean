@@ -305,44 +305,6 @@ declare namespace Api {
       note: string | null;
     }
 
-    /** 今日页命中的剧本（纯聚合） */
-    interface TodayPlanHit {
-      seq: number;
-      trade_symbol: string;
-      b_s: string;
-      o_c: string | null;
-      reason: string | null;
-      effective_trigger: number | null;
-    }
-
-    /** 今日页单标的行（GET /irs/today 返回项） */
-    interface TodayItem {
-      symbol: string;
-      name: string | null;
-      theme: string | null;
-      price: number | null;
-      zone: string | null;
-      /** 五档价格（UnderlyingMonitor 主表列直传，键为 pp_el~pp_eh） */
-      pp: Record<'pp_el' | 'pp_l' | 'pp_m' | 'pp_h' | 'pp_eh', number | null> | null;
-      /** 距各档 %（键为 pv_el~pv_eh，负值=档位在现价下方） */
-      pv: Record<'pv_el' | 'pv_l' | 'pv_m' | 'pv_h' | 'pv_eh', number | null> | null;
-      /** 距最近档位 %（负值=档位在下方） */
-      nearest_level_pct: number | null;
-      pe_pct: number | null;
-      pb_pct: number | null;
-      hit_plans: TodayPlanHit[];
-      logic_total: number;
-      logic_weak: number;
-      invalidate_triggered: number;
-      has_position: boolean;
-      review_due: boolean;
-      naked: boolean;
-      target_pct: number | null;
-      current_pct: number | null;
-      drift: number | null;
-      priority: number;
-    }
-
     /** 最新分位表单标的行（GET /irs/um-percentile/stats） */
     interface UmPctLatestSubject {
       /** 标的代码（gm 格式） */
@@ -431,7 +393,7 @@ declare namespace Api {
       expiry: string | null;
       /** 剩余天数（仅期权） */
       days: number | null;
-      /** 盯市单价（仅期权） */
+      /** 盯市单价：期权=盯市价（结算价优先）、期货/证券=bills_group 持仓现价；无行情为 null */
       px: number | null;
       /** 隐含波动率（仅期权） */
       sigma: number | null;
@@ -772,6 +734,8 @@ declare namespace Api {
       combo: SimulateCombo;
       /** 0% 基准（overrides 全空时的读数，与 risk-board 同口径，供对照） */
       baseline_combo: SimulateCombo;
+      /** 另一时点（horizon 的反面）的组合读数；仅档位压力表取 Δ 盈亏用，其余前端不用 */
+      combo_other: SimulateCombo;
       budget: {
         stress_drop: number;
         summary: {
@@ -839,6 +803,10 @@ declare namespace Api {
       baseline_combo: SimulateCombo;
       /** 相对 0% 基准的 Δ 亏损（正=亏）；压力表「组合盈亏」= −delta_loss */
       delta_loss: number;
+      /** 组合层即期 Δ 盈亏（正=盈）= −run(now).loss 原值，与 Σ账户 / Σ逐仓同式 */
+      delta_pnl_now: number;
+      /** 组合层到期 Δ 盈亏（正=盈）= −run(expiry).loss 原值；含全组合时间价值衰减 */
+      delta_pnl_expiry: number;
       accounts: SimulateAccount[];
       positions: SimulateLevelPosition[];
     }
@@ -861,6 +829,10 @@ declare namespace Api {
         accounts: SimulateAccount[];
         positions: SimulateLevelPosition[];
         budget: SimulateResult['budget'];
+        /** 现价行即期 Δ 恒 0（不重估就没有 Δ） */
+        delta_pnl_now: number;
+        /** 现价行到期 Δ = 全组合时间价值衰减（卖期权为正收益，故通常为正数） */
+        delta_pnl_expiry: number;
       };
       /** 档位口径首个追保：账户 → 首个触发 breached 的档位名；ALL 为组合视角 */
       first_call_by_account: Record<string, string | null>;

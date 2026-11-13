@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 逐仓总表（/irs/simulate 右栏 ③，2026-11-13 合并「逐张合约」+「逐仓明细」）
+ * 逐仓总表（/risk 右栏 ③，2026-11-13 合并「逐张合约」+「逐仓明细」）
  *
  * 两路数据按 (账户 + 合约) join，行集实测一一对应（10↔10、键无重复无孤儿、pf_now 零差异）：
  * - board.positions（GET /irs/risk-board）：合约静态列，只在首屏 / IV / 行情更新时变；
@@ -15,9 +15,8 @@
  */
 import { computed, h } from 'vue';
 import { useRouter } from 'vue-router';
-import { NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
-import { deltaPnlHeader, fmtMoney, fmtPrice, pnl } from './utils';
+import { deltaPnlHeader, fmtMoney, fmtPrice, metricHeader, pnl } from './utils';
 
 defineOptions({ name: 'ContractTable' });
 
@@ -51,6 +50,17 @@ const router = useRouter();
 /** 逐仓粒度 Δ 盈亏列头口径（自 index.vue 迁入）；与档位 Tab 的「只统计该标的项下持仓」不同，勿照抄 */
 const SIM_POS_DELTA_SCOPE =
   '两列都是相对当前的 Δ（V(S1)−V(S0)），逐仓按该合约重估值统计。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权；与「当前盈亏」账面口径基准不同，不可相加对账。';
+
+/**
+ * 「单价」列口径（2026-11-13 由「盯市单价」改名）：三类持仓价源与量纲都不同，
+ * 原名「盯市」只对期权成立 —— 期货/证券取的是持仓现价，不是结算价。
+ */
+const PX_SCOPE = [
+  '期权 = 盯市价：取 bds_option_market 当日结算价（settle），缺失时降级最新价（price），与 IV 反解、净值估值同一价源。',
+  '期货 / 证券 = 持仓现价 bills_group.price：与名义市值、当前盈亏同源，点「持仓行情更新」后刷新到当日最新；未同步则仍是上次的价。',
+  '三类量纲不同——期权是每张权利金单价、期货是合约指数点、证券是每股价格，列内数值不可横向比大小。',
+  '缺行情时后端给 null，显示「—」，不补 0。'
+];
 
 function exposureOfRow(r: MergedPosition) {
   return Number(r.risk_exposure ?? 0);
@@ -114,27 +124,20 @@ function kindLabel(p: MergedPosition): string {
   return '其他';
 }
 
-/** 方向：期权用多/空，期货用数量正负（合并「逐仓明细」的多空口径，避免期货显示 '—'） */
-function sideTag(p: MergedPosition) {
-  let isLong: boolean | null = null;
-  if (p.side) isLong = p.side === 'long';
-  else if (p.qty != null) isLong = Number(p.qty) > 0;
-  if (isLong === null) return h('span', {}, '—');
-  return h(NTag, { size: 'small', type: isLong ? 'success' : 'warning' }, { default: () => (isLong ? '多' : '空') });
-}
-
-/** C/P 徽标 */
-function cpTag(p: MergedPosition) {
-  if (!p.cp) return h('span', {}, '—');
-  return h(NTag, { size: 'small', type: p.cp === 'C' ? 'error' : 'info' }, { default: () => p.cp });
-}
-
-/** 最大亏损：null（卖认购）= 理论无上限，红字并注明是数学上界 */
-function renderMaxLoss(p: MergedPosition) {
-  if (p.max_loss === null) {
-    return h('span', { style: 'color: #d03050; font-weight: 600' }, '无上限');
-  }
-  return fmtMoney(p.max_loss);
+/**
+ * 品种列（2026-11-13 合并）：原「品种 + C/P + 行权价」三列合成一列。
+ * 期货 / 证券只显示品种名，不给行权价；期权显示「认购 3.900」这种「品种 + 行权价」。
+ * C/P 字母与品种同义（C ⇔ 认购、P ⇔ 认沽），不再单占一列，靠配色保留区分：
+ * 认购红（#d03050）、认沽蓝（#2080f0），与旧 C/P 徽标 error / info 同色。
+ */
+function renderKind(p: MergedPosition) {
+  const color = p.kind === 'call' ? '#d03050' : p.kind === 'put' ? '#2080f0' : '';
+  const label = h('span', { style: { color } }, kindLabel(p));
+  if (p.strike === null || p.strike === undefined) return label;
+  return h('span', {}, [
+    label,
+    h('span', { style: { marginLeft: '6px', fontVariantNumeric: 'tabular-nums' } }, fmtPrice(p.strike))
+  ]);
 }
 
 /** 保证金效率 = |delta × 名义市值| ÷ 当前保证金；每 1 元保证金换来多少方向敞口，越低越该先平 */
@@ -153,14 +156,22 @@ function marginDelta(v: number | null | undefined) {
 
 /**
  * 两级分组表头：静态组（board，不随滑块变）/ 到档组（sim，每次改价重算）。
- * 原「逐张合约」15 个静态列全保留 + 两列 Δ 改归到档组，并入「逐仓明细」的标的 /
- * 风险敞口 / 基准价→情景价 / 到档保证金 / 保证金变化；两边都有的张数、行权价、方向、当前盈亏各留一份。
+ * 2026-11-13 调整：标的、风险敞口归位到静态组（都取 board 静态值、不随假设价变），
+ * 落位「标的 → 合约 → 风险敞口」；「最大亏损」列删除 —— 与风险敞口同源同值，重复。
+ * 同轮再调：删「方向」列（期权多空可由张数正负读出）；「品种 + C/P + 行权价」三列
+ * 并成一列「品种」（期权显示「认购 3.900」，C/P 与品种同义、靠配色区分）。
  */
 const columns = computed<DataTableColumns<MergedPosition>>(() => [
   {
     title: '合约与静态（不随滑块变）',
     key: 'g_static',
     children: [
+      {
+        title: '标的',
+        key: 'subject',
+        width: 100,
+        render: (r: MergedPosition) => r.subject_name || r.subject || '—'
+      },
       {
         title: '合约',
         key: 'symbol',
@@ -176,24 +187,47 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
             p.symbol
           )
       },
-      { title: '账户', key: 'acct', width: 90 },
-      { title: '品种', key: 'kind', width: 80, render: (p: MergedPosition) => kindLabel(p) },
-      { title: '方向', key: 'side', width: 70, render: (p: MergedPosition) => sideTag(p) },
-      { title: 'C/P', key: 'cp', width: 60, render: (p: MergedPosition) => cpTag(p) },
-      { title: '张数', key: 'qty', width: 80, align: 'right' as const },
-      {
-        title: '行权价',
-        key: 'strike',
-        width: 90,
-        align: 'right' as const,
-        render: (p: MergedPosition) => (p.strike === null ? '—' : fmtPrice(p.strike))
-      },
+      { title: '账户', key: 'acct', width: 40 },
+      { title: '品种', key: 'kind', width: 80, render: (p: MergedPosition) => renderKind(p) },
       {
         title: '到期天数',
         key: 'days',
-        width: 90,
+        width: 40,
         align: 'right' as const,
         render: (p: MergedPosition) => (p.days === null ? '—' : String(p.days))
+      },
+      { title: '数量', key: 'qty', width: 80, align: 'right' as const },
+      {
+        // 2026-11-13 列名「盯市单价」→「单价」：期货/证券取的并非盯市（结算）价，
+        // 原名只对期权成立；口径差异收在 tooltip 里，不占版面
+        title: metricHeader('单价', PX_SCOPE),
+        key: 'px',
+        width: 80,
+        align: 'right' as const,
+        // 原来只有期权有价（后端仅期权分支输出 px），期货/证券显示 '—'；
+        // 现由后端三类持仓一律给 px。缺价（无行情）时后端给 null，这里 `== null` 一并兜 undefined
+        render: (p: MergedPosition) => (p.px == null ? '—' : fmtPrice(p.px))
+      },
+      {
+        title: '风险敞口',
+        key: 'risk_exposure',
+        width: 110,
+        align: 'right' as const,
+        render: (r: MergedPosition) => fmtMoney(r.risk_exposure)
+      },
+      {
+        title: '当前盈亏',
+        key: 'pf_now',
+        width: 110,
+        align: 'right' as const,
+        render: (p: MergedPosition) => pnl(p.pf_now)
+      },
+      {
+        title: '当前保证金',
+        key: 'margin_now',
+        width: 110,
+        align: 'right' as const,
+        render: (p: MergedPosition) => fmtMoney(p.margin_now)
       },
       {
         title: 'IV',
@@ -210,37 +244,9 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         render: (p: MergedPosition) => (p.delta === null ? '—' : p.delta.toFixed(3))
       },
       {
-        title: '盯市单价',
-        key: 'px',
-        width: 100,
-        align: 'right' as const,
-        render: (p: MergedPosition) => (p.px === null ? '—' : fmtPrice(p.px))
-      },
-      {
-        title: '当前保证金',
-        key: 'margin_now',
-        width: 110,
-        align: 'right' as const,
-        render: (p: MergedPosition) => fmtMoney(p.margin_now)
-      },
-      {
-        title: '当前盈亏',
-        key: 'pf_now',
-        width: 120,
-        align: 'right' as const,
-        render: (p: MergedPosition) => pnl(p.pf_now)
-      },
-      {
-        title: '最大亏损',
-        key: 'max_loss',
-        width: 110,
-        align: 'right' as const,
-        render: (p: MergedPosition) => renderMaxLoss(p)
-      },
-      {
         title: '保证金效率',
         key: 'margin_eff',
-        width: 110,
+        width: 60,
         align: 'right' as const,
         render: (p: MergedPosition) => renderEfficiency(p)
       }
@@ -251,19 +257,6 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
     key: 'g_sim',
     children: [
       {
-        title: '标的',
-        key: 'subject',
-        width: 100,
-        render: (r: MergedPosition) => r.subject_name || r.subject || '—'
-      },
-      {
-        title: '风险敞口',
-        key: 'risk_exposure',
-        width: 100,
-        align: 'right' as const,
-        render: (r: MergedPosition) => fmtMoney(r.risk_exposure)
-      },
-      {
         title: '基准价→情景价',
         key: 'price',
         width: 150,
@@ -273,14 +266,14 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
       {
         title: deltaPnlHeader('即期', SIM_POS_DELTA_SCOPE),
         key: 'delta_pnl_now',
-        width: 130,
+        width: 110,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.delta_pnl_now)
       },
       {
         title: deltaPnlHeader('到期', SIM_POS_DELTA_SCOPE),
         key: 'delta_pnl_expiry',
-        width: 130,
+        width: 110,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.delta_pnl_expiry)
       },
@@ -329,11 +322,13 @@ function goOptionQuote() {
     只保留一行口径说明 + 裸 NDataTable；单根元素让父页传的 class（mb-16px）正常生效。
   -->
   <div>
-    <div class="mb-6px text-11px text-gray-400">
+    <!--
+ <div class="mb-6px text-11px text-gray-400">
       共 {{ rows.length }} 仓 · 当前假设：{{ levelLabel || '现价' }}（点击档位压力表切换）。
       静态组取风险看板（不随滑块变）、到档组取当前推演（每次改价重算），两组保证金时点不同，不可相加对账；
       「无上限」为数学上界，非风险预算。点击合约名跳期权行情。
-    </div>
+    </div> 
+-->
     <NDataTable
       :columns="columns"
       :data="rows"

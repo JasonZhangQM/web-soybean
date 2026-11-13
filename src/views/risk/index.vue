@@ -1,8 +1,11 @@
 <script setup lang="ts">
 /**
- * 标的推演（POST /irs/simulate）+ 风险看板整合页（2026-11-13）
+ * 风险总览（/risk，2026-11-13 起为顶级菜单、与首页平级，也是登录默认落地页）
  *
- * 左栏：今日标的卡片全量信息（TodayCard 复用）+ 假设价滑块；
+ * 页面本体由原「标的推演」(/irs/simulate) 升级而来：它把标的档位、账户风险、
+ * 五档压力、逐仓明细与组合推演放在同一屏，是风险监控与分析的唯一总入口。
+ *
+ * 左栏：标的监测行卡片（SubjectCard）+ 假设价滑块；
  * 右栏自上而下四区：① 账户总表 ② 档位压力表 ③ 逐仓总表
  *   ④ 推演区（组合快照 KPI / 保证金结构图 / 组合推演 / 改价小结）。
  *
@@ -23,11 +26,22 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NAlert, NButton, NEmpty, NSlider, NTag, NTooltip } from 'naive-ui';
-import { fetchRiskBoard, fetchToday, simulateIrs, simulateLevels, syncIrs } from '@/service/api';
+import {
+  fetchRiskBoard,
+  fetchUnderlyingMonitors,
+  simulateIrs,
+  simulateLevels,
+  syncGroup,
+  syncIrs
+} from '@/service/api';
 import { executeSync } from '@/utils/sync-feedback';
 import { createTablePagination } from '@/hooks/common/table';
 import { usePageState } from '@/hooks/common/page-state';
-import TodayCard from '@/views/today/modules/TodayCard.vue';
+/** 左栏标的卡片：今日待办下线后由 TodayCard 精简而来（去掉待办标签，只留现价/分位/档位条） */
+import SubjectCard from './modules/SubjectCard.vue';
+import { type SubjectRow, type TierBand, toSubjectRow } from './modules/types';
+/** 标的档案抽屉：直接用标的监测页那一个组件，不复制版式、不跳页（2026-11-13） */
+import DetailDrawer from '@/views/irs/underlying-monitors/modules/DetailDrawer.vue';
 /** 右侧各分节的标题栏：直接复用标的监测抽屉档位 Tab 的 SectionBar（灰底横条 + 左色条），样式源唯一 */
 import SectionBar from '@/views/irs/underlying-monitors/modules/SectionBar.vue';
 /** ①③ 两张总表 + ④ KPI / 保证金结构图：原 /irs/risk-board 共享组件目录（旧页面已下线） */
@@ -38,7 +52,7 @@ import RiskKpiCards from '@/views/irs/risk-board/modules/RiskKpiCards.vue';
 /** ② 档位压力表：替代旧 11 档涨跌幅情景表 */
 import LevelPressureTable from './modules/LevelPressureTable.vue';
 
-defineOptions({ name: 'IrsSimulatePage' });
+defineOptions({ name: 'RiskOverviewPage' });
 
 const router = useRouter();
 
@@ -51,38 +65,72 @@ function selectAccount(account: string) {
   query.account = account;
 }
 
-// ---------------- 左栏：今日标的清单（与今日页同源 GET /irs/today） ----------------
+// ---------------- 左栏：标的监测清单（GET /irs/underlying-monitors） ----------------
+/**
+ * 数据源由 GET /irs/today 换成本页唯一需要的标的监测表（2026-11-13 今日待办下线）：
+ * 那张表本来就是 um 主表，五档 pp_* / 距档 pv_* / 分位 / zone 全在，只是列存成字符串，
+ * 由 toSubjectRow 一次性归一化；raw 留着开抽屉当骨架，省一次按 symbol 的回查。
+ */
 const loading = ref(false);
-const items = ref<Api.Irs.TodayItem[]>([]);
+const items = ref<SubjectRow[]>([]);
 
 async function load() {
   loading.value = true;
   try {
-    const { data, error } = await fetchToday();
-    if (!error && data) items.value = data;
+    const { data, error } = await fetchUnderlyingMonitors({ limit: 200 });
+    if (!error && data?.items) items.value = data.items.map(toSubjectRow);
   } finally {
     loading.value = false;
   }
 }
 
 // 首屏统一在下方 onMounted 里并行拉三路数据，不在各自区块分散挂载（避免重复请求）
-function goDetail(it: Api.Irs.TodayItem) {
-  router.push({ name: 'irs_underlying-monitors', query: { um: it.symbol } });
+
+// ---------------- 标的档案抽屉（2026-11-13：跳页改为页内弹窗） ----------------
+/**
+ * 左栏点标的：就地打开与 /irs/underlying-monitors 完全同一个 DetailDrawer。
+ * 左栏数据本身就是监测行（SubjectRow.raw），直接当骨架传，不必再按 symbol 回查一次。
+ */
+const showDrawer = ref(false);
+const drawerRow = ref<Api.Irs.UnderlyingMonitor | null>(null);
+
+function goDetail(it: SubjectRow) {
+  drawerRow.value = it.raw;
+  showDrawer.value = true;
+}
+
+/**
+ * 抽屉内有写操作（改结论 / 档位 / 计划，或点「拉取最新价」同步了 um.price）时
+ * 关闭才 emit 一次：重拉 /irs/underlying-monitors（档位价与 zone 可能变）+ 三路重算。
+ * 与顶栏「标的行情」的区别是触发源不同：那边是本页自己点的同步。
+ */
+async function onDrawerChanged() {
+  await load();
+  await refreshAll();
+}
+
+/**
+ * 抽屉里「编辑标的信息」：编辑弹窗只长在标的监测列表页，此处按原路径跳过去
+ * （带 ?um= 会自动开抽屉、从抽屉再点编辑），先关本页抽屉，不留两个浮层。
+ */
+function onDrawerEdit(row: Api.Irs.UnderlyingMonitor) {
+  showDrawer.value = false;
+  router.push({ name: 'irs_underlying-monitors', query: { um: row.symbol } });
 }
 
 // ---------------- 假设价状态与滑块几何 ----------------
 /** {标的代码: 假设价}；不设 = 现价（用 Map 规避动态 delete，reactive Map 可深度监听） */
 const overrides = reactive(new Map<string, number>());
 
-/** 五档价（TodayItem.pp 透传）；无版本标的为空数组 */
-function tierSeq(it: Api.Irs.TodayItem): number[] {
+/** 五档价（types.toSubjectRow 已 Number 化）；无五档版本的标的为空数组 */
+function tierSeq(it: SubjectRow): number[] {
   const pp = it.pp;
   if (!pp) return [];
-  return [pp.pp_el, pp.pp_l, pp.pp_m, pp.pp_h, pp.pp_eh].map(v => (v == null ? NaN : Number(v)));
+  return [pp.el, pp.l, pp.m, pp.h, pp.eh].map(v => (v == null ? NaN : Number(v)));
 }
 
 /** 滑块轴域：有五档 = [min(五档,现价)×0.9, max(五档,现价)×1.1]；无五档 = 现价×[0.7,1.3] */
-function axisOf(it: Api.Irs.TodayItem) {
+function axisOf(it: SubjectRow) {
   const price = it.price == null ? null : Number(it.price);
   if (price == null || price <= 0) return null;
   const seq = tierSeq(it).filter(v => !Number.isNaN(v) && v > 0);
@@ -102,7 +150,7 @@ function stepOf(ax: { lo: number; hi: number } | null) {
 }
 
 /** 五档 marks（NSlider marks：{位置值: 标签}；档位价不在轴内跳过） */
-function marksOf(it: Api.Irs.TodayItem) {
+function marksOf(it: SubjectRow) {
   const ax = axisOf(it);
   if (!ax || !ax.tiers.length) return undefined;
   const names = ['极低', '低', '中', '高', '极高'];
@@ -148,7 +196,7 @@ function applyBatch(key: BatchKey) {
   overrides.clear();
   if (key !== 'price') {
     for (const it of items.value) {
-      const raw = it.pp?.[key];
+      const raw = it.pp?.[key.slice(3) as TierBand];
       const v = raw == null ? null : Number(raw);
       if (v == null || !Number.isFinite(v) || v <= 0) continue;
       if (it.price != null && Math.abs(v - Number(it.price)) < 1e-9) continue;
@@ -166,7 +214,7 @@ function onSelectLevel(key: string) {
   if (batch) applyBatch(batch);
 }
 
-function setHypo(it: Api.Irs.TodayItem, v: number | null) {
+function setHypo(it: SubjectRow, v: number | null) {
   activeBatch.value = null;
   activeLevel.value = 'base';
   if (v == null || (it.price != null && Math.abs(Number(v) - Number(it.price)) < 1e-9)) {
@@ -176,7 +224,7 @@ function setHypo(it: Api.Irs.TodayItem, v: number | null) {
   }
 }
 
-function resetHypo(it: Api.Irs.TodayItem) {
+function resetHypo(it: SubjectRow) {
   activeBatch.value = null;
   activeLevel.value = 'base';
   overrides.delete(it.symbol);
@@ -298,7 +346,20 @@ onMounted(() => {
 });
 
 /**
- * 顶栏「行情更新」：与 `/irs/underlying-monitors` 列表页「行情」按钮同一个接口
+ * 两处行情更新（标的 / 持仓）的公共收尾：三路并发重算 —— 风险看板、五档压力、当前推演，
+ * 全部就绪后再刷新两张总表，避免半新半旧（净值变了但压力表还是旧保证金）。
+ */
+async function refreshAll() {
+  refreshing.value = true;
+  try {
+    await Promise.all([loadBoard(), loadLevels(), runSim()]);
+  } finally {
+    refreshing.value = false;
+  }
+}
+
+/**
+ * 顶栏「标的行情」：与 `/irs/underlying-monitors` 列表页「行情」按钮同一个接口
  * syncIrs('underlying-monitor')（gm current → 写 um.price → flush 触发 pv_* 钩子），
  * 反馈 / 防重复点击 / 状态分流全部复用 executeSync（含 no_data、error 不刷新的语义）。
  * 成功后重拉 GET /irs/today 拿新现价与五档，再重算推演；当前若停在某个批量档位，
@@ -314,14 +375,21 @@ async function handleSyncQuote() {
       await load();
       if (activeBatch.value && activeBatch.value !== 'price') applyBatch(activeBatch.value);
       // 行情变了 ⇒ 现价与五档价都可能变，三路并发重算且全部就绪后才刷新两张总表
-      refreshing.value = true;
-      try {
-        await Promise.all([loadBoard(), loadLevels(), runSim()]);
-      } finally {
-        refreshing.value = false;
-      }
+      await refreshAll();
     }
   );
+}
+
+/**
+ * 顶栏「持仓行情更新」：与 `/bills/group-accs` 列表页「行情」按钮同一个接口 syncGroup
+ * （POST /bills/sync/group = 实时估值 → 标的汇总 → 账户汇总 → 风险网格），
+ * 改的是持仓市值 / 账面浮盈与网格，不动标的监测价（um.price）。
+ * 故成功后只重算三路，不重拉 /irs/today、也不重套批量档位（档位价没变）。
+ */
+const holdingLoading = ref(false);
+
+async function handleSyncHolding() {
+  await executeSync(syncGroup, holdingLoading, refreshAll);
 }
 
 /** 当前假设档位名：两张总表到档组的表头注记（点压力表 → applyBatch → runSim 后自动跟上） */
@@ -354,7 +422,7 @@ function signCls(v: number | null | undefined) {
 
 /** 表格数字格式与列头口径已下沉到两张总表组件；本页摘要卡 / 改价小结仍用本地紧凑格式 */
 /** 假设价读数（滑块下方）：假设 X（±pct%）· 落入 zone_at */
-function hypoText(it: Api.Irs.TodayItem) {
+function hypoText(it: SubjectRow) {
   const v = overrides.get(it.symbol);
   if (v == null) return { main: '= 现价', zone: '' };
   const price = it.price == null ? null : Number(it.price);
@@ -391,9 +459,9 @@ const sortedItems = computed(() => {
 
 <template>
   <div class="h-full flex flex-col gap-12px p-16px">
-    <!-- 顶栏：IV / 行情更新；档位选择只在 ② 压力表，时点口径固定即期，已无切换控件 -->
+    <!-- 顶栏：IV / 标的行情 + 持仓行情更新；档位选择只在 ② 压力表，时点口径固定即期，已无切换控件 -->
     <div class="flex flex-wrap items-center gap-12px">
-      <span class="text-16px font-600">标的推演</span>
+      <span class="text-16px font-600">风险总览</span>
       <NTag size="small" :bordered="false" round>
         {{ changedCount ? `${changedCount} 个标的已改动` : '全部现价（0% 基准）' }}
       </NTag>
@@ -414,14 +482,27 @@ const sortedItems = computed(() => {
       <div class="ml-auto flex items-center gap-6px">
         <NTooltip trigger="hover">
           <template #trigger>
-            <NButton size="tiny" :loading="quoteLoading" @click="handleSyncQuote">
+            <NButton size="tiny" :loading="quoteLoading" :disabled="holdingLoading" @click="handleSyncQuote">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
-              行情更新
+              标的行情
             </NButton>
           </template>
-          同步实时行情（与标的监测列表页「行情」按钮同接口），成功后刷新现价 / 五档并重算推演。
+          同步标的监测价（与标的监测列表页「行情」按钮同接口），成功后刷新现价 / 五档并重算推演。
         </NTooltip>
-        <NButton size="tiny" text @click="load">刷新标的</NButton>
+        <NTooltip trigger="hover">
+          <template #trigger>
+            <NButton size="tiny" :loading="holdingLoading" :disabled="quoteLoading" @click="handleSyncHolding">
+              <template #icon><SvgIcon icon="mdi:sync" /></template>
+              持仓行情更新
+            </NButton>
+          </template>
+          重算持仓实时估值与账户汇总（与 /bills/group-accs 列表页「行情」按钮同接口）， 成功后刷新净值 /
+          浮盈并重算推演；不动标的监测价。
+        </NTooltip>
+        <NButton size="tiny" @click="load">
+          <template #icon><SvgIcon icon="mdi:refresh" /></template>
+          刷新标的
+        </NButton>
       </div>
     </div>
 
@@ -432,10 +513,10 @@ const sortedItems = computed(() => {
         <div class="mb-8px text-11px text-gray-400">按标的项下持仓风险敞口合计倒序</div>
         <NEmpty v-if="!items.length && !loading" description="还没有标的监测标的" class="mt-24px" />
         <div class="flex flex-col gap-12px">
-          <TodayCard
+          <SubjectCard
             v-for="it in sortedItems"
             :key="it.symbol"
-            :item="it"
+            :subject="it"
             :hypo-price="overrides.get(it.symbol) ?? null"
             :changed="overrides.has(it.symbol)"
             @detail="goDetail(it)"
@@ -460,7 +541,7 @@ const sortedItems = computed(() => {
                 </div>
               </div>
             </template>
-          </TodayCard>
+          </SubjectCard>
         </div>
       </div>
 
@@ -498,7 +579,6 @@ const sortedItems = computed(() => {
         <LevelPressureTable
           v-else-if="board && levels"
           :levels="levels"
-          :board="board"
           :account="query.account"
           :active-level="activeLevel"
           class="mb-16px"
@@ -666,6 +746,9 @@ const sortedItems = computed(() => {
         <NEmpty v-else description="拖动左侧滑块开始推演" class="mt-48px" />
       </div>
     </div>
+
+    <!-- 标的档案抽屉：复用 /irs/underlying-monitors 的 DetailDrawer，页内弹出、不跳页 -->
+    <DetailDrawer v-model:show="showDrawer" :row="drawerRow" @edit="onDrawerEdit" @changed="onDrawerChanged" />
   </div>
 </template>
 
