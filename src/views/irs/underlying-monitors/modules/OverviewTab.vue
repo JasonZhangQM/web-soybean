@@ -382,7 +382,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <span class="text-12px text-gray-400">{{ umBudget?.note || '计算中…' }}</span>
       <span v-if="umBudget?.as_of" class="text-12px text-gray-400">行情 {{ umBudget.as_of }}</span>
       <template #actions>
-        <NButton size="tiny" text @click="router.push({ name: 'irs_risk-board' })">去风险看板</NButton>
+        <NButton size="tiny" text @click="router.push({ name: 'irs_simulate' })">去标的推演</NButton>
       </template>
     </SectionBar>
 

@@ -5,11 +5,8 @@ import {
   fmtMoney,
   fmtMoneyShort,
   fmtRatio,
-  firstCallLabel,
-  firstCallLevel,
   levelColor,
   ratioLevel,
-  realOverLine,
   staleLabel,
   staleLevel,
   verdictLabel,
@@ -23,6 +20,11 @@ const props = defineProps<{
   board: Api.Irs.RiskBoard;
   /** 当前账户：ALL 或具体账户 */
   account: string;
+  /**
+   * 档位口径首个追保：账户 → 首个 breached 的档位名（2026-11-13）。
+   * 旧「全组同跌 11 档」临界跌幅已随风险看板页下线，这里不展示无法复现的数字。
+   */
+  levelFirstCall?: Record<string, string | null>;
 }>();
 
 /** 账户卡；ALL 时为 null */
@@ -43,17 +45,12 @@ const exch = computed(() => {
 });
 const coverage = computed(() => (margin.value > 0 ? net.value / margin.value : null));
 
-/** 首个追保点：单账户用账户维度，ALL 用组合维度（当前模式 sync） */
-const firstCall = computed(() => {
-  if (props.account === 'ALL') return props.board.first_call.sync ?? null;
-  return props.board.first_call_all.sync?.[props.account] ?? null;
-});
+/** 首个追保（档位口径）：五档中按到档价升序第一个触发 breached 的档名 */
+const firstCall = computed<string | null>(() => props.levelFirstCall?.[props.account] ?? null);
 const firstCallHint = computed(() => {
   const fc = firstCall.value;
-  if (!fc) return '未触发';
-  const who = props.account === 'ALL' ? fc.account : props.account;
-  const side = fc.direction === 'up' ? '上涨' : fc.direction === 'down' ? '下跌' : '';
-  return side ? `${who} · ${side}侧` : `${who} · 当前已追保`;
+  if (!fc) return '五档均未越线 · 模型口径，非实际追保通知';
+  return `${props.account === 'ALL' ? '组合' : props.account} · 「${fc}」档首个越线`;
 });
 
 /** 预算卡：ALL 取汇总，单账户取该账户（skip=现货账户，不判） */
@@ -109,17 +106,14 @@ const bookGap = computed(() => budgetCard.value?.book_gap ?? 0);
           <span class="kpi-sep">/</span>
           <span :style="{ color: levelColor(ratioLevel(exch)) }">{{ fmtRatio(exch) }}</span>
         </div>
-        <div class="kpi-hint">
-          追保判定看交易所口径
-          <span v-if="realOverLine(real)" class="hint-alarm">· 真实口径已越线，保证金靠融资支撑</span>
-        </div>
+        <div class="kpi-hint">追保判定看交易所口径</div>
       </NCard>
     </NGi>
     <NGi span="24 s:12 m:8 l:4">
       <NCard :bordered="false" class="card-wrapper h-full" size="small">
-        <div class="kpi-label">首个追保点</div>
-        <div class="kpi-value" :style="{ color: levelColor(firstCallLevel(firstCall)) }">
-          {{ firstCallLabel(firstCall) }}
+        <div class="kpi-label">首个追保点（档位）</div>
+        <div class="kpi-value" :style="{ color: firstCall ? '#d03050' : '#18a058' }">
+          {{ firstCall ? `${firstCall}档越线` : '未触发' }}
         </div>
         <div class="kpi-hint">
           {{ firstCallHint }}
@@ -174,10 +168,6 @@ const bookGap = computed(() => budgetCard.value?.book_gap ?? 0);
   margin-top: 6px;
   font-size: 12px;
   color: #909399;
-}
-
-.hint-alarm {
-  color: #d03050;
 }
 
 .hint-gap {

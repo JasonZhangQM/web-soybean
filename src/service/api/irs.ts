@@ -901,6 +901,30 @@ export function simulateIrs(data: SimulateQuery) {
   });
 }
 
+// ------------------------------------------------ 五档档位压力（2026-11-13）
+
+export interface SimulateLevelsQuery {
+  /** now=即期 / expiry=到期；推演页主时点固定即期 */
+  horizon?: 'now' | 'expiry';
+  /** IV 冲击倍数 */
+  iv_mult?: number;
+}
+
+/**
+ * 五档档位压力（POST /irs/simulate/levels，只读不落库）
+ *
+ * 全部监测标的同步到同一档，每档用各自的 pp_* 档位价；一次返回五档的组合 /
+ * 分账户 / 逐仓三层读数。档位价与 GET /irs/today 的 TodayItem.pp 同源。
+ * 400 = 非法时点 / 风险上下文不可用。
+ */
+export function simulateLevels(data: SimulateLevelsQuery) {
+  return request<Api.Irs.SimulateLevelsResult>({
+    url: '/api/v1/irs/simulate/levels',
+    method: 'post',
+    data
+  });
+}
+
 // ------------------------------------------------ 标的监测抽屉「估值与走势」
 // 2026-11-08：懒加载，一次返回估值分位 / 估值序列 / 累计收益率 / 回撤四块。
 // 关联键用 symbol（主表 id 会漂移）；口径全在后端算，前端只渲染。

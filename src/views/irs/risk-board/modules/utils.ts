@@ -170,7 +170,7 @@ export function staleLabel(staleDays: number, dataAsOf: string | null): string {
 }
 
 /** 保证金结构图分组：期货 / 股指期权 / ETF期权 / 商品期权 / 其他 */
-export function marginGroupOf(d: Api.Irs.RiskBoardDetail): string {
+export function marginGroupOf(d: { kind: string; mtype?: string | null }): string {
   if (d.kind === 'fut') return '期货';
   if (d.kind === 'sec') return '其他';
   if (d.mtype === 'cffex') return '股指期权';

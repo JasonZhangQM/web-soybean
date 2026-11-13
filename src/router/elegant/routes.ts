@@ -416,17 +416,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'irs_risk-board',
-        path: '/irs/risk-board',
-        component: 'view.irs_risk-board',
-        meta: {
-          title: 'irs_risk-board',
-          i18nKey: 'route.irs_risk-board',
-          order: 3,
-          constant: true
-        }
-      },
-      {
         name: 'irs_simulate',
         path: '/irs/simulate',
         component: 'view.irs_simulate',

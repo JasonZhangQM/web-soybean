@@ -201,7 +201,6 @@ const routeMap: RouteMap = {
   "irs_discounts-monitor": "/irs/discounts-monitor",
   "irs_macro-framework": "/irs/macro-framework",
   "irs_option-quote": "/irs/option-quote",
-  "irs_risk-board": "/irs/risk-board",
   "irs_simulate": "/irs/simulate",
   "irs_underlying-monitors": "/irs/underlying-monitors",
   "irs_us-economic-dashboard": "/irs/us-economic-dashboard",

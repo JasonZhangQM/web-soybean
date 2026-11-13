@@ -261,7 +261,6 @@ const local: App.I18n.Schema = {
     'bills_group-accs': 'Group Accs',
     'bills_group-symbols': 'Group Symbols',
     'bills_profit-years': 'Profit Years',
-    'irs_risk-board': 'Risk Board',
     irs_simulate: 'Underlying Simulation',
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_valuation-percent': 'Valuation Percentile',

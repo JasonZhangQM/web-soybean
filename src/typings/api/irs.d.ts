@@ -706,8 +706,10 @@ declare namespace Api {
       real: number | null;
       /** 交易所风险度 = 保证金 / 客户权益 */
       exch: number | null;
-      /** 覆盖率 = 净值 / 保证金；无保证金时为 null */
+      /** 覆盖率 R（真实口径）= 净值 / 保证金 = 1/real；无保证金时为 null */
       coverage: number | null;
+      /** 覆盖率 E（交易所口径）= 客户权益 / 保证金 = 1/exch；无保证金时为 null */
+      coverage_exch: number | null;
       /** 追保只判交易所口径（breached） */
       breached: boolean;
     }
@@ -742,8 +744,16 @@ declare namespace Api {
     /** 组合层读数（combo，与 level-scenario 同构） */
     interface SimulateCombo {
       net_at: number;
+      /** Σ各账户客户权益（= net_at + Σ融资），本页列名「到档权益」，同时是组合 exch 的分母 */
+      eq_at: number;
       margin_total: number;
-      /** 组合真实风险度（保证金/净资产） */
+      /** 相对 0% 基准的组合保证金变化；单标的档位情景无基准时为 null */
+      margin_delta: number | null;
+      /** 组合覆盖率 R（真实口径，net_at ÷ margin_total），与逐账户同式；净值 ≤ 0 时为 0 或负数 */
+      coverage: number | null;
+      /** 组合覆盖率 E（交易所口径，eq_at ÷ margin_total = 1/exch），与逐账户同式 */
+      coverage_exch: number | null;
+      /** 组合真实风险度（保证金/净资产）；净值 ≤ 0 时分母非正 ⇒ null */
       real: number | null;
       /** 交易所口径（保证金/客户权益） */
       exch: number | null;
@@ -781,6 +791,79 @@ declare namespace Api {
       position_rows: SimulatePositionRow[];
       /** 分账户风险指标（空账户不展示） */
       accounts: SimulateAccount[];
+      warnings: string[];
+    }
+
+    // ============ 五档档位压力（POST /irs/simulate/levels，2026-11-13） ============
+    /** 档位逐仓行：与 SimulatePositionRow 同构，另带保证金品种族分组字段 */
+    interface SimulateLevelPosition {
+      acct: string;
+      /** 合约代码（与 RiskBoardPosition.symbol 对齐，做行匹配用） */
+      name: string;
+      symbol: string | null;
+      kind: string;
+      cp: string | null;
+      strike: number | null;
+      qty: number | null;
+      subject: string | null;
+      subject_name: string | null;
+      changed: boolean;
+      price_now: number | null;
+      price_at: number | null;
+      pf_now: number;
+      /** 即期 Δ 盈亏（正=盈） */
+      delta_pnl_now: number;
+      /** 到期 Δ 盈亏（正=盈） */
+      delta_pnl_expiry: number;
+      margin_at: number;
+      margin_delta: number;
+      risk_exposure: number | null;
+      /** 保证金公式族：cffex / etf / shex（按品种族分组用） */
+      mtype: string | null;
+      und_key: string | null;
+    }
+
+    /** 单个档位的三层读数 */
+    interface SimulateLevel {
+      key: string;
+      label: string;
+      /** 该档实际生效的假设价（点击压力表行时直接喂给左栏滑块批量套用） */
+      overrides: Record<string, number>;
+      /** 实际参与该档的标的数（无该档位 / 档位价=现价的标的保持现价） */
+      subject_count: number;
+      skipped_symbols: string[];
+      /** 各标的到档幅度区间；null = 该档无标的生效 */
+      pct_min: number | null;
+      pct_max: number | null;
+      combo: SimulateCombo;
+      baseline_combo: SimulateCombo;
+      /** 相对 0% 基准的 Δ 亏损（正=亏）；压力表「组合盈亏」= −delta_loss */
+      delta_loss: number;
+      accounts: SimulateAccount[];
+      positions: SimulateLevelPosition[];
+    }
+
+    /** 五档档位压力响应 */
+    interface SimulateLevelsResult {
+      as_of: string;
+      data_as_of: string | null;
+      stale_days: number | null;
+      engine_ver: string;
+      horizon: string;
+      iv_mult: number;
+      /** 到档价升序：el / l / m / h / eh */
+      level_order: string[];
+      level_labels: Record<string, string>;
+      levels: Record<string, SimulateLevel>;
+      /** 现价 0% 基准 */
+      baseline: {
+        combo: SimulateCombo;
+        accounts: SimulateAccount[];
+        positions: SimulateLevelPosition[];
+        budget: SimulateResult['budget'];
+      };
+      /** 档位口径首个追保：账户 → 首个触发 breached 的档位名；ALL 为组合视角 */
+      first_call_by_account: Record<string, string | null>;
       warnings: string[];
     }
 
