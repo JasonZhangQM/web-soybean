@@ -259,7 +259,7 @@ const local: App.I18n.Schema = {
     bills_bills: 'Bills',
     bills_profits: 'Profits',
     'bills_group-accs': 'Group Accs',
-    'bills_group-symbols': 'Group Symbols',
+    'bills_group-symbols': 'Holding Summary',
     'bills_profit-years': 'Profit Years',
     'irs_discounts-monitor': 'Discounts Monitor',
     'irs_valuation-percent': 'Valuation Percentile',

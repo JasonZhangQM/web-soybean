@@ -3,16 +3,18 @@
  * 账户总表（/risk 右栏 ①，2026-11-13 合并「账户风险列表」+「分账户风险指标」）
  *
  * 两路数据按账户 join，行集实测一致（board 过滤空账户后 5 个 = sim.accounts 5 个）：
- * - board.accounts / budget（GET /irs/risk-board）：现价基准静态卡，不随滑块变；
+ * - board.accounts / budget（GET /irs/risk-board）：静态列（风险敞口、当前盈亏、可开额度），不随滑块变；
  * - sim.accounts / combo（POST /irs/simulate）：当前假设价的到档指标，每次滑块 debounce 重算。
- * 0% 基准时 net_at=net0、margin_at=margin、eq_at=eq、real/exch 逐值相等（接口实测），
- * 两套并列后在现价时数值相同属预期，改价后才分叉 —— 用户要的正是这个对照。
+ * 0% 基准时 net_at=net0、margin_at=margin、eq_at=eq（接口实测），改价后才分叉。
+ *
+ * 2026-11-13 二次精简（用户要求）：删「账户权益 / 账户净值 / 当前保证金 / 当前风险度(R/E)」四列，
+ * 整组「现价基准」退场 —— 现价口径看 ④ 组合快照 KPI 卡，本表只留到档口径，避免同屏两套并列。
  *
  * 保留独有交互：点击行切账户视角（联动②③与 KPI 卡）、组合行 ALL、可开额度。
- * 账户列只显示名称，不贴越线标签；档位越线看 ② 压力表的「追保」列，风险高低看两组风险度着色。
- * 组合行到档值取 combo / baseline_combo：到档权益（Σ各账户 eq_at）、覆盖率 R/E、保证金变化
+ * 账户列只显示名称，不贴越线标签；档位越线看 ② 压力表的「追保」列，风险高低看风险度着色。
+ * 组合行到档值取 combo：到档权益（Σ各账户 eq_at）、覆盖率 R/E、保证金变化
  * 全部由后端 _combo 直接给，前端不自算（🔒4.13）。真实风险度(R) 在净值 ≤ 0 时后端返回 null
- * （穿仓只看净值，分母非正不编造负数）⇒ 前端在两组风险度列的 R 半边改显「穿仓」标签。
+ * （穿仓只看净值，分母非正不编造负数）⇒ 前端在风险度列的 R 半边改显「穿仓」标签。
  *
  * NDataTable 不写 size（🔒4.7）；scroll-x 按叶子列宽和自动求和（🔒4.11）。
  */
@@ -65,13 +67,10 @@ interface AtRow {
 interface AccountRow {
   /** 账户名；ALL 表示组合 */
   account: string;
-  /** 账户卡；组合行为 null */
-  card: Api.Irs.RiskBoardAccount | null;
+  /** 当前净值：只用于过滤空账户，不再出列 */
   net: number;
-  eq: number;
+  /** 当前保证金：只用于过滤空账户，不再出列 */
   margin: number;
-  real: number | null;
-  exch: number | null;
   /** 账户风险敞口（人工确认口径）；null = 未设置 */
   risk_exposure: number | null;
   /** 账户账面浮盈（bills_group_acc.pf_total） */
@@ -125,7 +124,6 @@ function round2(v: number): number {
  * 空账户（无净值且无保证金）整行过滤：列表只看有仓账户，豁免口径由后端判定兜底。
  */
 const rows = computed<AccountRow[]>(() => {
-  const finTotal = Object.values(props.board.accounts).reduce((s, a) => s + (a.fin ?? 0), 0);
   const simAccounts = props.sim.accounts ?? [];
 
   /** 组合行 ALL：到档值全部取后端 combo（含 Σ账户 Δ），两个风险度口径分母非正时后端给 null */
@@ -143,12 +141,8 @@ const rows = computed<AccountRow[]>(() => {
   };
   const allRow: AccountRow = {
     account: 'ALL',
-    card: null,
     net: props.board.net_total,
-    eq: props.board.net_total + finTotal,
     margin: props.board.margin_total,
-    real: props.board.real_total,
-    exch: props.board.grid.sync?.['0.0']?.ALL?.exch ?? null,
     risk_exposure: props.board.risk_exposure_total ?? null,
     pf_now: props.board.pf_now_total,
     budget: null,
@@ -176,12 +170,8 @@ const rows = computed<AccountRow[]>(() => {
         : nullAt();
       return {
         account: name,
-        card,
         net: card.net0,
-        eq: card.eq,
         margin: card.margin,
-        real: card.real,
-        exch: card.exch,
         risk_exposure: card.risk_exposure ?? null,
         pf_now: card.pf_now,
         budget: props.board.budget.accounts[name] ?? null,
@@ -212,21 +202,12 @@ const rowClassName = (row: AccountRow) => (row.account === props.account ? 'is-a
 
 /**
  * 账户列：只显示名称（组合 / 账户），不贴任何越线标签。
- * 档位越线看 ② 档位压力表的「追保」列，风险高低看两组风险度着色 —— 信息不丢，账户列不加噪。
+ * 档位越线看 ② 档位压力表的「追保」列，风险高低看风险度着色 —— 信息不丢，账户列不加噪。
  */
 function accountCell(row: AccountRow) {
   return h('span', { class: 'acct-name' }, row.account === 'ALL' ? '组合' : row.account);
 }
 
-/** 账户净值 / 权益列头口径：两者是一条恒等式的两个面，说明放一处防混读 */
-const netHeader = metricHeader('账户净值', [
-  '自有资金口径：账户价值 − 融资余额（acc_aset − diff_br），已按模型盯市修正。',
-  '是真实风险度的分母；组合行 = 各账户之和。现价基准，不随滑块变。'
-]);
-const eqHeader = metricHeader('账户权益', [
-  '客户权益 = 账户净值 + 账户融资（交易所口径，融资已含在内）。',
-  '是交易所风险度的分母；组合行 = 各账户之和。现价基准，不随滑块变。'
-]);
 /**
  * 到档组列头口径（2026-11-13）：全部由 risk_scenario.run() 现算，前端不自算（🔒4.13）。
  * 一条恒等链：net_at = net0 − loss → eq_at = net_at + fin → R = margin_at / net_at、
@@ -237,17 +218,17 @@ const eqHeader = metricHeader('账户权益', [
 const atNetHeader = metricHeader('到档净值', [
   '= 当前盯市基线净值 − 该账户模型盯市亏损（net_at = net0 − loss），即假设价成立后的自有资金。',
   '基线 net0 = acc_aset − diff_br（🔒1.6），再补「模型盯市价 − 系统市值」差额；不含融资。',
-  '是真实风险度的分母；≤ 0 即穿仓。0% 时与「现价基准」组账户净值逐值相等，改价后才分叉。'
+  '是真实风险度的分母；≤ 0 即穿仓。0%（滑块归零）时等于当前净值，改价后才分叉。'
 ]);
 const atEqHeader = metricHeader('到档权益', [
-  '= 到档净值 + 账户融资（diff_br），即券商 / 交易所口径的「客户权益」，融资已含在内；与现价组「账户权益」同口径不同时点，本页列名用「到档权益」区分。',
+  '= 到档净值 + 账户融资（diff_br），即券商 / 交易所口径的「客户权益」，融资已含在内；与 ④ 组合快照的账户权益同口径不同时点，本页列名用「到档权益」区分。',
   '融资是静态账面值、不随假设价变 ⇒ 改价后「到档权益 − 到档净值」恒等于「账户融资」。',
   '是交易所风险度的分母；组合行 ALL = Σ各账户到档权益（后端 _combo 直接给），与「合计保证金 ÷ 组合交易所风险度」同源，不是前端推算。'
 ]);
 const atMarginHeader = metricHeader('到档保证金', [
   '按假设价逐仓重算的占用合计：期货 = |到档市值|×率；期权义务仓按结算价与虚值额逐档重估（CFFEX/IO 15%、ETF 12%、au 15.81%）；证券与期权权利仓 = 0。',
   '保证金是下跌的反向变量：深跌时义务仓占用反而上升，禁止拿现价保证金乘系数估算。',
-  '与「现价基准」组的「当前保证金」时点不同，两者不可相加对账。0% 时逐值相等。'
+  '与 ④ 组合快照的「当前保证金」时点不同，两者不可相加对账；0% 时逐值相等。'
 ]);
 const atMarginDeltaHeader = metricHeader('保证金变化', [
   '= 到档保证金 − 现价基准保证金（0% 情景），正 = 占用增加（红）、负 = 占用减少（绿）。',
@@ -289,8 +270,9 @@ function budgetColor(row: AccountRow): string {
 }
 
 /**
- * 两级分组表头（四组）：账户(静态) / 现价基准 / 当前假设·到档 / 压力与预算。
- * 现价与到档两套净值、权益、保证金、风险度并列 —— 0% 时数值相等，改价后只有到档组变。
+ * 两级分组表头（三组）：账户(静态) / 当前假设·到档 / 压力与预算。
+ * 「现价基准」组（权益 / 净值 / 当前保证金 / 当前风险度 R/E）已于 2026-11-13 按要求删除，
+ * 现价口径统一看 ④ 组合快照 KPI 卡；本表只留到档口径，0% 时数值等于现价、改价后分叉。
  * 分组父列不设 width，scroll-x 按叶子列宽和递归求和（🔒4.11）。
  */
 const columns = computed<DataTableColumns<AccountRow>>(() => [
@@ -316,41 +298,8 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     ]
   },
   {
-    title: '现价基准（不随滑块变）',
-    key: 'g_base',
-    children: [
-      { title: eqHeader, key: 'eq', width: 110, align: 'right' as const, render: (r: AccountRow) => fmtMoney(r.eq) },
-      {
-        title: netHeader,
-        key: 'net',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.net)
-      },
-      {
-        title: '当前保证金',
-        key: 'margin',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.margin)
-      },
-      {
-        title: metricHeader('当前风险度(R/E)', [
-          'R（真实）= 当前保证金 ÷ 账户净值（自有资金口径，分母不含融资）；E（交易所）= 当前保证金 ÷ 账户权益（分母含融资，与券商 / 交易所口径一致）。',
-          'R ≥ 1 表示自有资金不够覆盖保证金、缺口靠融资支撑；追保判定只认 E ≥ 1 或净值 ≤ 0。R ≥ 1 而 E < 1 时券商未必追保，须另行留意。',
-          'R 侧为负或净值 ≤ 0（后端把 real 置 null）⇒ 穿仓，显示「穿仓」标签；E 侧仍给数值（权益含融资，分母可能仍为正）。',
-          '现价基准，不随滑块变；与「到档风险度(R/E)」同口径不同时点。组合行 R = 合计保证金 ÷ 组合净值、E = 合计保证金 ÷ Σ各账户权益。'
-        ]),
-        key: 'real',
-        width: 120,
-        align: 'right' as const,
-        render: (r: AccountRow) => ratioPair(r.real, r.exch, isBusted(r.real, r.net, r.margin))
-      }
-    ]
-  },
-  {
     title: metricHeader('当前假设 · 到档（随滑块变）', [
-      '随左栏假设价每次重算；0% 基准时与「现价基准」组数值相等，改价后才分叉。',
+      '随左栏假设价每次重算；0% 基准（滑块归零）时数值等于现价口径，改价后才分叉。',
       '恒等链：到档净值 = 基线净值 − 模型盯市亏损 → 到档权益 = 到档净值 + 账户融资 → 风险度(R) = 到档保证金 ÷ 净值、风险度(E) = 到档保证金 ÷ 权益；覆盖率(R/E) 分别是两者的倒数。',
       '净值 ≤ 0 即穿仓：风险度(R) 那半边显示「穿仓」标签，不显示负数或「-」；权益 ≤ 0 时风险度(E) 半边显示「-」。组合净值转负时同理。',
       '组合行 ALL 取 combo / baseline_combo：到档权益、覆盖率 R/E、保证金变化均由后端给，前端不自算（🔒4.13）。',
@@ -441,7 +390,7 @@ const scrollX = computed(() => sumWidth(columns.value as unknown as WidthCol[]))
 <template>
   <!--
     2026-11-13 由「账户风险列表」+「分账户风险指标」合并为唯一账户总表：
-    现价与到档两套并列、两级分组表头；点击行切换账户视角（联动压力表 / 逐仓总表 / KPI 卡）。
+    静态 + 到档两组、两级分组表头（现价基准组同日按要求删除）；点击行切换账户视角（联动压力表 / 逐仓总表 / KPI 卡）。
     不写 size（🔒4.7 全站口径）；账户数 <10 不分页、不需要虚拟滚动。
   -->
   <NDataTable

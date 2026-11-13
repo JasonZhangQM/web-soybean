@@ -5,7 +5,8 @@
  * 两路数据按 (账户 + 合约) join，行集实测一一对应（10↔10、键无重复无孤儿、pf_now 零差异）：
  * - board.positions（GET /irs/risk-board）：合约静态列，只在首屏 / IV / 行情更新时变；
  * - sim.position_rows（POST /irs/simulate）：当前假设价的到档列，每次滑块 debounce 重算。
- * 两组列用两级分组表头隔开，避免把「当前保证金」与「到档保证金」读成同一个数。
+ * 两组列用两级分组表头隔开。「当前保证金」列已于 2026-11-13 按要求删除：
+ * 逐仓只保留到档口径（假设价下的占用），现价占用看 ① 账户总表 / ④ 组合快照，不再逐仓重复。
  *
  * 口径全部后端算（🔒4.13）：前端只做 join / 排序 / 展示，不推算任何风险指标。
  * 版式与 ① 账户总表 / ② 档位压力表同构：父页 SectionBar 分节，本组件不套 NCard，
@@ -140,7 +141,10 @@ function renderKind(p: MergedPosition) {
   ]);
 }
 
-/** 保证金效率 = |delta × 名义市值| ÷ 当前保证金；每 1 元保证金换来多少方向敞口，越低越该先平 */
+/**
+ * 保证金效率 = |delta × 名义市值| ÷ 当前保证金；每 1 元保证金换来多少方向敞口，越低越该先平。
+ * 分母仍取 margin_now（表内已不出「当前保证金」列，但该字段照样用于本列的比值）。
+ */
 function renderEfficiency(p: MergedPosition) {
   if (!p.margin_now || p.delta === null) return '—';
   const v = (Math.abs(p.delta) * p.nominal) / p.margin_now;
@@ -221,13 +225,6 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         width: 110,
         align: 'right' as const,
         render: (p: MergedPosition) => pnl(p.pf_now)
-      },
-      {
-        title: '当前保证金',
-        key: 'margin_now',
-        width: 110,
-        align: 'right' as const,
-        render: (p: MergedPosition) => fmtMoney(p.margin_now)
       },
       {
         title: 'IV',
