@@ -41,6 +41,13 @@ export interface SubjectRow {
   pp: TierMap | null;
   /** 距各档 %；不全为 null */
   pv: TierMap | null;
+  /**
+   * 标的项下持仓风险敞口合计（后端派生字段 risk_exposure）：
+   * bills_group_symbol 按归属标的（显式 underlying_symbol 优先）汇总 SUM(risk_exposure)，
+   * 人工确认的静态值，不随行情 / 档位 / 假设价变化；空 = 未设置。
+   * 与标的监测列表页「风险敞口」列、推演返回的 subject_exposure 同源。
+   */
+  risk_exposure: number | null;
   /** 原始监测行：开抽屉 / 编辑等需要完整字段时用 */
   raw: Api.Irs.UnderlyingMonitor;
 }
@@ -75,6 +82,7 @@ export function toSubjectRow(row: Api.Irs.UnderlyingMonitor): SubjectRow {
     pb_pct: numOrNull(row.pb_pct),
     pp: tierMap(row, 'pp'),
     pv: tierMap(row, 'pv'),
+    risk_exposure: numOrNull(row.risk_exposure),
     raw: row
   };
 }

@@ -861,7 +861,7 @@ export function fetchRiskBoard(params?: RiskBoardQueryParams, opts?: { silent?: 
   });
 }
 
-/** 风险看板日终重算并落库（POST /irs/run/risk-board） */
+/** 风险看板日终重算（POST /irs/run/risk-board，2026-11-14 起纯计算不落库） */
 export function runRiskBoard() {
   return request<Api.Irs.RiskBoardRunResult>({
     url: '/api/v1/irs/run/risk-board',

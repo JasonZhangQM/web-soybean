@@ -554,6 +554,11 @@ const sortedItems = computed(() => {
             当前视角 {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
           </NTag>
           <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价</span>
+          <template #actions>
+            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-accs' })">
+              账户汇总
+            </NButton>
+          </template>
         </SectionBar>
         <NAlert v-if="boardError" type="warning" :title="boardError" class="mb-16px" />
         <AccountRiskList
@@ -591,6 +596,11 @@ const sortedItems = computed(() => {
         <SectionBar title="逐仓总表（静态组 + 到档组；按标的敞口聚拢，改价行高亮）">
           <NTag size="tiny" :bordered="false" type="info">当前假设 {{ contractLevelLabel }}</NTag>
           <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价 · 点击合约名跳期权行情</span>
+          <template #actions>
+            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-symbols' })">
+              持仓汇总
+            </NButton>
+          </template>
         </SectionBar>
         <ContractTable
           v-if="board && result && !refreshing"

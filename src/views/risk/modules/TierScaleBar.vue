@@ -9,15 +9,18 @@
  * 渐变色带：绿（极低）→ 琥珀（中）→ 红（极高），渐变停靠点跟随各档实际位置，
  * 颜色与价格语义对齐。低=便宜=绿，高=贵=红。
  *
- * 数字全部直接展示后端透传值：每档下方 = 档位价格（pp）+ 距该档 %（pv，
- * 负 = 档位在现价下方）。不展示「现价 X · 位于低~中」这类冗余文字。
- * 档位挤在一起时标签自动两行交错（按容器实测宽度贪心分行），首尾标签收进容器防出界。
+ * 标签布局（2026-11-14 用户要求）：档名一行在上，档位价 / 距该档 %（pv，负 = 档位在现价
+ * 下方）两行数字在下；三行全部锁死同一水平位置、按刻度百分比居中，**取消两行交错避让**
+ * —— 档位挤在一起时标签横向贴近甚至叠字，靠 hover tooltip 兜底，不再分行。
+ * 标签一律 nowrap：首尾刻度（极低/极高）贴容器边缘，收缩宽度会被钳成 0 导致竖排换行，
+ * nowrap 后允许伸出容器边缘（卡片有内边距兜着）。
+ * 不展示「现价 X · 位于低~中」这类冗余文字。
  *
  * 数据来源已改为 GET /irs/underlying-monitors（今日待办下线），pp/pv 由调用方
  * 用 types.toSubjectRow 归一化成短键映射；纯几何渲染，口径仍是后端的 zone/pv（铁律 4.5）。
  * 数据无效（任一档为空 / 五档非严格递增 / 无现价）由父组件判断，回退旧文案。
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed } from 'vue';
 import { TIER_BANDS, TIER_NAMES, type TierBand, type TierMap } from './types';
 
 const props = defineProps<{
@@ -44,12 +47,6 @@ const TIERS = TIER_BANDS.map(b => ({ band: b, name: TIER_NAMES[b], tone: TONES[b
 /** 渐变停靠色（随各档实际位置布点，绿→琥珀→红） */
 const TIER_COLORS = ['#0F6E56', '#5DCAA5', '#EF9F27', '#F0997B', '#D85A30'];
 
-/** 标签行高 / 盒间最小间隙（防叠字）。盒宽不设常数：按各标签实际字符串估宽
- *  （64px 统一盒比真实文字宽 ~20px，会把「横向明明放得下」的刻度误判重叠踢到第二行，
- *  如 600036 的中刻度） */
-const ROW_H = 18;
-const BOX_GAP = 4;
-
 function num(v: number | null | undefined) {
   return v == null ? null : Number(v);
 }
@@ -57,12 +54,6 @@ function num(v: number | null | undefined) {
 const ppVals = computed(() => TIERS.map(t => num(props.pp?.[t.band])));
 const pvVals = computed(() => TIERS.map(t => num(props.pv?.[t.band])));
 const priceVal = computed(() => num(props.price));
-
-/** 估算标签渲染宽度：CJK 12px/字，数字与符号约 6.6px/字（11~12px 字号），+8px 余量 */
-function estLabelWidth(name: string, priceStr: string, pvStr: string) {
-  const w = (s: string) => [...s].reduce((a, ch) => a + (/[\u4e00-\u9fff]/.test(ch) ? 12 : 6.6), 0);
-  return Math.max(w(name), w(priceStr), w(pvStr)) + 8;
-}
 
 /** 轴域：把现价纳入 [lo, hi]，游标永远在轴内 */
 const axis = computed(() => {
@@ -125,70 +116,27 @@ const zoneIdx = computed(() => {
   return -1;
 });
 
-// ---------------- 标签防重叠：实测容器宽 → 盒钳制 → 两行贪心 ----------------
+// ---------------- 标签布局：三行锁死同一 y，取消交错 ----------------
 
-const barRef = ref<HTMLElement | null>(null);
-const barWidth = ref(0);
-let resizeObs: ResizeObserver | null = null;
+/** 档名 / 档位价 / 距档% 三行的固定 y 与标签区总高（行高 16px + 2px 余量） */
+const NAME_TOP = 0;
+const PRICE_TOP = 18;
+const PV_TOP = 34;
+const LABELS_H = 50;
 
-onMounted(() => {
-  if (!barRef.value) return;
-  resizeObs = new ResizeObserver(entries => {
-    barWidth.value = entries[0]?.contentRect.width ?? 0;
-  });
-  resizeObs.observe(barRef.value);
-});
-onUnmounted(() => {
-  resizeObs?.disconnect();
-  resizeObs = null;
-});
-
-/** 各档标签估宽（随档位价/距档%字符串长度变化） */
-const labelWs = computed(() =>
-  TIERS.map((t, i) => estLabelWidth(t.name, fmtPrice(ppVals.value[i]), fmtPv(pvVals.value[i])))
-);
-
-/** 每档标签盒（px）：一律以刻度为中心（首尾不钳制，允许伸进卡片内边距，
- *  与其他刻度标签对齐方式一致）；盒宽按各自字符串估宽 */
-const labelBoxes = computed(() => {
+/** 档名定位：按刻度百分比居中，单行锁死 NAME_TOP（取消交错后不再需要实测盒宽） */
+function labelNameStyle(i: number) {
   const t = tickPcts.value;
-  if (!t || barWidth.value <= 0) return null;
-  const w = barWidth.value;
-  return t.map((p, i) => {
-    const cx = (p / 100) * w;
-    const hw = labelWs.value[i] / 2;
-    return { left: cx - hw, right: cx + hw };
-  });
-});
+  if (!t) return {};
+  return { left: `${t[i]}%`, transform: 'translateX(-50%)', top: `${NAME_TOP}px` };
+}
 
-/** 两行交错贪心：上一行放不下放下一行，两行都放不下挑剩余空间大的一行 */
-const labelRows = computed(() => {
-  const boxes = labelBoxes.value;
-  if (!boxes) return [0, 0, 0, 0, 0];
-  const rowRight: [number, number] = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
-  return boxes.map(b => {
-    let r: number;
-    if (rowRight[0] + BOX_GAP <= b.left) r = 0;
-    else if (rowRight[1] + BOX_GAP <= b.left) r = 1;
-    else r = rowRight[0] <= rowRight[1] ? 0 : 1;
-    rowRight[r] = b.right;
-    return r;
-  });
-});
-
-const labelsHeight = computed(() => `${labelRows.value.some(r => r === 1) ? 64 : 46}px`);
-
-/** 标签定位：宽度未知时按百分比居中（单行）；已知后按实测盒左缘定位（可交错） */
-function labelStyle(i: number) {
+/** 数字定位：档位价 / 距档% 各占一行、按刻度百分比居中，锁死同一 y */
+function labelNumStyle(i: number, row: 'price' | 'pv') {
   const t = tickPcts.value;
-  if (!t) return { width: `${labelWs.value[i]}px` };
-  const boxes = labelBoxes.value;
-  if (!boxes) return { left: `${t[i]}%`, transform: 'translateX(-50%)', top: '0px', width: `${labelWs.value[i]}px` };
-  return {
-    left: `${boxes[i].left}px`,
-    top: `${labelRows.value[i] * ROW_H}px`,
-    width: `${labelWs.value[i]}px`
-  };
+  const top = row === 'price' ? PRICE_TOP : PV_TOP;
+  if (!t) return { top: `${top}px` };
+  return { left: `${t[i]}%`, transform: 'translateX(-50%)', top: `${top}px` };
 }
 
 /** 价格去尾零（与今日页 fmtPrice 同口径） */
@@ -210,7 +158,7 @@ function fmtPv(v: number | null) {
 </script>
 
 <template>
-  <div ref="barRef" class="mx-14px select-none">
+  <div class="mx-14px select-none">
     <!-- 渐变色带：停靠点在各档实际位置 -->
     <div class="relative h-14px">
       <div class="h-full rounded-4px" :style="{ background: gradientCss }" />
@@ -259,26 +207,36 @@ function fmtPv(v: number | null) {
       </div>
     </div>
 
-    <!-- 五档刻度数字：档名 + 档位价 + 距该档 %（挤在一起时自动两行交错） -->
-    <div class="relative mt-4px" :style="{ height: labelsHeight }">
+    <!-- 五档刻度标签：档名一行在上、数字两行在下，三行锁死同一水平（取消交错，挤时允许叠字） -->
+    <div class="relative mt-4px" :style="{ height: `${LABELS_H}px` }">
       <div
         v-for="(t, i) in TIERS"
-        :key="t.band"
-        class="absolute text-center"
-        :style="labelStyle(i)"
+        :key="`name-${t.band}`"
+        class="absolute whitespace-nowrap text-center text-12px"
+        :class="[
+          i === zoneIdx ? 'font-600' : '',
+          t.tone === 'low' ? 'text-green-600' : t.tone === 'high' ? 'text-red-500' : 'text-amber-500'
+        ]"
+        :style="labelNameStyle(i)"
         :title="`${t.name}：档位价 ${fmtPrice(ppVals[i])}，距该档 ${fmtPv(pvVals[i])}`"
       >
-        <div
-          class="text-12px"
-          :class="[
-            i === zoneIdx ? 'font-600' : '',
-            t.tone === 'low' ? 'text-green-600' : t.tone === 'high' ? 'text-red-500' : 'text-amber-500'
-          ]"
-        >
-          {{ t.name }}
-        </div>
-        <div class="text-11px text-gray-400">{{ fmtPrice(ppVals[i]) }}</div>
-        <div class="text-11px text-gray-400">{{ fmtPv(pvVals[i]) }}</div>
+        {{ t.name }}
+      </div>
+      <div
+        v-for="(t, i) in TIERS"
+        :key="`price-${t.band}`"
+        class="absolute whitespace-nowrap text-center text-11px text-gray-400"
+        :style="labelNumStyle(i, 'price')"
+      >
+        {{ fmtPrice(ppVals[i]) }}
+      </div>
+      <div
+        v-for="(t, i) in TIERS"
+        :key="`pv-${t.band}`"
+        class="absolute whitespace-nowrap text-center text-11px text-gray-400"
+        :style="labelNumStyle(i, 'pv')"
+      >
+        {{ fmtPv(pvVals[i]) }}
       </div>
     </div>
   </div>

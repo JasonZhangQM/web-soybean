@@ -583,7 +583,7 @@ declare namespace Api {
       warnings: string[];
     }
 
-    /** 风险看板重算结果（POST /irs/run/risk-board） */
+    /** 风险看板重算结果（POST /irs/run/risk-board，2026-11-14 起纯计算不落库） */
     interface RiskBoardRunResult {
       /** 执行状态 */
       status: string;
@@ -591,8 +591,6 @@ declare namespace Api {
       engine_ver: string;
       /** 计算日 */
       calc_date: string;
-      /** 写入行数 */
-      rows_upserted: number;
       /** 本次停用的过期合约 */
       disabled_contracts: string[];
       /** 组合净资产 */

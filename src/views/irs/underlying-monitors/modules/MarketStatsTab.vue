@@ -1,18 +1,20 @@
 <script setup lang="ts">
 /**
- * 标的监测抽屉「估值与走势」Tab（2026-11-08）
+ * 标的监测抽屉「估值与走势」Tab（2026-11-08；2026-11-14 估值与走势两图合并）
  *
  * 懒加载：切到本 Tab 才 mount，一次拉 `GET /irs/um-market-stats` 的四块数据。
  * 前端零口径计算——分位、估值序列、累计收益率、回撤、降级百分比全部后端算好，
  * 这里只做染色、格式化和画图（与概览 Tab 的约定一致）。
+ *
+ * 估值序列与累计收益率/回撤合并为一张三轴对照图（ValuationTrendChart）：
+ * 后端 performance 只随区间变、与指标无关，任意指标都带同期走势对照。
  *
  * 无数据标的（GC00Y / SPX 无估值与日频行情）走主表行情字段降级，
  * 明确写成「非累计收益率、非回撤」，不用实时价凑数。
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { fetchUmMarketStats } from '@/service/api';
-import ValuationChart from '@/views/irs/valuation-percent/modules/ValuationChart.vue';
-import PerformanceChart from './PerformanceChart.vue';
+import ValuationTrendChart from './ValuationTrendChart.vue';
 import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingMarketStatsTab' });
@@ -116,16 +118,6 @@ const pctRows = computed(() => {
     status: p.status?.[key] ?? 'ok'
   }));
 });
-
-const valuationSeries = computed<Record<string, (number | null)[]>>(() => {
-  const s = stats.value;
-  return s?.valuation ? { [s.metric]: s.valuation.values } : {};
-});
-const valuationNames = computed<Record<string, string>>(() => {
-  const s = stats.value;
-  return { [s?.metric ?? 'pe_ttm']: s?.metric_label ?? '' };
-});
-const valuationVisible = computed(() => [stats.value?.metric ?? 'pe_ttm']);
 
 const summary = computed(() => stats.value?.performance?.summary ?? null);
 const freshness = computed(() => stats.value?.freshness ?? null);
@@ -240,31 +232,21 @@ const subjectLabel = computed(() => {
           最新估值分位截面缺失（该标的未落盘），分位区不展示；其余数据照常。
         </NAlert>
 
-        <!-- ② 估值数据：原始值序列，不是分位序列 -->
-        <section v-if="stats.valuation" class="mb-16px">
-          <SectionBar :title="`估值数据 · ${stats.metric_label}`">
+        <!-- ②③④ 估值数据 + 累计收益率/回撤：合并为一张三轴对照图，任意指标都带同期走势 -->
+        <section v-if="stats.valuation || stats.performance" class="mb-16px">
+          <SectionBar :title="`估值与走势对照 · ${stats.metric_label}`">
             <span class="text-12px op-60">
-              当前值 {{ fmt(stats.valuation.current, 4) }} · 截至 {{ stats.valuation.as_of ?? '—' }}
+              <template v-if="stats.valuation">
+                当前 {{ stats.metric_label }} {{ fmt(stats.valuation.current, 4) }} · 截至
+                {{ stats.valuation.as_of ?? '—' }} ·
+              </template>
+              <template v-if="stats.performance">
+                {{ summary?.start_date ?? '—' }} ~ {{ summary?.end_date ?? '—' }} ·
+                {{ stats.performance.adjust === 'post' ? '个股后复权价' : '指数不复权点位' }}
+              </template>
             </span>
           </SectionBar>
-          <ValuationChart
-            :dates="stats.valuation.dates"
-            :series="valuationSeries"
-            :names="valuationNames"
-            :visible="valuationVisible"
-            :metric-label="stats.metric_label"
-          />
-        </section>
-
-        <!-- ③④ 累计收益率 + 回撤：同一条价格序列 -->
-        <section v-if="stats.performance" class="mb-16px">
-          <SectionBar title="累计收益率与回撤">
-            <span class="text-12px op-60">
-              {{ summary?.start_date ?? '—' }} ~ {{ summary?.end_date ?? '—' }} ·
-              {{ stats.performance.adjust === 'post' ? '个股后复权价' : '指数不复权点位' }}
-            </span>
-          </SectionBar>
-          <div class="mb-12px grid grid-cols-4 gap-12px">
+          <div v-if="stats.performance" class="mb-12px grid grid-cols-4 gap-12px">
             <div class="rounded-8px p-12px" style="border: 1px solid rgba(128, 128, 128, 0.25)">
               <div class="text-12px op-60">区间累计收益率</div>
               <div class="mt-4px text-18px font-500" :style="{ color: trendColor(summary?.cum_return) }">
@@ -293,12 +275,15 @@ const subjectLabel = computed(() => {
               </div>
             </div>
           </div>
-          <PerformanceChart
-            :dates="stats.performance.dates"
-            :cum-return="stats.performance.cum_return"
-            :drawdown="stats.performance.drawdown"
+          <ValuationTrendChart
+            :metric-label="stats.valuation ? stats.metric_label : null"
+            :val-dates="stats.valuation?.dates ?? []"
+            :val-values="stats.valuation?.values ?? []"
+            :perf-dates="stats.performance?.dates ?? []"
+            :cum-return="stats.performance?.cum_return ?? []"
+            :drawdown="stats.performance?.drawdown ?? []"
           />
-          <div class="mt-8px text-12px op-60">
+          <div v-if="stats.performance" class="mt-8px text-12px op-60">
             首日收盘 {{ fmt(stats.performance.first_close, 4) }} → 末日 {{ fmt(stats.performance.last_close, 4) }}；
             回撤为区间内相对历史峰值，最大回撤是本区间值、不是全史；不补实时价。
           </div>
