@@ -72,7 +72,8 @@ const { domRef, updateOptions } = useEcharts(() => ({
     itemHeight: 8,
     textStyle: { fontSize: 12 }
   },
-  grid: { left: '3%', right: '12%', bottom: '12%', top: '12%', containLabel: true },
+  // right 只给右轴标签留少量边距（containLabel 会再收缩容标签），避免右侧大片留白
+  grid: { left: '3%', right: '1%', bottom: '12%', top: '12%', containLabel: true },
   xAxis: { type: 'category', boundaryGap: false, data: [] as string[] },
   yAxis: [
     { type: 'value', name: '', show: true as boolean, scale: true, splitNumber: 5 },

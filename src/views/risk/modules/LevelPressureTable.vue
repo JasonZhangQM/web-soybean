@@ -16,6 +16,8 @@
  * 保证金结构图的 Δ 盈亏随之联动。组合与账户指标全部后端现算，前端只切视角、
  * 不做任何自算（🔒4.13）—— 双时点 Δ 盈亏也由后端 combo 给（build_levels 的
  * delta_pnl_now / delta_pnl_expiry）。
+ * 2026-11-15：在「到期Δ」后加「到期累计盈亏」= 当前盈亏 + 到期Δ（全部品种），
+ * 与 ① 账户总表 / ③ 逐仓总表同口径；ALL 取该档顶层组合值、单账户取该账户行值。
  *
  * NDataTable 不写 size（🔒4.7）；scroll-x 由列宽和求出（🔒4.11）；
  * th/td 不折行必须写 :deep()（scoped 属性加不到子组件渲染的单元格上）。
@@ -24,6 +26,7 @@ import { computed, h } from 'vue';
 import { NTag } from 'naive-ui';
 import type { DataTableColumns } from 'naive-ui';
 import {
+  CUM_PNL_NOTES,
   coveragePair,
   deltaPnlHeader,
   fmtMoney,
@@ -57,6 +60,8 @@ interface Row {
   /** 即期 / 到期 Δ 盈亏（正=盈），与 ① 账户总表同口径、同后端字段 */
   deltaNow: number;
   deltaExpiry: number;
+  /** 到期累计盈亏 = 当前盈亏 + 到期Δ（按当前视角取组合 / 单账户值）；恒有值 */
+  cumExpiry: number | null;
   /** 到档权益（交易所口径分母）/ 到档净值（真实口径分母） */
   eqAt: number;
   netAt: number;
@@ -76,6 +81,8 @@ interface Src {
   /** 组合层双时点 Δ 盈亏（正=盈）；单账户视角改用该账户自己的两列 */
   deltaNow: number;
   deltaExpiry: number;
+  /** 组合层到期累计盈亏（build_levels 顶层字段）；单账户视角不用它 */
+  cumExpiry: number;
 }
 
 /**
@@ -96,6 +103,7 @@ function makeRow(
       ...ext,
       deltaNow: src.deltaNow,
       deltaExpiry: src.deltaExpiry,
+      cumExpiry: src.cumExpiry,
       eqAt: src.combo.eq_at,
       netAt: src.combo.net_at,
       marginAt: src.combo.margin_total,
@@ -114,6 +122,7 @@ function makeRow(
     ...ext,
     deltaNow: a?.delta_pnl_now ?? 0,
     deltaExpiry: a?.delta_pnl_expiry ?? 0,
+    cumExpiry: a?.cum_pnl_expiry ?? null,
     eqAt: a?.eq_at ?? 0,
     netAt: a?.net_at ?? 0,
     marginAt: a?.margin_at ?? 0,
@@ -137,7 +146,8 @@ const rows = computed<Row[]>(() => {
         combo: bl.combo,
         accounts: bl.accounts,
         deltaNow: bl.delta_pnl_now,
-        deltaExpiry: bl.delta_pnl_expiry
+        deltaExpiry: bl.delta_pnl_expiry,
+        cumExpiry: bl.cum_pnl_expiry
       },
       { subjectCount: null, pctMin: null, pctMax: null }
     )
@@ -153,7 +163,8 @@ const rows = computed<Row[]>(() => {
           combo: lv.combo,
           accounts: lv.accounts,
           deltaNow: lv.delta_pnl_now,
-          deltaExpiry: lv.delta_pnl_expiry
+          deltaExpiry: lv.delta_pnl_expiry,
+          cumExpiry: lv.cum_pnl_expiry
         },
         { subjectCount: lv.subject_count, pctMin: lv.pct_min, pctMax: lv.pct_max }
       )
@@ -191,6 +202,14 @@ function labelCell(r: Row) {
 const DELTA_SCOPE =
   '两列都是相对当前的 Δ（V(S1)−V(S0)），按账户全部持仓统计；组合行 = 各账户之和。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权。⚠️ 现价行到期列不是 0：全组合时间价值衰减即该列数值。';
 
+/** 到期累计盈亏：共用两张总表的口径文案，再补本表特有说明（本表不显示静态「当前盈亏」列） */
+const LEVEL_CUM_PNL_NOTES = [
+  ...CUM_PNL_NOTES,
+  '档位压力表按当前视角取数：ALL = 该档组合当前盈亏 + 本行到期Δ；单账户 = 该账户同式。随档位变，与顶部主时点无关。',
+  '「当前盈亏」已在后端补盯市修正、与到期Δ统一到结算价口径，价源差不再混入累计值；虚值义务仓到期累计即全额实收权利金。',
+  '本表已隐藏静态的「当前盈亏」列，无法在行内直接相加验算；「现价」行到期Δ含全组合时间价值衰减，故累计值不等于当前盈亏。'
+];
+
 const atEqHeader = metricHeader('到档权益', [
   '= 到档净值 + 账户融资（diff_br），即券商 / 交易所口径的「客户权益」，融资已含在内；是交易所风险度(E)的分母。',
   '融资是静态账面值、不随假设价变 ⇒ 改价后「到档权益 − 到档净值」恒等于账户融资。',
@@ -225,7 +244,14 @@ const coverageHeader = metricHeader('覆盖率(R/E)', [
 ]);
 
 const columns = computed<DataTableColumns<Row>>(() => [
-  { title: '档位', key: 'label', width: 100, render: labelCell },
+  {
+    // 2026-11-15 冻结「档位」列：本表是平铺列，顶层直接加 fixed 即可生效
+    title: '档位',
+    key: 'label',
+    width: 100,
+    fixed: 'left' as const,
+    render: labelCell
+  },
   {
     title: '到档幅度区间',
     key: 'pct',
@@ -246,6 +272,14 @@ const columns = computed<DataTableColumns<Row>>(() => [
     width: 110,
     align: 'right' as const,
     render: (r: Row) => pnl(r.deltaExpiry)
+  },
+  {
+    // 2026-11-15：与 ① 账户总表 / ③ 逐仓总表同口径，紧邻到期Δ
+    title: metricHeader('到期累计盈亏', LEVEL_CUM_PNL_NOTES),
+    key: 'cum_pnl_expiry',
+    width: 130,
+    align: 'right' as const,
+    render: (r: Row) => pnl(r.cumExpiry)
   },
   {
     title: atEqHeader,

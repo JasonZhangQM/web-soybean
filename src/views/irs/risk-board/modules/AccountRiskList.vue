@@ -3,14 +3,19 @@
  * 账户总表（/risk 右栏 ①，2026-11-13 合并「账户风险列表」+「分账户风险指标」）
  *
  * 两路数据按账户 join，行集实测一致（board 过滤空账户后 5 个 = sim.accounts 5 个）：
- * - board.accounts / budget（GET /irs/risk-board）：静态列（风险敞口、当前盈亏、可开额度），不随滑块变；
- * - sim.accounts / combo（POST /irs/simulate）：当前假设价的到档指标，每次滑块 debounce 重算。
+ * - board.accounts / budget（GET /irs/risk-board）：静态列（风险敞口、可开额度），不随滑块变；
+ * - sim.accounts / combo（POST /irs/simulate）：到档指标 + 「当前盈亏」（模型盯市口径），每次滑块 debounce 重算。
+ * ⚠️ 2026-11-15 统一价源：「当前盈亏」列优先取 sim 的模型盯市值（含盯市修正），
+ *    board 的账面浮盈只在无 sim 行时兜底；两者差 Σ盯市修正，不可与账单页直接对账。
  * 0% 基准时 net_at=net0、margin_at=margin、eq_at=eq（接口实测），改价后才分叉。
  *
  * 2026-11-13 二次精简（用户要求）：删「账户权益 / 账户净值 / 当前保证金 / 当前风险度(R/E)」四列，
  * 整组「现价基准」退场 —— 现价口径看 ④ 组合快照 KPI 卡，本表只留到档口径，避免同屏两套并列。
  *
  * 保留独有交互：点击行切账户视角（联动②③与 KPI 卡）、组合行 ALL、可开额度。
+ * 2026-11-15 新增「到期累计盈亏」列（紧邻到期Δ）：= 本行当前盈亏 + 到期Δ盈亏，全部品种纳入；
+ * 组合行取后端 combo、不自算（🔒4.13）；口径文案与逐仓总表共用 utils.CUM_PNL_NOTES / PF_NOW_NOTES。
+ * 同日修复：当前盈亏补「盯市修正」与 Δ 统一到结算价口径，虚值义务仓到期累计即实收权利金。
  * 账户列只显示名称，不贴越线标签；档位越线看 ② 压力表的「追保」列，风险高低看风险度着色。
  * 组合行到档值取 combo：到档权益（Σ各账户 eq_at）、覆盖率 R/E、保证金变化
  * 全部由后端 _combo 直接给，前端不自算（🔒4.13）。真实风险度(R) 在净值 ≤ 0 时后端返回 null
@@ -21,6 +26,8 @@
 import { computed, h } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
 import {
+  CUM_PNL_NOTES,
+  PF_NOW_NOTES,
   bindingLabel,
   coveragePair,
   deltaPnlHeader,
@@ -52,6 +59,8 @@ const emit = defineEmits<{ (e: 'select', account: string): void }>();
 interface AtRow {
   delta_pnl_now: number | null;
   delta_pnl_expiry: number | null;
+  /** 到期累计盈亏 = 当前盈亏 + 到期Δ盈亏（全部品种，静态组无 sim 数据时 null） */
+  cum_pnl_expiry: number | null;
   net_at: number | null;
   eq_at: number | null;
   margin_at: number | null;
@@ -73,8 +82,10 @@ interface AccountRow {
   margin: number;
   /** 账户风险敞口（人工确认口径）；null = 未设置 */
   risk_exposure: number | null;
-  /** 账户账面浮盈（bills_group_acc.pf_total） */
+  /** 账户账面浮盈（bills_group_acc.pf_total）；仅无 sim 行时兜底显示 */
   pf_now: number;
+  /** 推演侧模型盯市口径的当前盈亏（含盯市修正）；null = 无 sim 数据 */
+  pf_now_sim: number | null;
   /** 预算卡；组合行为 null */
   budget: Api.Irs.BudgetAccount | null;
   /** 当前假设(到档)指标 */
@@ -83,7 +94,7 @@ interface AccountRow {
 
 /** 账户粒度 Δ 盈亏列头口径（自 index.vue 迁入）；与逐仓粒度的统计范围不同，勿照抄 */
 const SIM_DELTA_SCOPE =
-  '两列都是相对当前的 Δ（V(S1)−V(S0)），按账户全部持仓统计。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权；与「当前盈亏」账面口径基准不同，不可相加对账。组合行为各账户之和。';
+  '两列都是相对当前的 Δ（V(S1)−V(S0)），按账户全部持仓统计。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权；「到期累计盈亏」列按用户口径把本行「当前盈亏」与「到期Δ」相加。组合行为各账户之和。「当前盈亏」已补盯市修正，与本列 Δ 同为结算价/BS 口径。';
 
 /** 列头口径说明：风险敞口 / 覆盖率(R/E)（在「分账户风险指标」原文基础上补了 R/E 两口径） */
 const ACCOUNT_NOTES = {
@@ -104,6 +115,7 @@ function nullAt(): AtRow {
   return {
     delta_pnl_now: null,
     delta_pnl_expiry: null,
+    cum_pnl_expiry: null,
     net_at: null,
     eq_at: null,
     margin_at: null,
@@ -130,6 +142,8 @@ const rows = computed<AccountRow[]>(() => {
   const allAt: AtRow = {
     delta_pnl_now: round2(simAccounts.reduce((s, a) => s + Number(a.delta_pnl_now ?? 0), 0)),
     delta_pnl_expiry: round2(simAccounts.reduce((s, a) => s + Number(a.delta_pnl_expiry ?? 0), 0)),
+    // 组合行取后端 combo（🔒4.13 前端禁自算），与分账户同源 = Σ(当前盈亏 + 到期Δ)
+    cum_pnl_expiry: props.sim.combo.cum_pnl_expiry ?? null,
     net_at: props.sim.combo.net_at,
     eq_at: props.sim.combo.eq_at,
     margin_at: props.sim.combo.margin_total,
@@ -145,6 +159,8 @@ const rows = computed<AccountRow[]>(() => {
     margin: props.board.margin_total,
     risk_exposure: props.board.risk_exposure_total ?? null,
     pf_now: props.board.pf_now_total,
+    // 组合行取后端 combo（🔒4.13 前端禁自算），与分账户同源
+    pf_now_sim: props.sim.combo.pf_now ?? null,
     budget: null,
     at: allAt
   };
@@ -158,6 +174,7 @@ const rows = computed<AccountRow[]>(() => {
         ? {
             delta_pnl_now: s.delta_pnl_now,
             delta_pnl_expiry: s.delta_pnl_expiry,
+            cum_pnl_expiry: s.cum_pnl_expiry ?? null,
             net_at: s.net_at,
             eq_at: s.eq_at,
             margin_at: s.margin_at,
@@ -174,6 +191,7 @@ const rows = computed<AccountRow[]>(() => {
         margin: card.margin,
         risk_exposure: card.risk_exposure ?? null,
         pf_now: card.pf_now,
+        pf_now_sim: s?.pf_now ?? null,
         budget: props.board.budget.accounts[name] ?? null,
         at
       };
@@ -270,17 +288,27 @@ function budgetColor(row: AccountRow): string {
 }
 
 /**
- * 两级分组表头（三组）：账户(静态) / 当前假设·到档 / 压力与预算。
+ * 两级分组表头：顶层冻结列「账户」(跨两行) + 三组（静态指标 / 当前假设·到档 / 压力与预算）。
  * 「现价基准」组（权益 / 净值 / 当前保证金 / 当前风险度 R/E）已于 2026-11-13 按要求删除，
  * 现价口径统一看 ④ 组合快照 KPI 卡；本表只留到档口径，0% 时数值等于现价、改价后分叉。
  * 分组父列不设 width，scroll-x 按叶子列宽和递归求和（🔒4.11）。
+ * 2026-11-15：账户列冻结必须放顶层（naive-ui fixed 只认顶层列），故从静态组提出。
  */
 const columns = computed<DataTableColumns<AccountRow>>(() => [
   {
-    title: '账户(静态)',
+    // 2026-11-15 冻结「账户」列。⚠️ naive-ui 的 fixed 只认顶层列（use-scroll.mjs 的
+    // leftFixedColumnsRef 只 filter props.columns）：写在分组 children 里无效、写在
+    // 父 group 上会把整组冻住 ⇒ 提到顶层，由分组表头自动给 rowSpan=2（跨两行）。
+    title: '账户',
+    key: 'account',
+    width: 60,
+    fixed: 'left' as const,
+    render: (r: AccountRow) => accountCell(r)
+  },
+  {
+    title: '静态指标',
     key: 'g_id',
     children: [
-      { title: '账户', key: 'account', width: 60, render: (r: AccountRow) => accountCell(r) },
       {
         title: metricHeader('风险敞口', ACCOUNT_NOTES.exposure),
         key: 'risk_exposure',
@@ -289,11 +317,12 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
         render: (r: AccountRow) => fmtMoney(r.risk_exposure)
       },
       {
-        title: '当前盈亏',
+        // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
+        title: metricHeader('当前盈亏', PF_NOW_NOTES),
         key: 'pf_now',
         width: 110,
         align: 'right' as const,
-        render: (r: AccountRow) => pnl(r.pf_now)
+        render: (r: AccountRow) => pnl(r.pf_now_sim ?? r.pf_now)
       }
     ]
   },
@@ -303,7 +332,8 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
       '恒等链：到档净值 = 基线净值 − 模型盯市亏损 → 到档权益 = 到档净值 + 账户融资 → 风险度(R) = 到档保证金 ÷ 净值、风险度(E) = 到档保证金 ÷ 权益；覆盖率(R/E) 分别是两者的倒数。',
       '净值 ≤ 0 即穿仓：风险度(R) 那半边显示「穿仓」标签，不显示负数或「-」；权益 ≤ 0 时风险度(E) 半边显示「-」。组合净值转负时同理。',
       '组合行 ALL 取 combo / baseline_combo：到档权益、覆盖率 R/E、保证金变化均由后端给，前端不自算（🔒4.13）。',
-      'Δ 盈亏为模型盯市增量，与「当前盈亏」账面口径不同源，不可相加对账。'
+      'Δ 盈亏为模型盯市增量；「当前盈亏」已补盯市修正、与 Δ 同一价源，故「到期累计盈亏」列可直接把两列相加验算。',
+      '「到期累计盈亏」= 本行当前盈亏 + 到期Δ盈亏，覆盖全部品种、不论有无到期日；随假设价变，与所选主时点无关。'
     ]),
     key: 'g_at',
     children: [
@@ -320,6 +350,14 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
         width: 110,
         align: 'right' as const,
         render: (r: AccountRow) => pnl(r.at.delta_pnl_expiry)
+      },
+      {
+        // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与逐仓表共用
+        title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
+        key: 'cum_pnl_expiry',
+        width: 130,
+        align: 'right' as const,
+        render: (r: AccountRow) => pnl(r.at.cum_pnl_expiry)
       },
       {
         title: atEqHeader,

@@ -6,13 +6,13 @@
  * 五档压力、逐仓明细与组合推演放在同一屏，是风险监控与分析的唯一总入口。
  *
  * 左栏：标的监测行卡片（SubjectCard）+ 假设价滑块；
- * 右栏自上而下四区：① 账户总表 ② 档位压力表 ③ 逐仓总表
- *   ④ 推演区（组合快照 KPI / 保证金结构图 / 组合推演 / 改价小结）。
+ * 右栏自上而下：⓪ 组合快照表（2026-11-15 由 KPI 卡改造，固定在最前）→ ① 账户总表
+ *   ② 档位压力表 ③ 逐仓总表 → ④ 推演区（保证金结构图 / 组合推演 / 改价小结）。
  *
  * ①③ 是 2026-11-13 二次整合后的唯一表：账户风险列表 + 分账户风险指标 → 账户总表，
  * 逐张合约 + 逐仓明细 → 逐仓总表。两表在组件内按「账户」/「账户+合约」join 两路数据，
  * 用两级分组表头把「账户(静态)」与「当前假设·到档（随滑块变）」隔开
- * （账户总表的现价基准列组已于 2026-11-13 删除，现价口径统一看 ④ 组合快照 KPI 卡）。
+ * （账户总表的现价基准列组已于 2026-11-13 删除，现价口径统一看 ⓪ 组合快照表）。
  *
  * 三路数据、各司其职，不互相推算：
  * - GET /irs/risk-board：账户静态卡 / 风险预算 / 逐仓静态列；
@@ -45,11 +45,11 @@ import { type SubjectRow, type TierBand, toSubjectRow } from './modules/types';
 import DetailDrawer from '@/views/irs/underlying-monitors/modules/DetailDrawer.vue';
 /** 右侧各分节的标题栏：直接复用标的监测抽屉档位 Tab 的 SectionBar（灰底横条 + 左色条），样式源唯一 */
 import SectionBar from '@/views/irs/underlying-monitors/modules/SectionBar.vue';
-/** ①③ 两张总表 + ④ KPI / 保证金结构图：原 /irs/risk-board 共享组件目录（旧页面已下线） */
+/** ⓪ 组合快照表 + ①③ 两张总表 + ④ 保证金结构图：原 /irs/risk-board 共享组件目录（旧页面已下线） */
 import AccountRiskList from '@/views/irs/risk-board/modules/AccountRiskList.vue';
 import ContractTable from '@/views/irs/risk-board/modules/ContractTable.vue';
 import MarginStackChart from '@/views/irs/risk-board/modules/MarginStackChart.vue';
-import RiskKpiCards from '@/views/irs/risk-board/modules/RiskKpiCards.vue';
+import PortfolioSnapshotTable from '@/views/irs/risk-board/modules/PortfolioSnapshotTable.vue';
 /** ② 档位压力表：替代旧 11 档涨跌幅情景表 */
 import LevelPressureTable from './modules/LevelPressureTable.vue';
 
@@ -546,9 +546,29 @@ const sortedItems = computed(() => {
         </div>
       </div>
 
-      <!-- 右栏：① 账户总表 → ② 档位压力表 → ③ 逐仓总表 → ④ 推演区 -->
+      <!-- 右栏：⓪ 组合快照表 → ① 账户总表 → ② 档位压力表 → ③ 逐仓总表 → ④ 推演区 -->
       <div class="min-w-0 flex-1 overflow-y-auto">
-        <!-- ① 账户总表：静态 + 到档两组；点击行切换视角，联动 ② ③ 与 KPI 卡 -->
+        <!--
+          ⓪ 组合快照（2026-11-15）：由 6 张 KPI 卡改成表格，固定放在账户总表之前。
+          只吃 GET /irs/risk-board 静态看板数据（追保点取档位口径），不依赖 result
+          ⇒ 推演未就绪 / 失败也常驻显示；随账户视角切换，但不随左栏假设价变化。
+        -->
+        <SectionBar title="组合快照（现价静态，固定在账户总表前）">
+          <NTag size="tiny" :bordered="false" type="info">
+            {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
+          </NTag>
+          <span class="text-12px text-gray-400">现价基准 · 不随假设价变 · 随账户视角切换</span>
+        </SectionBar>
+        <PortfolioSnapshotTable
+          v-if="board"
+          :board="board"
+          :account="query.account"
+          :level-first-call="levels?.first_call_by_account ?? {}"
+          class="mb-16px"
+        />
+        <NEmpty v-else description="组合快照数据准备中…" class="mb-16px" />
+
+        <!-- ① 账户总表：静态 + 到档两组；点击行切换视角，联动 ⓪ ② ③ -->
         <SectionBar title="账户总表（静态 + 到档；点击行切换视角，空账户不列）">
           <NTag size="tiny" :bordered="false" type="info">
             当前视角 {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
@@ -612,21 +632,13 @@ const sortedItems = computed(() => {
         />
         <NEmpty v-else description="逐仓总表数据准备中…" class="mb-16px" />
 
-        <!-- ④ 推演区（组合快照 / 保证金结构 / 组合推演 / 改价小结） -->
+        <!-- ④ 推演区（保证金结构 / 组合推演 / 改价小结）；组合快照已上移到右栏最前 -->
         <NEmpty v-if="simError" :description="simError" class="mt-24px" />
         <template v-else-if="result">
-          <!-- 组合快照 KPI + 保证金结构图（x 轴改为现价 + 五档） -->
-          <SectionBar title="组合快照与保证金结构（现价基准）">
-            <NTag size="tiny" :bordered="false">现价静态快照</NTag>
-            <span class="text-12px text-gray-400">保证金结构 x 轴 = 现价 + 五档，按品种族堆叠</span>
+          <SectionBar title="保证金结构（现价基准）">
+            <NTag size="tiny" :bordered="false">现价 + 五档</NTag>
+            <span class="text-12px text-gray-400">x 轴 = 现价 + 五档，按品种族堆叠</span>
           </SectionBar>
-          <RiskKpiCards
-            v-if="board"
-            :board="board"
-            :account="query.account"
-            :level-first-call="levels?.first_call_by_account ?? {}"
-            class="mb-12px"
-          />
           <MarginStackChart v-if="board && levels" :board="board" mode="sync" :levels="levels" class="mb-16px" />
 
           <!-- 组合推演：与档位 Tab 一样，SectionBar 直接分节、不套卡片 -->

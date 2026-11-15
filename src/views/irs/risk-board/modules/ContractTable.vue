@@ -2,10 +2,14 @@
 /**
  * 逐仓总表（/risk 右栏 ③，2026-11-13 合并「逐张合约」+「逐仓明细」）
  *
- * 两路数据按 (账户 + 合约) join，行集实测一一对应（10↔10、键无重复无孤儿、pf_now 零差异）：
+ * 两路数据按 (账户 + 合约) join，行集实测一一对应（10↔10、键无重复无孤儿）：
  * - board.positions（GET /irs/risk-board）：合约静态列，只在首屏 / IV / 行情更新时变；
  * - sim.position_rows（POST /irs/simulate）：当前假设价的到档列，每次滑块 debounce 重算。
- * 两组列用两级分组表头隔开。「当前保证金」列已于 2026-11-13 按要求删除：
+ * 两组列用两级分组表头隔开。「当前保证金」列已于 2026-11-13 按要求删除；
+ * 2026-11-15 新增「到期累计盈亏」列（紧邻到期Δ）= 本行当前盈亏 + 到期Δ盈亏，全部品种纳入；
+ * 口径文案与账户总表共用 utils.CUM_PNL_NOTES / PF_NOW_NOTES。
+ * 同日统一价源：「当前盈亏」列优先取 sim 的模型盯市值（含盯市修正），board 账面值仅兜底；
+ * 故 join 后两路 pf_now 不再要求相等，差额恰为盯市修正。
  * 逐仓只保留到档口径（假设价下的占用），现价占用看 ① 账户总表 / ④ 组合快照，不再逐仓重复。
  *
  * 口径全部后端算（🔒4.13）：前端只做 join / 排序 / 展示，不推算任何风险指标。
@@ -17,7 +21,7 @@
 import { computed, h } from 'vue';
 import { useRouter } from 'vue-router';
 import type { DataTableColumns } from 'naive-ui';
-import { deltaPnlHeader, fmtMoney, fmtPrice, metricHeader, pnl } from './utils';
+import { CUM_PNL_NOTES, PF_NOW_NOTES, deltaPnlHeader, fmtMoney, fmtPrice, metricHeader, pnl } from './utils';
 
 defineOptions({ name: 'ContractTable' });
 
@@ -42,6 +46,10 @@ interface MergedPosition extends Api.Irs.RiskBoardPosition {
   changed: boolean;
   delta_pnl_now: number | null;
   delta_pnl_expiry: number | null;
+  /** 推演侧模型盯市口径的当前盈亏（含盯市修正）；null = 无 sim 行，回退 board 账面值 */
+  pf_now_sim: number | null;
+  /** 到期累计盈亏 = 当前盈亏 + 到期Δ盈亏（全部品种；静态组无 sim 行时 null） */
+  cum_pnl_expiry: number | null;
   margin_at: number | null;
   margin_delta: number | null;
 }
@@ -50,7 +58,7 @@ const router = useRouter();
 
 /** 逐仓粒度 Δ 盈亏列头口径（自 index.vue 迁入）；与档位 Tab 的「只统计该标的项下持仓」不同，勿照抄 */
 const SIM_POS_DELTA_SCOPE =
-  '两列都是相对当前的 Δ（V(S1)−V(S0)），逐仓按该合约重估值统计。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权；与「当前盈亏」账面口径基准不同，不可相加对账。';
+  '两列都是相对当前的 Δ（V(S1)−V(S0)），逐仓按该合约重估值统计。即期：改价未命中的持仓价格冻结、Δ 恒 0；到期：所有期权（含冻结行）时间价值归零，Δ 也含这部分 ⇒ 只有 Σ即期Δ 可与组合 Δ盈亏对账。证券/期货两列恒等，差异只来自期权；「到期累计盈亏」列按用户口径把本行「当前盈亏」与「到期Δ」相加。「当前盈亏」已补盯市修正，与本列 Δ 同为结算价/BS 口径。';
 
 /**
  * 「单价」列口径（2026-11-13 由「盯市单价」改名）：三类持仓价源与量纲都不同，
@@ -98,6 +106,8 @@ const rows = computed<MergedPosition[]>(() => {
         changed: s?.changed ?? false,
         delta_pnl_now: s?.delta_pnl_now ?? null,
         delta_pnl_expiry: s?.delta_pnl_expiry ?? null,
+        pf_now_sim: s?.pf_now ?? null,
+        cum_pnl_expiry: s?.cum_pnl_expiry ?? null,
         margin_at: s?.margin_at ?? null,
         margin_delta: s?.margin_delta ?? null
       };
@@ -159,38 +169,45 @@ function marginDelta(v: number | null | undefined) {
 }
 
 /**
- * 两级分组表头：静态组（board，不随滑块变）/ 到档组（sim，每次改价重算）。
+ * 两级分组表头：顶层冻结列「标的」「合约」(跨两行) + 静态组（board，不随滑块变）
+ * / 到档组（sim，每次改价重算）。
  * 2026-11-13 调整：标的、风险敞口归位到静态组（都取 board 静态值、不随假设价变），
  * 落位「标的 → 合约 → 风险敞口」；「最大亏损」列删除 —— 与风险敞口同源同值，重复。
  * 同轮再调：删「方向」列（期权多空可由张数正负读出）；「品种 + C/P + 行权价」三列
  * 并成一列「品种」（期权显示「认购 3.900」，C/P 与品种同义、靠配色区分）。
+ * 2026-11-15：标的、合约要冻结 ⇒ 提到顶层（naive-ui fixed 只认顶层列），静态组标题相应改。
  */
 const columns = computed<DataTableColumns<MergedPosition>>(() => [
+  // 2026-11-15 冻结「标的」「合约」。⚠️ naive-ui 的 fixed 只认顶层列（use-scroll.mjs
+  // 的 leftFixedColumnsRef 只 filter props.columns）：写在分组 children 里无效、写在
+  // 父 group 上会把静态组 12 列全冻住 ⇒ 两列提到顶层，分组表头自动给 rowSpan=2。
   {
-    title: '合约与静态（不随滑块变）',
+    title: '标的',
+    key: 'subject',
+    width: 100,
+    fixed: 'left' as const,
+    render: (r: MergedPosition) => r.subject_name || r.subject || '—'
+  },
+  {
+    title: '合约',
+    key: 'symbol',
+    width: 175,
+    fixed: 'left' as const,
+    render: (p: MergedPosition) =>
+      h(
+        'span',
+        {
+          style: 'color: #2080f0; cursor: pointer',
+          title: '去期权行情页同步/查看该合约行情',
+          onClick: goOptionQuote
+        },
+        p.symbol
+      )
+  },
+  {
+    title: '静态（不随滑块变）',
     key: 'g_static',
     children: [
-      {
-        title: '标的',
-        key: 'subject',
-        width: 100,
-        render: (r: MergedPosition) => r.subject_name || r.subject || '—'
-      },
-      {
-        title: '合约',
-        key: 'symbol',
-        width: 175,
-        render: (p: MergedPosition) =>
-          h(
-            'span',
-            {
-              style: 'color: #2080f0; cursor: pointer',
-              title: '去期权行情页同步/查看该合约行情',
-              onClick: goOptionQuote
-            },
-            p.symbol
-          )
-      },
       { title: '账户', key: 'acct', width: 40 },
       { title: '品种', key: 'kind', width: 80, render: (p: MergedPosition) => renderKind(p) },
       {
@@ -220,11 +237,12 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         render: (r: MergedPosition) => fmtMoney(r.risk_exposure)
       },
       {
-        title: '当前盈亏',
+        // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
+        title: metricHeader('当前盈亏', PF_NOW_NOTES),
         key: 'pf_now',
         width: 110,
         align: 'right' as const,
-        render: (p: MergedPosition) => pnl(p.pf_now)
+        render: (p: MergedPosition) => pnl(p.pf_now_sim ?? p.pf_now)
       },
       {
         title: 'IV',
@@ -273,6 +291,14 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         width: 110,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.delta_pnl_expiry)
+      },
+      {
+        // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与账户总表共用
+        title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
+        key: 'cum_pnl_expiry',
+        width: 130,
+        align: 'right' as const,
+        render: (r: MergedPosition) => pnl(r.cum_pnl_expiry)
       },
       {
         title: '到档保证金',

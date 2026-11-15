@@ -627,7 +627,7 @@ declare namespace Api {
       price_at: number | null;
       /** 跌幅（正=下跌）；0 = 冻结 */
       shift: number;
-      /** 账单账面浮盈（静态，不随假设价变化） */
+      /** 当前盈亏 = 账单账面浮盈 + 盯市修正（与模型 Δ 同为结算价/BS 口径）；静态 */
       pf_now: number;
       /** 主时点 Δ 盈亏（= 顶部所选时点，供组合对账） */
       delta_pnl: number;
@@ -635,6 +635,8 @@ declare namespace Api {
       delta_pnl_now: number;
       /** 到期 Δ 盈亏（内在价值口径） */
       delta_pnl_expiry: number;
+      /** /irs/simulate：到期累计盈亏 = 当前盈亏 + 到期Δ盈亏，覆盖全部品种、恒有值 */
+      cum_pnl_expiry?: number;
       margin_at: number;
       margin_delta: number;
       /** 人工确认风险敞口（bills_group，按账户+合约拆分）；null = 未设置 */
@@ -644,7 +646,7 @@ declare namespace Api {
     /** 分账户风险指标（与档位 Tab 的 LevelScenarioAccount 同构，全部由后端现算） */
     interface SimulateAccount {
       account: string;
-      /** 账户层面全部持仓账面浮盈（静态，不随假设价变化） */
+      /** 账户当前盈亏 = 全部持仓账面浮盈 + 盯市修正（与模型 Δ 同源）；静态 */
       pf_now: number;
       /** 账户风险敞口 = bills_group_acc.risk_exposure（人工静态值，含账户全部持仓）；null = 未设置 */
       risk_exposure: number | null;
@@ -654,6 +656,8 @@ declare namespace Api {
       delta_pnl_now: number;
       /** 到期 Δ 盈亏（内在价值口径） */
       delta_pnl_expiry: number;
+      /** /irs/simulate：账户到期累计盈亏 = 该行当前盈亏 + 到期Δ盈亏；档位情景端点不返回 */
+      cum_pnl_expiry?: number;
       /** 到档净值（真实口径分母，扣 diff_br） */
       net_at: number;
       /** 客户权益（交易所口径分母） */
@@ -718,6 +722,10 @@ declare namespace Api {
       /** 交易所口径（保证金/客户权益） */
       exch: number | null;
       loss: number;
+      /** /irs/simulate 的 combo：组合当前盈亏 = Σ分账户（含盯市修正）；baseline_combo / 档位情景不带 */
+      pf_now?: number;
+      /** /irs/simulate 的 combo：到期累计盈亏 = Σ分账户；baseline_combo / 档位情景不带 */
+      cum_pnl_expiry?: number;
     }
 
     /** 标的推演响应（POST /irs/simulate） */
@@ -805,6 +813,8 @@ declare namespace Api {
       delta_pnl_now: number;
       /** 组合层到期 Δ 盈亏（正=盈）= −run(expiry).loss 原值；含全组合时间价值衰减 */
       delta_pnl_expiry: number;
+      /** 组合层到期累计盈亏 = 组合当前盈亏 + 本档到期Δ（全部品种；后端 combo 给） */
+      cum_pnl_expiry: number;
       accounts: SimulateAccount[];
       positions: SimulateLevelPosition[];
     }
@@ -831,6 +841,8 @@ declare namespace Api {
         delta_pnl_now: number;
         /** 现价行到期 Δ = 全组合时间价值衰减（卖期权为正收益，故通常为正数） */
         delta_pnl_expiry: number;
+        /** 现价行到期累计盈亏 = 组合当前盈亏 + 现价到期Δ；与 /irs/simulate 的 combo 相等 */
+        cum_pnl_expiry: number;
       };
       /** 档位口径首个追保：账户 → 首个触发 breached 的档位名；ALL 为组合视角 */
       first_call_by_account: Record<string, string | null>;
