@@ -6,7 +6,7 @@ import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
-import { createTablePagination } from '@/hooks/common/table';
+import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
 defineOptions({ name: 'GoldReservesPage' });
 
@@ -56,7 +56,8 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      pagination.itemCount = data.total;
+      // 无筛选时后端读计数表缓存；缓存缺失/过旧会回落估算并标 ≈
+      setPaginationTotal(pagination, data.total, data.total_is_estimated);
     }
   } finally {
     loading.value = false;

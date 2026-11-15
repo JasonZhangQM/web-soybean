@@ -121,11 +121,11 @@ export function syncHistoryMarketIndex() {
   });
 }
 
-/** 历史行情目标校验参数（监测标的 / 手写清单启动前预览） */
+/** 历史行情目标校验参数（手写清单启动前预览） */
 export interface HistoryTargetsResolveParams {
   /** 待校验的标的代码清单 */
   symbols: string[];
-  /** watch=监测标的 / explicit=手写清单（仅影响提示文案） */
+  /** explicit=手写清单；watch=旧「监测标的」档（前端选项已取消，API 兼容保留）；仅影响提示文案 */
   scope?: 'watch' | 'explicit';
 }
 
@@ -448,7 +448,7 @@ export function startMacroSync(req: MacroSyncRequest = {}) {
 
 /** 批量同步请求体 */
 export interface BatchSyncRequest {
-  /** 同步范围: all/index/industry/explicit/watch */
+  /** 同步范围: all/index/industry/explicit（watch 为旧「监测标的」档，前端选项已取消、API 兼容保留） */
   scope: string;
   /**
    * scope=index 时的指数代码清单（多选）
@@ -459,7 +459,7 @@ export interface BatchSyncRequest {
   index_code?: string;
   /** scope=industry 时填行业名，如 银行 */
   industry?: string;
-  /** scope=explicit 时填手写清单；scope=watch 时填监测标的清单（前端从 irs 取后提交） */
+  /** scope=explicit 时填手写清单；scope=watch（旧档）时填监测标的清单 */
   symbols?: string[];
   /** 要同步的表列表，默认 6 张全跑 */
   tables?: string[];

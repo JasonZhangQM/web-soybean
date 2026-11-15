@@ -39,7 +39,9 @@ defineOptions({ name: 'OptionInfoPage' });
  *    `last_trade_date` 派生，所以两者永远一致。
  *
  * ⚠️ 累积不删：数据源只返回当前挂牌合约，退市的行保留并置 `is_listed=0`。
- * 默认筛选「仅在挂」，要看历史合约得把筛选改成「仅退市」或「全部」。
+ * 默认筛选「仅在挂」，要看历史合约得把筛选改成「仅退市」或「全部」（重置也回到在挂）。
+ * 列表由后端按到期日倒序（日期值从大到小，远月在前）；同一天再按品种/标的/
+ * 类型/行权价分组，末尾 contract_id 兜底保证翻页不跳行。
  */
 
 const message = useMessage();
@@ -57,8 +59,10 @@ const searchParams = reactive<{
   is_listed?: number | null;
   keyword?: string | null;
 }>({
-  // 状态留空 = 全部（在挂+退市）；要看当天合约直接选「在挂」
-  is_listed: null
+  // 默认「在挂」：字典累积不删，2.5 万行里绝大多数是退市合约，首屏先给可交易的。
+  // 清空下拉（null）= 不传后端 = 全部；usePageState 的旧快照会覆盖本默认值，
+  // 刷新浏览器后回到这里（会话记忆只存内存、不落 localStorage）。
+  is_listed: 1
 });
 usePageState({ searchParams, pagination });
 
@@ -241,7 +245,7 @@ async function fetchData() {
       exchange: searchParams.exchange || undefined,
       expire_year_month: searchParams.expire_year_month || undefined,
       cp: searchParams.cp || undefined,
-      // 留空 = 全部（不传后端就不筛）
+      // 默认「在挂」；清空下拉（null）= 全部（不传后端就不筛）
       is_listed: searchParams.is_listed ?? undefined,
       keyword: searchParams.keyword || undefined,
       limit: pagination.pageSize,
@@ -282,7 +286,7 @@ function handleReset() {
   searchParams.exchange = null;
   searchParams.expire_year_month = null;
   searchParams.cp = null;
-  searchParams.is_listed = null;
+  searchParams.is_listed = 1; // 重置回默认口径「在挂」；要看全部得手动清空状态下拉
   searchParams.keyword = null;
   pagination.page = 1;
   fetchData();
@@ -474,7 +478,7 @@ onMounted(() => {
         <b>{{ latest.listed_rows.toLocaleString() }}</b>
         张。
         <b>累积不删</b>
-        ：数据源只返回当前挂牌合约，退市的行保留并标为「已退市」，所以要查历史合约请把「状态」改成「全部」。
+        ：数据源只返回当前挂牌合约，退市的行保留并标为「已退市」，默认只看「在挂」，要查历史合约请把「状态」改成「全部」或「退市」。
         <b>标准码跨标的可能重名</b>
         （ETF 沿用交易所简称口径、不含标的 6 位），务必与「标的」列并看。
         <b>乘数与行权价必须成对</b>

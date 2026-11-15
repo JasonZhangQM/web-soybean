@@ -178,7 +178,7 @@ declare namespace Api {
       invalid: HistoryTargetsResolveItem[];
       /** 重复代码（去重后仅保留首次出现） */
       duplicates: string[];
-      /** 请求侧 scope（watch / explicit） */
+      /** 请求侧 scope（explicit；watch 为旧「监测标的」档兼容保留） */
       scope?: string;
     }
 

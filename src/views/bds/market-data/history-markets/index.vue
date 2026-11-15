@@ -4,7 +4,7 @@ import { fetchHistoryMarkets, fetchSymbolInfos } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
-import { createTablePagination } from '@/hooks/common/table';
+import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
 defineOptions({ name: 'HistoryMarketsPage' });
 
@@ -75,7 +75,9 @@ async function fetchData() {
     });
     if (!error) {
       tableData.value = data.items;
-      pagination.itemCount = data.total;
+      // 与 /daily-mktvalues 同口径：无筛选时后端读 bds_table_stat 缓存（回落估算标 ≈），
+      // 并按 MAX_LIST_OFFSET 截断可达页数，前缀显示「分页仅支持前 50000 条，请用筛选缩小范围」
+      setPaginationTotal(pagination, data.total, data.total_is_estimated);
     }
   } finally {
     loading.value = false;

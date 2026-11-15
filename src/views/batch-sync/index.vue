@@ -9,7 +9,6 @@ import {
   startIndexConstituentSync,
   fetchIndexConstituentSyncStatus,
   syncIndexValuation,
-  fetchUnderlyingMonitors,
   resolveHistoryTargets,
   type BatchSyncRequest,
   type IndexConstituentSyncRequest
@@ -68,15 +67,15 @@ const scopeOptions = [
   { label: '全市场', value: 'all' },
   { label: '指数成分股', value: 'index' },
   { label: '指定行业', value: 'industry' },
-  { label: '手写清单', value: 'explicit' },
-  // 监测标的：清单由前端从 irs.underlying-monitors 取后随 symbols 提交（bds 不跨层读 irs 表）
-  { label: '监测标的', value: 'watch' }
+  { label: '手写清单', value: 'explicit' }
+  // 「监测标的」档 2026-11-15 取消：宏观与基础数据同步的「历史行情」段已在后端
+  // 固定取「A股指数 ∪ 监测标的」去重合集，本卡片不再需要重复提供该范围。
 ];
 
 /**
  * 退市口径（三态）
  * 仅作用于 全市场 / 指数成分股 / 指定行业 三个范围；
- * 手写清单 / 监测标的 = 用户显式意图，系统不做二次过滤（下拉在这两个范围下禁用）
+ * 手写清单 = 用户显式意图，系统不做二次过滤（下拉在该范围下禁用）
  */
 const TRADING_STATUS_OPTIONS = [
   { label: '仅在市', value: 'trading' },
@@ -156,35 +155,13 @@ const starting = ref(false);
 const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
 
-// ===================== 监测标的（scope=watch） =====================
-// 清单来源：irs 的标的监测表，前端取列表后随 symbols 提交；bds 不跨层读 irs 表
-const watchSymbols = ref<string[]>([]);
-const watchLoading = ref(false);
+// ===================== 历史行情目标校验（手写清单） =====================
+
+/** 启动前「校验」按钮的 loading */
 const validating = ref(false);
 
-async function loadWatchSymbols() {
-  watchLoading.value = true;
-  try {
-    // 监测池规模很小（个位数~几十只），一次取满即可
-    const { data, error } = await fetchUnderlyingMonitors({ limit: 500 });
-    if (!error) watchSymbols.value = (data.items ?? []).map(item => item.symbol);
-  } finally {
-    watchLoading.value = false;
-  }
-}
-
-// 切到「监测标的」时按需拉取，避免每次进页面都多打一次 irs 接口
-watch(
-  () => form.scope,
-  scope => {
-    if (scope === 'watch' && watchSymbols.value.length === 0) loadWatchSymbols();
-  },
-  { immediate: true }
-);
-
-/** 校验范围：手写清单取输入串，监测标的取 irs 清单 */
+/** 校验范围：取手写清单输入串 */
 function resolveTargetSymbols() {
-  if (form.scope === 'watch') return [...watchSymbols.value];
   return form.symbols.split(/[\s,，]+/).filter(Boolean);
 }
 
@@ -199,7 +176,7 @@ async function handleValidateTargets() {
   try {
     const { data, error } = await resolveHistoryTargets({
       symbols,
-      scope: form.scope === 'watch' ? 'watch' : 'explicit'
+      scope: 'explicit'
     });
     if (error) {
       message.error(error.message || '校验失败');
@@ -230,6 +207,7 @@ const scopeLabelMap: Record<string, string> = {
   index: '指数成分股',
   industry: '指定行业',
   explicit: '手写清单',
+  // 历史任务/脚本仍可能带 scope=watch（前端选项已取消），保留标签避免进度面板显示裸值
   watch: '监测标的'
 };
 const scopeExtraLabel = computed(() => {
@@ -267,10 +245,6 @@ async function handleStart() {
   }
   if (form.scope === 'explicit' && !form.symbols.trim()) {
     message.warning('请输入股票代码清单');
-    return;
-  }
-  if (form.scope === 'watch' && watchSymbols.value.length === 0) {
-    message.warning('监测标的为空，请先刷新清单');
     return;
   }
   if (form.tables.length === 0) {
@@ -312,10 +286,6 @@ async function handleStart() {
     if (form.scope === 'industry') payload.industry = form.industry;
     if (form.scope === 'explicit') {
       payload.symbols = form.symbols.split(/[\s,，]+/).filter(Boolean);
-    }
-    if (form.scope === 'watch') {
-      // 监测标的：清单来自 irs，后端按「用户显式清单」语义处理（不跨层读表）
-      payload.symbols = [...watchSymbols.value];
     }
     const { data, error } = await startBatchSync(payload);
     if (error) {
@@ -359,10 +329,6 @@ function fillFormFromTask(data: Api.Bds.SyncTask) {
   form.index_codes = parseTaskIndexCodes(p);
   form.industry = (p.industry_name as string) || (p.industry as string) || '';
   form.symbols = Array.isArray(p.symbols) ? (p.symbols as string[]).join(',') : '';
-  // 监测标的的清单不在 form.symbols 里展示，运行中回填到 watchSymbols 供计数/校验使用
-  if (data.scope === 'watch' && Array.isArray(p.symbols)) {
-    watchSymbols.value = p.symbols as string[];
-  }
   if (Array.isArray(data.tables) && data.tables.length > 0) form.tables = data.tables as typeof form.tables;
   form.mark_synced = data.mark_synced === 1;
   form.exclude_synced_since = data.exclude_synced_since ?? null;
@@ -1042,23 +1008,6 @@ onBeforeUnmount(() => {
             校验
           </NButton>
         </NFormItem>
-        <!-- 监测标的：清单由前端从 irs.underlying-monitors 拉取后随 symbols 提交 -->
-        <NFormItem v-if="form.scope === 'watch'" label="监测标的" label-width="70px">
-          <span style="font-size: 13px; color: #666; margin-right: 8px">共 {{ watchSymbols.length }} 只</span>
-          <NButton size="tiny" secondary :loading="watchLoading" :disabled="isRunning" @click="loadWatchSymbols">
-            刷新
-          </NButton>
-          <NButton
-            size="tiny"
-            secondary
-            style="margin-left: 8px"
-            :loading="validating"
-            :disabled="isRunning"
-            @click="handleValidateTargets"
-          >
-            校验
-          </NButton>
-        </NFormItem>
       </NForm>
 
       <!-- 同步表 checkbox -->
@@ -1082,7 +1031,7 @@ onBeforeUnmount(() => {
           <NSelect
             v-model:value="form.trading_status"
             :options="TRADING_STATUS_OPTIONS"
-            :disabled="form.scope === 'explicit' || form.scope === 'watch'"
+            :disabled="form.scope === 'explicit'"
             style="width: 110px"
           />
           <!--
