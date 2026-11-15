@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onBeforeUnmount, computed, watch, h } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, onActivated, onDeactivated, computed, watch, h } from 'vue';
 import { useDialog, useMessage } from 'naive-ui';
 import {
   startBatchSync,
@@ -23,6 +23,15 @@ defineOptions({ name: 'BatchSyncPage' });
 const message = useMessage();
 const dialog = useDialog();
 const bdsStore = useBdsStore();
+
+// ===================== 共用：轮询闸门 =====================
+
+/**
+ * 任务 running 时前端每 3~5s 拉一次 /sync-tasks/{id}。原先只在 onBeforeUnmount
+ * 清定时器：浏览器标签页切到后台、或路由页被 KeepAlive 失活时组件并不销毁，
+ * 于是「人已经不在这一页，接口还在一直刷」。pageActive 是三个定时器共用的闸门。
+ */
+let pageActive = true;
 
 // ===================== 共用：指数下拉 / 行业下拉 =====================
 
@@ -374,7 +383,12 @@ async function loadBatchTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
-      if (NON_BATCH_SCOPES.includes(data.scope)) return;
+      // 已被别的卡片接管（scope 命中排除清单）：本卡片的轮询必须停，
+      // 否则 early return 会跳过下面的 stopPolling()，定时器永远空转刷接口
+      if (NON_BATCH_SCOPES.includes(data.scope)) {
+        stopPolling();
+        return;
+      }
       task.value = data;
 
       // 运行中锁定 form 显示
@@ -390,6 +404,8 @@ async function loadBatchTask(id?: number) {
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(() => {
+    // 页面不可见/组件失活时静默（定时器可能残留，不能只靠卸载清理）
+    if (!pageActive || document.hidden) return;
     if (task.value) loadBatchTask(task.value.id);
   }, 5000);
 }
@@ -570,8 +586,11 @@ async function loadIndexTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
-      // 只接管 index_backfill 的任务
-      if (data.scope !== 'index_backfill') return;
+      // 只接管 index_backfill 的任务；别的 scope 要停掉本卡片轮询，避免空转
+      if (data.scope !== 'index_backfill') {
+        stopIndexPolling();
+        return;
+      }
       indexTask.value = data;
 
       // 运行中回填表单，保证「任务 ↔ 显示」一致
@@ -591,6 +610,7 @@ async function loadIndexTask(id?: number) {
 function startIndexPolling() {
   stopIndexPolling();
   indexPollTimer = setInterval(() => {
+    if (!pageActive || document.hidden) return;
     if (indexTask.value) loadIndexTask(indexTask.value.id);
   }, 5000);
 }
@@ -873,8 +893,11 @@ async function loadValuationTask(id?: number) {
   try {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
-      // 只接管 index_valuation 的任务
-      if (data.scope !== 'index_valuation') return;
+      // 只接管 index_valuation 的任务；别的 scope 要停掉本卡片轮询，避免空转
+      if (data.scope !== 'index_valuation') {
+        stopValuationPolling();
+        return;
+      }
       valuationTask.value = data;
       if (valuationIsRunning.value) fillValuationFormFromTask(data);
       if (!valuationIsRunning.value) stopValuationPolling();
@@ -887,6 +910,7 @@ async function loadValuationTask(id?: number) {
 function startValuationPolling() {
   stopValuationPolling();
   valuationPollTimer = setInterval(() => {
+    if (!pageActive || document.hidden) return;
     if (valuationTask.value) loadValuationTask(valuationTask.value.id);
   }, 3000);
 }
@@ -899,6 +923,45 @@ function stopValuationPolling() {
 }
 
 // ===================== 初始化 =====================
+
+function stopAllPolling() {
+  stopPolling();
+  stopIndexPolling();
+  stopValuationPolling();
+}
+
+/** 回前台/重新激活：先补一次最新状态，仍 running 才重启轮询（任务已结束就不再起定时器） */
+async function resumePolling() {
+  if (task.value && isRunning.value) await loadBatchTask(task.value.id);
+  if (indexTask.value && indexIsRunning.value) await loadIndexTask(indexTask.value.id);
+  if (valuationTask.value && valuationIsRunning.value) await loadValuationTask(valuationTask.value.id);
+  if (task.value && isRunning.value) startPolling();
+  if (indexTask.value && indexIsRunning.value) startIndexPolling();
+  if (valuationTask.value && valuationIsRunning.value) startValuationPolling();
+}
+
+function onVisibilityChange() {
+  // 两个状态分开管：pageActive 只由 (de)activated 维护，可见性只决定停/恢复。
+  // 混在一起会让「失活但窗口仍可见」的页签在别的标签页切换时被误唤醒。
+  if (document.hidden) {
+    stopAllPolling();
+  } else if (pageActive) {
+    void resumePolling();
+  }
+}
+
+document.addEventListener('visibilitychange', onVisibilityChange);
+
+// 路由页被 KeepAlive 缓存时只触发 deactivated，不触发 unmounted
+onActivated(() => {
+  pageActive = true;
+  if (!document.hidden) void resumePolling();
+});
+
+onDeactivated(() => {
+  pageActive = false;
+  stopAllPolling();
+});
 
 onMounted(async () => {
   await bdsStore.loadIndexCodes();
@@ -949,9 +1012,9 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  stopPolling();
-  stopIndexPolling();
-  stopValuationPolling();
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  pageActive = false;
+  stopAllPolling();
 });
 </script>
 

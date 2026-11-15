@@ -611,7 +611,7 @@ const sortedItems = computed(() => {
         <NEmpty v-else description="档位压力计算中…" class="mb-16px" />
 
         <!-- ① 账户总表：13 列平铺一级表头；点击行切换视角，联动 ② ③ -->
-        <SectionBar title="账户总表（列平铺；点击行切换视角，空账户不列）">
+        <SectionBar title="账户总表（点击行切换视角，空账户不列）">
           <NTag size="tiny" :bordered="false" type="info">
             当前视角 {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
           </NTag>
@@ -643,7 +643,7 @@ const sortedItems = computed(() => {
         <NEmpty v-else description="账户总表数据准备中…" class="mb-16px" />
 
         <!-- ③ 逐仓总表：与 ①② 一样用 SectionBar 分节、不套卡片；静态组 board.positions + 到档组 sim.position_rows -->
-        <SectionBar title="逐仓总表（静态组 + 到档组；按标的敞口聚拢，改价行高亮）">
+        <SectionBar title="逐仓总表（按标的敞口聚拢，改价行高亮）">
           <NTag size="tiny" :bordered="false" type="info">当前假设 {{ contractLevelLabel }}</NTag>
           <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价 · 点击合约名跳期权行情</span>
           <template #actions>

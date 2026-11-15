@@ -71,6 +71,7 @@ function stopPolling() {
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(() => {
+    if (document.hidden) return;
     if (task.value) void loadTask(task.value.id);
   }, 3000);
 }
@@ -85,6 +86,9 @@ async function loadTask(id?: number) {
           stopPolling();
           await loadStats();
         }
+      } else if (data && data.scope !== 'um_pct_latest') {
+        // 任务被别的 scope 抢走时别空转刷接口
+        stopPolling();
       }
       return;
     }

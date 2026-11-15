@@ -391,6 +391,7 @@ function stopPolling() {
 function startPolling(taskId: number) {
   stopPolling();
   pollTimer = setInterval(async () => {
+    if (document.hidden) return;
     const { data, error } = await fetchSyncTask(taskId);
     if (error || !data) return;
     syncTask.value = data;

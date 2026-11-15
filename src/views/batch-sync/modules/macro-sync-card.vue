@@ -70,22 +70,25 @@ const STAGE_LINKS: Record<StageKey, string> = {
 };
 
 /**
- * 默认勾选六段。
- * - 不勾「交易日历」：insert_trade_date_em_sql 只在跨年时才真写库，一年手动跑一次足够
- * - 不勾「黄金储备」：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
- *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），默认勾上等于每次启动都白等
- * - 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s；它是「期权行情」的上游
- * - 勾「期权行情」：3 组约 5s，属于每日都要更新的行情数据，代价可接受
- * - 不勾「交易明细导入」：12 步重度流水线（读账单 Excel + 抓实时市值），只在有新账单
+ * 仅手动勾选的三段：页面默认勾选与「全选」都排除（用户 2026-11-15 要求）。
+ * - 交易日历：insert_trade_date_em_sql 只在跨年时才真写库，一年手动跑一次足够
+ * - 交易明细导入：bills 12 步重度流水线（读账单 Excel + 抓实时市值），只在有新账单
  *   入库后按需勾选，避免每日一键同步都白跑一遍全量重算
+ * - 黄金储备：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
+ *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），勾上等于每次启动都白等
+ * 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s，是「期权行情」的上游；
+ * 勾「期权行情」：3 组约 5s，每日都要更新，代价可接受。
  */
-const DEFAULT_STAGES: StageKey[] = ['symbol_info', 'history_market', 'option_info', 'option_market', 'wscn', 'daily'];
+const MANUAL_ONLY_STAGES: StageKey[] = ['trade_date', 'bills_import', 'gold'];
+
+/** 常用六段：页面默认勾选 = 「全选」的结果，单一清单避免两处漂移 */
+const DEFAULT_STAGES: StageKey[] = STAGE_OPTIONS.map(o => o.value).filter(v => !MANUAL_ONLY_STAGES.includes(v));
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 
-/** 全选：勾选全部同步段（全选 = 全部 9 段，默认不勾的交易日历/黄金储备/交易明细导入也包含在内） */
+/** 全选：只勾常用六段；交易日历 / 交易明细导入 / 黄金储备保持不勾，需要时手动点 */
 function selectAllStages() {
-  selectedStages.value = STAGE_OPTIONS.map(o => o.value);
+  selectedStages.value = [...DEFAULT_STAGES];
 }
 
 /** 清空勾选 */
@@ -203,7 +206,10 @@ async function loadTask(id?: number) {
     const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
     if (!error && data) {
       // 只接管本卡片的两类任务：latest 可能返回批量同步/成分股/估值任务，抢过来会把别的卡片挤掉
-      if (data.scope !== 'macro_sync' && data.scope !== 'bills_import') return;
+      if (data.scope !== 'macro_sync' && data.scope !== 'bills_import') {
+        stopPolling();
+        return;
+      }
       task.value = data;
 
       // 运行中用任务参数回填勾选，避免"显示跑了 3 段、勾选只有 2 段"的错位
@@ -230,6 +236,8 @@ async function loadTask(id?: number) {
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(() => {
+    // 后台标签页不刷进度接口（父页失活时组件可能仍存活）
+    if (document.hidden) return;
     if (task.value) loadTask(task.value.id);
   }, 5000);
 }
@@ -349,7 +357,12 @@ onBeforeUnmount(() => {
           </NSpace>
         </div>
       </NCheckboxGroup>
-      <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllStages">全选</NButton>
+      <NTooltip trigger="hover" :style="{ maxWidth: '320px' }">
+        <template #trigger>
+          <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllStages">全选</NButton>
+        </template>
+        全选 = 常用 6 段；交易日历、交易明细导入、黄金储备不勾，需要时手动点选
+      </NTooltip>
       <NButton size="tiny" secondary :disabled="isRunning" @click="clearStages">清空</NButton>
     </div>
 
@@ -357,10 +370,10 @@ onBeforeUnmount(() => {
       固定顺序：交易日历 → 证券信息 → 历史行情 → 期权合约字典 → 期权行情 → 经济指标 → 美债收益率 →
       黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。「历史行情」范围 = 证券信息表
       A股指数 ∪ 标的监测池（运行时读取、去重），个股后复权 /
-      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。后台任务，关页面/刷新不影响执行。默认不勾交易日历（仅跨年才真写库）与黄金储备（IMF
-      接口当前返回 502，勾上会白等约 5.5 分钟且 20 国全失败）。 「交易明细导入」是 bills
+      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。后台任务，关页面/刷新不影响执行。默认勾选与「全选」都只勾常用
+      6 段，不含交易日历（仅跨年才真写库）、黄金储备（IMF 接口当前返回 502，勾上会白等约 5.5 分钟且 20
+      国全失败）与交易明细导入，这三项需要时手动勾选。「交易明细导入」是 bills
       的十二步流水线（任一步失败即终止流水线）；与其他段同时勾选时先跑其余段、结束后自动接跑导入（自动接跑需保持本页打开）。
-      默认不勾交易明细导入：仅在有新账单入库后按需勾选。
     </div>
 
     <!-- 进度面板（与卡片 1 同构） -->
