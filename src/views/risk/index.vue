@@ -5,7 +5,7 @@
  * 页面本体由原「标的推演」(/irs/simulate) 升级而来：它把标的档位、账户风险、
  * 五档压力、逐仓明细与组合推演放在同一屏，是风险监控与分析的唯一总入口。
  *
- * 左栏：标的监测行卡片（SubjectCard）+ 假设价滑块；
+ * 左栏：标的监测行卡片（SubjectCard），档位条即假设价滑块（2026-11-15 合一）；
  * 右栏自上而下（2026-11-15）：② 档位压力表（档位选择唯一入口，先选档）→ ① 账户总表
  *   → ③ 逐仓总表 → ④ 推演区（保证金结构图 / 组合推演 / 改价小结）。
  *   ⓪ 组合快照表同日整节删除（原有行情新鲜度已移到顶栏）；①②③④ 是绑定组件的分节代号、
@@ -24,9 +24,11 @@
  * - POST /irs/simulate/levels：五档档位压力 → 压力表、保证金结构图、档位口径首个追保；
  * - POST /irs/simulate：当前假设价推演 → 组合摘要、改价小结，以及两张总表的到档组。
  *
- * 口径全部后端算（🔒4.13）：前端只做滑块几何、批量套用、join / 排序与 debounce 调度；
- * 请求带序号防竞态。档位选择唯一入口 = ② 档位压力表（含「现价」基准行），
- * 点击整行 = 批量套用该档到左栏滑块（所见即所得）；顶栏不再重复放批量按钮。
+ * 口径全部后端算（🔒4.13）：前端只做档位条几何、批量套用、join / 排序与 debounce 调度；
+ * 请求带序号防竞态。**全标的批量**档位选择唯一入口 = ② 档位压力表（含「现价」基准行），
+ * 点击整行 = 批量套用该档到左栏假设价（所见即所得）；顶栏不再重复放批量按钮。
+ * 单标的改价走卡片：拖色带 / 点五档标签（等价于旧滑块），不新增第二个批量入口；
+ * 无五档版本的标的才在卡片 footer 保留一个降级 NSlider，否则这类标的无法设假设价。
  * IV / 行情变化时三路一起重算、全部就绪后才刷新两张总表，避免静态列与到档列错配。
  */
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
@@ -136,13 +138,21 @@ function tierSeq(it: SubjectRow): number[] {
   return [pp.el, pp.l, pp.m, pp.h, pp.eh].map(v => (v == null ? NaN : Number(v)));
 }
 
-/** 滑块轴域：有五档 = [min(五档,现价)×0.9, max(五档,现价)×1.1]；无五档 = 现价×[0.7,1.3] */
+/**
+ * 降级 NSlider 轴域（2026-11-15 起只服务「无五档版本」分支）：
+ * 同样不留 padding —— 有五档就与主路径档位条同口径 [min(五档,现价), max(五档,现价)]；
+ * 真正无五档时没有任何刻度能界定轴域，只能以现价为中心构造 ±30% 可拖范围
+ * （这不是 padding，否则 lo=hi 滑块完全不能动）。五档全相同导致 hi<=lo 时也退回这一档。
+ * 几何唯一源仍在 TierScaleBar，此处只服务降级控件，不参与主路径。
+ */
 function axisOf(it: SubjectRow) {
   const price = it.price == null ? null : Number(it.price);
   if (price == null || price <= 0) return null;
   const seq = tierSeq(it).filter(v => !Number.isNaN(v) && v > 0);
   if (seq.length === 5) {
-    return { lo: Math.min(...seq, price) * 0.9, hi: Math.max(...seq, price) * 1.1, tiers: seq };
+    const lo = Math.min(...seq, price);
+    const hi = Math.max(...seq, price);
+    if (hi > lo) return { lo, hi, tiers: seq };
   }
   return { lo: price * 0.7, hi: price * 1.3, tiers: [] };
 }
@@ -156,22 +166,15 @@ function stepOf(ax: { lo: number; hi: number } | null) {
   return 0.01;
 }
 
-/** 五档 marks（NSlider marks：{位置值: 标签}；档位价不在轴内跳过） */
-function marksOf(it: SubjectRow) {
-  const ax = axisOf(it);
-  if (!ax || !ax.tiers.length) return undefined;
-  const names = ['极低', '低', '中', '高', '极高'];
-  const marks: Record<number, string> = {};
-  ax.tiers.forEach((v, i) => {
-    if (v >= ax.lo && v <= ax.hi) marks[Number(v.toFixed(2))] = names[i];
-  });
-  return Object.keys(marks).length ? marks : undefined;
-}
+/**
+ * 五档 marks 已删除（2026-11-15）：档位条本身就是带真实刻度位置与档名的轴，
+ * 比 NSlider marks 更精确；降级分支不再重复写一份硬编码档名（统一由 types.TIER_NAMES 管）。
+ */
 
-// ---------------- 档位选择：唯一入口 = ② 档位压力表（顶栏批量按钮 2026-11-13 下线） ----------------
+// --------- 全标的批量档位选择：唯一入口 = ② 压力表（顶栏批量按钮 2026-11-13 下线） ---------
 type BatchKey = 'pp_el' | 'pp_l' | 'pp_m' | 'pp_h' | 'pp_eh' | 'price';
 
-/** 当前生效的批量档位；手动拖滑块 / 单个回现价后置 null（= 自定义组合） */
+/** 当前生效的批量档位；手动拖色带 / 点档位标签 / 单个回现价后置 null（= 自定义组合） */
 const activeBatch = ref<BatchKey | null>(null);
 /** 压力表选中档位：'base' = 现价基准；与 activeBatch 同步，手动改价后退回 base */
 const activeLevel = ref('base');
@@ -215,7 +218,7 @@ function applyBatch(key: BatchKey) {
   activeLevel.value = key === 'price' ? 'base' : BATCH_TO_LEVEL[key];
 }
 
-/** 点击压力表档位行 = 批量把全部滑块套到该档（联动，不做独立预览） */
+/** 点击压力表档位行 = 批量把全部标的假设价套到该档（联动，不做独立预览） */
 function onSelectLevel(key: string) {
   const batch = LEVEL_TO_BATCH[key];
   if (batch) applyBatch(batch);
@@ -446,7 +449,7 @@ function signCls(v: number | null | undefined) {
 }
 
 /** 表格数字格式与列头口径已下沉到两张总表组件；本页摘要卡 / 改价小结仍用本地紧凑格式 */
-/** 假设价读数（滑块下方）：假设 X（±pct%）· 落入 zone_at */
+/** 假设价读数（档位条下方）：假设 X（±pct%）· 落入 zone_at */
 function hypoText(it: SubjectRow) {
   const v = overrides.get(it.symbol);
   if (v == null) return { main: '= 现价', zone: '' };
@@ -546,7 +549,7 @@ const sortedItems = computed(() => {
 
     <!-- 左右两栏 -->
     <div class="min-h-0 flex flex-1 gap-12px">
-      <!-- 左栏：标的卡片 + 滑块（按标的项下持仓敞口合计倒序） -->
+      <!-- 左栏：标的卡片（档位条即滑块；无五档版本才退回独立 NSlider；按敞口倒序） -->
       <div class="w-380px flex-none overflow-y-auto pr-4px">
         <div class="mb-8px text-11px text-gray-400">按标的项下持仓风险敞口合计倒序</div>
         <NEmpty v-if="!items.length && !loading" description="还没有标的监测标的" class="mt-24px" />
@@ -558,25 +561,26 @@ const sortedItems = computed(() => {
             :hypo-price="overrides.get(it.symbol) ?? null"
             :changed="overrides.has(it.symbol)"
             @detail="goDetail(it)"
+            @pick="(v: number) => setHypo(it, v)"
           >
-            <template #footer>
-              <div class="border-t border-gray-100 pt-8px">
-                <NSlider
-                  :value="overrides.get(it.symbol) ?? it.price ?? 0"
-                  :min="axisOf(it)?.lo"
-                  :max="axisOf(it)?.hi"
-                  :step="stepOf(axisOf(it))"
-                  :marks="marksOf(it)"
-                  :tooltip-formatter="(v: number) => fmtPrice(v)"
-                  :disabled="!it.price"
-                  @update:value="(v: number) => setHypo(it, v)"
-                />
-                <div class="mt-6px flex items-center justify-between text-12px">
-                  <span :class="overrides.has(it.symbol) ? 'text-green-500' : 'text-gray-400'">
-                    假设 {{ hypoText(it).main }}{{ hypoText(it).zone }}
-                  </span>
-                  <NButton v-if="overrides.has(it.symbol)" size="tiny" text @click="resetHypo(it)">回现价</NButton>
-                </div>
+            <template #footer="{ tiers }">
+              <!-- 无五档版本：保留独立 NSlider，否则这类标的完全无法设假设价 -->
+              <NSlider
+                v-if="!tiers"
+                :value="overrides.get(it.symbol) ?? it.price ?? 0"
+                :min="axisOf(it)?.lo"
+                :max="axisOf(it)?.hi"
+                :step="stepOf(axisOf(it))"
+                :tooltip-formatter="(v: number) => fmtPrice(v)"
+                :disabled="!it.price"
+                @update:value="(v: number) => setHypo(it, v)"
+              />
+              <!-- 读数行常驻：取代旧的分隔线 + 滑块 + marks 三行，卡片整体更紧凑 -->
+              <div class="flex items-center justify-between text-12px" :class="tiers ? '' : 'mt-6px'">
+                <span :class="overrides.has(it.symbol) ? 'text-green-500' : 'text-gray-400'">
+                  假设 {{ hypoText(it).main }}{{ hypoText(it).zone }}
+                </span>
+                <NButton v-if="overrides.has(it.symbol)" size="tiny" text @click="resetHypo(it)">回现价</NButton>
               </div>
             </template>
           </SubjectCard>
@@ -796,7 +800,7 @@ const sortedItems = computed(() => {
           </div> 
 -->
         </template>
-        <NEmpty v-else description="拖动左侧滑块开始推演" class="mt-48px" />
+        <NEmpty v-else description="拖动左栏档位条开始推演" class="mt-48px" />
       </div>
     </div>
 

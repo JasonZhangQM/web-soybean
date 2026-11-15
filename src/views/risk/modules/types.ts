@@ -71,7 +71,18 @@ function tierMap(row: Api.Irs.UnderlyingMonitor, prefix: 'pp' | 'pv'): TierMap |
   return out;
 }
 
-/** 监测行 → 左栏行；pp/pv 不全时为 null（卡片回退旧文案、滑块退化成现价 ±30%） */
+/**
+ * 档位条可渲染 / 可交互的唯一判据：五档齐全且严格递增、有现价（防手填数据错序）。
+ * 2026-11-15 从 SubjectCard 下沉到此处：卡片决定显示哪条分支、footer 插槽也要据此
+ * 决定「是否保留降级 NSlider」，两处必须同一个判断，不许各写一份。
+ */
+export function tierBarOk(s: SubjectRow): boolean {
+  if (!s.pp || !s.pv || s.price == null) return false;
+  const seq = [s.pp.el, s.pp.l, s.pp.m, s.pp.h, s.pp.eh];
+  return seq.every(v => v != null) && seq.every((v, i) => i === 0 || Number(seq[i - 1]) < Number(v));
+}
+
+/** 监测行 → 左栏行；pp/pv 不全时为 null（卡片回退旧文案、降级滑块退化成现价 ±30%） */
 export function toSubjectRow(row: Api.Irs.UnderlyingMonitor): SubjectRow {
   return {
     symbol: row.symbol,
