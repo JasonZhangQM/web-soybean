@@ -10,16 +10,19 @@
  * 0% 基准时 net_at=net0、margin_at=margin、eq_at=eq（接口实测），改价后才分叉。
  *
  * 2026-11-13 二次精简（用户要求）：删「账户权益 / 账户净值 / 当前保证金 / 当前风险度(R/E)」四列，
- * 整组「现价基准」退场 —— 现价口径看 ④ 组合快照 KPI 卡，本表只留到档口径，避免同屏两套并列。
+ * 整组「现价基准」退场 —— 本表只留到档口径（滑块归零的 0% 基准行即现价口径），避免同屏两套并列。
+ * 2026-11-15 ⓪ 组合快照整节删除，现价口径不再逐账户出列，勿再指向旧 KPI 卡。
  *
- * 保留独有交互：点击行切账户视角（联动②③与 KPI 卡）、组合行 ALL、可开额度。
+ * 保留独有交互：点击行切账户视角（联动②③与左栏）、组合行 ALL、可开额度。
+ * 2026-11-15 列全部平铺为一级表头：三个分组父列取消，原父列的「到档口径」说明移到
+ * /risk 的 ① SectionBar（utils.ACCOUNT_AT_NOTES），列序与列宽不变。
  * 2026-11-15 新增「到期累计盈亏」列（紧邻到期Δ）：= 本行当前盈亏 + 到期Δ盈亏，全部品种纳入；
  * 组合行取后端 combo、不自算（🔒4.13）；口径文案与逐仓总表共用 utils.CUM_PNL_NOTES / PF_NOW_NOTES。
  * 同日修复：当前盈亏补「盯市修正」与 Δ 统一到结算价口径，虚值义务仓到期累计即实收权利金。
  * 账户列只显示名称，不贴越线标签；档位越线看 ② 压力表的「追保」列，风险高低看风险度着色。
  * 组合行到档值取 combo：到档权益（Σ各账户 eq_at）、覆盖率 R/E、保证金变化
  * 全部由后端 _combo 直接给，前端不自算（🔒4.13）。真实风险度(R) 在净值 ≤ 0 时后端返回 null
- * （穿仓只看净值，分母非正不编造负数）⇒ 前端在风险度列的 R 半边改显「穿仓」标签。
+ * （穿仓只看净值，分母非正不编造负数）⇒ 前端风险度列的穿仓标签按 R/E 各自口径独立判断（2026-11-15）。
  *
  * NDataTable 不写 size（🔒4.7）；scroll-x 按叶子列宽和自动求和（🔒4.11）。
  */
@@ -106,7 +109,7 @@ const ACCOUNT_NOTES = {
   coverage: [
     'R（真实）= 该账户到档净值 ÷ 该账户保证金，即自有资金对保证金占用的覆盖倍数；净值为正时恰好是「到档风险度(R)」的倒数。',
     'E（交易所）= 该账户到档权益 ÷ 该账户保证金（分母含融资）；恰好是「到档风险度(E)」的倒数。融资为正时 E > R，两者差额就是融资撑出来的覆盖倍数。',
-    'R ≥ 1 表示自有资金够覆盖占用；<1 表示保证金已超过自有资金。保证金为 0 时两值都显示「-」；净值 ≤0 时 R 会显示 0 或负数，风险度(R)那半边改显示「穿仓」标签。',
+    'R ≥ 1 表示自有资金够覆盖占用；<1 表示保证金已超过自有资金。保证金为 0 时两值都显示「-」；穿仓标志按各自口径独立判断：R 看净值 ≤0 或值为负，E 看权益 ≤0（显示「-」时）或值为负，各自显「穿仓」标签（2026-11-15）。',
     '组合行 R = 组合到档净值 ÷ 合计保证金、E = Σ各账户到档权益 ÷ 合计保证金，与逐账户同式，不是各账户覆盖率的平均。'
   ]
 };
@@ -231,7 +234,7 @@ function accountCell(row: AccountRow) {
  * 一条恒等链：net_at = net0 − loss → eq_at = net_at + fin → R = margin_at / net_at、
  * E = margin_at / eq_at；覆盖率(R/E) 分别是两者的倒数。改价只动 net_at / margin_at，
  * fin 恒定 ⇒ eq_at 与 net_at 同步平移。
- * 净值 ≤ 0 时 R 分母非正：后端把 real 置 null，前端 R 半边显示「穿仓」标签；权益 ≤ 0 时 E 半边显示「-」。
+ * 净值 ≤ 0 时 R 分母非正：后端把 real 置 null，前端 R 半边显「穿仓」标签；权益 ≤ 0 时 E 半边同理（exch 为 null 且已判穿仓 ⇒ 显「穿仓」而非「-」）；融资撑住权益时 E 仍显数值。
  */
 const atNetHeader = metricHeader('到档净值', [
   '= 当前盯市基线净值 − 该账户模型盯市亏损（net_at = net0 − loss），即假设价成立后的自有资金。',
@@ -239,14 +242,14 @@ const atNetHeader = metricHeader('到档净值', [
   '是真实风险度的分母；≤ 0 即穿仓。0%（滑块归零）时等于当前净值，改价后才分叉。'
 ]);
 const atEqHeader = metricHeader('到档权益', [
-  '= 到档净值 + 账户融资（diff_br），即券商 / 交易所口径的「客户权益」，融资已含在内；与 ④ 组合快照的账户权益同口径不同时点，本页列名用「到档权益」区分。',
+  '= 到档净值 + 账户融资（diff_br），即券商 / 交易所口径的「客户权益」，融资已含在内；与现价口径的账户权益同式不同时点，本页列名用「到档权益」区分。',
   '融资是静态账面值、不随假设价变 ⇒ 改价后「到档权益 − 到档净值」恒等于「账户融资」。',
   '是交易所风险度的分母；组合行 ALL = Σ各账户到档权益（后端 _combo 直接给），与「合计保证金 ÷ 组合交易所风险度」同源，不是前端推算。'
 ]);
 const atMarginHeader = metricHeader('到档保证金', [
   '按假设价逐仓重算的占用合计：期货 = |到档市值|×率；期权义务仓按结算价与虚值额逐档重估（CFFEX/IO 15%、ETF 12%、au 15.81%）；证券与期权权利仓 = 0。',
   '保证金是下跌的反向变量：深跌时义务仓占用反而上升，禁止拿现价保证金乘系数估算。',
-  '与 ④ 组合快照的「当前保证金」时点不同，两者不可相加对账；0% 时逐值相等。'
+  '与现价基准保证金（0% 情景）时点不同，两者不可相加对账；0% 时逐值相等。'
 ]);
 const atMarginDeltaHeader = metricHeader('保证金变化', [
   '= 到档保证金 − 现价基准保证金（0% 情景），正 = 占用增加（红）、负 = 占用减少（绿）。',
@@ -260,8 +263,8 @@ const atMarginDeltaHeader = metricHeader('保证金变化', [
 const atRiskHeader = metricHeader('到档风险度(R/E)', [
   'R（真实，左值）= 到档保证金 ÷ 到档净值（自有资金口径，分母不含融资）；E（交易所，右值）= 到档保证金 ÷ 到档权益（分母含融资，与券商 / 交易所口径一致）。',
   '预警看 R：≥ 1 表示自有资金不够覆盖保证金、缺口靠融资支撑；追保判定只认 E ≥ 1 或净值 ≤ 0。R ≥ 1 而 E < 1 时券商未必追保，须另行留意。',
-  'R 侧为负或净值 ≤ 0（后端把 real 置 null）⇒ 穿仓，显示「穿仓」文字标签；此时 E 侧仍可能为正，两半边并列不互相顶替。',
-  '净值为正时 R 是「覆盖率(R/E)」左值的倒数；权益 ≤ 0 时 E 半边显示「-」，组合净值转负时 R 同理显示穿仓，此时看「到档净值」「到档权益」。',
+  '穿仓标志按各自口径独立判断（2026-11-15）：R 半边看净值 ≤ 0（后端把 real 置 null）或值为负；E 半边看权益 ≤ 0（exch 为 null）或值为负。融资撑住权益时 E 仍显示数值，两半边互不顶替。',
+  '净值为正时 R 是「覆盖率(R/E)」左值的倒数；任一半边显「穿仓」时看「到档净值」「到档权益」定位缺口。',
   '组合行：R = 合计保证金 ÷ 组合到档净值；E = 合计保证金 ÷ Σ各账户到档权益，不是各账户风险度的平均。'
 ]);
 
@@ -288,17 +291,14 @@ function budgetColor(row: AccountRow): string {
 }
 
 /**
- * 两级分组表头：顶层冻结列「账户」(跨两行) + 三组（静态指标 / 当前假设·到档 / 压力与预算）。
- * 「现价基准」组（权益 / 净值 / 当前保证金 / 当前风险度 R/E）已于 2026-11-13 按要求删除，
- * 现价口径统一看 ④ 组合快照 KPI 卡；本表只留到档口径，0% 时数值等于现价、改价后分叉。
- * 分组父列不设 width，scroll-x 按叶子列宽和递归求和（🔒4.11）。
- * 2026-11-15：账户列冻结必须放顶层（naive-ui fixed 只认顶层列），故从静态组提出。
+ * 列全部平铺、一级表头（2026-11-15 用户要求）：取消「静态指标 / 当前假设·到档 / 压力与预算」
+ * 三个分组父列，13 个叶子列按原顺序直接排在一层；原分组父列携带的「到档口径」多行说明
+ * 移到 /risk 的 ① SectionBar 问号弹窗（utils.ACCOUNT_AT_NOTES），各列专属口径仍走自己的 metricHeader。
+ * 账户列 fixed:'left' 原本就必须在顶层，平铺后无需改动（naive-ui fixed 只认顶层列）。
+ * scroll-x = 叶子列宽之和（🔒4.11）；列平铺后直接 reduce 求和，不再需要递归。
  */
 const columns = computed<DataTableColumns<AccountRow>>(() => [
   {
-    // 2026-11-15 冻结「账户」列。⚠️ naive-ui 的 fixed 只认顶层列（use-scroll.mjs 的
-    // leftFixedColumnsRef 只 filter props.columns）：写在分组 children 里无效、写在
-    // 父 group 上会把整组冻住 ⇒ 提到顶层，由分组表头自动给 rowSpan=2（跨两行）。
     title: '账户',
     key: 'account',
     width: 60,
@@ -306,129 +306,100 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     render: (r: AccountRow) => accountCell(r)
   },
   {
-    title: '静态指标',
-    key: 'g_id',
-    children: [
-      {
-        title: metricHeader('风险敞口', ACCOUNT_NOTES.exposure),
-        key: 'risk_exposure',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.risk_exposure)
-      },
-      {
-        // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
-        title: metricHeader('当前盈亏', PF_NOW_NOTES),
-        key: 'pf_now',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => pnl(r.pf_now_sim ?? r.pf_now)
-      }
-    ]
+    title: metricHeader('风险敞口', ACCOUNT_NOTES.exposure),
+    key: 'risk_exposure',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => fmtMoney(r.risk_exposure)
   },
   {
-    title: metricHeader('当前假设 · 到档（随滑块变）', [
-      '随左栏假设价每次重算；0% 基准（滑块归零）时数值等于现价口径，改价后才分叉。',
-      '恒等链：到档净值 = 基线净值 − 模型盯市亏损 → 到档权益 = 到档净值 + 账户融资 → 风险度(R) = 到档保证金 ÷ 净值、风险度(E) = 到档保证金 ÷ 权益；覆盖率(R/E) 分别是两者的倒数。',
-      '净值 ≤ 0 即穿仓：风险度(R) 那半边显示「穿仓」标签，不显示负数或「-」；权益 ≤ 0 时风险度(E) 半边显示「-」。组合净值转负时同理。',
-      '组合行 ALL 取 combo / baseline_combo：到档权益、覆盖率 R/E、保证金变化均由后端给，前端不自算（🔒4.13）。',
-      'Δ 盈亏为模型盯市增量；「当前盈亏」已补盯市修正、与 Δ 同一价源，故「到期累计盈亏」列可直接把两列相加验算。',
-      '「到期累计盈亏」= 本行当前盈亏 + 到期Δ盈亏，覆盖全部品种、不论有无到期日；随假设价变，与所选主时点无关。'
-    ]),
-    key: 'g_at',
-    children: [
-      {
-        title: deltaPnlHeader('即期', SIM_DELTA_SCOPE),
-        key: 'delta_pnl_now',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => pnl(r.at.delta_pnl_now)
-      },
-      {
-        title: deltaPnlHeader('到期', SIM_DELTA_SCOPE),
-        key: 'delta_pnl_expiry',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => pnl(r.at.delta_pnl_expiry)
-      },
-      {
-        // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与逐仓表共用
-        title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
-        key: 'cum_pnl_expiry',
-        width: 130,
-        align: 'right' as const,
-        render: (r: AccountRow) => pnl(r.at.cum_pnl_expiry)
-      },
-      {
-        title: atEqHeader,
-        key: 'eq_at',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.at.eq_at)
-      },
-      {
-        title: atNetHeader,
-        key: 'net_at',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.at.net_at)
-      },
-      {
-        title: atMarginHeader,
-        key: 'margin_at',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => fmtMoney(r.at.margin_at)
-      },
-      {
-        title: atMarginDeltaHeader,
-        key: 'margin_delta',
-        width: 110,
-        align: 'right' as const,
-        render: (r: AccountRow) => marginDelta(r.at.margin_delta)
-      },
-      {
-        title: atRiskHeader,
-        key: 'risk_at',
-        width: 120,
-        align: 'right' as const,
-        render: (r: AccountRow) => ratioPair(r.at.real, r.at.exch, isBusted(r.at.real, r.at.net_at, r.at.margin_at))
-      },
-      {
-        title: metricHeader('覆盖率(R/E)', ACCOUNT_NOTES.coverage),
-        key: 'coverage',
-        width: 120,
-        align: 'right' as const,
-        render: (r: AccountRow) => coveragePair(r.at.coverage, r.at.coverage_exch)
-      }
-    ]
+    // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
+    title: metricHeader('当前盈亏', PF_NOW_NOTES),
+    key: 'pf_now',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => pnl(r.pf_now_sim ?? r.pf_now)
   },
   {
-    title: '压力与预算',
-    key: 'g_budget',
-    children: [
-      {
-        title: '可开额度',
-        key: 'budget',
-        width: 220,
-        render: (r: AccountRow) => h('span', { style: { color: budgetColor(r) } }, budgetText(r))
-      }
-    ]
+    title: deltaPnlHeader('即期', SIM_DELTA_SCOPE),
+    key: 'delta_pnl_now',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => pnl(r.at.delta_pnl_now)
+  },
+  {
+    title: deltaPnlHeader('到期', SIM_DELTA_SCOPE),
+    key: 'delta_pnl_expiry',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => pnl(r.at.delta_pnl_expiry)
+  },
+  {
+    // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与逐仓表共用
+    title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
+    key: 'cum_pnl_expiry',
+    width: 130,
+    align: 'right' as const,
+    render: (r: AccountRow) => pnl(r.at.cum_pnl_expiry)
+  },
+  {
+    title: atEqHeader,
+    key: 'eq_at',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => fmtMoney(r.at.eq_at)
+  },
+  {
+    title: atNetHeader,
+    key: 'net_at',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => fmtMoney(r.at.net_at)
+  },
+  {
+    title: atMarginHeader,
+    key: 'margin_at',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => fmtMoney(r.at.margin_at)
+  },
+  {
+    title: atMarginDeltaHeader,
+    key: 'margin_delta',
+    width: 110,
+    align: 'right' as const,
+    render: (r: AccountRow) => marginDelta(r.at.margin_delta)
+  },
+  {
+    title: atRiskHeader,
+    key: 'risk_at',
+    width: 120,
+    align: 'right' as const,
+    render: (r: AccountRow) => ratioPair(r.at.real, r.at.exch, isBusted(r.at.real, r.at.net_at, r.at.margin_at))
+  },
+  {
+    title: metricHeader('覆盖率(R/E)', ACCOUNT_NOTES.coverage),
+    key: 'coverage',
+    width: 120,
+    align: 'right' as const,
+    render: (r: AccountRow) => coveragePair(r.at.coverage, r.at.coverage_exch)
+  },
+  {
+    title: '可开额度',
+    key: 'budget',
+    width: 220,
+    render: (r: AccountRow) => h('span', { style: { color: budgetColor(r) } }, budgetText(r))
   }
 ]);
 
-/** scroll-x = 叶子列宽和：分组表头父列不设 width，递归求和（🔒4.11） */
-type WidthCol = { width?: number; children?: WidthCol[] };
-function sumWidth(cols: WidthCol[]): number {
-  return cols.reduce((s, c) => s + (c.children ? sumWidth(c.children) : Number(c.width ?? 0)), 0);
-}
-const scrollX = computed(() => sumWidth(columns.value as unknown as WidthCol[]));
+const scrollX = computed(() => columns.value.reduce((s, c) => s + Number(c.width ?? 0), 0));
 </script>
 
 <template>
   <!--
-    2026-11-13 由「账户风险列表」+「分账户风险指标」合并为唯一账户总表：
-    静态 + 到档两组、两级分组表头（现价基准组同日按要求删除）；点击行切换账户视角（联动压力表 / 逐仓总表 / KPI 卡）。
+    2026-11-13 由「账户风险列表」+「分账户风险指标」合并为唯一账户总表；
+    2026-11-15 取消分组表头，13 列全部平铺为一级表头（静态列 / 到档列靠列头问号区分）。
+    点击行切换账户视角（联动压力表 / 逐仓总表）。
     不写 size（🔒4.7 全站口径）；账户数 <10 不分页、不需要虚拟滚动。
   -->
   <NDataTable

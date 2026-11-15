@@ -234,11 +234,12 @@ onMounted(async () => {
           </NSpace>
         </NFormItem>
       </NForm>
+      <!-- 说明统一放搜索卡片内（与 /bds/index-valuation、/bds/option-info 同位置），表格区只留数据 -->
+      <div class="mt-8px text-12px" style="color: #999">
+        价格口径：个股为后复权（仅新增行写入，历史行不重刷），指数为不复权。
+      </div>
     </NCard>
     <NCard :bordered="false" class="card-wrapper">
-      <NAlert type="info" :bordered="false" class="mb-12px">
-        价格口径：个股为后复权（仅新增行写入，历史行不重刷），指数为不复权。
-      </NAlert>
       <NDataTable
         :columns="columns"
         :data="tableData"

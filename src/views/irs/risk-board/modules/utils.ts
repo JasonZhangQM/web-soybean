@@ -11,6 +11,20 @@ import { NTooltip } from 'naive-ui';
 const HEADER_STYLE = 'display:inline-flex;align-items:center;gap:4px;white-space:nowrap';
 
 /**
+ * 账户总表「当前假设 · 到档」组口径（2026-11-15 列平铺后分组表头消失）。
+ * 原挂在两级分组父列上，现由 /risk 的 ① SectionBar 统一出「到档口径说明」问号弹窗，
+ * 文案仍只此一份；列平铺后每列的专属口径继续走各自 metricHeader。
+ */
+export const ACCOUNT_AT_NOTES = [
+  '随左栏假设价每次重算；0% 基准（滑块归零）时数值等于现价口径，改价后才分叉。',
+  '恒等链：到档净值 = 基线净值 − 模型盯市亏损 → 到档权益 = 到档净值 + 账户融资 → 风险度(R) = 到档保证金 ÷ 净值、风险度(E) = 到档保证金 ÷ 权益；覆盖率(R/E) 分别是两者的倒数。',
+  '净值 ≤ 0 即穿仓：R 半边显「穿仓」标签；E 半边按自身口径独立判断（权益 ≤ 0 显「穿仓」，融资撑住时仍显数值）。组合行同理。',
+  '组合行 ALL 取 combo / baseline_combo：到档权益、覆盖率 R/E、保证金变化均由后端给，前端不自算（🔒4.13）。',
+  'Δ 盈亏为模型盯市增量；「当前盈亏」已补盯市修正、与 Δ 同一价源，故「到期累计盈亏」列可直接把两列相加验算。',
+  '「到期累计盈亏」= 本行当前盈亏 + 到期Δ盈亏，覆盖全部品种、不论有无到期日；随假设价变，与所选主时点无关。'
+];
+
+/**
  * 「到期累计盈亏」列头口径（2026-11-15 用户定稿，与后端 um_simulate 同式）。
  * 与「到期Δ」并列，直接由本行「当前盈亏」+「到期Δ盈亏」相加；两张总表共用，避免文案漂移。
  */
@@ -19,7 +33,7 @@ export const CUM_PNL_NOTES = [
   '当前盈亏 = 账单账面浮盈 + 盯市修正（模型盯市市值 − 报表市值），与到期Δ同为结算价 / BS 口径（2026-11-15 统一价源）；静态，不随假设价变化。',
   '到期Δ = 撑到到期、按内在价值结算相对当前盯市的增量；证券/期货即价格变动增量，期权还含时间价值归零，故本列随左栏假设价变化。',
   '与顶部主时点选择无关；同一行三列可直接相加验算，Σ逐仓 = Σ分账户 = 组合行（组合值由后端 combo 给）。',
-  '价源统一后本列也等于「到期市值 − 建仓成本」：虚值义务仓到期即全额实收权利金。注意账单页 / 组合快照的账面浮盈仍是收盘价口径，与本表「当前盈亏」相差 Σ盯市修正，两者不可直接对账。'
+  '价源统一后本列也等于「到期市值 − 建仓成本」：虚值义务仓到期即全额实收权利金。注意账单页的账面浮盈仍是收盘价口径，与本表「当前盈亏」相差 Σ盯市修正，两者不可直接对账。'
 ];
 
 /**
@@ -30,7 +44,7 @@ export const PF_NOW_NOTES = [
   '= 账单账面浮盈 + 盯市修正（模型盯市市值 − 报表市值）。模型盯市按结算价 settle→price，报表按收盘价 price→settle，商品期权两者常不等。',
   '盯市修正与净值 _net0 修正、Δ 盈亏基线 v0 完全同源 ⇒ 本列可与「到期Δ」直接相加，累计列等于「到期市值 − 建仓成本」。',
   '静态值，不随左栏假设价或顶部主时点变化；证券 / 期货两条链本就同源，修正恒 0。',
-  '⚠️ 账单页 / 组合快照的账面浮盈仍是收盘价口径，与本列相差 Σ盯市修正，不可直接对账。'
+  '⚠️ 账单页的账面浮盈仍是收盘价口径，与本列相差 Σ盯市修正，不可直接对账。'
 ];
 
 /**
@@ -159,16 +173,21 @@ function sepNode() {
 }
 
 /**
- * 风险度 R/E 并列（账户总表现价组 / 到档组、档位压力表共用）：
+ * 风险度 R/E 并列（账户总表到档组、档位压力表共用）：
  * R 真实着色（预警用真实）、E 交易所着色，各自空值显示 '-'。
- * R 侧判穿仓时改显「穿仓」标签，E 侧仍给数值 —— 权益含融资，净值转负时
- * 交易所口径分母可能仍为正，两半边并列正好把差异摆出来。
+ * 穿仓标志按**各自口径独立判断**（2026-11-15 二次调整）：
+ * - R 半边：busted（到档净值 ≤ 0 且有保证金占用）或值为负 ⇒ 显「穿仓」标签；
+ * - E 半边：值为负，或权益 ≤ 0（后端把 exch 置 null 且账户已判穿仓）⇒ 显「穿仓」标签；
+ *   融资撑住权益（eq > 0）时 E 仍显示数值 —— 两半边各判各的，互不顶替。
  */
 export function ratioPair(real: number | null | undefined, exch: number | null | undefined, busted = false) {
+  const realBusted = busted || (typeof real === 'number' && Number(real) < 0);
+  const exchBusted =
+    (typeof exch === 'number' && Number(exch) < 0) || ((exch === null || exch === undefined) && busted);
   return h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, [
-    busted ? bustedTag() : h('span', { style: { color: levelColor(ratioLevel(real)) } }, fmtRatio(real)),
+    realBusted ? bustedTag() : h('span', { style: { color: levelColor(ratioLevel(real)) } }, fmtRatio(real)),
     sepNode(),
-    h('span', { style: { color: levelColor(ratioLevel(exch)) } }, fmtRatio(exch))
+    exchBusted ? bustedTag() : h('span', { style: { color: levelColor(ratioLevel(exch)) } }, fmtRatio(exch))
   ]);
 }
 
@@ -305,13 +324,4 @@ export function verdictLevel(verdict: string | null | undefined): RiskLevel {
   if (verdict === 'over') return 'hot';
   if (verdict === 'ok') return 'ok';
   return 'none';
-}
-
-/** 预算判定人话 */
-export function verdictLabel(verdict: string | null | undefined, lots: number): string {
-  if (verdict === 'skip') return '不判（无保证金持仓）';
-  if (verdict === 'block') return '禁开新仓';
-  if (lots > 0) return `可开 ${lots} 手`;
-  if (verdict === 'over') return '禁开（品种组超限，可减不可加）';
-  return '禁开（额度不足一手）';
 }

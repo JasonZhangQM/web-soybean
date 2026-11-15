@@ -6,13 +6,18 @@
  * 五档压力、逐仓明细与组合推演放在同一屏，是风险监控与分析的唯一总入口。
  *
  * 左栏：标的监测行卡片（SubjectCard）+ 假设价滑块；
- * 右栏自上而下：⓪ 组合快照表（2026-11-15 由 KPI 卡改造，固定在最前）→ ① 账户总表
- *   ② 档位压力表 ③ 逐仓总表 → ④ 推演区（保证金结构图 / 组合推演 / 改价小结）。
+ * 右栏自上而下（2026-11-15）：② 档位压力表（档位选择唯一入口，先选档）→ ① 账户总表
+ *   → ③ 逐仓总表 → ④ 推演区（保证金结构图 / 组合推演 / 改价小结）。
+ *   ⓪ 组合快照表同日整节删除（原有行情新鲜度已移到顶栏）；①②③④ 是绑定组件的分节代号、
+ *   不随位置变，组件内注释一律沿用这套编号，⓪ 留空号不复用。
  *
  * ①③ 是 2026-11-13 二次整合后的唯一表：账户风险列表 + 分账户风险指标 → 账户总表，
  * 逐张合约 + 逐仓明细 → 逐仓总表。两表在组件内按「账户」/「账户+合约」join 两路数据，
  * 用两级分组表头把「账户(静态)」与「当前假设·到档（随滑块变）」隔开
- * （账户总表的现价基准列组已于 2026-11-13 删除，现价口径统一看 ⓪ 组合快照表）。
+ * （账户总表的现价基准列组已于 2026-11-13 删除；现价口径不再逐账户出列，
+ *   滑块归零的 0% 基准行即现价口径）。
+ * 顶栏固定槽位常驻「行情新鲜度」（2026-11-15 从组合快照表移出，同日该表整节删除），
+ * 看板未就绪也占位，推演失败 / 未算完照样能看到行情快照日与滞后交易日数。
  *
  * 三路数据、各司其职，不互相推算：
  * - GET /irs/risk-board：账户静态卡 / 风险预算 / 逐仓静态列；
@@ -45,13 +50,14 @@ import { type SubjectRow, type TierBand, toSubjectRow } from './modules/types';
 import DetailDrawer from '@/views/irs/underlying-monitors/modules/DetailDrawer.vue';
 /** 右侧各分节的标题栏：直接复用标的监测抽屉档位 Tab 的 SectionBar（灰底横条 + 左色条），样式源唯一 */
 import SectionBar from '@/views/irs/underlying-monitors/modules/SectionBar.vue';
-/** ⓪ 组合快照表 + ①③ 两张总表 + ④ 保证金结构图：原 /irs/risk-board 共享组件目录（旧页面已下线） */
+/** ①③ 两张总表 + ④ 保证金结构图：原 /irs/risk-board 共享组件目录（旧页面已下线） */
 import AccountRiskList from '@/views/irs/risk-board/modules/AccountRiskList.vue';
 import ContractTable from '@/views/irs/risk-board/modules/ContractTable.vue';
 import MarginStackChart from '@/views/irs/risk-board/modules/MarginStackChart.vue';
-import PortfolioSnapshotTable from '@/views/irs/risk-board/modules/PortfolioSnapshotTable.vue';
 /** ② 档位压力表：替代旧 11 档涨跌幅情景表 */
 import LevelPressureTable from './modules/LevelPressureTable.vue';
+/** 顶栏行情新鲜度 + ① 到档口径说明：都来自 risk-board/utils，避免文案另写一份 */
+import { ACCOUNT_AT_NOTES, staleLabel, staleLevel } from '@/views/irs/risk-board/modules/utils';
 
 defineOptions({ name: 'RiskOverviewPage' });
 
@@ -246,6 +252,24 @@ const board = ref<Api.Irs.RiskBoard | null>(null);
 const boardError = ref('');
 const levels = ref<Api.Irs.SimulateLevelsResult | null>(null);
 const levelsError = ref('');
+
+/**
+ * 顶栏固定槽位「行情新鲜度」（2026-11-15）：只读 GET /irs/risk-board 的
+ * stale_days / data_as_of（期权行情快照日），看板未就绪也占住位置显示「—」。
+ * 分档与文案复用 risk-board/utils 的 staleLevel / staleLabel，不另写一套。
+ */
+const staleText = computed(() => (board.value ? staleLabel(board.value.stale_days, board.value.data_as_of) : '—'));
+const staleType = computed<'default' | 'success' | 'warning' | 'error'>(() => {
+  if (!board.value) return 'default';
+  switch (staleLevel(board.value.stale_days)) {
+    case 'ok':
+      return 'success';
+    case 'warn':
+      return 'warning';
+    default:
+      return 'error';
+  }
+});
 
 /** FastAPI 错误体 detail 原样透出（409 行情阻断等） */
 function detailOf(error: unknown): string {
@@ -466,6 +490,19 @@ const sortedItems = computed(() => {
       <NTag size="small" :bordered="false" round>
         {{ changedCount ? `${changedCount} 个标的已改动` : '全部现价（0% 基准）' }}
       </NTag>
+      <!-- 行情新鲜度常驻顶栏：直接取风险看板静态数据，推演未就绪 / 失败也照常显示 -->
+      <NTooltip trigger="hover">
+        <template #trigger>
+          <NTag size="small" :bordered="false" round :type="staleType">行情新鲜度 {{ staleText }}</NTag>
+        </template>
+        <div v-if="board">
+          <div>
+            期权行情快照日 {{ board.data_as_of ?? '—' }} · 计算日 {{ board.calc_date }} · 引擎 {{ board.engine_ver }}
+          </div>
+          <div>0 = 当日，T−1 = 滞后 1 个交易日；滞后请点「标的行情」同步后再看压力推演。</div>
+        </div>
+        <div v-else>风险看板数据加载中…</div>
+      </NTooltip>
       <div class="flex items-center gap-6px text-12px">
         <span class="text-gray-400">IV ×</span>
         <NSlider
@@ -546,52 +583,13 @@ const sortedItems = computed(() => {
         </div>
       </div>
 
-      <!-- 右栏：⓪ 组合快照表 → ① 账户总表 → ② 档位压力表 → ③ 逐仓总表 → ④ 推演区 -->
+      <!-- 右栏：② 档位压力表 → ① 账户总表 → ③ 逐仓总表 → ④ 推演区（⓪ 组合快照 2026-11-15 整节删除） -->
       <div class="min-w-0 flex-1 overflow-y-auto">
         <!--
-          ⓪ 组合快照（2026-11-15）：由 6 张 KPI 卡改成表格，固定放在账户总表之前。
-          只吃 GET /irs/risk-board 静态看板数据（追保点取档位口径），不依赖 result
-          ⇒ 推演未就绪 / 失败也常驻显示；随账户视角切换，但不随左栏假设价变化。
+          ② 档位压力表（2026-11-15 上移到右栏最前）：
+          它是档位选择的唯一入口，先选档再看下面两张总表，操作路径更顺。
+          五档 + 现价基准，点击整行批量套用左栏滑块；编号 ①② 是分节代号、不随位置变。
         -->
-        <SectionBar title="组合快照（现价静态，固定在账户总表前）">
-          <NTag size="tiny" :bordered="false" type="info">
-            {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
-          </NTag>
-          <span class="text-12px text-gray-400">现价基准 · 不随假设价变 · 随账户视角切换</span>
-        </SectionBar>
-        <PortfolioSnapshotTable
-          v-if="board"
-          :board="board"
-          :account="query.account"
-          :level-first-call="levels?.first_call_by_account ?? {}"
-          class="mb-16px"
-        />
-        <NEmpty v-else description="组合快照数据准备中…" class="mb-16px" />
-
-        <!-- ① 账户总表：静态 + 到档两组；点击行切换视角，联动 ⓪ ② ③ -->
-        <SectionBar title="账户总表（静态 + 到档；点击行切换视角，空账户不列）">
-          <NTag size="tiny" :bordered="false" type="info">
-            当前视角 {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
-          </NTag>
-          <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价</span>
-          <template #actions>
-            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-accs' })">
-              账户汇总
-            </NButton>
-          </template>
-        </SectionBar>
-        <NAlert v-if="boardError" type="warning" :title="boardError" class="mb-16px" />
-        <AccountRiskList
-          v-else-if="board && result && !refreshing"
-          :board="board"
-          :account="query.account"
-          :sim="result"
-          class="mb-16px"
-          @select="selectAccount"
-        />
-        <NEmpty v-else description="账户总表数据准备中…" class="mb-16px" />
-
-        <!-- ② 档位压力表：五档 + 现价基准，点击整行批量套用左栏滑块 -->
         <SectionBar title="档位压力表（全标的同步到同一档）">
           <NTag size="tiny" :bordered="false" type="info">{{ levels?.level_order.length ?? 5 }} 档 + 现价基准</NTag>
           <span class="text-12px text-gray-400">引擎 {{ levels?.engine_ver ?? '—' }} · {{ levels?.as_of || '—' }}</span>
@@ -611,6 +609,38 @@ const sortedItems = computed(() => {
           @select="onSelectLevel"
         />
         <NEmpty v-else description="档位压力计算中…" class="mb-16px" />
+
+        <!-- ① 账户总表：13 列平铺一级表头；点击行切换视角，联动 ② ③ -->
+        <SectionBar title="账户总表（列平铺；点击行切换视角，空账户不列）">
+          <NTag size="tiny" :bordered="false" type="info">
+            当前视角 {{ query.account === 'ALL' ? '组合（ALL）' : query.account }}
+          </NTag>
+          <span class="text-12px text-gray-400">静态列不随滑块变 · 到档列跟随左栏假设价</span>
+          <!-- 列平铺后原分组父列消失，其「到档口径」说明改由分节栏问号承载 -->
+          <NTooltip trigger="hover" style="max-width: 420px">
+            <template #trigger>
+              <span class="text-12px text-gray-400" style="cursor: help">到档口径说明 ?</span>
+            </template>
+            <div style="line-height: 1.6">
+              <div v-for="(line, i) in ACCOUNT_AT_NOTES" :key="i">{{ line }}</div>
+            </div>
+          </NTooltip>
+          <template #actions>
+            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-accs' })">
+              账户汇总
+            </NButton>
+          </template>
+        </SectionBar>
+        <NAlert v-if="boardError" type="warning" :title="boardError" class="mb-16px" />
+        <AccountRiskList
+          v-else-if="board && result && !refreshing"
+          :board="board"
+          :account="query.account"
+          :sim="result"
+          class="mb-16px"
+          @select="selectAccount"
+        />
+        <NEmpty v-else description="账户总表数据准备中…" class="mb-16px" />
 
         <!-- ③ 逐仓总表：与 ①② 一样用 SectionBar 分节、不套卡片；静态组 board.positions + 到档组 sim.position_rows -->
         <SectionBar title="逐仓总表（静态组 + 到档组；按标的敞口聚拢，改价行高亮）">
@@ -632,7 +662,7 @@ const sortedItems = computed(() => {
         />
         <NEmpty v-else description="逐仓总表数据准备中…" class="mb-16px" />
 
-        <!-- ④ 推演区（保证金结构 / 组合推演 / 改价小结）；组合快照已上移到右栏最前 -->
+        <!-- ④ 推演区（保证金结构 / 组合推演 / 改价小结）；⓪ 组合快照 2026-11-15 已整节删除 -->
         <NEmpty v-if="simError" :description="simError" class="mt-24px" />
         <template v-else-if="result">
           <SectionBar title="保证金结构（现价基准）">
