@@ -227,6 +227,7 @@ const local: App.I18n.Schema = {
     'iframe-page': '外链页面',
     home: '首页',
     risk: '风险总览',
+    irs_simulate: '风险总览（旧路径）',
     'batch-sync': '批量同步',
     bds: '数据',
     bills: '账单',

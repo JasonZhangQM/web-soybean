@@ -844,8 +844,6 @@ declare namespace Api {
         /** 现价行到期累计盈亏 = 组合当前盈亏 + 现价到期Δ；与 /irs/simulate 的 combo 相等 */
         cum_pnl_expiry: number;
       };
-      /** 档位口径首个追保：账户 → 首个触发 breached 的档位名；ALL 为组合视角 */
-      first_call_by_account: Record<string, string | null>;
       warnings: string[];
     }
 

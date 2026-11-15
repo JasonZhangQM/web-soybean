@@ -8,12 +8,13 @@ export function setupElegantRouter() {
       base: 'src/layouts/base-layout/index.vue',
       blank: 'src/layouts/blank-layout/index.vue'
     },
-    // 注册 irs 多级菜单的父路由名，elegant-router 会自动生成对应的 RouteMap 类型和 routeMap 条目
-    // irs_value → /irs/value
+    // 注册自定义路由名，elegant-router 会自动生成对应的 RouteMap 类型和 routeMap 条目：
+    // irs_value → /irs/value（多级菜单父路由）；irs_simulate → /irs/simulate（旧页面重定向，不生成菜单项）
     customRoutes: {
       map: {
         root: '/',
-        'not-found': '/:pathMatch(.*)*'
+        'not-found': '/:pathMatch(.*)*',
+        irs_simulate: '/irs/simulate'
       },
       names: ['irs_value']
     },

@@ -7,8 +7,23 @@ import { transformElegantRoutesToVueRoutes } from '../elegant/transform';
  * custom routes
  *
  * @link https://github.com/soybeanjs/elegant-router?tab=readme-ov-file#custom-route
+ *
+ * 2026-11-15：/irs/simulate 已升级为顶级页 /risk（风险总览），站内零引用。
+ * 这里留一条纯重定向兼容旧书签 / 外链，避免落到 404；
+ * constant 绕过登录守卫，hideInMenu 避免在菜单里冒出空条目，i18n 里也不必加词条。
  */
-const customRoutes: CustomRoute[] = [];
+const customRoutes: CustomRoute[] = [
+  {
+    name: 'irs_simulate',
+    path: '/irs/simulate',
+    redirect: { name: 'risk' },
+    meta: {
+      title: 'irs_simulate',
+      constant: true,
+      hideInMenu: true
+    }
+  }
+];
 
 /** create routes when the auth route mode is static */
 export function createStaticRoutes() {

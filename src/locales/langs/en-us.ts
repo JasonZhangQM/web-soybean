@@ -231,6 +231,7 @@ const local: App.I18n.Schema = {
     'iframe-page': 'Iframe',
     home: 'Home',
     risk: 'Risk Overview',
+    irs_simulate: 'Risk Overview (legacy)',
     'batch-sync': 'Batch Sync',
     bds: 'Data',
     bills: 'Bills',

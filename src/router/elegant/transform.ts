@@ -163,6 +163,7 @@ function transformElegantRouteToVueRoute(
 const routeMap: RouteMap = {
   "root": "/",
   "not-found": "/:pathMatch(.*)*",
+  "irs_simulate": "/irs/simulate",
   "irs_value": "/irs/value",
   "403": "/403",
   "404": "/404",
