@@ -434,24 +434,39 @@ export function syncAllDailyIndicators() {
 /** 宏观一键同步请求体 */
 export interface MacroSyncRequest {
   /**
-   * 要同步的段（可只选部分）
+   * 要同步的段（必传，可只选部分）
    * - trade_date: 交易日历（仅在跨年时才真写库）
    * - symbol_info: 证券信息（东财 Excel + gm 两条通道）
-   * - history_market: 历史行情（按 Config.INDEX_CODE 逐指数增量）
+   * - history_market: 历史行情（A股指数 ∪ 标的监测池，运行时推导去重合集）
    * - option_info: 期权合约字典（openctp 全量刷新 25,910 行，累积不删）
    * - option_market: 期权行情（按「品种 × 到期月」逐组，范围由「期权同步清单」决定）
+   * - underlying_quote: 标的行情（irs：gm current 刷新监测标的价；注册表注入执行器）
+   * - position_quote: 持仓行情（bills 四步汇总，整段原子；注册表注入执行器）
    * - wscn: 经济指标（华尔街见闻）
    * - daily: 美债收益率（FRED，含 2 项信用利差）
    * - gold: 黄金储备（IMF）
    *
-   * 后端**固定按 trade_date → symbol_info → history_market → option_info → option_market → wscn → daily → gold 顺序执行**，
-   * 与数组顺序无关；不传 ⇔ 前端默认勾选（symbol_info + history_market + option_info + option_market + wscn + daily）
+   * 后端**固定按 trade_date → symbol_info → history_market → option_info → option_market →
+   * underlying_quote → position_quote → wscn → daily → gold 顺序执行**，与数组顺序无关；
+   * 不传 / 空数组会 400「stages 不能为空」。
    *
    * 🔴 option_info 必须排在 option_market **之前**：行情同步要从字典取逐合约乘数与权威
    * 到期日，当天新挂牌的合约若还没进字典就会被跳过。
+   * 🔴 两段行情链紧跟 option_market：吃期权快照更新后的价；进度进 result.stages。
+   * 这两段不报写入行数，用 unit 区分：underlying_quote=更新标的数（symbol）、
+   * position_quote=完成步数（step）。
    */
   stages?: Array<
-    'trade_date' | 'symbol_info' | 'history_market' | 'option_info' | 'option_market' | 'wscn' | 'daily' | 'gold'
+    | 'trade_date'
+    | 'symbol_info'
+    | 'history_market'
+    | 'option_info'
+    | 'option_market'
+    | 'underlying_quote'
+    | 'position_quote'
+    | 'wscn'
+    | 'daily'
+    | 'gold'
   >;
 }
 

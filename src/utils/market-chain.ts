@@ -1,7 +1,7 @@
 import { fetchSyncTask, syncGroup, syncIrs, syncOptionMarket } from '@/service/api';
 
 /**
- * 「一键行情更新」链式编排（2026-11-16 方案 A：纯前端聚合，后端零改动）
+ * 「一键行情更新」链式编排（供 /risk 顶栏与 /bills/group-accs 使用）
  *
  * 三个行情入口原本分散在三处按钮：期权行情（bds 后台任务）、标的行情（irs 同步）、
  * 持仓行情（bills 四步）。持仓估值读 bds_option_market 本地快照 ⇒ 必须按依赖顺序执行：
@@ -9,17 +9,18 @@ import { fetchSyncTask, syncGroup, syncIrs, syncOptionMarket } from '@/service/a
  *   期权行情 → 标的行情 → 持仓行情
  *
  * 顺序颠倒会导致风险看板吃到 T−1 / 混日快照（期权没更新时持仓估值回退旧价）。
- * irs 与 bills 解耦、跨模块能力前端聚合，故编排放在本工具而不是后端。
  *
  * 反馈走全局 window.$message（与 sync-feedback.executeSync 同一套），逐步报进度；
  * 任一步失败立即中断并提示「第 N 步」，no_data（如 gm 终端未启动）不算失败、继续走。
  *
- * 2026-11-16 起另导出 `runQuoteStep()`：把标的 / 持仓两步拆成可被单独调用、可回报
- * 结构化结果的单元，供 /bds/batch-sync 宏观卡片做「独立勾选 + 独立进度」。链式编排
- * 与单步共用同一实现，避免两处口径漂移。
+ * ⚠️ 2026-11-16 起 /bds/batch-sync 宏观卡片已把「标的行情 / 持仓行情」并入
+ *    bds_sync_task 的 macro_sync 十段任务（后端注册表注入执行器，进度写 result.stages，
+ *    刷新页面可恢复）。本工具**不再被该卡片依赖**；这里保留同步 HTTP + 前端编排，
+ *    服务 /risk 与 /bills/group-accs 两个「立即点、立即看」的轻量入口。
+ *    `runQuoteStep()` 因此只被本文件内部的链式编排调用。
  */
 
-/** 前端行情步骤（不进 bds_sync_task：irs / bills 的同步端点是同步 HTTP，不是后台任务） */
+/** 前端行情步骤（本工具的两个入口仍是同步 HTTP；批量同步卡片已改走 bds_sync_task 任务段） */
 export type QuoteStepKey = 'underlying_quote' | 'position_quote';
 
 export interface QuoteStepOutcome {
@@ -145,9 +146,9 @@ async function runSimpleStep(stepNo: number, name: string, key: QuoteStepKey) {
  * - includeOptionMarket = true（默认）：期权行情（后台任务 + 轮询到终态）→ 标的 → 持仓；
  * - includeOptionMarket = false：只跑后两步（期权行情已由别的入口跑完时）。
  *
- * ⚠️ /bds/batch-sync 宏观卡片 2026-11-16 起不再走这条链：两个行情步骤已拆成独立勾选，
- *   改用 `runQuoteStep` 单独执行、自己维护独立进度且失败互不阻断。本函数仍服务
- *   /risk 顶栏「一键行情更新」与 /bills/group-accs，行为保持不变。
+ * ⚠️ /bds/batch-sync 宏观卡片 2026-11-16 起不再依赖本工具：两步已并入 macro_sync
+ *    任务、由后端串行执行，进度统一进「分段摘要」。本函数仍服务 /risk 顶栏
+ *    「一键行情更新」与 /bills/group-accs，行为保持不变。
  *
  * 返回 ok = 是否全部成功；失败时已逐步提示原因，调用方一般只需按 ok 决定刷不刷新。
  */
