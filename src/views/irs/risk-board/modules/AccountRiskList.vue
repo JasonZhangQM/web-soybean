@@ -3,7 +3,7 @@
  * 账户总表（/risk 右栏 ①，2026-11-13 合并「账户风险列表」+「分账户风险指标」）
  *
  * 两路数据按账户 join，行集实测一致（board 过滤空账户后 5 个 = sim.accounts 5 个）：
- * - board.accounts / budget（GET /irs/risk-board）：静态列（风险敞口、可开额度），不随滑块变；
+ * - board.accounts / budget（GET /irs/risk-board）：静态列（风险敞口、防线余缺），不随滑块变；
  * - sim.accounts / combo（POST /irs/simulate）：到档指标 + 「当前盈亏」（模型盯市口径），每次滑块 debounce 重算。
  * ⚠️ 2026-11-15 统一价源：「当前盈亏」列优先取 sim 的模型盯市值（含盯市修正），
  *    board 的账面浮盈只在无 sim 行时兜底；两者差 Σ盯市修正，不可与账单页直接对账。
@@ -13,7 +13,10 @@
  * 整组「现价基准」退场 —— 本表只留到档口径（滑块归零的 0% 基准行即现价口径），避免同屏两套并列。
  * 2026-11-15 ⓪ 组合快照整节删除，现价口径不再逐账户出列，勿再指向旧 KPI 卡。
  *
- * 保留独有交互：点击行切账户视角（联动②③与左栏）、组合行 ALL、可开额度。
+ * 保留独有交互：点击行切账户视角（联动②③与左栏）、组合行 ALL、防线余缺。
+ * 2026-11-16 「可开额度」列替换为「防线(低R/极低E)」（档位锚定双防线，见 BUDGET_NOTES；
+ * 同日多次定稿：防线由中档R/低档E 下调为低档R/极低档E、阈值默认 1、直接显示两个数字版式）：
+ * 旧 gate 体系（总闸/15% 压力档/可开手数）整体下线。
  * 2026-11-15 列全部平铺为一级表头：三个分组父列取消，原父列的「到档口径」说明移到
  * /risk 的 ① SectionBar（utils.ACCOUNT_AT_NOTES），列序与列宽不变。
  * 2026-11-15 新增「到期累计盈亏」列（紧邻到期Δ）：= 本行当前盈亏 + 到期Δ盈亏，全部品种纳入；
@@ -31,7 +34,6 @@ import type { DataTableColumns } from 'naive-ui';
 import {
   CUM_PNL_NOTES,
   PF_NOW_NOTES,
-  bindingLabel,
   coveragePair,
   deltaPnlHeader,
   fmtMoney,
@@ -41,8 +43,7 @@ import {
   marginDelta,
   metricHeader,
   pnl,
-  ratioPair,
-  verdictLevel
+  ratioPair
 } from './utils';
 
 defineOptions({ name: 'AccountRiskList' });
@@ -268,26 +269,49 @@ const atRiskHeader = metricHeader('到档风险度(R/E)', [
   '组合行：R = 合计保证金 ÷ 组合到档净值；E = 合计保证金 ÷ Σ各账户到档权益，不是各账户风险度的平均。'
 ]);
 
-/** 预算行文案。缺口一律注明「压力口径」——那是跌 15% 之后的保证金，与即期缺口差好几倍 */
-function budgetText(row: AccountRow): string {
-  const card = row.budget;
-  if (!card) {
-    const s = props.board.budget.summary;
-    if (s.verdict === 'skip') return '不判（无保证金持仓）';
-    return s.headroom_total !== null && s.headroom_total < 0
-      ? `合计缺口 ${fmtMoneyShort(-s.headroom_total)}（压力口径）`
-      : '额度为正，但单账户均不足一手';
+/**
+ * 防线(低R/极低E)（2026-11-16 替换「可开额度」；同日多次定稿后版式）：
+ * 档位锚定双防线，**直接显示两个数字**（版式同「覆盖率(R/E)」列，用户定稿）：
+ * - 低档防线 R = margin(到低档) ÷ net(到低档) ≤ budget_tier_r；
+ *   极低档防线 E = margin(到极低档) ÷ eq(到极低档) ≤ budget_tier_e；
+ *   情景价 = min(档位价, 现价)（修正锚），引擎与 ② 档位压力表同源（budget.tier_run）。
+ * - 每半边显示值 = 阈值 × 分母 − 到档保证金（= −gap）：**正数 = 余**（剩余保证金空间，绿）、
+ *   **负数 = 缺**（超限保证金，红；需入金 = 缺口 ÷ 阈值）；不判（skip）显「-/-」。
+ * - 组合行取 summary.lines（全组合口径：分母含 skip 账户权益，账户资金可互调；与 ② 压力表
+ *   组合行同一次情景 run，后端统一计算）；前端零计算（🔒4.13）。
+ */
+const BUDGET_NOTES = [
+  '低档防线(R)：全标的各自跌到 min(低档价, 现价) 后，保证金 ÷ 净值（自有资金口径）≤ budget_tier_r；极低档防线(E)：全标的各自跌到 min(极低档价, 现价) 后，保证金 ÷ 客户权益（含融资，交易所追保口径）≤ budget_tier_e。阈值默认 1（用户底线、贴线），irs_risk_param 可配。',
+  '每半边显示值 = 阈值 × 到档分母 − 到档保证金：正数 = 余（还能承载的保证金增量，未扣新开仓自身在情景中的亏损，绿）；负数 = 缺（超限保证金，需入金 = 缺口 ÷ 阈值，入金后风险度恰回阈值，红）。左值低R / 右值极低E；不判（现货-only / 空账户）显「-/-」。',
+  '修正锚：已跌破该档的标的按现价零跌幅计（情景价 = min(档位价, 现价)），防线语义是「从现在再跌到各自档位」；极低档价缺失的标的其持仓在本防线中按现价冻结（保证金照计），后端 warnings 会点名。',
+  '组合行(ALL) = 全组合口径（2026-11-16 用户定稿：账户之间资金可相互调配，skip 账户的权益也进分母——现货权益为杠杆账户兜底），与 ② 档位压力表组合行同式，且低/极低档防线直接复用压力表 l/el 两档的同一次情景 run（后端统一计算，两处不可能不一致）；verdict / 破线账户仍按逐账户判定。',
+  '2026-11-16 起替换旧 gate 体系（total/reserve/15% 压力档/可开手数均下线）；品种组集中度（over）并入 verdict，见顶栏。'
+];
+
+/** 单道防线数字节点：显示 −gap（正=余绿、负=缺红）；无数据显 '-' */
+function lineCell(line: Api.Irs.BudgetLine | undefined) {
+  if (!line || line.gap == null) {
+    return h('span', { style: { color: levelColor('none') } }, '-');
   }
-  if (card.verdict === 'skip') return '不判（无保证金持仓）';
-  if (card.lots > 0) return `可开 ${card.lots} 手（卡在 ${bindingLabel(card.binding, card)}）`;
-  if (card.headroom !== null && card.headroom < 0) return `可开 0 手（压力口径缺口 ${fmtMoneyShort(-card.headroom)}）`;
-  return `可开 0 手（额度 ${fmtMoneyShort(card.headroom)} 不足一手）`;
+  const v = -Number(line.gap);
+  const color = v >= 0 ? levelColor('ok') : levelColor('danger');
+  const text = v > 0 ? `+${fmtMoneyShort(v)}` : fmtMoneyShort(v);
+  return h('span', { style: { color, fontVariantNumeric: 'tabular-nums' } }, text);
 }
 
-/** 预算行配色：block 红 / over 橙 / ok 绿 / 不判灰 */
-function budgetColor(row: AccountRow): string {
-  const v = row.budget ? row.budget.verdict : props.board.budget.summary.verdict;
-  return levelColor(verdictLevel(v));
+/** 防线单元格：账户行取 budget.lines，组合行取 summary.lines；skip 显「-/-」 */
+function budgetCell(row: AccountRow) {
+  const card = row.budget;
+  const verdict = card ? card.verdict : props.board.budget.summary.verdict;
+  const lines = card ? card.lines : props.board.budget.summary.lines;
+  if (verdict === 'skip') {
+    return h('span', { style: { color: levelColor('none') } }, '-/-');
+  }
+  return h('span', { style: { fontVariantNumeric: 'tabular-nums' } }, [
+    lineCell(lines?.r),
+    h('span', { style: { margin: '0 2px', color: '#c0c4cc' } }, '/'),
+    lineCell(lines?.e)
+  ]);
 }
 
 /**
@@ -338,7 +362,7 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与逐仓表共用
     title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
     key: 'cum_pnl_expiry',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: AccountRow) => pnl(r.at.cum_pnl_expiry)
   },
@@ -385,10 +409,12 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     render: (r: AccountRow) => coveragePair(r.at.coverage, r.at.coverage_exch)
   },
   {
-    title: '可开额度',
+    // 2026-11-16：替换「可开额度」——档位锚定双防线（低R / 极低E，数字版式同「覆盖率(R/E)」）
+    title: metricHeader('防线(低R/极低E)', BUDGET_NOTES),
     key: 'budget',
-    width: 220,
-    render: (r: AccountRow) => h('span', { style: { color: budgetColor(r) } }, budgetText(r))
+    width: 120,
+    align: 'right' as const,
+    render: (r: AccountRow) => budgetCell(r)
   }
 ]);
 
@@ -416,7 +442,7 @@ const scrollX = computed(() => columns.value.reduce((s, c) => s + Number(c.width
 
 <style scoped>
 /*
- * 单元格一律不折行：可开额度文案（可开 0 手（压力口径缺口 12.3 万））较长，
+ * 单元格一律不折行：防线(低R/极低E)两个金额数字（-52.0 万 / -73.1 万）不短，
  * 折行会把行高撑成两倍。:deep() 是必须的——th/td 由 NDataTable 子组件渲染，
  * scoped 属性加不到它们身上，直接写类名无效且不报错。
  */
@@ -425,9 +451,21 @@ const scrollX = computed(() => columns.value.reduce((s, c) => s + Number(c.width
   white-space: nowrap;
 }
 
-/* 选中账户行：淡蓝底与卡片时代的描边等义 */
+/*
+ * 选中账户行：淡蓝底与卡片时代的描边等义。
+ *
+ * ⚠️ 只能用 background-image 叠半透明主色，**绝不能写 background-color: rgba(...)**：
+ * 左侧「账户」列是 fixed:'left'（sticky + z-index:2），横向滚动时后面的列会滑到它下面，
+ * 固定列单元格的底色一旦是半透明的，两层文字就会重影。naive-ui 自己给 th/td 的
+ * background-color 是不透明的（--n-merged-td-color，自动适配明暗），保留它就能挡住下层；
+ * global.css 另有一层 .n-data-table-td--fixed-left/right 不透明卡片底兜底。
+ *
+ * 本表用自定义 is-active，不是全局 row-selected：默认高亮的是 ALL 组合行、从未被点击，
+ * 拿不到 global.css 里 .row-selected 那套 !important 兜底 ⇒ 旧写法正是在这一行把不透明
+ * 底色覆盖掉，才出现「固定的组合列与滑动到其下面的其他列重影」（2026-11-16 修）。
+ */
 :deep(.n-data-table-tr.is-active .n-data-table-td) {
-  background-color: rgba(32, 128, 240, 0.1);
+  background-image: linear-gradient(rgba(32, 128, 240, 0.1), rgba(32, 128, 240, 0.1));
 }
 
 .acct-name {

@@ -2,13 +2,7 @@
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  fetchUnderlyingMonitors,
-  createUnderlyingMonitor,
-  updateUnderlyingMonitor,
-  deleteUnderlyingMonitor,
-  syncIrs
-} from '@/service/api';
+import { fetchUnderlyingMonitors, syncIrs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination } from '@/hooks/common/table';
@@ -16,6 +10,8 @@ import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { executeSync } from '@/utils/sync-feedback';
 import { fmtMoney, fmtPrice, metricHeader } from '@/views/irs/risk-board/modules/utils';
 import DetailDrawer from './modules/DetailDrawer.vue';
+/** 新增/编辑抽屉：2026-11-16 从本页抽出共享，/risk 的档案抽屉也用同一份（不再跳页） */
+import EditDrawer from './modules/EditDrawer.vue';
 
 defineOptions({ name: 'IrsUnderlyingMonitorsPage' });
 
@@ -121,6 +117,8 @@ async function handleSync() {
 // ===== 档案抽屉 =====
 const showDrawer = ref(false);
 const drawerRow = ref<Api.Irs.UnderlyingMonitor | null>(null);
+/** 编辑保存后调 refresh() 静默重拉档案，标题/主题标签立即跟上，不用关掉重开 */
+const detailDrawerRef = ref<InstanceType<typeof DetailDrawer> | null>(null);
 
 function openDrawer(row: Api.Irs.UnderlyingMonitor) {
   drawerRow.value = row;
@@ -152,201 +150,37 @@ async function openFromQuery() {
   }
 }
 
-// ===== 新增/编辑抽屉 =====
-const editingId = ref<number | null>(null);
-const showModal = ref(false);
-const submitLoading = ref(false);
-const formRef = ref();
-const formData = reactive({
-  symbol: '',
-  name: '',
-  theme: '' as string | null,
-  // 行情字段（兜底编辑，默认折叠）
-  py_close: null as number | null,
-  y_high: null as number | null,
-  y_low: null as number | null,
-  price: null as number | null
-});
+// ===== 新增/编辑抽屉（2026-11-16 抽到 modules/EditDrawer.vue，/risk 共用同一份） =====
+const showEdit = ref(false);
+/** null = 新增模式；非 null = 编辑模式（回填这一行） */
+const editRow = ref<Api.Irs.UnderlyingMonitor | null>(null);
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// 行情折叠面板展开状态：默认折叠，仅编辑模式显示
-const quoteExpandedNames = ref<string[]>([]);
-
-// 代码远程搜索：NSelect remote，防抖 300ms 调 /bds/symbol-infos
-const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions, getNameBySymbol } = useSymbolSearch();
-
-// 选择代码后自动回填名称（仅新增模式触发；编辑模式 symbol 禁用不会变）
-function handleSymbolChange(symbol: string | null) {
-  formData.symbol = symbol ?? '';
-  if (symbol && editingId.value === null) {
-    const name = getNameBySymbol(symbol);
-    if (name) formData.name = name;
-  }
-}
-
-// 抽屉标题：新增/编辑动态切换
-const modalTitle = computed(() => (editingId.value === null ? '新增标的监测' : '编辑标的监测'));
-
-// 表单校验规则
-const formRules = {
-  symbol: { required: true, message: '请选择代码', trigger: 'change' },
-  name: { required: true, message: '请输入名称', trigger: 'blur' }
-};
-
-// 打开新增抽屉
 function handleAdd() {
-  resetForm();
-  editingId.value = null;
-  showModal.value = true;
+  editRow.value = null;
+  showEdit.value = true;
 }
 
-/** 打开编辑抽屉：回填 name/theme/行情（档位版本去档位 Tab 改） */
+/** 档案抽屉头部「编辑标的信息」/ 列表操作列 → 原地打开编辑抽屉 */
 function handleEdit(row: Api.Irs.UnderlyingMonitor) {
-  resetForm();
-  editingId.value = row.id;
-  formData.symbol = row.symbol;
-  formData.name = row.name ?? '';
-  formData.theme = row.theme ?? null;
-  // 编辑回填时 NSelect 需有对应 option 才能显示，手动塞入当前行
-  symbolOptions.value = [{ label: `${row.symbol} ${row.name ?? ''}`, value: row.symbol }];
-  // 回填行情字段（兜底编辑用）
-  formData.py_close = row.py_close != null ? Number(row.py_close) : null;
-  formData.y_high = row.y_high != null ? Number(row.y_high) : null;
-  formData.y_low = row.y_low != null ? Number(row.y_low) : null;
-  formData.price = row.price != null ? Number(row.price) : null;
-  showModal.value = true;
-}
-
-// 重置表单
-function resetForm() {
-  editingId.value = null;
-  formData.symbol = '';
-  formData.name = '';
-  formData.theme = null;
-  formData.py_close = null;
-  formData.y_high = null;
-  formData.y_low = null;
-  formData.price = null;
-  quoteExpandedNames.value = [];
-  clearSymbolOptions();
-  formRef.value?.restoreValidation();
-}
-
-// 提交新增/修改
-async function handleSubmit() {
-  try {
-    await formRef.value?.validate();
-  } catch {
-    return;
-  }
-  submitLoading.value = true;
-  try {
-    let error;
-    if (editingId.value === null) {
-      // 新增：只传基础字段，档位版本后续去详情抽屉的「档位」Tab 建
-      ({ error } = await createUnderlyingMonitor({
-        symbol: formData.symbol,
-        name: formData.name,
-        theme: formData.theme || null
-      }));
-    } else {
-      // 编辑：只改名称/主题/行情，**不碰五档**（档位版本去档位 Tab 改）
-      const quoteExpanded = quoteExpandedNames.value.includes('quote');
-      ({ error } = await updateUnderlyingMonitor(editingId.value, {
-        name: formData.name,
-        theme: formData.theme || null,
-        ...(quoteExpanded
-          ? {
-              py_close: formData.py_close,
-              y_high: formData.y_high,
-              y_low: formData.y_low,
-              price: formData.price
-            }
-          : {})
-      }));
-    }
-    if (!error) {
-      window.$message?.success(editingId.value === null ? '新增成功' : '修改成功');
-      showModal.value = false;
-      resetForm();
-      pagination.page = 1;
-      fetchData();
-      loadThemeOptions();
-    }
-  } finally {
-    submitLoading.value = false;
-  }
-}
-
-// 取消新增/编辑
-function handleCancel() {
-  showModal.value = false;
-  resetForm();
+  editRow.value = row;
+  showEdit.value = true;
 }
 
 /**
- * 删除：先调 DELETE 不带 cascade — 有子数据后端返回 409 + 各子表计数，
- * 前端把代价摆在确认框里；确认后带 cascade=true 再删。
- * 不再走 detail 接口取计数（detail 已瘦身，不再返回各子表数组）。
+ * 编辑 / 新增 / 删除成功：刷新列表与主题候选（列表分页回第一页）。
+ * 删除后若档案抽屉正开着这行，一并关掉，避免留一个指向已删标的的抽屉；
+ * 保存后调档案抽屉的 refresh() 静默重拉，标题 / 主题标签立即跟上，不用关掉重开。
  */
-async function handleDelete() {
-  if (editingId.value === null) return;
-  const id = editingId.value;
-  submitLoading.value = true;
-  try {
-    // 第一次尝试：不 cascade
-    const { data, error } = await deleteUnderlyingMonitor(id, false);
-    if (!error && data) {
-      // 没有子数据，直接删成功
-      window.$message?.success('删除成功');
-      showModal.value = false;
-      resetForm();
-      pagination.page = 1;
-      fetchData();
-      loadThemeOptions();
-      return;
-    }
-    // 后端返回 409：解析 counts 构建确认框
-    const detailObj = (error as any)?.response?.data?.detail;
-    const counts: Record<string, number> = detailObj?.counts ?? {};
-    const hasChild = Object.values(counts).some(n => n > 0);
-    if (!hasChild) return; // 不应该走到这里，但兜底
+function onEditChanged({ deleted, symbol }: { deleted: boolean; symbol: string }) {
+  if (deleted && drawerRow.value?.symbol === symbol) showDrawer.value = false;
+  pagination.page = 1;
+  fetchData();
+  loadThemeOptions();
+  if (!deleted) detailDrawerRef.value?.refresh();
+}
 
-    const labelMap: Record<string, string> = {
-      version: '档位版本',
-      research: '研究版本',
-      logic: '投资逻辑',
-      invalidate: '证伪条件',
-      plan: '剧本'
-    };
-    const detailText = Object.entries(counts)
-      .filter(([, n]) => n > 0)
-      .map(([k, n]) => `${labelMap[k] ?? k} ${n} 条`)
-      .join('、');
-
-    window.$dialog?.warning({
-      title: `标的还有档案：${detailText}`,
-      content: '删除会连同上面这些档案一起清空（成交笔记不会删——它挂的是成交，不是标的）。这一步不可恢复，确认继续？',
-      positiveText: '确认删除',
-      negativeText: '取消',
-      onPositiveClick: async () => {
-        const res = await deleteUnderlyingMonitor(id, true);
-        if (!res.error) {
-          window.$message?.success('删除成功');
-          showModal.value = false;
-          resetForm();
-          pagination.page = 1;
-          fetchData();
-          loadThemeOptions();
-        }
-      }
-    });
-  } finally {
-    submitLoading.value = false;
-  }
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function handlePageChange(page: number) {
@@ -642,93 +476,16 @@ onMounted(async () => {
     </NCard>
 
     <!-- 标的档案抽屉：概览 / 研究 / 档位 / 逻辑与证伪 / 计划与成交 -->
-    <DetailDrawer v-model:show="showDrawer" :row="drawerRow" @edit="handleEdit" @changed="onDetailChanged" />
+    <DetailDrawer
+      ref="detailDrawerRef"
+      v-model:show="showDrawer"
+      :row="drawerRow"
+      @edit="handleEdit"
+      @changed="onDetailChanged"
+    />
 
-    <NDrawer v-model:show="showModal" placement="left" width="520px" :mask-closable="false">
-      <NDrawerContent :title="modalTitle" closable :native-scrollbar="false">
-        <NForm ref="formRef" :model="formData" :rules="formRules" label-placement="left" label-width="90px">
-          <NFormItem label="代码" path="symbol">
-            <NSelect
-              :value="formData.symbol || null"
-              :options="symbolOptions"
-              :loading="symbolLoading"
-              :disabled="editingId !== null"
-              filterable
-              remote
-              clearable
-              placeholder="输入代码或名称搜索"
-              style="width: 100%"
-              @search="handleSymbolSearch"
-              @update:value="handleSymbolChange"
-            />
-          </NFormItem>
-          <NFormItem label="名称" path="name">
-            <NInput v-model:value="formData.name" placeholder="请输入名称" />
-          </NFormItem>
-          <NFormItem label="主题">
-            <NSelect
-              v-model:value="formData.theme"
-              :options="themeOptions"
-              filterable
-              tag
-              clearable
-              placeholder="黄金 / IC贴水 / 红利…（可输入新标签，跨合约聚合用）"
-              style="width: 100%"
-            />
-          </NFormItem>
-          <!-- 行情字段：仅编辑模式显示，默认折叠，展开后可兜底编辑 -->
-          <NCollapse v-if="editingId !== null" v-model:expanded-names="quoteExpandedNames" class="mt-8px">
-            <NCollapseItem title="行情字段（兜底编辑）" name="quote">
-              <NFormItem label="上年末" path="py_close">
-                <NInputNumber
-                  v-model:value="formData.py_close"
-                  :precision="4"
-                  :step="0.0001"
-                  placeholder="上年末收盘价"
-                  class="w-full"
-                />
-              </NFormItem>
-              <NFormItem label="年高" path="y_high">
-                <NInputNumber
-                  v-model:value="formData.y_high"
-                  :precision="4"
-                  :step="0.0001"
-                  placeholder="年度最高价"
-                  class="w-full"
-                />
-              </NFormItem>
-              <NFormItem label="年低" path="y_low">
-                <NInputNumber
-                  v-model:value="formData.y_low"
-                  :precision="4"
-                  :step="0.0001"
-                  placeholder="年度最低价"
-                  class="w-full"
-                />
-              </NFormItem>
-              <NFormItem label="最新价" path="price">
-                <NInputNumber
-                  v-model:value="formData.price"
-                  :precision="4"
-                  :step="0.0001"
-                  placeholder="最新成交价"
-                  class="w-full"
-                />
-              </NFormItem>
-            </NCollapseItem>
-          </NCollapse>
-        </NForm>
-        <template #footer>
-          <NSpace justify="end">
-            <NButton @click="handleCancel">取消</NButton>
-            <NButton :loading="submitLoading" @click="handleSubmit">
-              {{ editingId === null ? '确定' : '修改' }}
-            </NButton>
-            <NButton v-if="editingId !== null" :loading="submitLoading" @click="handleDelete">删除</NButton>
-          </NSpace>
-        </template>
-      </NDrawerContent>
-    </NDrawer>
+    <!-- 新增 / 编辑：与 /risk 共用 modules/EditDrawer.vue，编辑表单不再长在本页 -->
+    <EditDrawer v-model:show="showEdit" :row="editRow" :theme-options="themeOptions" @changed="onEditChanged" />
   </div>
 </template>
 

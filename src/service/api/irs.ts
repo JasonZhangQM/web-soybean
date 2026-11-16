@@ -785,37 +785,42 @@ export function fetchUmPctLatestStats() {
   });
 }
 
-/** 单品种组的加仓额度读数 */
+/** 单品种组的加仓余缺读数（2026-11-16 双防线口径） */
 export interface UmBudgetScopeRow {
   scope: string;
   scope_name: string;
-  /** false = 该品种组当前无保证金持仓（无法反推每手保证金） */
+  /** false = 该品种组当前无保证金持仓 */
   found: boolean;
   account?: string;
+  /** breach / over / ok / skip */
   verdict?: string;
-  /** 卡在哪个约束：品种组名 / total@now / total@stress */
-  binding?: string;
-  /** 取 min 后的可开额度（压力口径） */
-  headroom?: number | null;
-  gate_now?: number | null;
-  gate_stress?: number | null;
+  /** 卡在哪：r / e（breach）或品种组名（over） */
+  binding?: string | null;
+  /** 两道防线余缺（r = 低档防线R / e = 极低档防线E） */
+  lines?: Record<string, Api.Irs.BudgetLine>;
   scope_headroom?: number | null;
   pct?: number | null;
   cap?: number | null;
-  lots?: number;
-  per_lot_margin?: number | null;
+  status?: string | null;
   note?: string;
 }
 
-/** 标的加仓可行性（GET /irs/um-budget） */
+/** 标的加仓可行性（GET /irs/um-budget，档位锚定双防线） */
 export interface UmBudget {
   symbol: string;
   scopes: UmBudgetScopeRow[];
-  /** 最严的那一条（能不能加仓由它决定） */
-  binding: { account: string; scope: string; headroom: number | null; verdict: string } | null;
-  lots?: number;
-  per_lot_margin?: number | null;
-  /** block / over / ok / skip；null = 该标的无保证金品种组，不判 */
+  /** 最紧的那一条（能不能加仓由它决定） */
+  binding: {
+    account: string;
+    scope: string;
+    /** mid / low / null */
+    binding: string | null;
+    binding_label: string | null;
+    verdict: string;
+  } | null;
+  /** 最紧账户的两道防线余缺 */
+  lines?: Record<string, Api.Irs.BudgetLine>;
+  /** breach / over / ok；null = 该标的无保证金品种组，不判 */
   verdict: string | null;
   as_of?: string | null;
   note: string;

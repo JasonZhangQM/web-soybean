@@ -453,9 +453,8 @@ declare namespace Api {
       margin: number | null;
     }
 
-    /** 单个品种组的额度读数（budget.by_scope） */
+    /** 单品种组额度读数（结构集中度控制，与两道防线正交） */
     interface BudgetScope {
-      /** index_fut / gold / opt_short / etf_short / equity / other */
       scope: string;
       /** 中文名 */
       name: string;
@@ -463,37 +462,37 @@ declare namespace Api {
       margin: number;
       /** 占账户净值比例 */
       pct: number | null;
-      /** 上限；null=未设上限（只报不判） */
+      /** 上限；null = 未设上限（只报不判） */
       cap: number | null;
       /** 额度 = net0 × cap − margin */
       headroom: number | null;
-      /** 该组当前每手保证金（组内最大） */
-      per_lot: number | null;
-      /** 还能开几手 */
-      lots: number;
       /** ok / over / unknown */
       status: string;
     }
 
-    /** 账户总闸四档读数 */
-    interface BudgetTotal {
-      /** 保证金占用上限（0.85） */
-      cap: number;
-      /** 只留给预设加仓点的一块（0.15） */
-      reserve: number;
-      /** 日常可开比例 = cap − reserve（0.70） */
-      usable: number;
-      /** net0 × usable − margin(0) */
-      gate_now: number;
-      /** 判据：net(+stress) × usable − margin(+stress) */
-      gate_stress: number;
-      /** 含加仓包的极限，仅展示不参与取 min */
-      gate_stress_max: number;
-      /** ok / over / block / skip */
-      status: string;
+    /** 单道防线（到档情景）余缺读数 */
+    interface BudgetLine {
+      /** 低档 / 极低档 */
+      label: string;
+      /** 分母口径：net（R 防线，自有资金）/ eq（E 防线，客户权益含融资） */
+      denom: string;
+      /** 阈值（budget_tier_r / budget_tier_e，默认 1） */
+      cap: number | null;
+      /** 到档情景保证金 */
+      margin_at: number | null;
+      /** 到档情景分母 */
+      denom_at: number | null;
+      /** 到档风险度；分母非正（穿仓）为 null */
+      ratio: number | null;
+      /** margin_at − cap × denom_at；>0 = 超限 */
+      gap: number | null;
+      /** 需入金 = gap ÷ cap（达标时恒 0） */
+      fund_needed: number | null;
+      /** 剩余空间 = −gap（缺口时恒 0） */
+      left: number | null;
     }
 
-    /** 单账户预算卡 */
+    /** 单账户预算卡（档位锚定双防线） */
     interface BudgetAccount {
       net0: number;
       /** 账面净值（acc_aset − diff_br） */
@@ -501,35 +500,31 @@ declare namespace Api {
       /** net0 − 账面净，非 0 时必须提示（BS 重估差） */
       book_gap: number;
       margin: number;
-      total: BudgetTotal;
+      /** r（低档防线R）/ e（极低档防线E） */
+      lines: Record<string, BudgetLine>;
       by_scope: BudgetScope[];
-      /** 取 min 后的可开额度 */
-      headroom: number | null;
-      /** 取到 min 的约束：品种组名 / total@now / total@stress */
-      binding: string;
-      /** 可开手数 */
-      lots: number;
-      /** 额度>0 且够一手才算能开 */
-      openable: boolean;
-      per_lot_margin: number | null;
-      /** block / over / ok / skip */
+      /** 卡在哪：r / e（breach）或品种组名（over） */
+      binding: string | null;
+      /** breach / over / ok / skip */
       verdict: string;
     }
 
-    /** 风险预算块（irs/service/budget.py） */
+    /** 风险预算块（档位锚定双防线，irs/service/budget.py） */
     interface Budget {
-      /** 压力档，0.15 = 标的再跌 15% */
-      stress_drop: number;
-      /** 固定 sync */
-      mode: string;
+      /** tier_v1 */
+      engine: string;
+      /** 修正锚：min(档位价, 现价) */
+      anchor: string;
+      /** {r, e} 全局生效阈值 */
+      thresholds: Record<string, number | null>;
       accounts: Record<string, BudgetAccount>;
       /** 合约 → {acct, scope}，加仓点查额度用 */
       symbols: Record<string, Record<string, string>>;
       summary: {
         verdict: string;
         judged_accounts: number;
-        blocked_accounts: string[];
-        headroom_total: number | null;
+        breached_accounts: string[];
+        lines: Record<string, BudgetLine>;
       };
     }
 
@@ -743,12 +738,15 @@ declare namespace Api {
       /** 另一时点（horizon 的反面）的组合读数；仅档位压力表取 Δ 盈亏用，其余前端不用 */
       combo_other: SimulateCombo;
       budget: {
-        stress_drop: number;
+        /** tier_v1（档位锚定双防线） */
+        engine: string;
+        /** {r, e} 全局生效阈值 */
+        thresholds: Record<string, number | null>;
         summary: {
           verdict: string;
           judged_accounts: number;
-          blocked_accounts: string[];
-          headroom_total: number;
+          breached_accounts: string[];
+          lines: Record<string, BudgetLine>;
         };
         note: string;
       };

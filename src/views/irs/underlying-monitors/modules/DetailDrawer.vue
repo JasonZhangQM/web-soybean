@@ -144,6 +144,19 @@ watch(
 function goTab(name: string) {
   tab.value = name;
 }
+
+/**
+ * 编辑入口必须传 detail 里的**最新** um，不是父页给的骨架行：
+ * 在抽屉里点过「拉取最新价」后 detail.um.price 已变而 props.row 没变，
+ * 若仍用骨架行回填，展开行情折叠再提交就会把旧价写回库。
+ */
+function openEdit() {
+  const target = um.value;
+  if (target) emit('edit', target);
+}
+
+/** 宿主在编辑保存后调：静默重拉档案，标题 / 主题 / 现价标签立即跟上，不用关掉重开 */
+defineExpose({ refresh: () => load(false) });
 </script>
 
 <template>
@@ -170,7 +183,7 @@ function goTab(name: string) {
           <NTag v-for="t in headerTags" :key="t.text" size="small" :bordered="false" :type="t.type">
             {{ t.text }}
           </NTag>
-          <NButton v-if="row" size="tiny" text class="ml-8px" @click="emit('edit', row)">编辑标的信息</NButton>
+          <NButton v-if="um" size="tiny" text class="ml-8px" @click="openEdit">编辑标的信息</NButton>
         </div>
       </template>
 

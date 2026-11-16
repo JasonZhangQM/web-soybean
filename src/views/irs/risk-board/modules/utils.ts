@@ -309,18 +309,18 @@ export function fmtMoneyShort(v: number | null | undefined): string {
   return fmtMoney(n);
 }
 
-/** 预算约束的人话名：total@stress → 总闸·压力，品种组 → 中文名 */
-export function bindingLabel(binding: string | null | undefined, acct: Api.Irs.BudgetAccount | null): string {
+/** 预算约束的人话名（2026-11-16 双防线低R/极低E）：r/e → 防线名，品种组 → 中文名 */
+export function bindingLabel(binding: string | null | undefined, acct?: Api.Irs.BudgetAccount | null): string {
   if (!binding) return '-';
-  if (binding === 'total@stress') return '总闸·压力(+15%)';
-  if (binding === 'total@now') return '总闸·即期';
+  if (binding === 'r') return '低档防线(R)';
+  if (binding === 'e') return '极低档防线(E)';
   const hit = acct?.by_scope.find(s => s.scope === binding);
   return hit ? `${hit.name}额度` : binding;
 }
 
-/** 预算判定等级：block 红 / over 橙 / ok 绿 / skip 灰 */
+/** 预算判定等级：breach 红 / over 橙 / ok 绿 / skip 灰（旧 block 已随 gate 下线） */
 export function verdictLevel(verdict: string | null | undefined): RiskLevel {
-  if (verdict === 'block') return 'danger';
+  if (verdict === 'breach') return 'danger';
   if (verdict === 'over') return 'hot';
   if (verdict === 'ok') return 'ok';
   return 'none';

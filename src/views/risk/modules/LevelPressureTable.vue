@@ -234,7 +234,8 @@ const atRiskHeader = metricHeader('到档风险度(R/E)', [
   'R（真实，左值）= 到档保证金 ÷ 到档净值（自有资金口径，分母不含融资）；E（交易所，右值）= 到档保证金 ÷ 到档权益（分母含融资，与券商 / 交易所口径一致）。',
   '预警看 R：≥ 1 表示自有资金不够覆盖保证金、缺口靠融资支撑；追保判定只认 E ≥ 1 或净值 ≤ 0。R ≥ 1 而 E < 1 时券商未必追保，须另行留意。',
   '穿仓标志按各自口径独立判断（2026-11-15）：R 半边看净值 ≤ 0（后端把 real 置 null）或值为负；E 半边看权益 ≤ 0（exch 为 null）或值为负。融资撑住权益时 E 仍显示数值，两半边互不顶替。',
-  '与 ① 账户总表「到档风险度(R/E)」同口径；组合行 R = 合计保证金 ÷ 组合到档净值，E = 合计保证金 ÷ Σ各账户到档权益。'
+  '与 ① 账户总表「到档风险度(R/E)」同口径；组合行 R = 合计保证金 ÷ 组合到档净值，E = 合计保证金 ÷ Σ各账户到档权益。',
+  '组合行是全组合口径（分母含无保证金账户的权益，账户间资金可相互调配）；① ALL 行「防线(低R/极低E)」同口径，且低/极低档防线直接复用本表 l/el 两档的同一次情景 run（后端统一计算，两处逐分相等）。'
 ]);
 const coverageHeader = metricHeader('覆盖率(R/E)', [
   'R（真实）= 到档净值 ÷ 到档保证金，即自有资金对保证金占用的覆盖倍数；净值为正时恰好是「到档风险度(R)」的倒数。',
@@ -322,16 +323,9 @@ const columns = computed<DataTableColumns<Row>>(() => [
     width: 110,
     align: 'right' as const,
     render: (r: Row) => coveragePair(r.coverage, r.coverageExch)
-  },
-  {
-    title: '追保',
-    key: 'breached',
-    width: 90,
-    render: (r: Row) =>
-      r.breached
-        ? h(NTag, { type: 'error', size: 'small' }, { default: () => '越线' })
-        : h('span', { class: 'text-gray-400' }, '—')
   }
+  // 追保列已删（2026-11-16 用户定稿）：越线账户看 ① 账户总表顶栏破线提示；
+  // 行级浅红高亮（breachKey → rowProps）保留，仍由各档 accounts[].breached 驱动。
 ]);
 
 /** scroll-x = 列宽和：加列/改列宽无需手改常量（🔒4.11） */

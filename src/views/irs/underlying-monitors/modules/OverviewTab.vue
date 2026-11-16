@@ -119,9 +119,9 @@ async function loadBudget() {
 const budgetTag = computed(() => {
   const v = umBudget.value;
   if (!v) return null;
-  if (v.verdict === 'block') return { type: 'error' as const, text: '禁开新仓' };
+  if (v.verdict === 'breach') return { type: 'error' as const, text: '禁开新仓' };
   if (v.verdict === 'over') return { type: 'warning' as const, text: '品种组超限' };
-  if (v.verdict === 'ok') return { type: 'success' as const, text: '有额度' };
+  if (v.verdict === 'ok') return { type: 'success' as const, text: '双防线达标' };
   return { type: 'default' as const, text: '不判' };
 });
 
