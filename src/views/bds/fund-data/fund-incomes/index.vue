@@ -156,14 +156,14 @@ const columns = [
     width: 150,
     render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom)
   },
+  {
+    title: '扣非归母净利润',
+    key: 'net_prof_pcom_cut',
+    width: 150,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom_cut)
+  },
   { title: '营业外收入', key: 'inc_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_noper) },
   { title: '营业外支出', key: 'exp_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_noper) },
-  {
-    title: '综合收益总额',
-    key: 'ttl_comp_inc',
-    width: 120,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_comp_inc)
-  },
   { title: '基本每股收益', key: 'eps_base', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_base) },
   { title: '稀释每股收益', key: 'eps_dil', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_dil) }
 ];

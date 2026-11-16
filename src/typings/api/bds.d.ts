@@ -312,6 +312,8 @@ declare namespace Api {
       net_prof: string | null;
       /** 归母净利润 */
       net_prof_pcom: string | null;
+      /** 扣非归母净利润 */
+      net_prof_pcom_cut: string | null;
       /** 基本每股收益 */
       eps_base: string | null;
       /** 稀释每股收益 */
@@ -320,8 +322,6 @@ declare namespace Api {
       inc_noper: string | null;
       /** 营业外支出 */
       exp_noper: string | null;
-      /** 综合收益总额 */
-      ttl_comp_inc: string | null;
       /** 创建时间 */
       create_time: string;
       /** 更新时间 */
