@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { fetchGroupAccs, syncGroup } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchGroupAccs } from '@/service/api';
+import { executeMarketChain } from '@/utils/market-chain';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
 import { usePageState } from '@/hooks/common/page-state';
@@ -84,8 +84,21 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
+/**
+ * 「一键行情更新」（2026-11-16 由单步「行情」升级为链式）：
+ * 期权行情（bds 后台任务 + 轮询）→ 标的行情（irs）→ 持仓行情（本页原 syncGroup）。
+ * 持仓实时估值读 bds_option_market 期权快照，期权不先更新就会吃到 T−1 价，故按依赖
+ * 顺序链式执行；逐步进度反馈由工具统一提示，全部成功后才刷新表格。
+ */
 async function handleSync() {
-  await executeSync(syncGroup, syncLoading, fetchData);
+  if (syncLoading.value) return;
+  syncLoading.value = true;
+  try {
+    const res = await executeMarketChain();
+    if (res.ok) await fetchData();
+  } finally {
+    syncLoading.value = false;
+  }
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
@@ -240,7 +253,7 @@ onMounted(() => {
         <NFormItem class="ml-auto">
           <NButton :loading="syncLoading" @click="handleSync">
             <template #icon><SvgIcon icon="mdi:sync" /></template>
-            行情
+            一键行情更新
           </NButton>
         </NFormItem>
       </NForm>

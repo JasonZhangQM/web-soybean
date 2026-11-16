@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { fetchLatestSyncTask, fetchSyncTask, startMacroSync, startBillsImportTask, stopBatchSync } from '@/service/api';
+import { executeMarketChain } from '@/utils/market-chain';
 
 defineOptions({ name: 'MacroSyncCard' });
 
@@ -77,7 +78,8 @@ const STAGE_LINKS: Record<StageKey, string> = {
  * - 黄金储备：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
  *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），勾上等于每次启动都白等
  * 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s，是「期权行情」的上游；
- * 勾「期权行情」：3 组约 5s，每日都要更新，代价可接受。
+ * 勾「期权行情」：3 组约 5s，且任务完成后会联动追加标的/持仓行情（前端编排，见 queuedQuoteChain），
+ * 每日都要更新，代价可接受。
  */
 const MANUAL_ONLY_STAGES: StageKey[] = ['trade_date', 'bills_import', 'gold'];
 
@@ -103,11 +105,16 @@ const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
 
 /**
- * 串联排队标记：「交易明细导入」与其他段同时勾选时，先跑宏观任务，
- * 结束后由 loadTask 自动接跑导入任务（两任务是不同后端端点、共用任务表全局互斥）。
- * ⚠️ 排队是前端行为：任务本身关页面照常执行，但自动接跑需要本页存活（刷新即失效）
+ * 串联排队标记（两类排队都是前端行为：任务本身关页面照常执行，但自动接续需本页存活，
+ * 刷新即失效）：
+ * - queuedBillsImport：「交易明细导入」与其他段同时勾选时，先跑宏观任务，结束后自动接跑
+ *   导入任务（两任务是不同后端端点、共用任务表全局互斥）；
+ * - queuedQuoteChain（2026-11-16）：勾了「期权行情」时，宏观任务结束后自动追加
+ *   「标的行情」「持仓行情」两步（executeMarketChain 后两步）——期权快照更新后，
+ *   风险看板 / 持仓估值要吃到当日价必须接着跑这两步。
  */
 const queuedBillsImport = ref(false);
+const queuedQuoteChain = ref(false);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
 const progressValue = computed(() => Number(task.value?.progress || 0));
@@ -218,13 +225,9 @@ async function loadTask(id?: number) {
         if (Array.isArray(st) && st.length > 0) selectedStages.value = st as StageKey[];
       } else {
         stopPolling();
-        // 串联排队：宏观任务结束后自动接跑交易明细导入；手动停止视为撤销排队
-        if (queuedBillsImport.value) {
-          queuedBillsImport.value = false;
-          if (data.scope === 'macro_sync' && data.status !== 'stopped') {
-            message.info('宏观同步结束，自动接跑交易明细导入');
-            await startImportTask();
-          }
+        // 串联接续：宏观任务结束后先追加「标的/持仓行情」（若排队），再接跑交易明细导入（若排队）
+        if (queuedQuoteChain.value || queuedBillsImport.value) {
+          await afterMacroTask(data);
         }
       }
     }
@@ -251,6 +254,29 @@ function stopPolling() {
 
 // ===================== 操作 =====================
 
+/**
+ * 宏观任务结束后的自动接续（页面在线才生效；手动停止 status='stopped' 视为撤销排队）：
+ * 1. queuedQuoteChain：追加「标的行情」「持仓行情」两步。这两步是同步 HTTP、不占用
+ *    bds_sync_task 全局锁，失败只提示、不影响宏观任务自身的成功状态；
+ * 2. queuedBillsImport：自动接跑交易明细导入任务（排在行情追加之后，导入吃到的是新价）。
+ */
+async function afterMacroTask(data: Api.Bds.SyncTask) {
+  const followable = data.scope === 'macro_sync' && data.status !== 'stopped';
+  const followQuote = followable && queuedQuoteChain.value;
+  queuedQuoteChain.value = false;
+  const followImport = followable && queuedBillsImport.value;
+  queuedBillsImport.value = false;
+
+  if (followQuote) {
+    message.info('宏观同步结束，自动追加「标的行情」「持仓行情」更新…');
+    await executeMarketChain({ includeOptionMarket: false });
+  }
+  if (followImport) {
+    message.info('宏观同步结束，自动接跑交易明细导入');
+    await startImportTask();
+  }
+}
+
 /** 启动交易明细导入后台任务（bills 端点），接管任务卡显示并继续轮询 */
 async function startImportTask() {
   const { data, error } = await startBillsImportTask();
@@ -275,15 +301,24 @@ async function handleStart() {
     const macroStages = selectedStages.value.filter(s => s !== 'bills_import');
 
     if (macroStages.length > 0) {
-      // 同时勾了两类：先启动宏观任务并记下排队，结束后自动接跑导入
+      // 同时勾了两类：先启动宏观任务并记下排队，结束后自动接续（追加行情 → 接跑导入）
       queuedBillsImport.value = billsImport;
+      queuedQuoteChain.value = macroStages.includes('option_market');
       const { data, error } = await startMacroSync({ stages: macroStages });
       if (error) {
         message.error(error.message || '启动失败');
         queuedBillsImport.value = false;
+        queuedQuoteChain.value = false;
         return;
       }
-      message.success(`已启动任务 #${data.id}${billsImport ? '，完成后将自动接跑交易明细导入' : ''}`);
+      // 接续提示：排队了哪些自动步骤（都需本页在线才生效）
+      const notes = [
+        queuedQuoteChain.value ? '完成后自动追加标的/持仓行情更新' : '',
+        billsImport ? '完成后自动接跑交易明细导入' : ''
+      ]
+        .filter(Boolean)
+        .join('，');
+      message.success(`已启动任务 #${data.id}${notes ? `，${notes}` : ''}`);
       await loadTask(data.id);
       startPolling();
     } else {
@@ -370,10 +405,10 @@ onBeforeUnmount(() => {
       固定顺序：交易日历 → 证券信息 → 历史行情 → 期权合约字典 → 期权行情 → 经济指标 → 美债收益率 →
       黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。「历史行情」范围 = 证券信息表
       A股指数 ∪ 标的监测池（运行时读取、去重），个股后复权 /
-      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。后台任务，关页面/刷新不影响执行。默认勾选与「全选」都只勾常用
+      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）；勾选「期权行情」＝行情链入口，任务完成后还会自动追加「标的行情」「持仓行情」两步（前端联动、需保持本页打开，失败只提示、不影响宏观任务状态）。宏观任务本身后台执行，关页面/刷新不影响，只有追加的联动步骤需要页面在线。默认勾选与「全选」都只勾常用
       6 段，不含交易日历（仅跨年才真写库）、黄金储备（IMF 接口当前返回 502，勾上会白等约 5.5 分钟且 20
       国全失败）与交易明细导入，这三项需要时手动勾选。「交易明细导入」是 bills
-      的十二步流水线（任一步失败即终止流水线）；与其他段同时勾选时先跑其余段、结束后自动接跑导入（自动接跑需保持本页打开）。
+      的十二步流水线（任一步失败即终止流水线）；与其他段同时勾选时先跑其余段、结束后自动接跑导入。
     </div>
 
     <!-- 进度面板（与卡片 1 同构） -->

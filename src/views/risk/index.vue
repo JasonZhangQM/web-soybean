@@ -34,15 +34,8 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NAlert, NButton, NEmpty, NSlider, NTag, NTooltip } from 'naive-ui';
-import {
-  fetchRiskBoard,
-  fetchUnderlyingMonitors,
-  simulateIrs,
-  simulateLevels,
-  syncGroup,
-  syncIrs
-} from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchRiskBoard, fetchUnderlyingMonitors, simulateIrs, simulateLevels } from '@/service/api';
+import { executeMarketChain } from '@/utils/market-chain';
 import { createTablePagination } from '@/hooks/common/table';
 import { usePageState } from '@/hooks/common/page-state';
 /** 左栏标的卡片：今日待办下线后由 TodayCard 精简而来（去掉待办标签，只留现价/分位/档位条） */
@@ -441,37 +434,31 @@ async function refreshAll() {
 }
 
 /**
- * 顶栏「标的行情」：与 `/irs/underlying-monitors` 列表页「行情」按钮同一个接口
- * syncIrs('underlying-monitor')（gm current → 写 um.price → flush 触发 pv_* 钩子），
- * 反馈 / 防重复点击 / 状态分流全部复用 executeSync（含 no_data、error 不刷新的语义）。
- * 成功后重拉 GET /irs/today 拿新现价与五档，再重算推演；当前若停在某个批量档位，
- * 按新档位价重新套用一次，避免「新价配旧假设」。
+ * 顶栏「一键行情更新」（2026-11-16 由「标的行情」「持仓行情更新」两按钮合并）：
+ * 走 executeMarketChain 链式编排 —— 期权行情（bds 后台任务 + 轮询）→ 标的行情
+ * （syncIrs('underlying-monitor')：gm current → 写 um.price → flush 触发 pv_* 钩子）
+ * → 持仓行情（syncGroup：实时估值 → 账户/标的汇总），依赖顺序颠倒会让持仓估值
+ * 读到旧期权快照（风险看板 T−1 / 混日）。逐步进度反馈在工具里统一提示。
+ *
+ * 全部成功后：重拉 GET /irs/underlying-monitors 拿新现价与五档；当前若停在某个批量
+ * 档位，按新档位价重新套用一次（避免「新价配旧假设」）；再三路并发重算且全部就绪后
+ * 刷新两张总表。任一步失败由工具中断并提示，这里不刷新（半新半旧不如不刷）。
  */
-const quoteLoading = ref(false);
+const chainLoading = ref(false);
 
-async function handleSyncQuote() {
-  await executeSync(
-    () => syncIrs('underlying-monitor'),
-    quoteLoading,
-    async () => {
+async function handleSyncMarketChain() {
+  if (chainLoading.value) return;
+  chainLoading.value = true;
+  try {
+    const res = await executeMarketChain();
+    if (res.ok) {
       await load();
       if (activeBatch.value && activeBatch.value !== 'price') applyBatch(activeBatch.value);
-      // 行情变了 ⇒ 现价与五档价都可能变，三路并发重算且全部就绪后才刷新两张总表
       await refreshAll();
     }
-  );
-}
-
-/**
- * 顶栏「持仓行情更新」：与 `/bills/group-accs` 列表页「行情」按钮同一个接口 syncGroup
- * （POST /bills/sync/group = 实时估值 → 标的汇总 → 账户汇总 → 风险网格），
- * 改的是持仓市值 / 账面浮盈与网格，不动标的监测价（um.price）。
- * 故成功后只重算三路，不重拉 /irs/today、也不重套批量档位（档位价没变）。
- */
-const holdingLoading = ref(false);
-
-async function handleSyncHolding() {
-  await executeSync(syncGroup, holdingLoading, refreshAll);
+  } finally {
+    chainLoading.value = false;
+  }
 }
 
 /** 当前假设档位名：两张总表到档组的表头注记（点压力表 → applyBatch → runSim 后自动跟上） */
@@ -547,7 +534,7 @@ const sortedItems = computed(() => {
 
 <template>
   <div class="h-full flex flex-col gap-12px p-16px">
-    <!-- 顶栏：IV / 标的行情 + 持仓行情更新；档位选择只在 ② 压力表，时点口径固定即期，已无切换控件 -->
+    <!-- 顶栏：IV / 一键行情更新（期权→标的→持仓链式）；档位选择只在 ② 压力表，时点口径固定即期，已无切换控件 -->
     <div class="flex flex-wrap items-center gap-12px">
       <span class="text-16px font-600">风险总览</span>
       <NTag size="small" :bordered="false" round>
@@ -562,7 +549,7 @@ const sortedItems = computed(() => {
           <div>
             期权行情快照日 {{ board.data_as_of ?? '—' }} · 计算日 {{ board.calc_date }} · 引擎 {{ board.engine_ver }}
           </div>
-          <div>0 = 当日，T−1 = 滞后 1 个交易日；滞后请点「标的行情」同步后再看压力推演。</div>
+          <div>0 = 当日，T−1 = 滞后 1 个交易日；滞后请点「一键行情更新」同步后再看压力推演。</div>
         </div>
         <div v-else>风险看板数据加载中…</div>
       </NTooltip>
@@ -592,22 +579,13 @@ const sortedItems = computed(() => {
       <div class="ml-auto flex items-center gap-6px">
         <NTooltip trigger="hover">
           <template #trigger>
-            <NButton size="tiny" :loading="quoteLoading" :disabled="holdingLoading" @click="handleSyncQuote">
+            <NButton size="tiny" :loading="chainLoading" @click="handleSyncMarketChain">
               <template #icon><SvgIcon icon="mdi:sync" /></template>
-              标的行情
+              一键行情更新
             </NButton>
           </template>
-          同步标的监测价（与标的监测列表页「行情」按钮同接口），成功后刷新现价 / 五档并重算推演。
-        </NTooltip>
-        <NTooltip trigger="hover">
-          <template #trigger>
-            <NButton size="tiny" :loading="holdingLoading" :disabled="quoteLoading" @click="handleSyncHolding">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              持仓行情更新
-            </NButton>
-          </template>
-          重算持仓实时估值与账户汇总（与 /bills/group-accs 列表页「行情」按钮同接口）， 成功后刷新净值 /
-          浮盈并重算推演；不动标的监测价。
+          链式同步：期权行情 → 标的行情 → 持仓行情（持仓估值依赖期权快照，顺序不可倒），
+          任一步失败即中断并提示；全部成功后自动刷新现价 / 五档 / 净值浮盈并重算推演。
         </NTooltip>
         <NButton size="tiny" @click="load">
           <template #icon><SvgIcon icon="mdi:refresh" /></template>
