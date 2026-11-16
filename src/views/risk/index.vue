@@ -321,6 +321,12 @@ const staleType = computed<'default' | 'success' | 'warning' | 'error'>(() => {
   }
 });
 
+/**
+ * 顶栏「提示」告警（2026-11-16）：风险看板 ctx 级 warnings（混日回退、T−1、
+ * IV 反解失败、到期剔除等）常驻顶栏展示；无提示不占位。悬停列出全部条目。
+ */
+const boardWarnings = computed(() => board.value?.warnings ?? []);
+
 /** FastAPI 错误体 detail 原样透出（409 行情阻断等） */
 function detailOf(error: unknown): string {
   const e = error as { response?: { data?: { detail?: string } } };
@@ -559,6 +565,15 @@ const sortedItems = computed(() => {
           <div>0 = 当日，T−1 = 滞后 1 个交易日；滞后请点「标的行情」同步后再看压力推演。</div>
         </div>
         <div v-else>风险看板数据加载中…</div>
+      </NTooltip>
+      <!-- ctx 级告警（混日回退 / T−1 / IV 反解失败 / 到期剔除）：有条目才显示，悬停看全量 -->
+      <NTooltip v-if="boardWarnings.length" trigger="hover" placement="bottom-start" class="max-w-420px">
+        <template #trigger>
+          <NTag size="small" :bordered="false" round type="warning">提示 {{ boardWarnings.length }}</NTag>
+        </template>
+        <ul class="m-0 list-disc pl-16px text-12px leading-relaxed">
+          <li v-for="(w, i) in boardWarnings" :key="i">{{ w }}</li>
+        </ul>
       </NTooltip>
       <div class="flex items-center gap-6px text-12px">
         <span class="text-gray-400">IV ×</span>
