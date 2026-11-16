@@ -187,6 +187,26 @@ export function startIndexConstituentSync(req: IndexConstituentSyncRequest) {
   });
 }
 
+/** 指数财务聚合同步请求体 */
+export interface IndexFundAggSyncRequest {
+  /** 本次要聚合的指数代码清单（页面勾选），至少 1 个 */
+  index_codes: string[];
+  /**
+   * 重算起点 YYYY-MM-DD；不传/null=对该指数全历史重算覆盖；
+   * 传入=仅聚合该日及之后的报告期，更早报告期的已有聚合行保持不动
+   */
+  start_date?: string | null;
+}
+
+/** 启动指数成分股财务聚合任务（后台线程异步执行，立即返回 task 对象，需轮询进度） */
+export function startIndexFundAggSync(req: IndexFundAggSyncRequest) {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/sync/index-fund-agg',
+    method: 'post',
+    data: req
+  });
+}
+
 /** 指数累计收益率查询参数 */
 export interface IndexCumReturnQueryParams {
   /** 起始日期（YYYY-MM-DD），默认当前日期前10年 */

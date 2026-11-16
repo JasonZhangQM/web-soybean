@@ -17,12 +17,13 @@ const tableData = ref<Api.Bds.FundBalance[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，start_date 报告日期起始日
+// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，sec_type 主体类型（默认个股），start_date 报告日期起始日
 const searchParams = reactive<{
   symbol?: string | null;
   rpt_type?: number | null;
+  sec_type?: 'stock' | 'index' | null;
   start_date?: string | null;
-}>({});
+}>({ sec_type: 'stock' });
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
@@ -32,6 +33,12 @@ const rptTypeOptions = [
   { label: '中报', value: 6 },
   { label: '前三季报', value: 9 },
   { label: '年报', value: 12 }
+];
+
+// 主体类型下拉选项：默认个股；清空 = 不过滤（同时返回个股与指数聚合行）
+const secTypeOptions = [
+  { label: '个股', value: 'stock' },
+  { label: '指数聚合', value: 'index' }
 ];
 
 // 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
@@ -53,6 +60,8 @@ async function fetchData() {
       symbol: searchParams.symbol || undefined,
       // rpt_type 为 null 时传 undefined，避免向后端发送 null
       rpt_type: searchParams.rpt_type ?? undefined,
+      // sec_type 为 null（清空）时传 undefined = 不过滤主体类型
+      sec_type: searchParams.sec_type || undefined,
       start_date: searchParams.start_date || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -77,6 +86,8 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
+  // 主体类型恢复默认个股
+  searchParams.sec_type = 'stock';
   searchParams.start_date = null;
   clearSymbolOptions();
   pagination.page = 1;
@@ -202,6 +213,16 @@ onMounted(() => fetchData());
             clearable
             placeholder="全部"
             style="width: 150px"
+            @update:value="handleSearch"
+          />
+        </NFormItem>
+        <NFormItem label="主体类型">
+          <NSelect
+            v-model:value="searchParams.sec_type"
+            :options="secTypeOptions"
+            clearable
+            placeholder="全部"
+            style="width: 130px"
             @update:value="handleSearch"
           />
         </NFormItem>

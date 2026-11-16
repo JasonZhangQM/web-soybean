@@ -7,11 +7,13 @@ import {
   fetchSyncTask,
   stopBatchSync,
   startIndexConstituentSync,
+  startIndexFundAggSync,
   fetchIndexConstituentSyncStatus,
   syncIndexValuation,
   resolveHistoryTargets,
   type BatchSyncRequest,
-  type IndexConstituentSyncRequest
+  type IndexConstituentSyncRequest,
+  type IndexFundAggSyncRequest
 } from '@/service/api';
 import { useBdsStore } from '@/store/modules/bds';
 import MacroSyncCard from './modules/macro-sync-card.vue';
@@ -54,12 +56,15 @@ const TABLE_OPTIONS = [
   { label: '财务指标', value: 'finance-deriv' },
   { label: '每日估值', value: 'daily-valuation' },
   { label: '每日市值', value: 'daily-mktvalue' },
-  // 历史行情（个股后复权 / 指数不复权）：长周期回填，默认不勾，且「全选」不含它
+  // 历史行情（个股后复权 / 指数不复权）：默认勾选（增量拉取，已追平自动跳过），启动前仍有二次确认
   { label: '历史行情', value: 'history_market' }
 ];
 
-/** 默认不勾选、也不被「全选」选中的表 */
-const DEFAULT_UNCHECKED_TABLES = ['history_market'];
+/**
+ * 默认不勾选、也不被「全选」选中的表（历史行情 2026-11-16 起改为默认勾选）。
+ * 「指数财务聚合」2026-11-16 起移出批量同步表项，改为下方独立卡片执行。
+ */
+const DEFAULT_UNCHECKED_TABLES: string[] = [];
 
 /** 同步表 → 数据查看页链接（checkbox 文字后的 ↗，点击跳转不触发勾选） */
 const TABLE_LINKS: Record<string, string> = {
@@ -92,10 +97,10 @@ const TRADING_STATUS_OPTIONS = [
   { label: '全部', value: 'all' }
 ];
 
-/** 除「历史行情」外的全部表 = 默认勾选 / 全选集合 */
+/** 全部表 = 默认勾选 / 全选集合 */
 const DEFAULT_TABLES = TABLE_OPTIONS.map(o => o.value).filter(t => !DEFAULT_UNCHECKED_TABLES.includes(t));
 
-/** 解析同步表记忆值：无记忆→除历史行情外全选；用户主动清空→沿用空；全部失效→回落默认 */
+/** 解析同步表记忆值：无记忆→全选（含历史行情）；用户主动清空→沿用空；全部失效→回落默认 */
 function resolveTables(stored: string[] | undefined) {
   const tableValues = TABLE_OPTIONS.map(o => o.value);
   if (!stored) return [...DEFAULT_TABLES];
@@ -152,7 +157,7 @@ const form = reactive(buildInitialForm());
 // 表单任何变化即写回 store（会话内保持；不落 localStorage）
 watch(form, val => bdsStore.setBatchSyncForm({ ...val }), { deep: true });
 
-/** 同步表全选 / 清空（全选**不含**历史行情，避免误触发长周期回填） */
+/** 同步表全选 / 清空 */
 function selectAllTables() {
   form.tables = [...DEFAULT_TABLES];
 }
@@ -372,6 +377,8 @@ const NON_BATCH_SCOPES = [
   'option_market',
   // 估值分位按日落盘（独立卡片，组件内自行按 scope 认领任务；漏了会被卡片 1 抢走误填表单）
   'valuation_pct',
+  // 指数财务聚合（独立卡片，组件内自行按 scope 认领任务；漏了会被卡片 1 抢走误填表单）
+  'index_fund_agg',
   // 最新估值分位截面（同上；/today 与标的监测页的数据源）
   'um_pct_latest',
   // 风险情景网格落库（/bills/sync/group 末段自动触发，无人手动轮询；但它会成为「最新任务」，
@@ -627,6 +634,158 @@ const indexErrorColumns = [
   { title: '数据', key: 'table', width: 130 },
   { title: '错误信息', key: 'message' }
 ];
+
+// ===================== 卡片 2.5：指数财务聚合 =====================
+
+/**
+ * 对所选指数重算成分股合并财报（三张财务报表逐科目求和，纯库内计算不调 gm）。
+ * 聚合行与个股混存同表、sec_type='index' 区分；覆盖率看 snap_cons_cnt / agg_cons_cnt。
+ * start_date 不传 = 全历史重算覆盖（幂等）；传日期 = 仅聚合该日及之后的报告期，
+ * 更早报告期的已有聚合行保持不动。
+ */
+const aggForm = reactive<{ index_codes: string[]; start_date: string | null }>({
+  index_codes: [],
+  start_date: null
+});
+
+/** 全选 / 清空（选项与「指数成分股同步」同源：gm 支持的指数清单） */
+function selectAllAggIndices() {
+  aggForm.index_codes = syncableIndexOptions.value.map(option => option.value);
+}
+function clearAggIndices() {
+  aggForm.index_codes = [];
+}
+
+const aggStarting = ref(false);
+const aggStopping = ref(false);
+const aggTask = ref<Api.Bds.SyncTask | null>(null);
+
+const aggIsRunning = computed(() => aggTask.value?.status === 'running' || aggTask.value?.status === 'pending');
+const aggProgressValue = computed(() => Number(aggTask.value?.progress || 0));
+const aggErrorList = computed(() => aggTask.value?.errors || []);
+
+const aggStatusLabel = computed(() => {
+  const map: Record<string, { text: string; type: 'default' | 'info' | 'success' | 'error' | 'warning' }> = {
+    pending: { text: '等待中', type: 'default' },
+    running: { text: '运行中', type: 'info' },
+    done: { text: '已完成', type: 'success' },
+    failed: { text: '失败', type: 'error' },
+    stopped: { text: '已停止', type: 'warning' }
+  };
+  return map[aggTask.value?.status || ''] || { text: '-', type: 'default' };
+});
+
+const aggTaskIndexCodes = computed<string[]>(() => aggTask.value?.scope_params?.index_codes || []);
+const aggTaskStartDate = computed<string | null>(() => aggTask.value?.scope_params?.start_date || null);
+
+// 后端 errors 同时记录失败与跳过原因（如「报告期早于首份快照」），不止失败，故标题用「明细」
+const aggErrorColumns = [
+  { title: '指数', key: 'symbol', width: 130 },
+  { title: '数据', key: 'table', width: 130 },
+  { title: '错误信息', key: 'message' }
+];
+
+let aggPollTimer: ReturnType<typeof setInterval> | null = null;
+
+async function handleAggStart() {
+  if (aggForm.index_codes.length === 0) {
+    message.warning('请至少选择一个指数');
+    return;
+  }
+
+  // 全历史重算耗时长（财报季手动执行），启动前二次确认并明示重算范围
+  const rangeDesc = aggForm.start_date ? `${aggForm.start_date} 起的报告期` : '全历史';
+  const confirmed = await new Promise<boolean>(resolve => {
+    dialog.warning({
+      title: '确认同步指数财务聚合？',
+      content:
+        `将对所选 ${aggForm.index_codes.length} 个指数重算${rangeDesc}的成分股合并财报` +
+        `（财报季手动执行，纯库内计算不调 gm），数据量大、耗时长。确定继续？`,
+      positiveText: '继续',
+      negativeText: '取消',
+      onPositiveClick: () => resolve(true),
+      onNegativeClick: () => resolve(false),
+      onClose: () => resolve(false),
+      onMaskClick: () => resolve(false)
+    });
+  });
+  if (!confirmed) return;
+
+  aggStarting.value = true;
+  try {
+    const payload: IndexFundAggSyncRequest = { index_codes: [...aggForm.index_codes] };
+    if (aggForm.start_date) payload.start_date = aggForm.start_date;
+    const { data, error } = await startIndexFundAggSync(payload);
+    if (error) {
+      message.error(error.message || '启动失败');
+      return;
+    }
+    message.success(`已启动任务 #${data.id}`);
+    await loadAggTask(data.id);
+    startAggPolling();
+  } finally {
+    aggStarting.value = false;
+  }
+}
+
+async function handleAggStop() {
+  if (!aggTask.value) return;
+  aggStopping.value = true;
+  try {
+    const { data, error } = await stopBatchSync(aggTask.value.id);
+    if (error) {
+      message.error(error.message || '停止失败');
+      return;
+    }
+    message.info(data?.message || '停止信号已发出');
+  } finally {
+    aggStopping.value = false;
+    if (aggTask.value) await loadAggTask(aggTask.value.id);
+  }
+}
+
+/** 运行中锁定表单显示：用任务参数回填勾选与起始日期（对齐卡片 2 的做法） */
+function fillAggFormFromTask(data: Api.Bds.SyncTask) {
+  const p = (data.scope_params || {}) as Record<string, unknown>;
+  if (Array.isArray(p.index_codes)) aggForm.index_codes = p.index_codes as string[];
+  aggForm.start_date = (p.start_date as string) || null;
+}
+
+async function loadAggTask(id?: number) {
+  try {
+    const { data, error } = id ? await fetchSyncTask(id) : await fetchLatestSyncTask();
+    if (!error && data) {
+      // 只接管 index_fund_agg 的任务；别的 scope 要停掉本卡片轮询，避免空转
+      if (data.scope !== 'index_fund_agg') {
+        stopAggPolling();
+        return;
+      }
+      aggTask.value = data;
+
+      // 运行中回填表单，保证「任务 ↔ 显示」一致
+      if (aggIsRunning.value) fillAggFormFromTask(data);
+
+      if (!aggIsRunning.value) stopAggPolling();
+    }
+  } catch {
+    // 404 忽略
+  }
+}
+
+function startAggPolling() {
+  stopAggPolling();
+  aggPollTimer = setInterval(() => {
+    if (!pageActive || document.hidden) return;
+    if (aggTask.value) loadAggTask(aggTask.value.id);
+  }, 5000);
+}
+
+function stopAggPolling() {
+  if (aggPollTimer) {
+    clearInterval(aggPollTimer);
+    aggPollTimer = null;
+  }
+}
 
 // ===================== 卡片 3：指数估值重算 =====================
 
@@ -927,6 +1086,7 @@ function stopValuationPolling() {
 function stopAllPolling() {
   stopPolling();
   stopIndexPolling();
+  stopAggPolling();
   stopValuationPolling();
 }
 
@@ -934,9 +1094,11 @@ function stopAllPolling() {
 async function resumePolling() {
   if (task.value && isRunning.value) await loadBatchTask(task.value.id);
   if (indexTask.value && indexIsRunning.value) await loadIndexTask(indexTask.value.id);
+  if (aggTask.value && aggIsRunning.value) await loadAggTask(aggTask.value.id);
   if (valuationTask.value && valuationIsRunning.value) await loadValuationTask(valuationTask.value.id);
   if (task.value && isRunning.value) startPolling();
   if (indexTask.value && indexIsRunning.value) startIndexPolling();
+  if (aggTask.value && aggIsRunning.value) startAggPolling();
   if (valuationTask.value && valuationIsRunning.value) startValuationPolling();
 }
 
@@ -972,6 +1134,9 @@ onMounted(async () => {
   indexForm.index_codes = resolveIndexCodes(bdsStore.selectedIndexCodes);
   loadIndexWatermark();
 
+  // 卡片 2.5：指数默认带出「指数成分股同步」当前勾选（仅初始化一次，不双向联动）
+  aggForm.index_codes = [...indexForm.index_codes];
+
   // 卡片 3 维持选择与区间（会话内保持，不落 localStorage）
   const vStored = bdsStore.valuationForm;
   valuationForm.index_codes = resolveValuationCodes(vStored?.index_codes);
@@ -989,6 +1154,12 @@ onMounted(async () => {
         // 运行中：任务参数优先于默认/记忆的勾选
         fillIndexFormFromTask(data);
         startIndexPolling();
+      }
+    } else if (data.scope === 'index_fund_agg') {
+      aggTask.value = data;
+      if (aggIsRunning.value) {
+        fillAggFormFromTask(data);
+        startAggPolling();
       }
     } else if (data.scope === 'index_valuation') {
       valuationTask.value = data;
@@ -1329,6 +1500,113 @@ onBeforeUnmount(() => {
           style="color: #18a058; font-size: 13px; margin-top: 12px"
         >
           全部完成，无失败项
+        </div>
+      </div>
+    </NCard>
+
+    <!-- ===== 卡片 2.5：指数财务聚合（纯库内计算不调 gm，财报季手动执行） ===== -->
+    <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
+      <template #header>指数财务聚合</template>
+      <template #header-extra>
+        <NButton size="small" :loading="aggStarting" :disabled="aggIsRunning" @click="handleAggStart">启动</NButton>
+        <NButton v-if="aggIsRunning" size="small" :loading="aggStopping" @click="handleAggStop">停止</NButton>
+      </template>
+
+      <!-- 指数选择：checkbox 组（同「指数成分股同步」的样式与选项源） -->
+      <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: aggIsRunning ? 0.6 : 1 }">
+        <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
+        <NCheckboxGroup v-model:value="aggForm.index_codes" :disabled="aggIsRunning" style="flex: 1">
+          <NSpace :size="12" :wrap="true">
+            <NCheckbox v-for="opt in syncableIndexOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </NCheckbox>
+          </NSpace>
+        </NCheckboxGroup>
+        <NButton size="tiny" secondary :disabled="aggIsRunning" @click="selectAllAggIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="aggIsRunning" @click="clearAggIndices">清空</NButton>
+      </div>
+
+      <!-- 起始日期：不选 = 全历史重算覆盖 -->
+      <div
+        :style="{
+          marginTop: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          opacity: aggIsRunning ? 0.6 : 1
+        }"
+      >
+        <span style="font-size: 13px; color: #666; flex-shrink: 0">起始日期：</span>
+        <NDatePicker
+          v-model:formatted-value="aggForm.start_date"
+          :disabled="aggIsRunning"
+          type="date"
+          value-format="yyyy-MM-dd"
+          clearable
+          placeholder="不选 = 全历史重算"
+          style="width: 210px"
+        />
+      </div>
+
+      <div style="margin-top: 8px; font-size: 12px; color: #999">
+        财报季手动执行：对所选指数的成分股合并财报逐科目求和（纯库内计算不调 gm）。聚合行与个股混存三张财务报表表
+        （资产负债表 / 利润表 / 现金流量表），sec_type='index' 区分；覆盖率看快照成分数 snap_cons_cnt 与参与聚合数
+        agg_cons_cnt。起始日期不选 = 全历史重算覆盖（幂等）；选日期 =
+        仅聚合该日及之后的报告期，更早报告期的已有聚合行保持不动。
+      </div>
+
+      <!-- 进度面板 -->
+      <div v-if="aggTask" style="margin-top: 20px">
+        <NSpace align="center">
+          <NTag :type="aggStatusLabel.type" round>{{ aggStatusLabel.text }}</NTag>
+          <span style="font-size: 13px; color: #666">
+            任务 #{{ aggTask.id }} · {{ aggTaskIndexCodes.length }} 只指数 ·
+            {{ aggTaskStartDate ? `起始 ${aggTaskStartDate}` : '全历史重算' }}
+          </span>
+        </NSpace>
+        <NProgress
+          type="line"
+          :percentage="aggProgressValue"
+          :show-indicator="true"
+          :indicator-width="38"
+          :status="aggTask.status === 'failed' ? 'error' : aggTask.status === 'done' ? 'success' : 'default'"
+          style="margin-top: 12px"
+        />
+        <NGrid :cols="4" :x-gap="12" style="margin-top: 8px">
+          <NGridItem>
+            <NStatistic label="已完成 / 总数" :value="`${aggTask.done_count} / ${aggTask.total_count}`" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="聚合行数" :value="aggTask.success_count" value-style="color: #18a058" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="无产出指数" :value="aggTask.no_data_count" value-style="color: #999" />
+          </NGridItem>
+          <NGridItem>
+            <NStatistic label="失败指数" :value="aggTask.error_count" value-style="color: #d03050" />
+          </NGridItem>
+        </NGrid>
+        <div style="margin-top: 4px; font-size: 12px; color: #999">
+          已完成按指数个数计；聚合行数 = 落库行数（含覆盖旧行）；无产出 =
+          该指数无成分快照或全部报告期早于首份快照（原因见下方明细）。
+        </div>
+
+        <NCollapse v-if="!aggIsRunning && aggErrorList.length > 0" style="margin-top: 12px">
+          <NCollapseItem :title="`明细 / 失败（${aggErrorList.length}）`" name="aggMessages">
+            <NDataTable
+              :columns="aggErrorColumns"
+              :data="aggErrorList"
+              :bordered="false"
+              size="small"
+              :max-height="240"
+            />
+          </NCollapseItem>
+        </NCollapse>
+        <div
+          v-else-if="!aggIsRunning && aggTask.status === 'done'"
+          style="color: #18a058; font-size: 13px; margin-top: 12px"
+        >
+          全部完成
         </div>
       </div>
     </NCard>
