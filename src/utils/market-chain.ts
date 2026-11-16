@@ -13,7 +13,72 @@ import { fetchSyncTask, syncGroup, syncIrs, syncOptionMarket } from '@/service/a
  *
  * 反馈走全局 window.$message（与 sync-feedback.executeSync 同一套），逐步报进度；
  * 任一步失败立即中断并提示「第 N 步」，no_data（如 gm 终端未启动）不算失败、继续走。
+ *
+ * 2026-11-16 起另导出 `runQuoteStep()`：把标的 / 持仓两步拆成可被单独调用、可回报
+ * 结构化结果的单元，供 /bds/batch-sync 宏观卡片做「独立勾选 + 独立进度」。链式编排
+ * 与单步共用同一实现，避免两处口径漂移。
  */
+
+/** 前端行情步骤（不进 bds_sync_task：irs / bills 的同步端点是同步 HTTP，不是后台任务） */
+export type QuoteStepKey = 'underlying_quote' | 'position_quote';
+
+export interface QuoteStepOutcome {
+  /** error = 请求失败或后端报错；no_data 不算失败 */
+  status: 'success' | 'no_data' | 'error';
+  message: string;
+  /** 持仓行情的四步明细（step → result 摘要），标的行情为空 */
+  details: string[];
+}
+
+/** 把 bills 的 step.result 压成一行可读文本，别把整个 dict 糊到 UI 上 */
+function briefResult(result: unknown): string {
+  if (result == null) return '—';
+  if (typeof result !== 'object') return String(result);
+  if (Array.isArray(result)) return `${result.length} 项`;
+  const o = result as Record<string, unknown>;
+  const hit = ['rows', 'count', 'affected', 'updated', 'inserted'].find(k => k in o);
+  return hit ? `${hit}=${String(o[hit])}` : `${Object.keys(o).length} 个字段`;
+}
+
+/**
+ * 执行单个行情链步骤。**不发全局消息、不抛异常**：失败以 outcome 返回，由调用方
+ * 决定是「互不阻断」还是「中断」，也便于调用方把状态写进自己的进度区。
+ */
+export async function runQuoteStep(key: QuoteStepKey): Promise<QuoteStepOutcome> {
+  if (key === 'underlying_quote') {
+    const { data, error } = await syncIrs('underlying-monitor');
+    if (error || !data) {
+      return {
+        status: 'error',
+        message: (error as { message?: string } | null)?.message || '标的行情同步请求失败',
+        details: []
+      };
+    }
+    const status = data.status || 'success';
+    return {
+      status: status === 'error' ? 'error' : status === 'no_data' ? 'no_data' : 'success',
+      message: data.message || (status === 'no_data' ? '标的行情无数据' : '标的行情同步成功'),
+      details: []
+    };
+  }
+
+  const { data, error } = await syncGroup();
+  if (error || !data) {
+    return {
+      status: 'error',
+      message: (error as { message?: string } | null)?.message || '持仓行情同步请求失败',
+      details: []
+    };
+  }
+  const status = data.status || 'success';
+  const details = (data.steps || []).map(s => `${s.step}：${briefResult(s.result)}`);
+  const rawMessage = 'message' in data ? String((data as { message?: string }).message || '') : '';
+  return {
+    status: status === 'error' ? 'error' : status === 'no_data' ? 'no_data' : 'success',
+    message: rawMessage || (status === 'error' ? '持仓行情同步失败' : '持仓行情同步成功'),
+    details
+  };
+}
 
 /** 执行结果：ok = 三步全部走完（含 no_data）；调用方据此决定是否刷新数据 */
 export interface MarketChainResult {
@@ -21,14 +86,6 @@ export interface MarketChainResult {
   /** 聚合摘要（已逐步 window.$message 提示过，这里供调用方做最终汇总展示） */
   message: string;
 }
-
-interface SyncStatusData {
-  status?: string;
-  message?: string;
-}
-
-/** createFlatRequest 返回的形状 */
-type FlatResponse<T> = { data: T | null; error: unknown };
 
 /** 轮询间隔与兜底超时（期权任务通常几秒~几十秒，10 分钟足够；超时防悬挂） */
 const POLL_INTERVAL = 2000;
@@ -67,31 +124,30 @@ function optionTaskSummary(task: Api.Bds.SyncTask): string {
   return `成功 ${r.group_ok ?? 0}/${r.group_total ?? 0} 组，新增 ${r.row_insert ?? 0} 行，更新 ${r.row_update ?? 0} 行`;
 }
 
-/** 标的 / 持仓两步的统一执行：success 继续、no_data 警告继续、error 中断 */
-async function runSimpleStep(stepNo: number, name: string, fn: () => Promise<FlatResponse<SyncStatusData>>) {
+/** 标的 / 持仓两步的链式封装：success 继续、no_data 警告继续、error 抛错中断 */
+async function runSimpleStep(stepNo: number, name: string, key: QuoteStepKey) {
   window.$message?.loading(`步骤 ${stepNo}/3：${name}同步中…`, { duration: 3000 });
-  const { data, error } = await fn();
-  if (error || !data) {
-    throw new Error((error as { message?: string } | null)?.message || `${name}同步请求失败`);
+  const r = await runQuoteStep(key);
+  if (r.status === 'error') {
+    throw new Error(r.message);
   }
-  const status = data.status || 'success';
-  if (status === 'error') {
-    throw new Error(data.message || `${name}同步失败`);
-  }
-  if (status === 'no_data') {
+  if (r.status === 'no_data') {
     // 无数据可导入（如 gm 终端未启动）：不算失败，继续走链
-    window.$message?.warning(`步骤 ${stepNo}/3：${data.message || `${name}无数据可导入`}`);
-    return data.message || `${name}无数据`;
+    window.$message?.warning(`步骤 ${stepNo}/3：${r.message}`);
+  } else {
+    window.$message?.success(`步骤 ${stepNo}/3：${r.message}`);
   }
-  window.$message?.success(`步骤 ${stepNo}/3：${data.message || `${name}同步成功`}`);
-  return data.message || `${name}同步成功`;
+  return r.message;
 }
 
 /**
  * 执行行情更新链，逐步在全局消息里报进度：
  * - includeOptionMarket = true（默认）：期权行情（后台任务 + 轮询到终态）→ 标的 → 持仓；
- * - includeOptionMarket = false：只跑后两步（/batch-sync 宏观任务里期权行情段
- *   已由后端跑完时，前端只需追加这两步，不必再起一次期权任务）。
+ * - includeOptionMarket = false：只跑后两步（期权行情已由别的入口跑完时）。
+ *
+ * ⚠️ /bds/batch-sync 宏观卡片 2026-11-16 起不再走这条链：两个行情步骤已拆成独立勾选，
+ *   改用 `runQuoteStep` 单独执行、自己维护独立进度且失败互不阻断。本函数仍服务
+ *   /risk 顶栏「一键行情更新」与 /bills/group-accs，行为保持不变。
  *
  * 返回 ok = 是否全部成功；失败时已逐步提示原因，调用方一般只需按 ok 决定刷不刷新。
  */
@@ -130,7 +186,7 @@ export async function executeMarketChain(opts?: { includeOptionMarket?: boolean 
 
   // 步骤 2：标的行情（irs：gm current → um.price → pv_* 钩子）
   try {
-    const msg = await runSimpleStep(2, '标的行情', () => syncIrs('underlying-monitor'));
+    const msg = await runSimpleStep(2, '标的行情', 'underlying_quote');
     parts.push(`标的：${msg}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -140,7 +196,7 @@ export async function executeMarketChain(opts?: { includeOptionMarket?: boolean 
 
   // 步骤 3：持仓行情（bills 四步：实时估值 → 清零 → 账户汇总 → 标的汇总）
   try {
-    const msg = await runSimpleStep(3, '持仓行情', () => syncGroup());
+    const msg = await runSimpleStep(3, '持仓行情', 'position_quote');
     parts.push(`持仓：${msg}`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

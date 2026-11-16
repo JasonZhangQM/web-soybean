@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
 import { fetchLatestSyncTask, fetchSyncTask, startMacroSync, startBillsImportTask, stopBatchSync } from '@/service/api';
-import { executeMarketChain } from '@/utils/market-chain';
+import { runQuoteStep, type QuoteStepKey, type QuoteStepOutcome } from '@/utils/market-chain';
 
 defineOptions({ name: 'MacroSyncCard' });
 
@@ -10,14 +10,18 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 九个同步段；其中交易明细导入是 bills 模块的独立后台任务（scope='bills_import'），
- *  其余八段由后端固定为 trade_date → symbol_info → history_market → option_info → option_market → wscn → daily → gold */
+/** 十一个勾选项 = 八个后端同步段 + 一个独立任务（交易明细导入）+ 两个前端行情步骤。
+ *  后端八段固定为 trade_date → symbol_info → history_market → option_info → option_market → wscn → daily → gold；
+ *  两个前端步骤在后端任务结束后按 标的行情 → 持仓行情 顺序执行（irs / bills 的同步 HTTP）。
+ */
 type StageKey =
   | 'trade_date'
   | 'symbol_info'
   | 'history_market'
   | 'option_info'
   | 'option_market'
+  | 'underlying_quote'
+  | 'position_quote'
   | 'bills_import'
   | 'wscn'
   | 'daily'
@@ -40,6 +44,10 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
       // 当天新挂牌的合约若还没进字典就会被跳过（后端也固定这个顺序）
       { label: '期权合约字典', value: 'option_info' },
       { label: '期权行情', value: 'option_market' },
+      // 两个前端行情步骤：紧跟「期权行情」勾选，但不属于后端 stages。
+      // 它们在后端宏观任务结束后串行执行，各有独立进度（见 quoteProgress / runFollowups）
+      { label: '标的行情', value: 'underlying_quote' },
+      { label: '持仓行情', value: 'position_quote' },
       // 交易明细导入（bills 12 步流水线）：与其他段不同，它跑的是 bills 自己的
       // 后台任务端点，且因全局互斥只能串联排队——见 handleStart 的分流逻辑
       { label: '交易明细导入', value: 'bills_import' }
@@ -64,6 +72,8 @@ const STAGE_LINKS: Record<StageKey, string> = {
   history_market: '/bds/market-data/history-markets',
   option_info: '/bds/option-info',
   option_market: '/bds/market-data/option-market',
+  underlying_quote: '/irs/underlying-monitors',
+  position_quote: '/bills/group-accs',
   bills_import: '/bills/bills',
   wscn: '/bds/macro-research/economic-indicators',
   daily: '/bds/macro-research/daily-indicators',
@@ -78,17 +88,45 @@ const STAGE_LINKS: Record<StageKey, string> = {
  * - 黄金储备：IMF SDMX 接口（dataservices.imf.org）当前 502，20 国 × 约 16s ≈ 5.5 分钟
  *   且必然 20 项全失败（bds_gold_reserve 至今 0 行），勾上等于每次启动都白等
  * 勾「期权合约字典」：一次 HTTP + 25,910 行 UPSERT，实测 16~20s，是「期权行情」的上游；
- * 勾「期权行情」：3 组约 5s，且任务完成后会联动追加标的/持仓行情（前端编排，见 queuedQuoteChain），
- * 每日都要更新，代价可接受。
+ * 勾「期权行情」：3 组约 5s，每日都要更新，代价可接受。
+ * 「标的行情」「持仓行情」2026-11-16 起是独立勾选项（原先由「期权行情」隐含触发），
+ * 默认仍勾上以保持日常一键同步的行为等价，各自有独立进度、失败互不阻断。
  */
 const MANUAL_ONLY_STAGES: StageKey[] = ['trade_date', 'bills_import', 'gold'];
 
-/** 常用六段：页面默认勾选 = 「全选」的结果，单一清单避免两处漂移 */
+/** 两个前端行情步骤：不传给 startMacroSync（后端 stages 不认，会 400），由前端单独执行 */
+const QUOTE_STEP_KEYS: QuoteStepKey[] = ['underlying_quote', 'position_quote'];
+
+/**
+ * 后端 stages 白名单 = server_fast/app/bds/router.py::SYNC_STAGE_ORDER 的八段。
+ * TS 侧用类型守卫收窄，避免把新加的前端步骤断言塞给 MacroSyncRequest。
+ */
+const MACRO_STAGE_KEYS = [
+  'trade_date',
+  'symbol_info',
+  'history_market',
+  'option_info',
+  'option_market',
+  'wscn',
+  'daily',
+  'gold'
+] as const;
+
+type MacroStageKey = (typeof MACRO_STAGE_KEYS)[number];
+
+function isMacroStage(s: StageKey): s is MacroStageKey {
+  return (MACRO_STAGE_KEYS as readonly string[]).includes(s);
+}
+
+/** 不进后端 stages 的勾选项：由白名单取反派生，杜绝两份清单漂移 */
+const NON_MACRO_STAGE_KEYS: StageKey[] = STAGE_OPTIONS.map(o => o.value).filter(s => !isMacroStage(s));
+
+/** 常用八段：页面默认勾选 = 「全选」的结果，单一清单避免两处漂移 */
 const DEFAULT_STAGES: StageKey[] = STAGE_OPTIONS.map(o => o.value).filter(v => !MANUAL_ONLY_STAGES.includes(v));
 
 const selectedStages = ref<StageKey[]>([...DEFAULT_STAGES]);
 
-/** 全选：只勾常用六段；交易日历 / 交易明细导入 / 黄金储备保持不勾，需要时手动点 */
+/** 全选：只勾常用八段；交易日历 / 交易明细导入 / 黄金储备保持不勾，需要时手动点 */
 function selectAllStages() {
   selectedStages.value = [...DEFAULT_STAGES];
 }
@@ -105,16 +143,46 @@ const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
 
 /**
- * 串联排队标记（两类排队都是前端行为：任务本身关页面照常执行，但自动接续需本页存活，
- * 刷新即失效）：
- * - queuedBillsImport：「交易明细导入」与其他段同时勾选时，先跑宏观任务，结束后自动接跑
- *   导入任务（两任务是不同后端端点、共用任务表全局互斥）；
- * - queuedQuoteChain（2026-11-16）：勾了「期权行情」时，宏观任务结束后自动追加
- *   「标的行情」「持仓行情」两步（executeMarketChain 后两步）——期权快照更新后，
- *   风险看板 / 持仓估值要吃到当日价必须接着跑这两步。
+ * 串联排队标记（前端行为：后端任务关页面照常执行，但自动接续需本页存活，刷新即失效）：
+ * - queuedBillsImport：勾了「交易明细导入」时，其余段结束后自动接跑导入任务
+ *   （bills 端点，共用任务表全局互斥）；
+ * - queuedQuoteSteps：本次勾选的「标的行情 / 持仓行情」，在后端宏观任务结束后按固定顺序
+ *   串行执行。这两步是同步 HTTP、不占任务锁，失败只提示、互不阻断、不影响宏观任务状态。
+ * 🔴 不再由「期权行情」隐含触发 —— 勾哪个跑哪个（2026-11-16 拆分）。
  */
 const queuedBillsImport = ref(false);
-const queuedQuoteChain = ref(false);
+const queuedQuoteSteps = ref<QuoteStepKey[]>([]);
+
+/** 前端行情步骤的独立进度：本地状态，不写进后端任务 result.stages，刷新页面即清空 */
+interface QuoteProgress {
+  key: QuoteStepKey;
+  label: string;
+  status: 'pending' | 'running' | 'success' | 'no_data' | 'error' | 'cancelled';
+  message: string;
+  durationMs: number | null;
+  /** 持仓行情的四步明细 */
+  details: string[];
+}
+
+const quoteProgress = ref<QuoteProgress[]>([]);
+
+const QUOTE_STATUS_LABEL: Record<QuoteProgress['status'], string> = {
+  pending: '等待',
+  running: '运行中',
+  success: '成功',
+  no_data: '无数据',
+  error: '失败',
+  cancelled: '已取消'
+};
+
+const QUOTE_STATUS_TYPE: Record<QuoteProgress['status'], 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  pending: 'default',
+  running: 'info',
+  success: 'success',
+  no_data: 'warning',
+  error: 'error',
+  cancelled: 'default'
+};
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
 const progressValue = computed(() => Number(task.value?.progress || 0));
@@ -225,9 +293,10 @@ async function loadTask(id?: number) {
         if (Array.isArray(st) && st.length > 0) selectedStages.value = st as StageKey[];
       } else {
         stopPolling();
-        // 串联接续：宏观任务结束后先追加「标的/持仓行情」（若排队），再接跑交易明细导入（若排队）
-        if (queuedQuoteChain.value || queuedBillsImport.value) {
-          await afterMacroTask(data);
+        // 串联接续：行情步骤 → 交易明细导入；手动停止 status='stopped' 视为撤销排队
+        const allowed = data.scope === 'macro_sync' && data.status !== 'stopped';
+        if (queuedQuoteSteps.value.length > 0 || queuedBillsImport.value) {
+          await runFollowups(allowed);
         }
       }
     }
@@ -255,24 +324,60 @@ function stopPolling() {
 // ===================== 操作 =====================
 
 /**
- * 宏观任务结束后的自动接续（页面在线才生效；手动停止 status='stopped' 视为撤销排队）：
- * 1. queuedQuoteChain：追加「标的行情」「持仓行情」两步。这两步是同步 HTTP、不占用
- *    bds_sync_task 全局锁，失败只提示、不影响宏观任务自身的成功状态；
- * 2. queuedBillsImport：自动接跑交易明细导入任务（排在行情追加之后，导入吃到的是新价）。
+ * 单个行情步骤：写独立进度行，失败只提示、不抛、不阻断另一步。
+ * runQuoteStep 本身已把失败收敛成 outcome，这里再兜一层网络异常。
  */
-async function afterMacroTask(data: Api.Bds.SyncTask) {
-  const followable = data.scope === 'macro_sync' && data.status !== 'stopped';
-  const followQuote = followable && queuedQuoteChain.value;
-  queuedQuoteChain.value = false;
-  const followImport = followable && queuedBillsImport.value;
-  queuedBillsImport.value = false;
+async function runOneQuoteStep(key: QuoteStepKey) {
+  const row = quoteProgress.value.find(r => r.key === key);
+  if (!row) return;
+  row.status = 'running';
+  row.message = '运行中…';
+  row.durationMs = null;
+  row.details = [];
+  const startedAt = Date.now();
 
-  if (followQuote) {
-    message.info('宏观同步结束，自动追加「标的行情」「持仓行情」更新…');
-    await executeMarketChain({ includeOptionMarket: false });
+  let outcome: QuoteStepOutcome;
+  try {
+    outcome = await runQuoteStep(key);
+  } catch (e) {
+    outcome = { status: 'error', message: e instanceof Error ? e.message : String(e), details: [] };
+  }
+  row.status = outcome.status;
+  row.message = outcome.message;
+  row.details = outcome.details;
+  row.durationMs = Date.now() - startedAt;
+
+  if (outcome.status === 'error') message.error(`${row.label}失败：${outcome.message}`);
+  else if (outcome.status === 'no_data') message.warning(`${row.label}：${outcome.message}`);
+  else message.success(`${row.label}：${outcome.message}`);
+}
+
+/**
+ * 前序任务结束后的自动接续（页面在线才生效；allowed=false 即手动停止，视为撤销排队）。
+ * 排队标记先清空再执行 ⇒ loadTask 被重复调用时天然幂等。
+ * 顺序：勾中的行情步骤（标的 → 持仓）→ 交易明细导入（导入吃到的是新价）。
+ */
+async function runFollowups(allowed: boolean) {
+  const steps = [...queuedQuoteSteps.value];
+  const followImport = queuedBillsImport.value;
+  queuedQuoteSteps.value = [];
+  queuedBillsImport.value = false;
+  if (!allowed) {
+    // 手动停止 ⇒ 撤销排队，进度行别一直挂在「等待」
+    for (const row of quoteProgress.value) {
+      if (row.status === 'pending' || row.status === 'running') {
+        row.status = 'cancelled';
+        row.message = '前序任务被停止，已取消';
+      }
+    }
+    return;
+  }
+
+  for (const key of steps) {
+    await runOneQuoteStep(key);
   }
   if (followImport) {
-    message.info('宏观同步结束，自动接跑交易明细导入');
+    message.info('前序步骤结束，自动接跑交易明细导入');
     await startImportTask();
   }
 }
@@ -296,34 +401,50 @@ async function handleStart() {
   }
   starting.value = true;
   try {
-    // 交易明细导入走 bills 自己的任务端点，不能混进 startMacroSync 的 stages（后端 400 未知段）
+    // 后端 stages 只认 SYNC_STAGE_ORDER 的八段；bills_import 与两个行情步骤都必须过滤掉，
+    // 否则 POST /bds/sync/macro 直接 400「非法 stages」
     const billsImport = selectedStages.value.includes('bills_import');
-    const macroStages = selectedStages.value.filter(s => s !== 'bills_import');
+    const quoteSteps = QUOTE_STEP_KEYS.filter(k => selectedStages.value.includes(k));
+    const macroStages = selectedStages.value.filter(isMacroStage);
+
+    // 独立进度区：本次勾中的两步先置「等待」，等后端任务结束再逐步点亮
+    quoteProgress.value = quoteSteps.map(
+      (k): QuoteProgress => ({
+        key: k,
+        label: STAGE_OPTIONS.find(o => o.value === k)?.label || k,
+        status: 'pending',
+        message: macroStages.length > 0 ? '等待后端任务结束' : '等待执行',
+        durationMs: null,
+        details: []
+      })
+    );
+    queuedBillsImport.value = billsImport;
+    queuedQuoteSteps.value = [...quoteSteps];
+
+    // 接续提示：排队了哪些步骤（都需本页在线才生效）
+    const stepNames = quoteSteps.map(k => STAGE_OPTIONS.find(o => o.value === k)?.label || k).join(' → ');
+    const notes = [stepNames ? `结束后执行 ${stepNames}` : '', billsImport ? '结束后自动接跑交易明细导入' : '']
+      .filter(Boolean)
+      .join('，');
 
     if (macroStages.length > 0) {
-      // 同时勾了两类：先启动宏观任务并记下排队，结束后自动接续（追加行情 → 接跑导入）
-      queuedBillsImport.value = billsImport;
-      queuedQuoteChain.value = macroStages.includes('option_market');
       const { data, error } = await startMacroSync({ stages: macroStages });
       if (error) {
         message.error(error.message || '启动失败');
         queuedBillsImport.value = false;
-        queuedQuoteChain.value = false;
+        queuedQuoteSteps.value = [];
+        quoteProgress.value = [];
         return;
       }
-      // 接续提示：排队了哪些自动步骤（都需本页在线才生效）
-      const notes = [
-        queuedQuoteChain.value ? '完成后自动追加标的/持仓行情更新' : '',
-        billsImport ? '完成后自动接跑交易明细导入' : ''
-      ]
-        .filter(Boolean)
-        .join('，');
       message.success(`已启动任务 #${data.id}${notes ? `，${notes}` : ''}`);
       await loadTask(data.id);
       startPolling();
     } else {
-      // 只勾了交易明细导入：直接启动导入任务
-      await startImportTask();
+      // 没选后端段 ⇒ 没跑「期权行情」，提示用户这两步基于现有快照，别误以为整条链跑过
+      if (quoteSteps.length > 0) {
+        message.info('未勾选「期权行情」，行情步骤将基于现有快照执行');
+      }
+      await runFollowups(true);
     }
   } finally {
     starting.value = false;
@@ -355,7 +476,12 @@ onMounted(async () => {
     task.value = data;
     if (isRunning.value) {
       const st = ((data.scope_params || {}) as Record<string, unknown>).stages;
-      if (Array.isArray(st) && st.length > 0) selectedStages.value = st as StageKey[];
+      if (Array.isArray(st) && st.length > 0) {
+        // 后端 stages 不含 bills_import 与两个前端步骤；回填时保留这几项在页面上的勾选，
+        // 否则会出现「排队了行情步骤、勾选框却是空的」的错位
+        const frontKeys = selectedStages.value.filter(s => NON_MACRO_STAGE_KEYS.includes(s));
+        selectedStages.value = [...(st as StageKey[]), ...frontKeys];
+      }
       startPolling();
     }
   }
@@ -396,7 +522,7 @@ onBeforeUnmount(() => {
         <template #trigger>
           <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllStages">全选</NButton>
         </template>
-        全选 = 常用 6 段；交易日历、交易明细导入、黄金储备不勾，需要时手动点选
+        全选 = 常用 8 段；交易日历、交易明细导入、黄金储备不勾，需要时手动点选
       </NTooltip>
       <NButton size="tiny" secondary :disabled="isRunning" @click="clearStages">清空</NButton>
     </div>
@@ -405,8 +531,11 @@ onBeforeUnmount(() => {
       固定顺序：交易日历 → 证券信息 → 历史行情 → 期权合约字典 → 期权行情 → 经济指标 → 美债收益率 →
       黄金储备（基础数据在下游依赖之前，整体快→慢）；单项失败不中断，段失败不影响后续段。「历史行情」范围 = 证券信息表
       A股指数 ∪ 标的监测池（运行时读取、去重），个股后复权 /
-      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）；勾选「期权行情」＝行情链入口，任务完成后还会自动追加「标的行情」「持仓行情」两步（前端联动、需保持本页打开，失败只提示、不影响宏观任务状态）。宏观任务本身后台执行，关页面/刷新不影响，只有追加的联动步骤需要页面在线。默认勾选与「全选」都只勾常用
-      6 段，不含交易日历（仅跨年才真写库）、黄金储备（IMF 接口当前返回 502，勾上会白等约 5.5 分钟且 20
+      指数不复权，首次纳入的个股会全量回填、耗时较长。期权行情的范围由「期权同步清单」决定（按品种×到期月逐组拉取）。
+      「标的行情」「持仓行情」是独立勾选项，在后端任务结束后按此顺序串行执行、各有单独进度：前者更新监测标的价，后者跑
+      bills
+      四步汇总；失败只提示、互不阻断、不影响宏观任务状态。这两步是前端同步请求，需保持本页打开，刷新页面后进度清空。宏观任务本身后台执行，关页面/刷新不影响。默认勾选与「全选」都只勾常用
+      8 段，不含交易日历（仅跨年才真写库）、黄金储备（IMF 接口当前返回 502，勾上会白等约 5.5 分钟且 20
       国全失败）与交易明细导入，这三项需要时手动勾选。「交易明细导入」是 bills
       的十二步流水线（任一步失败即终止流水线）；与其他段同时勾选时先跑其余段、结束后自动接跑导入。
     </div>
@@ -456,6 +585,44 @@ onBeforeUnmount(() => {
       </NCollapse>
       <div v-else-if="!isRunning && task.status === 'done'" style="color: #18a058; font-size: 13px; margin-top: 12px">
         全部完成，无失败项
+      </div>
+    </div>
+
+    <!-- 行情步骤单独进度：前端本地状态，不并入后端任务的分段摘要 -->
+    <div v-if="quoteProgress.length > 0" style="margin-top: 16px">
+      <div style="font-size: 13px; color: #666; margin-bottom: 6px">
+        行情步骤进度
+        <span style="font-size: 12px; color: #999">（独立进度 · 需保持本页打开 · 刷新后清空）</span>
+      </div>
+      <div
+        v-for="row in quoteProgress"
+        :key="row.key"
+        style="
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          padding: 6px 0;
+          border-top: 1px solid rgba(128, 128, 128, 0.15);
+          font-size: 13px;
+        "
+      >
+        <NTag :type="QUOTE_STATUS_TYPE[row.status]" size="tiny" :bordered="false" style="flex-shrink: 0">
+          {{ QUOTE_STATUS_LABEL[row.status] }}
+        </NTag>
+        <span style="width: 80px; flex-shrink: 0">{{ row.label }}</span>
+        <span style="color: #999; flex: 1">{{ row.message }}</span>
+        <span v-if="row.durationMs !== null" style="color: #999; flex-shrink: 0">
+          {{ (row.durationMs / 1000).toFixed(1) }}s
+        </span>
+      </div>
+      <div v-if="quoteProgress.some(r => r.details.length > 0)" style="margin-top: 6px; font-size: 12px; color: #999">
+        <div v-for="row in quoteProgress.filter(r => r.details.length > 0)" :key="`${row.key}-detail`">
+          <span>{{ row.label }}子步：</span>
+          <span v-for="(d, i) in row.details" :key="i">
+            {{ d }}
+            <span v-if="i < row.details.length - 1">·</span>
+          </span>
+        </div>
       </div>
     </div>
   </NCard>
