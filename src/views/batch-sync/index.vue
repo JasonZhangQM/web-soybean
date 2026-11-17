@@ -638,10 +638,11 @@ const indexErrorColumns = [
 // ===================== 卡片 2.5：指数财务聚合 =====================
 
 /**
- * 对所选指数重算成分股合并财报（三张财务报表逐科目求和，纯库内计算不调 gm）。
+ * 对所选指数重算成分股合并财报（三张财务报表逐科目求和，纯库内计算不调 gm），
+ * 并整体法派生财务指标落库 bds_finance_deriv（sec_type='index'，比率 ×100 与 gm 口径一致）。
  * 聚合行与个股混存同表、sec_type='index' 区分；覆盖率看 snap_cons_cnt / agg_cons_cnt。
- * start_date 不传 = 全历史重算覆盖（幂等）；传日期 = 仅聚合该日及之后的报告期，
- * 更早报告期的已有聚合行保持不动。
+ * start_date 不传 = 全历史重算覆盖（幂等）；传日期 = 仅三表聚合该日及之后的报告期，
+ * 更早报告期的已有聚合行保持不动（财务指标派生始终全历史重算）。
  */
 const aggForm = reactive<{ index_codes: string[]; start_date: string | null }>({
   index_codes: [],
@@ -700,7 +701,7 @@ async function handleAggStart() {
       title: '确认同步指数财务聚合？',
       content:
         `将对所选 ${aggForm.index_codes.length} 个指数重算${rangeDesc}的成分股合并财报` +
-        `（财报季手动执行，纯库内计算不调 gm），数据量大、耗时长。确定继续？`,
+        `并派生财务指标（财报季手动执行，纯库内计算不调 gm），数据量大、耗时长。确定继续？`,
       positiveText: '继续',
       negativeText: '取消',
       onPositiveClick: () => resolve(true),

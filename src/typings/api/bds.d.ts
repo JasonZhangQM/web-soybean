@@ -452,6 +452,8 @@ declare namespace Api {
       rpt_type: number;
       /** 数据类型 */
       data_type: number;
+      /** 主体类型：stock=个股，index=指数 */
+      sec_type: 'stock' | 'index';
       /** 净资产收益率ROE(摊薄) */
       roe: number | null;
       /** 净资产收益率ROE(加权) */
@@ -500,6 +502,8 @@ declare namespace Api {
       symbol?: string | null;
       /** 报表类型 */
       rpt_type?: number | null;
+      /** 主体类型筛选：stock=个股，index=指数；不传=全部 */
+      sec_type?: 'stock' | 'index';
       /** 报告日期起始日 */
       start_date?: string | null;
       /** 每页条数 */
