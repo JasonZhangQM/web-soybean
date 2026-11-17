@@ -18,6 +18,8 @@
  * delta_pnl_now / delta_pnl_expiry）。
  * 2026-11-15：在「到期Δ」后加「到期累计盈亏」= 当前盈亏 + 到期Δ（全部品种），
  * 与 ① 账户总表 / ③ 逐仓总表同口径；ALL 取该档顶层组合值、单账户取该账户行值。
+ * 2026-11-17：行序改为按「到期累计盈亏」倒序动态排列（现价行不固定在最前，
+ * 随自身累计值参与排序），档位名仍靠「档位」列与「到档幅度区间」辨识。
  *
  * NDataTable 不写 size（🔒4.7）；scroll-x 由列宽和求出（🔒4.11）；
  * th/td 不折行必须写 :deep()（scoped 属性加不到子组件渲染的单元格上）。
@@ -135,24 +137,16 @@ function makeRow(
   };
 }
 
-/** 现价基准行在最前，其后按后端 level_order（到档价升序）= 极低 → 极高 */
+/** 动态排序（2026-11-17）：行按「到期累计盈亏」倒序（大 → 小）排列，累计盈亏最好的
+ *  档位排第一行。构建顺序直接取 极高→高→中→低→极低→现价（现价行最后构建），
+ *  稳定排序下累计值相同的行自然保持该次序，无需额外 tie-break。
+ *  null 视为 -Infinity（沉底）。行点击选中、追保浅红、现价绿底、选中蓝边均按 key
+ *  匹配，与行序无关。
+ */
 const rows = computed<Row[]>(() => {
-  const bl = props.levels.baseline;
-  const out: Row[] = [
-    makeRow(
-      'base',
-      '现价',
-      {
-        combo: bl.combo,
-        accounts: bl.accounts,
-        deltaNow: bl.delta_pnl_now,
-        deltaExpiry: bl.delta_pnl_expiry,
-        cumExpiry: bl.cum_pnl_expiry
-      },
-      { subjectCount: null, pctMin: null, pctMax: null }
-    )
-  ];
-  for (const key of props.levels.level_order) {
+  const out: Row[] = [];
+  // 构建顺序 = 平局次序：极高 → 高 → 中 → 低 → 极低（缺档跳过），现价基准最后
+  for (const key of ['eh', 'h', 'm', 'l', 'el']) {
     const lv = props.levels.levels[key];
     if (!lv) continue;
     out.push(
@@ -170,7 +164,23 @@ const rows = computed<Row[]>(() => {
       )
     );
   }
-  return out;
+  const bl = props.levels.baseline;
+  out.push(
+    makeRow(
+      'base',
+      '现价',
+      {
+        combo: bl.combo,
+        accounts: bl.accounts,
+        deltaNow: bl.delta_pnl_now,
+        deltaExpiry: bl.delta_pnl_expiry,
+        cumExpiry: bl.cum_pnl_expiry
+      },
+      { subjectCount: null, pctMin: null, pctMax: null }
+    )
+  );
+  // 按到期累计盈亏倒序（大到小）：null 沉底；JS sort 稳定，平局保持上面构建次序
+  return out.sort((a, b) => (b.cumExpiry ?? Number.NEGATIVE_INFINITY) - (a.cumExpiry ?? Number.NEGATIVE_INFINITY));
 });
 
 /** 首个触发追保的档位（不含现价基准行），整行浅红 */
