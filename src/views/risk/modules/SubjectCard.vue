@@ -3,7 +3,10 @@
  * 标的卡片（风险总览 /risk 左栏，2026-11-13 自今日页 TodayCard 精简而来）
  *
  * 今日待办页下线后，卡片只保留「风险总览」需要的部分：
- *   标题（名称 / 代码 / 风险敞口）→ 现价 + PE/PB 分位 → 档位刻度条 → footer 读数行。
+ *   标题（名称 / 风险敞口 / 市值 / 浮动盈亏）→ 现价 + PE/PB 分位 → 档位刻度条 → footer 读数行。
+ * 2026-11-17 标题行改版：代码不再展示（名称即入口），敞口后新增市值与浮动盈亏——
+ * 两项由后端从 bills_group_symbol 按归属标的聚合（value_total / pf_total），与
+ * /bills/group-symbols 页面同源；盈亏着色沿用本页 signCls 惯例（正=绿、负=红）。
  * 2026-11-15 档位条与快速定位滑块合一：色带可拖可点、下方五档标签点击到档，
  * 独立 NSlider 从主路径下线；仅当 types.tierBarOk 为 false（无五档版本）时，
  * footer 才由父页补一个降级 NSlider（否则这类标的将完全无法设假设价）。
@@ -45,15 +48,21 @@ function fmtPct100(v: number | null | undefined) {
 }
 
 /**
- * 风险敞口（标的项下持仓敞口合计，后端派生 risk_exposure）：金额口语化，
- * |v| ≥ 1 万用「万」省位（卡片 380px，整值读不动）；空值显示「—」，不伪造 0。
+ * 风险敞口 / 市值 / 浮动盈亏（标的项下持仓聚合，后端从 bills_group_symbol 汇总）：
+ * 金额口语化，|v| ≥ 1 万用「万」省位（卡片 380px，整值读不动）；空值显示「—」，不伪造 0。
  * 口径与标的监测列表页 fmtMoneyShort 同源，此处内联避免引 risk-board 工具。
  */
 function fmtExposure(v: number | null | undefined) {
   if (v == null) return '—';
   const n = Number(v);
-  if (Math.abs(n) >= 10000) return `${(n / 10000).toFixed(1)} 万`;
+  if (Math.abs(n) >= 10000) return `${(n / 10000).toFixed(1)}万`;
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** 盈亏着色：正=绿、负=红（与 /risk 页 signCls 同一惯例），空值 / 0 不着色 */
+function pnlCls(v: number | null | undefined) {
+  if (v == null || Math.abs(Number(v)) < 1e-9) return '';
+  return Number(v) > 0 ? 'text-green-500' : 'text-red-500';
 }
 </script>
 
@@ -64,17 +73,25 @@ function fmtExposure(v: number | null | undefined) {
         <NButton text class="font-600" @click="emit('detail')">
           {{ subject.name || subject.symbol }}
         </NButton>
-        <span class="text-12px text-gray-400">{{ subject.symbol }}</span>
-        <!-- 风险敞口紧跟代码（标的项下持仓敞口合计，静态人工值）；档位带不再占头部 -->
+        <!-- 风险敞口 / 市值 / 浮动盈亏（标的项下持仓聚合，bills_group_symbol 口径）；档位带不再占头部 -->
         <span class="text-12px" :class="subject.risk_exposure == null ? 'text-gray-400' : 'font-600'">
           敞口 {{ fmtExposure(subject.risk_exposure) }}
+        </span>
+        <span class="text-12px" :class="subject.value_total == null ? 'text-gray-400' : 'font-600'">
+          市值 {{ fmtExposure(subject.value_total) }}
+        </span>
+        <span
+          class="text-12px"
+          :class="subject.pf_total == null ? 'text-gray-400' : ['font-600', pnlCls(subject.pf_total)]"
+        >
+          盈亏 {{ fmtExposure(subject.pf_total) }}
         </span>
         <NTag v-if="changed" size="tiny" :bordered="false" round class="!text-green-500">已改动</NTag>
       </div>
     </template>
 
     <div class="flex flex-col gap-8px">
-      <!-- 现价 + PE/PB 分位（分位是「贵不贵」的唯一读数）；敞口已在标题行代码旁 -->
+      <!-- 现价 + PE/PB 分位（分位是「贵不贵」的唯一读数）；敞口 / 市值 / 盈亏已在标题行 -->
       <div class="flex flex-wrap items-baseline gap-8px">
         <span class="text-20px font-600">{{ fmtPrice(subject.price) }}</span>
         <NTag v-if="subject.pe_pct != null || subject.pb_pct != null" size="tiny" :bordered="false" type="warning">

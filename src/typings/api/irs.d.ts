@@ -125,6 +125,10 @@ declare namespace Api {
        * 列表在后端按该值倒序（分页前 ORDER BY），前端不二次排序。
        */
       risk_exposure: number | null;
+      /** 派生：标的项下持仓市值合计（bills_group_symbol 按归属汇总 SUM(value_total)；null = 无数据） */
+      value_total: number | null;
+      /** 派生：标的项下浮动盈亏合计（bills_group_symbol 按归属汇总 SUM(pf_total)，账面口径） */
+      pf_total: number | null;
       /** 主键（会漂移，关联键一律用 symbol） */
       id: number;
       /** 创建时间 */

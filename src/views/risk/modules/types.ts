@@ -48,6 +48,18 @@ export interface SubjectRow {
    * 与标的监测列表页「风险敞口」列、推演返回的 subject_exposure 同源。
    */
   risk_exposure: number | null;
+  /**
+   * 标的项下持仓市值合计（后端派生 value_total）：
+   * bills_group_symbol 按归属标的（显式 underlying_symbol 优先）汇总 SUM(value_total)，
+   * 与 /bills/group-symbols 页面「当前市值」列同源；null = 无数据。
+   */
+  value_total: number | null;
+  /**
+   * 标的项下浮动盈亏合计（后端派生 pf_total）：
+   * bills_group_symbol 按归属标的汇总 SUM(pf_total)，账面口径（收盘价优先），
+   * 与 /bills/group-symbols 页面「浮动盈亏」列同源；null = 无数据。
+   */
+  pf_total: number | null;
   /** 原始监测行：开抽屉 / 编辑等需要完整字段时用 */
   raw: Api.Irs.UnderlyingMonitor;
 }
@@ -94,6 +106,8 @@ export function toSubjectRow(row: Api.Irs.UnderlyingMonitor): SubjectRow {
     pp: tierMap(row, 'pp'),
     pv: tierMap(row, 'pv'),
     risk_exposure: numOrNull(row.risk_exposure),
+    value_total: numOrNull(row.value_total),
+    pf_total: numOrNull(row.pf_total),
     raw: row
   };
 }
