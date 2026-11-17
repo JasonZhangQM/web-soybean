@@ -945,15 +945,17 @@ export function fetchUmMarketStats(params: UmMarketStatsQuery) {
 }
 
 // ------------------------------------------------ 标的监测抽屉「财务分析」
-// 2026-11-17：懒加载，年报序列 + 最新报告期快照卡；关联键用 symbol。
-// 口径全在后端算（净现比/扣非占比/TTM 差分），前端只渲染。
+// 2026-11-17：懒加载，财务序列 + 最新报告期快照卡；关联键用 symbol。
+// 口径全在后端算（净现比/扣非占比/TTM 差分/单季差分），前端只渲染。
 
 /** 财务分析查询参数 */
 export interface UmFinanceStatsQuery {
   /** 标的代码（= irs_underlying_monitor.symbol） */
   symbol: string;
-  /** 近 N 年年报口径，默认 5；可选 3/5/10 */
+  /** 近 N 年年报口径（freq=annual 时生效），默认 5；可选 3/5/10 */
   years?: number;
+  /** 口径（方案 v8）：annual=近N年年报（默认）/ latest=近12个标准报告期（含单季差分） */
+  freq?: 'annual' | 'latest';
 }
 
 /** 财务分析聚合数据（GET /irs/um-finance-stats） */

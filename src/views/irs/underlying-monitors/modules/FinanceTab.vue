@@ -1,10 +1,14 @@
 <script setup lang="ts">
 /**
- * 标的监测抽屉「财务分析」Tab（2026-11-17，方案 v6）
+ * 标的监测抽屉「财务分析」Tab（2026-11-17，方案 v8）
  *
  * 懒加载：切到本 Tab 才 mount，一次拉 `GET /irs/um-finance-stats`。
- * 前端零口径计算——净现比、扣非占比、TTM 差分、覆盖率全部后端算好，
+ * 前端零口径计算——单季差分、TTM、净现比、扣非占比、覆盖率全部后端算好，
  * 这里只做染色、格式化（元→亿）和画图（与估值与走势 Tab 的约定一致）。
+ *
+ * 双口径（v8）：freq=latest 近 12 个报告期（默认，含单季差分）/ freq=annual 近 N 年年报。
+ * 「归母净利润」卡为东财式设计：报告期=累计柱+同比线；单季度=按年分组 Q1-Q4
+ * 四色柱（红渐变深→浅，借鉴东方财富净利润分析）。
  *
  * 个股与指数零分流：统一 symbol 查询；指数行多出覆盖率徽标与口径注释。
  * 外盘标的（SPX / GC00Y）无财务数据走空态卡，不猜数。
@@ -28,8 +32,18 @@ const YEARS_OPTIONS = [
   { label: '近 10 年年报', value: 10 }
 ];
 
-/** 默认近 5 年年报（2026-11-17 用户拍板），与路由 Query(5)、后端默认三处同步 */
+/** 口径选项（方案 v8）：报告期=近 12 期含单季差分（默认）/ 年报=近 N 年 */
+const FREQ_OPTIONS = [
+  { label: '报告期(12期)', value: 'latest' },
+  { label: '年报', value: 'annual' }
+];
+
+/** 默认报告期口径（2026-11-17 用户拍板），years 仅年报口径生效 */
+const freq = ref<'annual' | 'latest'>('latest');
 const years = ref(5);
+/** 东财式归母净利润卡的展示模式：报告期=累计柱+同比线 / 单季度=按年分组四色柱 */
+const profitMode = ref<'report' | 'quarter'>('report');
+
 const stats = ref<Api.Irs.UmFinanceStats | null>(null);
 const loading = ref(false);
 const loadError = ref(false);
@@ -41,7 +55,11 @@ async function load() {
   const cur = ++seq;
   loading.value = true;
   loadError.value = false;
-  const { data, error } = await fetchUmFinanceStats({ symbol: props.symbol, years: years.value });
+  const { data, error } = await fetchUmFinanceStats({
+    symbol: props.symbol,
+    years: years.value,
+    freq: freq.value
+  });
   if (cur !== seq) return;
   loading.value = false;
   if (error || !data) {
@@ -53,7 +71,11 @@ async function load() {
 }
 
 onMounted(load);
-watch(() => [props.symbol, years.value], load);
+watch(() => [props.symbol, years.value, freq.value], load);
+// 年报口径无单季数据，切回时重置东财卡的展示模式
+watch(freq, f => {
+  if (f === 'annual') profitMode.value = 'report';
+});
 
 async function handleSync() {
   await executeSync(() => syncUmFinance(props.symbol), syncLoading, load);
@@ -82,16 +104,17 @@ const coverageTag = computed(() => {
   return { type, text: `成分覆盖 ${pct.toFixed(1)}%` };
 });
 
-const dates = computed(() => stats.value?.annual.map(a => a.rpt_date) ?? []);
+/** x 轴标签：后端算好的报告期标签（2025FY / 2026Q1），缺 tag 回落 ISO 日期 */
+const xLabels = computed(() => (stats.value?.series ?? []).map(p => p.rpt_label ?? p.rpt_date));
 
-/** 按字段名从年报序列取数组（缺值补 null 断线） */
+/** 按字段名从序列取数组（缺值补 null 断线） */
 function seriesData(key: keyof Api.Irs.UmFinancePeriod): (number | null)[] {
-  return (stats.value?.annual ?? []).map(a => (a[key] == null ? null : Number(a[key])));
+  return (stats.value?.series ?? []).map(a => (a[key] == null ? null : Number(a[key])));
 }
 
 /** 绝对值字段 → 亿（元→亿换算后取数组） */
 function seriesDataYi(key: 'net_prof' | 'net_prof_cut' | 'revenue' | 'ocf'): (number | null)[] {
-  return (stats.value?.annual ?? []).map(a => toYi(a[key]));
+  return (stats.value?.series ?? []).map(a => toYi(a[key]));
 }
 
 // 系列取色（与 ValuationTrendChart 同一套主色习惯）
@@ -122,6 +145,50 @@ const profitCompareSeries = computed(() => [
   { name: '扣非归母(亿)', color: C3, type: 'bar' as const, data: seriesDataYi('net_prof_cut') },
   { name: '扣非占比(%)', color: C4, type: 'line' as const, data: seriesData('cut_ratio'), axisIndex: 1 }
 ]);
+
+// ---------- 东财式「归母净利润」卡（方案 v8，借鉴东方财富净利润分析） ----------
+
+/** 单季度四色（红渐变深→浅，与东财 Q1-Q4 配色习惯一致） */
+const PROFIT_Q_COLORS = ['#b03a2e', '#e24b4a', '#ef6e4e', '#f5a08c'];
+const PROFIT_Q_NAMES = ['一季度', '二季度', '三季度', '四季度'];
+
+const profitTrendDates = computed(() => {
+  const list = stats.value?.series ?? [];
+  if (profitMode.value === 'quarter') {
+    return [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
+  }
+  return list.map(p => p.rpt_label ?? p.rpt_date);
+});
+
+const profitTrendSeries = computed(() => {
+  const list = stats.value?.series ?? [];
+  if (profitMode.value === 'quarter') {
+    // 按年分组 Q1-Q4 四色并列柱；FY 期的 sq_* 即 Q4 单季（后端约定）
+    const yearLabels = [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
+    return PROFIT_Q_NAMES.map((name, i) => {
+      const tag = i === 3 ? 'FY' : `Q${i + 1}`;
+      return {
+        name,
+        color: PROFIT_Q_COLORS[i],
+        type: 'bar' as const,
+        data: yearLabels.map(y => {
+          const p = list.find(x => (x.q_tag ?? '') === tag && (x.rpt_label ?? '').startsWith(y));
+          return p ? toYi(p.sq_net_prof) : null;
+        })
+      };
+    });
+  }
+  return [
+    { name: '归母净利润(亿)', color: '#b03a2e', type: 'bar' as const, data: list.map(p => toYi(p.net_prof)) },
+    {
+      name: '同比(%)',
+      color: '#9a9a9a',
+      type: 'line' as const,
+      data: list.map(p => p.net_prof_pcom_yoy ?? null),
+      axisIndex: 1
+    }
+  ];
+});
 
 const cashflowSeries = computed(() => [
   { name: '净现比(倍)', color: C2, type: 'line' as const, data: seriesData('net_cash_ratio') },
@@ -183,9 +250,11 @@ const snapshotRatios = computed(() => {
 
 <template>
   <div class="flex flex-col gap-16px pb-16px">
-    <!-- 控件：区间 / 同步 / 主体类型 / 覆盖率 -->
+    <!-- 控件：口径 / 区间 / 同步 / 主体类型 / 覆盖率 -->
     <div class="flex flex-wrap items-center gap-12px">
-      <NSelect v-model:value="years" :options="YEARS_OPTIONS" class="w-130px" />
+      <NSelect v-model:value="freq" :options="FREQ_OPTIONS" class="w-130px" />
+      <NSelect v-if="freq === 'annual'" v-model:value="years" :options="YEARS_OPTIONS" class="w-130px" />
+      <span v-else class="text-12px op-60">近 12 个报告期 · 含单季度</span>
       <NButton size="small" :loading="syncLoading" @click="handleSync">同步财务数据</NButton>
       <NTag size="small" :bordered="false" :type="isIndex ? 'info' : 'default'">
         {{ isIndex ? '指数成分聚合（整体法）' : '个股财报（gm 口径）' }}
@@ -197,7 +266,8 @@ const snapshotRatios = computed(() => {
         聚合 {{ stats?.coverage.agg_cons_cnt ?? '—' }} / 快照 {{ stats?.coverage.snap_cons_cnt ?? '—' }} 只成分股
       </NTooltip>
       <span v-if="stats?.coverage.data_start" class="text-12px op-60">
-        年报序列 {{ stats.coverage.data_start }} ~ {{ stats.coverage.latest_rpt_date ?? '—' }}
+        序列 {{ freq === 'annual' ? '年报' : '报告期' }} {{ stats.coverage.data_start }} ~
+        {{ stats.coverage.latest_rpt_date ?? '—' }}
       </span>
     </div>
 
@@ -240,11 +310,31 @@ const snapshotRatios = computed(() => {
             </div>
           </section>
 
+          <!-- 东财式归母净利润（方案 v8）：报告期=累计柱+同比线 / 单季度=按年分组四色柱 -->
+          <FinanceChartCard
+            title="归母净利润"
+            :tip="
+              profitMode === 'quarter'
+                ? '单季净利润（亿元）= 本期累计 − 上季累计，Q1 即一季报累计'
+                : '柱=累计归母净利润（亿元），线=同比（%）'
+            "
+            :dates="profitTrendDates"
+            :series="profitTrendSeries"
+            :y-axes="profitMode === 'quarter' ? ['亿元'] : ['亿元', '%']"
+          >
+            <template #actions>
+              <NRadioGroup v-if="freq === 'latest'" v-model:value="profitMode" size="small">
+                <NRadioButton value="quarter">单季度</NRadioButton>
+                <NRadioButton value="report">报告期</NRadioButton>
+              </NRadioGroup>
+            </template>
+          </FinanceChartCard>
+
           <!-- 盈利能力 -->
           <FinanceChartCard
             title="盈利能力"
             tip="ROE / ROIC / ROA / 毛利率 / 净利率（%）"
-            :dates="dates"
+            :dates="xLabels"
             :series="profitSeries"
             :y-axes="['%']"
           />
@@ -253,7 +343,7 @@ const snapshotRatios = computed(() => {
           <FinanceChartCard
             title="成长性"
             tip="归母净利润 / 营业总收入 / 总资产 同比（%）"
-            :dates="dates"
+            :dates="xLabels"
             :series="growthSeries"
             :y-axes="['%']"
           />
@@ -262,7 +352,7 @@ const snapshotRatios = computed(() => {
           <FinanceChartCard
             title="归母净利润 vs 扣非归母"
             tip="柱=绝对值（亿元），线=扣非占比（%）"
-            :dates="dates"
+            :dates="xLabels"
             :series="profitCompareSeries"
             :y-axes="['亿元', '%']"
             :note="
@@ -274,7 +364,7 @@ const snapshotRatios = computed(() => {
           <FinanceChartCard
             title="现金流质量"
             tip="净现比（倍）= 经营现金流净额 ÷ 归母净利润"
-            :dates="dates"
+            :dates="xLabels"
             :series="cashflowSeries"
             :y-axes="['倍', '亿元']"
             :note="isIndex ? '银行经营现金流占比高会抬高净现比（沪深300 实测 3.7），指数行判读以趋势为主。' : undefined"
@@ -284,7 +374,7 @@ const snapshotRatios = computed(() => {
           <FinanceChartCard
             title="偿债能力"
             tip="资产负债率（%）· 流动 / 速动比率（倍）"
-            :dates="dates"
+            :dates="xLabels"
             :series="solvencySeries"
             :y-axes="['%', '倍']"
             :note="isIndex ? '银行不适用毛利率与流动 / 速动比率（如招商银行实测为空），对应系列显示 —。' : undefined"
@@ -292,7 +382,7 @@ const snapshotRatios = computed(() => {
           <FinanceChartCard
             title="营运能力"
             tip="总资产周转率（%）· 应收 / 存货周转天数（天）"
-            :dates="dates"
+            :dates="xLabels"
             :series="operationSeries"
             :y-axes="['%', '天']"
           />

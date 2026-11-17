@@ -2,11 +2,12 @@
 /**
  * 财务分析 Tab 通用图表卡片（2026-11-17）
  *
- * 财务 Tab 五张图（盈利/成长/归母扣非/现金流/偿债营运）结构同构：
- * x 轴报告期 + 若干 line/bar 系列（最多双轴）。抽成通用卡片避免五份重复配置，
+ * 财务 Tab 六张图（盈利/成长/归母净利润/归母扣非/现金流/偿债营运）结构同构：
+ * x 轴报告期 + 若干 line/bar 系列（最多双轴）。抽成通用卡片避免重复配置，
  * 数值全部由 `GET /irs/um-finance-stats` 后端算好，这里只做排版。
+ * actions 插槽透传给 SectionBar（标题栏右侧），供归母净利润卡放单季/报告期胶囊。
  */
-import { computed, watch } from 'vue';
+import { computed, useSlots, watch } from 'vue';
 import { useEcharts } from '@/hooks/common/echarts';
 import SectionBar from './SectionBar.vue';
 
@@ -35,6 +36,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const slots = useSlots();
 
 const { domRef, updateOptions } = useEcharts(() => ({
   tooltip: {
@@ -93,6 +96,9 @@ watch(() => [props.dates, props.series, props.yAxes], refresh, { deep: true, imm
   <section class="mb-16px">
     <SectionBar :title="title">
       <span v-if="tip" class="text-12px op-60">{{ tip }}</span>
+      <template v-if="slots.actions" #actions>
+        <slot name="actions" />
+      </template>
     </SectionBar>
     <div v-if="hasPoint" ref="domRef" class="h-260px w-full"></div>
     <div v-else class="h-60px w-full pt-16px text-center text-13px op-50">无数据</div>

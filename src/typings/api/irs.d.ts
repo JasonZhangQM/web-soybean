@@ -946,10 +946,14 @@ declare namespace Api {
 
     // ------------------------------------------------ 标的监测抽屉「财务分析」(2026-11-17)
 
-    /** 年报序列 / 快照卡共用的单期指标（比率 ×100 存百分比、绝对值单位=元） */
+    /** 财务序列 / 快照卡共用的单期指标（比率 ×100 存百分比、绝对值单位=元） */
     interface UmFinancePeriod {
       rpt_date: string;
       pub_date: string | null;
+      /** 报告期标签：2025FY / 2026Q1（x 轴直接用，方案 v8） */
+      rpt_label?: string;
+      /** 季度标记：Q1~Q4 / FY（FY 期的 sq_* 即 Q4 单季） */
+      q_tag?: string;
       /** 盈利能力（%） */
       roe: number | null;
       roe_avg: number | null;
@@ -978,6 +982,16 @@ declare namespace Api {
       net_prof_cut: number | null;
       revenue: number | null;
       ocf: number | null;
+      /** 单季差分（元，仅 freq=latest 返回）：本期累计−上季累计，Q1=累计本身，资产负债表时点值不做单季 */
+      sq_net_prof?: number | null;
+      sq_net_prof_cut?: number | null;
+      sq_revenue?: number | null;
+      sq_ocf?: number | null;
+      /** 单季同比（%）：本季单季 vs 去年同期单季；去年单季缺失或非正 → null */
+      sq_net_prof_yoy?: number | null;
+      sq_net_prof_cut_yoy?: number | null;
+      sq_revenue_yoy?: number | null;
+      sq_ocf_yoy?: number | null;
     }
 
     /** 最新报告期快照（UmFinancePeriod 基础上追加 TTM 滚动 12 个月差分） */
@@ -988,18 +1002,21 @@ declare namespace Api {
       ttm_ocf: number | null;
     }
 
-    /** GET /irs/um-finance-stats 响应：年报序列 + 快照卡，口径全在后端算 */
+    /** GET /irs/um-finance-stats 响应：财务序列 + 快照卡，口径全在后端算 */
     interface UmFinanceStats {
       symbol: string;
       name: string | null;
       /** index / stock / null（外盘等无财务数据的主体） */
       subject_type: string | null;
+      /** 近 N 年年报（freq=annual 时生效）；latest 口径期数固定 12，忽略 years */
       years: number;
+      /** 口径：annual=近N年年报 / latest=近12个标准报告期（含单季差分） */
+      freq: 'annual' | 'latest';
       coverage: {
         deriv_rows: number;
         three_table_rows: number;
         latest_rpt_date: string | null;
-        /** 年报序列最早报告期（受所选年数限制） */
+        /** 序列最早报告期（annual=最早年报 / latest=窗口首期） */
         data_start: string | null;
         empty: boolean;
         empty_reason: string | null;
@@ -1008,7 +1025,8 @@ declare namespace Api {
         agg_cons_cnt?: number;
         coverage_pct?: number;
       };
-      annual: UmFinancePeriod[];
+      /** 财务序列（freq=annual 年报 / latest 近 12 个报告期含单季差分，方案 v8 由 annual 改名） */
+      series: UmFinancePeriod[];
       latest: UmFinanceLatest | null;
       /** 空态 / 覆盖不足时的人话说明 */
       message: string | null;
