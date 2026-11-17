@@ -943,3 +943,35 @@ export function fetchUmMarketStats(params: UmMarketStatsQuery) {
     params
   });
 }
+
+// ------------------------------------------------ 标的监测抽屉「财务分析」
+// 2026-11-17：懒加载，年报序列 + 最新报告期快照卡；关联键用 symbol。
+// 口径全在后端算（净现比/扣非占比/TTM 差分），前端只渲染。
+
+/** 财务分析查询参数 */
+export interface UmFinanceStatsQuery {
+  /** 标的代码（= irs_underlying_monitor.symbol） */
+  symbol: string;
+  /** 近 N 年年报口径，默认 5；可选 3/5/10 */
+  years?: number;
+}
+
+/** 财务分析聚合数据（GET /irs/um-finance-stats） */
+export function fetchUmFinanceStats(params: UmFinanceStatsQuery) {
+  return request<Api.Irs.UmFinanceStats>({
+    url: '/api/v1/irs/um-finance-stats',
+    method: 'get',
+    params
+  });
+}
+
+/** 按标的触发财务同步（个股 gm 4 函数链 / 指数纯库内聚合，后端判定） */
+export function syncUmFinance(symbol: string) {
+  return request<{ status: string; message: string; subject_type: string | null; errors: string[] }>({
+    url: '/api/v1/irs/um-finance-sync',
+    method: 'post',
+    params: { symbol },
+    // 个股要连打 4 个 gm 接口，放宽超时
+    timeout: 180 * 1000
+  });
+}

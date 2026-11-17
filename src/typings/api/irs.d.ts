@@ -943,5 +943,75 @@ declare namespace Api {
       /** 无数据 / 部分缺失时的人话说明 */
       message: string | null;
     }
+
+    // ------------------------------------------------ 标的监测抽屉「财务分析」(2026-11-17)
+
+    /** 年报序列 / 快照卡共用的单期指标（比率 ×100 存百分比、绝对值单位=元） */
+    interface UmFinancePeriod {
+      rpt_date: string;
+      pub_date: string | null;
+      /** 盈利能力（%） */
+      roe: number | null;
+      roe_avg: number | null;
+      roic: number | null;
+      roa: number | null;
+      sale_gpm: number | null;
+      sale_npm: number | null;
+      /** 成长性（%） */
+      net_prof_pcom_yoy: number | null;
+      ttl_inc_oper_yoy: number | null;
+      ttl_asset_yoy: number | null;
+      /** 偿债（资产负债率 % / 流动·速动比率倍） */
+      ast_liab_rate: number | null;
+      curr_rate: number | null;
+      quick_rate: number | null;
+      liab_eqy_rate: number | null;
+      /** 营运（总资产周转率 % / 周转天数天） */
+      ttl_ast_turnover_rate: number | null;
+      acct_rcv_turnover_days: number | null;
+      inv_turnover_days: number | null;
+      /** 查询层派生：净现比（倍）与扣非占比（%） */
+      net_cash_ratio: number | null;
+      cut_ratio: number | null;
+      /** 绝对值（元）：归母净利润 / 扣非归母 / 营业总收入 / 经营现金流净额 */
+      net_prof: number | null;
+      net_prof_cut: number | null;
+      revenue: number | null;
+      ocf: number | null;
+    }
+
+    /** 最新报告期快照（UmFinancePeriod 基础上追加 TTM 滚动 12 个月差分） */
+    interface UmFinanceLatest extends UmFinancePeriod {
+      ttm_net_prof: number | null;
+      ttm_net_prof_cut: number | null;
+      ttm_revenue: number | null;
+      ttm_ocf: number | null;
+    }
+
+    /** GET /irs/um-finance-stats 响应：年报序列 + 快照卡，口径全在后端算 */
+    interface UmFinanceStats {
+      symbol: string;
+      name: string | null;
+      /** index / stock / null（外盘等无财务数据的主体） */
+      subject_type: string | null;
+      years: number;
+      coverage: {
+        deriv_rows: number;
+        three_table_rows: number;
+        latest_rpt_date: string | null;
+        /** 年报序列最早报告期（受所选年数限制） */
+        data_start: string | null;
+        empty: boolean;
+        empty_reason: string | null;
+        /** 以下三项仅指数标的有值 */
+        snap_cons_cnt?: number;
+        agg_cons_cnt?: number;
+        coverage_pct?: number;
+      };
+      annual: UmFinancePeriod[];
+      latest: UmFinanceLatest | null;
+      /** 空态 / 覆盖不足时的人话说明 */
+      message: string | null;
+    }
   }
 }

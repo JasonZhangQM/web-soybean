@@ -16,6 +16,7 @@ import { executeSync } from '@/utils/sync-feedback';
 import { fmtPrice } from '@/views/irs/risk-board/modules/utils';
 import OverviewTab from './OverviewTab.vue';
 import MarketStatsTab from './MarketStatsTab.vue';
+import FinanceTab from './FinanceTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
 import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
@@ -202,6 +203,10 @@ defineExpose({ refresh: () => load(false) });
           <!-- 估值与走势（2026-11-08）：懒加载，一次拉分位/估值/收益/回撤；关联键用 symbol -->
           <NTabPane name="market" tab="估值与走势" display-directive="show:lazy">
             <MarketStatsTab :symbol="detail.um.symbol" />
+          </NTabPane>
+          <!-- 财务分析（2026-11-17）：懒加载，年报序列 + 快照卡；个股/指数统一 symbol 零分流 -->
+          <NTabPane name="finance" tab="财务分析" display-directive="show:lazy">
+            <FinanceTab :symbol="detail.um.symbol" />
           </NTabPane>
           <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
           <!-- 研究 + 逻辑与证伪（2026-11-09 合并；逻辑/证伪作为子组件嵌在 ResearchVersionPanel 内） -->
