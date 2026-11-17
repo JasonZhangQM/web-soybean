@@ -9,7 +9,7 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 十一个勾选项 = 十个后端同步段 + 一个独立任务（交易明细导入）。
+/** 十一个勾选项 = 十个后端同步段 + 一个独立任务（交易明细导入），分「基础数据 / 行情数据 / 宏观数据」三排勾选。
  *  2026-11-16 起「标的行情 / 持仓行情」已并入后端 macro_sync 任务（注册表注入执行器），
  *  进度写 result.stages、刷新页面可恢复，与其余八段共用同一张分段摘要表。
  *  后端十段固定为 trade_date → symbol_info → history_market → option_info →
@@ -33,24 +33,32 @@ interface StageOption {
   value: StageKey;
 }
 
-/** 勾选分组（组内顺序 = 后端执行顺序）：基础数据是下游依赖，排在宏观之前 */
+/** 勾选分组（组内顺序 = 后端执行顺序）：三排展示——基础数据（下游依赖）→ 行情数据 → 宏观数据。
+ *  2026-11-17 起「历史行情 / 期权行情 / 标的行情 / 持仓行情」四段从基础数据拆出单独成组，
+ *  放在第二排（用户要求）；「期权合约字典」留在基础数据——它是行情段的字典依赖，执行顺序仍在期权行情之前。
+ */
 const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
   {
     name: '基础数据',
     options: [
       { label: '交易日历', value: 'trade_date' },
       { label: '证券信息', value: 'symbol_info' },
-      { label: '历史行情(指数+标的)', value: 'history_market' },
       // 🔴 必须排在「期权行情」之前：行情同步要从字典取逐合约乘数与权威到期日，
       // 当天新挂牌的合约若还没进字典就会被跳过（后端也固定这个顺序）
       { label: '期权合约字典', value: 'option_info' },
-      { label: '期权行情', value: 'option_market' },
-      // 两段行情链紧跟「期权行情」：吃期权快照更新后的价，且后端固定这个顺序
-      { label: '标的行情', value: 'underlying_quote' },
-      { label: '持仓行情', value: 'position_quote' },
       // 交易明细导入（bills 12 步流水线）：与其他段不同，它跑的是 bills 自己的
       // 后台任务端点，且因全局互斥只能串联排队——见 handleStart 的分流逻辑
       { label: '交易明细导入', value: 'bills_import' }
+    ]
+  },
+  {
+    name: '行情数据',
+    options: [
+      { label: '历史行情(指数+标的)', value: 'history_market' },
+      { label: '期权行情', value: 'option_market' },
+      // 两段行情链紧跟「期权行情」：吃期权快照更新后的价，且后端固定这个顺序
+      { label: '标的行情', value: 'underlying_quote' },
+      { label: '持仓行情', value: 'position_quote' }
     ]
   },
   {
@@ -409,7 +417,7 @@ onBeforeUnmount(() => {
       <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
-    <!-- 段选择：分「基础数据 / 宏观数据」两组，组内与跨组顺序即后端执行顺序 -->
+    <!-- 段选择：分「基础数据 / 行情数据 / 宏观数据」三排，组内与跨组顺序即后端执行顺序 -->
     <div style="display: flex; gap: 16px; align-items: flex-start">
       <span style="font-size: 13px; color: #666; flex-shrink: 0; line-height: 24px">同步段：</span>
       <NCheckboxGroup v-model:value="selectedStages" :disabled="isRunning" style="flex: 1">

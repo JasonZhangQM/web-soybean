@@ -276,7 +276,7 @@ onMounted(() => {
             value-format="yyyy-MM-dd"
             :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 320px"
+            style="width: 250px"
             @update:formatted-value="handleDateChange"
           />
         </NFormItem>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, h } from 'vue';
+import { ref, reactive, computed, onMounted, h } from 'vue';
 import { NSelect, NInput, useMessage } from 'naive-ui';
 import { useRouter } from 'vue-router';
 import {
@@ -9,13 +9,11 @@ import {
   fetchOptionMarket,
   fetchOptionMarketFilters,
   fetchOptionMarketLatestDate,
-  fetchOptionSyncPlan,
-  fetchSyncTask,
-  syncOptionMarket,
   updateOptionConfig,
   updateOptionMarket
 } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
+import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
@@ -25,7 +23,7 @@ defineOptions({ name: 'OptionMarketPage' });
  * 期权行情（`bds_option_market`）
  *
  * 数据由**配置驱动**同步：`bds_option_config` 决定"要同步哪些合约"，
- * 点搜索区的「行情同步」一次拉完（后台任务 + 进度 + 审计落库）。
+ * 同步入口统一在「批量同步」页（宏观卡片期权行情段），本页只管展示与维护清单。
  *
  * 三个必须先知道的展示口径（否则会把 null 当成数据缺失）：
  * 1. `settle`（结算价）**只有商品期权拿得到**——股指与 ETF 期权的 akshare 接口本来就没有
@@ -33,9 +31,10 @@ defineOptions({ name: 'OptionMarketPage' });
  * 2. `delta_opt` 同理，只有商品期权有（认沽为负）。
  * 3. `volume` / `open_interest` 对 ETF 恒为 null：接口的「数量」列实测恒等于返回行数
  *    （26 行全是 26），不是成交量，宁缺勿造。
- * 4. **日期是「起始日」不是「精确日」**（2026-10-27 改）：不填=全部历史（按 trade_date
- *    倒序），填了=从该日起筛到最新。表按日累积成时间序列，精确单日筛法会让「最近几天」
- *    这种最常见的核账动作变成反复改日期。
+ * 4. **日期是「交易期间」不是「精确日」**（2026-10-27 改，2026-11-17 升级为区间）：不填=
+ *    全部历史（按 trade_date 倒序）；填了=从起始日筛到截止日（两端闭区间，只填一端=
+ *    单边筛到最新）。表按日累积成时间序列，精确单日筛法会让「最近几天」这种最常见
+ *    的核账动作变成反复改日期。
  *
  * ⚠️ 清单（行情表与同步清单）的唯一身份都是 `contract_id`（openctp 合约ID），
  * 交易所标准码**不在本页展示**（行情表既不存也不返回，要看去「合约字典」）。
@@ -57,7 +56,7 @@ defineOptions({ name: 'OptionMarketPage' });
  * （清单=交易所原始值，主表=当日接口口径），别强行对齐。
  *
  * 🔄 2026-11-10 三次：「到期月」加回在「行权价」之后，两列并存。它不是到期日的展示变体，
- * 而是 `end_month` 这个**同步入参**（同步确认弹窗按「品种×到期月」分组据此），
+ * 而是 `end_month` 这个**同步入参**（批量同步期权段按「品种×到期月」分组据此），
  * 商品期权（沪金）恒为 ALL = 接口一次返回当日全部到期月，与「到期日」的月份可能不同。
  * 同日另加「加入日期」（配置 create_time 的日期部分）。
  */
@@ -72,13 +71,14 @@ const loading = ref(false);
 const tableData = ref<Api.Bds.OptionMarket[]>([]);
 const pagination = createTablePagination();
 
-// 筛选条件（searchParams 必须在 pagination 之前声明，反序会报 TS2448）
+// 筛选条件（searchParams 必须在 pagination 之前声明，反序会报 TS2448）；
+// date_range 交易期间 [起, 止]（同指数估值页交易日期，两端闭区间）
 const searchParams = reactive<{
   option_name?: string | null;
   end_month?: string | null;
   option_type?: string | null;
   contract_id?: string | null;
-  trade_date?: string | null;
+  date_range?: [string, string] | null;
 }>({});
 usePageState({ searchParams, pagination });
 
@@ -316,12 +316,14 @@ function configRowKey(r: Api.Bds.OptionConfig) {
 async function fetchData() {
   loading.value = true;
   try {
+    const [startDate, endDate] = searchParams.date_range || [];
     const { data, error } = await fetchOptionMarket({
       option_name: searchParams.option_name || undefined,
       end_month: searchParams.end_month || undefined,
       option_type: searchParams.option_type || undefined,
       contract_id: searchParams.contract_id || undefined,
-      trade_date: searchParams.trade_date || undefined,
+      trade_date: startDate || undefined,
+      trade_date_end: endDate || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -358,7 +360,7 @@ function handleReset() {
   searchParams.end_month = null;
   searchParams.option_type = null;
   searchParams.contract_id = null;
-  searchParams.trade_date = null;
+  searchParams.date_range = null;
   pagination.page = 1;
   fetchData();
 }
@@ -373,138 +375,6 @@ function handlePageSizeChange(pageSize: number) {
   pagination.page = 1;
   fetchData();
 }
-
-// ===================== 行情同步（任务化 + 按组进度） =====================
-
-const syncLoading = ref(false);
-const syncTask = ref<Api.Bds.SyncTask | null>(null);
-const syncRunning = computed(() => ['pending', 'running'].includes(syncTask.value?.status || ''));
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-
-function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
-}
-
-function startPolling(taskId: number) {
-  stopPolling();
-  pollTimer = setInterval(async () => {
-    if (document.hidden) return;
-    const { data, error } = await fetchSyncTask(taskId);
-    if (error || !data) return;
-    syncTask.value = data;
-    if (!['pending', 'running'].includes(data.status)) {
-      stopPolling();
-      syncLoading.value = false;
-      onSyncFinished(data);
-    }
-  }, 2000);
-}
-
-/** 收尾提示：把「新增/更新/跳过/失败」讲清楚，跳过要看得出是价格 0 还是格式不符 */
-function onSyncFinished(task: Api.Bds.SyncTask) {
-  const r = (task.result || {}) as any;
-  if (task.status === 'failed') {
-    message.error(`同步失败：${task.errors?.[0]?.message || '未知错误'}`);
-    return;
-  }
-  if (task.status === 'stopped') {
-    message.warning('同步已停止（已完成的部分已入库）');
-    loadMeta();
-    fetchData();
-    return;
-  }
-  // 口径：本任务的 success_count = 写入行数，与批量同步页「段内项数」不是一回事，
-  // 所以每个数字后面都带「行」，避免被读成项数
-  const parts = [
-    `成功 ${r.group_ok ?? 0}/${r.group_total ?? 0} 组`,
-    `新增 ${r.row_insert ?? 0} 行`,
-    `更新 ${r.row_update ?? 0} 行`,
-    `跳过 ${r.row_skip ?? 0} 行`
-  ];
-  const skipDetail = Object.entries(r.per_group || {})
-    .flatMap(([, g]: any) => (g.skip_reasons ? Object.entries(g.skip_reasons) : []))
-    .map(([k, v]) => `${k}×${v}`)
-    .join('、');
-  const text = parts.join('，') + (skipDetail ? `（跳过原因：${skipDetail}）` : '');
-  if (task.status === 'done' && (r.group_failed ?? 0) > 0) {
-    message.warning(`${text}；${r.group_failed} 组失败，详见任务审计`);
-  } else {
-    message.success(text);
-  }
-  loadMeta();
-  fetchData();
-}
-
-/** 点「行情同步」：先拿计划数 → 确认框讲清代价 → 起任务 → 轮询进度 */
-async function handleSync() {
-  if (syncRunning.value) return;
-  syncLoading.value = true;
-  try {
-    const { data: plan, error } = await fetchOptionSyncPlan();
-    if (error || !plan) {
-      message.error((error as any)?.message || '取同步计划失败');
-      return;
-    }
-    if (plan.symbol_count === 0) {
-      message.warning('同步清单为空，请先点右侧「同步清单」添加合约');
-      return;
-    }
-    const groupText = plan.groups
-      .map(g => `${g.option_name}/${g.end_month === 'ALL' ? '全部月份' : g.end_month}`)
-      .join('、');
-    dialog?.info({
-      title: '确认同步期权行情',
-      content: () =>
-        h('div', { style: 'line-height:1.9' }, [
-          h(
-            'div',
-            `将同步 ${plan.symbol_count} 个合约，覆盖 ${plan.group_count} 个「品种×到期月」组合（= ${plan.group_count} 次接口请求）。`
-          ),
-          h('div', { style: 'color:#888;font-size:12px;margin-top:4px' }, groupText),
-          h(
-            'div',
-            { style: 'color:#888;font-size:12px;margin-top:8px' },
-            '按日快照入库：同一天重跑会覆盖，跨日累积成时间序列。'
-          )
-        ]),
-      positiveText: '开始同步',
-      negativeText: '取消',
-      onPositiveClick: () => {
-        doSync();
-      }
-    });
-  } finally {
-    // 取消时也要复位 loading（onPositiveClick 里会再置 true）
-    if (!syncRunning.value) syncLoading.value = false;
-  }
-}
-
-async function doSync() {
-  syncLoading.value = true;
-  syncTask.value = null;
-  const { data, error } = await syncOptionMarket();
-  if (error || !data) {
-    syncLoading.value = false;
-    message.error((error as any)?.message || '启动同步失败（可能有其他任务在跑）');
-    return;
-  }
-  syncTask.value = data;
-  startPolling(data.id);
-}
-
-/** 进度文案：必须显示「第几组/共几组」——耗时在接口请求上，只给百分比会长时间停 0% */
-const syncProgressText = computed(() => {
-  const t = syncTask.value;
-  if (!t) return '';
-  if (t.status === 'stopped') return '已停止';
-  const total = t.total_count || 0;
-  const done = t.done_count || 0;
-  if (['done', 'failed'].includes(t.status)) return `完成 ${done}/${total} 组`;
-  return `${done}/${total} 组进行中…`;
-});
 
 // ===================== 同步清单抽屉 =====================
 
@@ -833,7 +703,7 @@ const configColumns = [
   },
   {
     // 🔄 2026-11-10 三次变更加回：本表**物理字段** end_month（YYYYMM），不是从到期日
-    // 派生的展示值 —— 它是一键同步的接口入参，同步确认弹窗「品种×到期月」分组也用它。
+    // 派生的展示值 —— 它是一键同步的接口入参，批量同步期权段的「品种×到期月」分组也用它。
     // 'ALL' 是商品期权（沪金）：接口一次返回当日全部到期月，填实际月份会让人误以为只拉一个月。
     // ⚠️ 与「到期日」的月份不必然一致（ALL 行尤其明显），别拿它推算到期日。
     title: '到期月',
@@ -938,8 +808,6 @@ onMounted(() => {
   loadMeta();
   fetchData();
 });
-
-onUnmounted(stopPolling);
 </script>
 
 <template>
@@ -976,14 +844,14 @@ onUnmounted(stopPolling);
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="起始日期">
+        <NFormItem label="交易期间">
           <NDatePicker
-            v-model:formatted-value="searchParams.trade_date"
-            type="date"
+            v-model:formatted-value="searchParams.date_range"
+            type="daterange"
             value-format="yyyy-MM-dd"
+            :shortcuts="dateRangeShortcuts"
             clearable
-            placeholder="全部"
-            style="width: 150px"
+            style="width: 280px"
             @update:formatted-value="handleSearch"
           />
         </NFormItem>
@@ -1004,54 +872,26 @@ onUnmounted(stopPolling);
           </NSpace>
         </NFormItem>
 
-        <!-- 行情同步：搜索区的**批量任务按钮**（不针对某一行、走任务化、有审计） -->
+        <!-- 同步清单：期权行情由该清单驱动，同步入口统一在「批量同步」页（宏观卡片期权行情段） -->
         <NFormItem class="ml-auto">
-          <NSpace align="center">
-            <NButton @click="openConfigDrawer">
-              <template #icon><SvgIcon icon="mdi:format-list-checks" /></template>
-              同步清单
-            </NButton>
-            <NButton :loading="syncLoading || syncRunning" @click="handleSync">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              行情同步
-            </NButton>
-          </NSpace>
+          <NButton @click="openConfigDrawer">
+            <template #icon><SvgIcon icon="mdi:format-list-checks" /></template>
+            同步清单
+          </NButton>
         </NFormItem>
       </NForm>
-
-      <!-- 同步进度：按「组」报，不给单纯百分比（耗时在接口请求上） -->
-      <div v-if="syncTask" class="mt-8px">
-        <NProgress
-          type="line"
-          :percentage="Number(syncTask.progress || 0)"
-          :status="syncTask.status === 'failed' ? 'error' : syncTask.status === 'stopped' ? 'warning' : undefined"
-          :processing="syncRunning"
-        />
-        <div class="mt-4px text-12px" style="color: #888">
-          {{ syncProgressText }}
-          <span v-if="syncTask.result && !syncRunning">
-            · 新增 {{ (syncTask.result as any).row_insert ?? 0 }} 行 · 更新
-            {{ (syncTask.result as any).row_update ?? 0 }} 行 · 跳过 {{ (syncTask.result as any).row_skip ?? 0 }} 行
-          </span>
-        </div>
-        <div class="mt-4px text-12px" style="color: #999">
-          进度按「组」（一个品种×到期月 = 一次接口请求）报，条数按
-          <b>行</b>
-          报——两者不同口径，别看混。
-        </div>
-      </div>
 
       <div class="mt-8px text-12px" style="color: #999">
         最新行情日：
         <b>{{ latest.latest_trade_date || '（暂无数据）' }}</b>
         <template v-if="latest.sync_time">· 最近同步 {{ latest.sync_time }}</template>
         ·
-        <b>不填「起始日期」= 全部历史</b>
+        <b>不填「交易期间」= 全部历史</b>
         （按交易日倒序，最新在前）；填了则
-        <b>从该日起筛到最新</b>
-        ，不是只看那一天。 · 数据由「
+        <b>按区间筛选</b>
+        （起始/截止任填一端 = 单边筛到最新），不是只看某一天。 · 数据由「
         <b>同步清单</b>
-        」驱动，点「行情同步」一次拉完（后台任务，进度按组显示）。 「到期月」按
+        」驱动，同步入口统一在「批量同步」页（后台任务，进度按组显示）。 「到期月」按
         <b>到期日所在月</b>
         筛选（au2612 的到期日在 11 月，故归入 202611；IO2611 与它同月）。
         <b>结算价 / delta 只有商品期权可得</b>

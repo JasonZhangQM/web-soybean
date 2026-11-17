@@ -268,8 +268,10 @@ declare namespace Api {
       rpt_type?: number;
       /** 主体类型筛选：stock=个股，index=指数成分股聚合；不传=不过滤（仅三张财务报表支持） */
       sec_type?: 'stock' | 'index';
-      /** 报告日期起始日 */
+      /** 报告期间起始日 */
       start_date?: string;
+      /** 报告期间截止日 */
+      end_date?: string;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -350,8 +352,10 @@ declare namespace Api {
       rpt_type?: number;
       /** 主体类型筛选：stock=个股，index=指数成分股聚合；不传=不过滤（仅三张财务报表支持） */
       sec_type?: 'stock' | 'index';
-      /** 报告日期起始日 */
+      /** 报告期间起始日 */
       start_date?: string;
+      /** 报告期间截止日 */
+      end_date?: string;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -432,8 +436,10 @@ declare namespace Api {
       rpt_type?: number;
       /** 主体类型筛选：stock=个股，index=指数成分股聚合；不传=不过滤（仅三张财务报表支持） */
       sec_type?: 'stock' | 'index';
-      /** 报告日期起始日 */
+      /** 报告期间起始日 */
       start_date?: string;
+      /** 报告期间截止日 */
+      end_date?: string;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -504,8 +510,10 @@ declare namespace Api {
       rpt_type?: number | null;
       /** 主体类型筛选：stock=个股，index=指数；不传=全部 */
       sec_type?: 'stock' | 'index';
-      /** 报告日期起始日 */
+      /** 报告期间起始日 */
       start_date?: string | null;
+      /** 报告期间截止日 */
+      end_date?: string | null;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -564,8 +572,10 @@ declare namespace Api {
     interface DailyValuationQueryParams {
       /** 股票代码（模糊匹配） */
       symbol?: string | null;
-      /** 交易日期起始日 */
+      /** 交易期间起始日 */
       start_date?: string | null;
+      /** 交易期间截止日 */
+      end_date?: string | null;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -610,8 +620,10 @@ declare namespace Api {
     interface DailyMktvalueQueryParams {
       /** 股票代码（模糊匹配） */
       symbol?: string | null;
-      /** 交易日期起始日 */
+      /** 交易期间起始日 */
       start_date?: string | null;
+      /** 交易期间截止日 */
+      end_date?: string | null;
       /** 每页条数 */
       limit: number;
       /** 偏移量 */
@@ -1439,22 +1451,14 @@ declare namespace Api {
       option_type?: string | null;
       /** 合约ID（openctp），模糊匹配；标准码已不在行情表返回 */
       contract_id?: string | null;
-      /** **起始**行情日期 YYYY-MM-DD（筛到最新）；不传=全部历史，按交易日倒序 */
+      /** **起始**行情日期 YYYY-MM-DD（含当日，筛到截止日或最新）；不传=全部历史，按交易日倒序 */
       trade_date?: string | null;
+      /** **截止**行情日期 YYYY-MM-DD（含当日，与起始日组成交易期间闭区间）；不传=筛到最新 */
+      trade_date_end?: string | null;
       /** 只取当前筛选范围内最新交易日的快照（T 型报价页用，品种级最新） */
       latest_only?: boolean;
       limit?: number;
       offset?: number;
-    }
-
-    /** 同步前置确认信息（点「行情同步」弹窗） */
-    interface OptionSyncPlan {
-      /** 启用配置的合约张数 */
-      symbol_count: number;
-      /** 品种×到期月组合数（= 接口请求次数，进度按组报） */
-      group_count: number;
-      option_names: string[];
-      groups: { option_name: string; end_month: string }[];
     }
 
     /** 最新行情日期与各品种行数 */

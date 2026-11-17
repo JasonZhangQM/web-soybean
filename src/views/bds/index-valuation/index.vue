@@ -302,7 +302,7 @@ onMounted(() => fetchData());
             value-format="yyyy-MM-dd"
             :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 280px"
+            style="width: 250px"
             @update:formatted-value="handleSearch"
           />
         </NFormItem>

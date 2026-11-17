@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchDailyMktvalues, syncDailyMktvalue } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchDailyMktvalues } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
-import { dateShortcuts } from '@/utils/date-shortcuts';
+import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
@@ -11,38 +10,30 @@ import { createTablePagination, setPaginationTotal } from '@/hooks/common/table'
 defineOptions({ name: 'DailyMktvaluesPage' });
 
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bds.DailyMktvalue[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 模糊匹配，start_date 交易日期起始日
+// 搜索参数：symbol 模糊匹配，date_range 交易期间 [起, 止]（同指数估值页交易日期，闭区间）
 const searchParams = reactive<{
   symbol?: string | null;
-  start_date?: string | null;
+  date_range?: [string, string] | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
-// 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
+// 代码远程搜索（NSelect remote，防抖 300ms）；数据更新统一走批量同步，本页无同步入口
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
-const {
-  symbolOptions: syncSymbolOptions,
-  symbolLoading: syncSymbolLoading,
-  handleSymbolSearch: handleSyncSearch
-} = useSymbolSearch();
-
-// 同步用单个股票代码（精确匹配）
-const syncSymbol = ref<string | null>(null);
 
 // 拉取每日市值列表（后端使用 limit/offset 分页）
 async function fetchData() {
   loading.value = true;
   try {
+    const [startDate, endDate] = searchParams.date_range || [];
     const { data, error } = await fetchDailyMktvalues({
       symbol: searchParams.symbol || undefined,
-      start_date: searchParams.start_date || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
       // 后端使用 limit/offset 分页，offset 由 page 转换
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
@@ -66,7 +57,7 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.symbol = null;
-  searchParams.start_date = null;
+  searchParams.date_range = null;
   clearSymbolOptions();
   pagination.page = 1;
   fetchData();
@@ -81,16 +72,6 @@ function handlePageSizeChange(pageSize: number) {
   pagination.pageSize = pageSize;
   pagination.page = 1;
   fetchData();
-}
-
-// 触发后端同步每日市值（单个股票代码精确匹配）
-async function handleSync() {
-  if (!syncSymbol.value) {
-    window.$message?.warning('请选择股票代码');
-    return;
-  }
-  const symbol = syncSymbol.value;
-  await executeSync(() => syncDailyMktvalue(symbol), syncLoading, fetchData);
 }
 
 // 数值格式化：市值/价值（单位元）转亿元显示，保留 2 位小数，null 显示 '-'
@@ -140,7 +121,7 @@ onMounted(() => fetchData());
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
+      <!-- 筛选表单：flex-wrap 允许窄屏自动换行，gap 控制项间距；同步统一走批量同步页 -->
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="股票代码">
           <NSelect
@@ -156,14 +137,14 @@ onMounted(() => fetchData());
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="交易起始日">
+        <NFormItem label="交易期间">
           <NDatePicker
-            v-model:formatted-value="searchParams.start_date"
-            type="date"
+            v-model:formatted-value="searchParams.date_range"
+            type="daterange"
             value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
+            :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 150px"
+            style="width: 250px"
             @update:formatted-value="handleSearch"
           />
         </NFormItem>
@@ -171,26 +152,6 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-          </NSpace>
-        </NFormItem>
-        <!-- 同步区域：整体靠右，选择代码后同步 -->
-        <NFormItem class="ml-auto">
-          <NSpace>
-            <NSelect
-              v-model:value="syncSymbol"
-              :options="syncSymbolOptions"
-              :loading="syncSymbolLoading"
-              filterable
-              remote
-              clearable
-              placeholder="输入代码或名称搜索"
-              style="width: 260px"
-              @search="handleSyncSearch"
-            />
-            <NButton :loading="syncLoading" @click="handleSync">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步
-            </NButton>
           </NSpace>
         </NFormItem>
       </NForm>

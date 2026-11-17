@@ -96,8 +96,10 @@ interface HistoryMarketQueryParams {
   keyword?: string;
   /** 标的类型筛选：stock=个股，index=指数；不传=全部 */
   sec_type?: 'stock' | 'index';
-  /** 开始日期（YYYY-MM-DD） */
+  /** 交易期间起始日（YYYY-MM-DD） */
   start_date?: string;
+  /** 交易期间截止日（YYYY-MM-DD） */
+  end_date?: string;
   /** 每页条数 */
   limit?: number;
   /** 偏移量 */
@@ -233,30 +235,12 @@ export function fetchFundBalances(params: Api.Bds.FundBalanceQueryParams) {
   });
 }
 
-/** 同步资产负债表数据（单个股票代码，精确匹配） */
-export function syncFundBalance(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/fund-balance',
-    method: 'post',
-    params: { symbol }
-  });
-}
-
 /** 查询利润表列表 */
 export function fetchFundIncomes(params: Api.Bds.FundIncomeQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.FundIncome>>({
     url: '/api/v1/bds/fund-incomes',
     method: 'get',
     params
-  });
-}
-
-/** 同步利润表数据（单个股票代码，精确匹配） */
-export function syncFundIncome(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/fund-income',
-    method: 'post',
-    params: { symbol }
   });
 }
 
@@ -269,30 +253,12 @@ export function fetchFundCashflows(params: Api.Bds.FundCashflowQueryParams) {
   });
 }
 
-/** 同步现金流量表数据（单个股票代码，精确匹配） */
-export function syncFundCashflow(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/fund-cashflow',
-    method: 'post',
-    params: { symbol }
-  });
-}
-
 /** 查询财务指标列表 */
 export function fetchFinanceDerivs(params: Api.Bds.FinanceDerivQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.FinanceDeriv>>({
     url: '/api/v1/bds/finance-derivs',
     method: 'get',
     params
-  });
-}
-
-/** 同步财务指标数据（单个股票代码，精确匹配） */
-export function syncFinanceDeriv(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/finance-deriv',
-    method: 'post',
-    params: { symbol }
   });
 }
 
@@ -305,30 +271,12 @@ export function fetchDailyValuations(params: Api.Bds.DailyValuationQueryParams) 
   });
 }
 
-/** 同步估值指标数据（单个股票代码，精确匹配） */
-export function syncDailyValuation(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/daily-valuation',
-    method: 'post',
-    params: { symbol }
-  });
-}
-
 /** 查询每日市值列表 */
 export function fetchDailyMktvalues(params: Api.Bds.DailyMktvalueQueryParams) {
   return request<Api.Common.PageResponse<Api.Bds.DailyMktvalue>>({
     url: '/api/v1/bds/daily-mktvalues',
     method: 'get',
     params
-  });
-}
-
-/** 同步每日市值数据（单个股票代码，精确匹配） */
-export function syncDailyMktvalue(symbol: string) {
-  return request<Api.Bds.SyncResult>({
-    url: '/api/v1/bds/sync/daily-mktvalue',
-    method: 'post',
-    params: { symbol }
   });
 }
 
@@ -742,22 +690,11 @@ export function fetchOptionMarketFilters() {
 }
 
 /**
- * 同步前置确认：启用几张合约、几个品种×到期月组合（= 几次接口请求）
- *
- * 点「行情同步」时先拿这个数再弹确认框，避免用户不知道这一下会打几次接口。
- */
-export function fetchOptionSyncPlan() {
-  return request<Api.Bds.OptionSyncPlan>({
-    url: '/api/v1/bds/option-market/config-count',
-    method: 'get'
-  });
-}
-
-/**
  * 一键同步「配置的全部期权」（后台任务，立即返回 task）
  *
  * 进度轮询 `/sync-tasks/{id}`；`total_count` 是**组数**不是合约数，
  * 所以进度条要显示「第几组/共几组」。停止沿用 `stopBatchSync(taskId)`。
+ * 消费方：market-chain 链式编排与 T 型报价页（期权行情页本身已无同步入口）。
  */
 export function syncOptionMarket(opts?: { silent?: boolean }) {
   return request<Api.Bds.SyncTask>({

@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
-import { fetchFundBalances, syncFundBalance } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchFundBalances } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
-import { dateShortcuts } from '@/utils/date-shortcuts';
+import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
 import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
@@ -11,19 +10,18 @@ import { createTablePagination, setPaginationTotal } from '@/hooks/common/table'
 defineOptions({ name: 'FundBalancesPage' });
 
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bds.FundBalance[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，sec_type 主体类型（默认个股），start_date 报告日期起始日
+// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，sec_type 主体类型（默认不筛选），
+// date_range 报告期间 [起, 止]（同指数估值页交易日期，两端点闭区间）
 const searchParams = reactive<{
   symbol?: string | null;
   rpt_type?: number | null;
   sec_type?: 'stock' | 'index' | null;
-  start_date?: string | null;
-}>({ sec_type: 'stock' });
+  date_range?: [string, string] | null;
+}>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
@@ -35,34 +33,28 @@ const rptTypeOptions = [
   { label: '年报', value: 12 }
 ];
 
-// 主体类型下拉选项：默认个股；清空 = 不过滤（同时返回个股与指数聚合行）
+// 主体类型下拉选项：默认不筛选；清空 = 不过滤（同时返回个股与指数聚合行）
 const secTypeOptions = [
   { label: '个股', value: 'stock' },
-  { label: '指数聚合', value: 'index' }
+  { label: '指数', value: 'index' }
 ];
 
-// 代码远程搜索：筛选框与同步框各自独立的 composable 实例（NSelect remote，防抖 300ms）
+// 代码远程搜索（NSelect remote，防抖 300ms）；数据更新统一走批量同步，本页无同步入口
 const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
-const {
-  symbolOptions: syncSymbolOptions,
-  symbolLoading: syncSymbolLoading,
-  handleSymbolSearch: handleSyncSearch
-} = useSymbolSearch();
-
-// 同步用单个股票代码（精确匹配）
-const syncSymbol = ref<string | null>(null);
 
 // 拉取资产负债表列表
 async function fetchData() {
   loading.value = true;
   try {
+    const [startDate, endDate] = searchParams.date_range || [];
     const { data, error } = await fetchFundBalances({
       symbol: searchParams.symbol || undefined,
       // rpt_type 为 null 时传 undefined，避免向后端发送 null
       rpt_type: searchParams.rpt_type ?? undefined,
       // sec_type 为 null（清空）时传 undefined = 不过滤主体类型
       sec_type: searchParams.sec_type || undefined,
-      start_date: searchParams.start_date || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -86,9 +78,9 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
-  // 主体类型恢复默认个股
-  searchParams.sec_type = 'stock';
-  searchParams.start_date = null;
+  // 主体类型恢复默认不筛选
+  searchParams.sec_type = null;
+  searchParams.date_range = null;
   clearSymbolOptions();
   pagination.page = 1;
   fetchData();
@@ -103,16 +95,6 @@ function handlePageSizeChange(pageSize: number) {
   pagination.pageSize = pageSize;
   pagination.page = 1;
   fetchData();
-}
-
-// 触发后端同步资产负债表（单个股票代码精确匹配）
-async function handleSync() {
-  if (!syncSymbol.value) {
-    window.$message?.warning('请选择股票代码');
-    return;
-  }
-  const symbol = syncSymbol.value;
-  await executeSync(() => syncFundBalance(symbol), syncLoading, fetchData);
 }
 
 // 数值格式化：后端 Decimal 字段返回字符串，单位为元，转换为亿元保留 2 位小数
@@ -190,7 +172,7 @@ onMounted(() => fetchData());
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
-      <!-- 筛选+同步表单：flex-wrap 允许窄屏自动换行，gap 控制项间距 -->
+      <!-- 筛选表单：flex-wrap 允许窄屏自动换行，gap 控制项间距；同步统一走批量同步页 -->
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="股票代码">
           <NSelect
@@ -226,14 +208,14 @@ onMounted(() => fetchData());
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="报告起始日">
+        <NFormItem label="报告期间">
           <NDatePicker
-            v-model:formatted-value="searchParams.start_date"
-            type="date"
+            v-model:formatted-value="searchParams.date_range"
+            type="daterange"
             value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
+            :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 150px"
+            style="width: 250px"
             @update:formatted-value="handleSearch"
           />
         </NFormItem>
@@ -241,26 +223,6 @@ onMounted(() => fetchData());
           <NSpace>
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
-          </NSpace>
-        </NFormItem>
-        <!-- 同步区域：整体靠右，选择代码后同步 -->
-        <NFormItem class="ml-auto">
-          <NSpace>
-            <NSelect
-              v-model:value="syncSymbol"
-              :options="syncSymbolOptions"
-              :loading="syncSymbolLoading"
-              filterable
-              remote
-              clearable
-              placeholder="输入代码或名称搜索"
-              style="width: 260px"
-              @search="handleSyncSearch"
-            />
-            <NButton :loading="syncLoading" @click="handleSync">
-              <template #icon><SvgIcon icon="mdi:sync" /></template>
-              同步
-            </NButton>
           </NSpace>
         </NFormItem>
       </NForm>

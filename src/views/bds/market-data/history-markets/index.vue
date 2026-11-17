@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { fetchHistoryMarkets, fetchSymbolInfos } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
-import { dateShortcuts } from '@/utils/date-shortcuts';
+import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
@@ -26,7 +26,7 @@ const typeOptions = [
 const searchParams = reactive<{
   symbol?: string | null;
   sec_type?: 'stock' | 'index' | null;
-  start_date?: string | null;
+  date_range?: [string, string] | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
@@ -65,11 +65,13 @@ async function ensureSelectedSymbolOption() {
 async function fetchData() {
   loading.value = true;
   try {
+    const [startDate, endDate] = searchParams.date_range || [];
     const { data, error } = await fetchHistoryMarkets({
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
       sec_type: searchParams.sec_type || undefined,
-      start_date: searchParams.start_date || undefined,
+      start_date: startDate || undefined,
+      end_date: endDate || undefined,
       limit: pagination.pageSize,
       offset: (pagination.page - 1) * pagination.pageSize
     });
@@ -94,7 +96,7 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.sec_type = null;
-  searchParams.start_date = null;
+  searchParams.date_range = null;
   symbolOptions.value = [];
   pagination.page = 1;
   fetchData();
@@ -216,14 +218,14 @@ onMounted(async () => {
             @update:value="handleSearch"
           />
         </NFormItem>
-        <NFormItem label="交易起始日">
+        <NFormItem label="交易期间">
           <NDatePicker
-            v-model:formatted-value="searchParams.start_date"
-            type="date"
+            v-model:formatted-value="searchParams.date_range"
+            type="daterange"
             value-format="yyyy-MM-dd"
-            :shortcuts="dateShortcuts"
+            :shortcuts="dateRangeShortcuts"
             clearable
-            style="width: 150px"
+            style="width: 250px"
             @update:formatted-value="handleSearch"
           />
         </NFormItem>

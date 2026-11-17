@@ -153,7 +153,7 @@ onMounted(() => {
             type="daterange"
             clearable
             :shortcuts="dateRangeShortcuts"
-            style="width: 280px"
+            style="width: 250px"
             @update:value="handleSearch"
           />
         </NFormItem>
