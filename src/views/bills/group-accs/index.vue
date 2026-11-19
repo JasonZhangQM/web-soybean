@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { fetchGroupAccs } from '@/service/api';
-import { executeMarketChain } from '@/utils/market-chain';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
 import { usePageState } from '@/hooks/common/page-state';
@@ -9,11 +8,16 @@ import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsGroupAccsPage' });
 
+/**
+ * 独立页面记忆槽的 key（2026-11-19）：仅当本组件被嵌进别的页面（如 /risk 的底部抽屉）时传入，
+ * 避免与宿主页的 usePageState 共用 route.name 槽互相覆盖筛选条件 / 分页。
+ * 不传（独立路由页）时行为完全不变，仍按 route.name 记忆。
+ */
+const props = defineProps<{ stateKey?: string }>();
+
 const billsStore = useBillsStore();
 
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bills.GroupAcc[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -25,8 +29,8 @@ type ValueFilter = 'gt' | 'lt' | 'eq' | 'ne';
 const searchParams = reactive<{ account?: string | null; acc_aset_filter?: ValueFilter | null }>({
   acc_aset_filter: 'ne'
 });
-// 会话记忆：切回本页时恢复筛选条件与页码
-usePageState({ searchParams, pagination });
+// 会话记忆：切回本页时恢复筛选条件与页码；嵌入抽屉时用独立 key 隔离
+usePageState({ searchParams, pagination, key: props.stateKey });
 
 // 账户下拉选项（从全局 store 获取）
 const accountOptions = computed(() => billsStore.getAccountOptions());
@@ -82,23 +86,6 @@ function handlePageSizeChange(pageSize: number) {
   pagination.pageSize = pageSize;
   pagination.page = 1;
   fetchData();
-}
-
-/**
- * 「一键行情更新」（2026-11-16 由单步「行情」升级为链式）：
- * 期权行情（bds 后台任务 + 轮询）→ 标的行情（irs）→ 持仓行情（本页原 syncGroup）。
- * 持仓实时估值读 bds_option_market 期权快照，期权不先更新就会吃到 T−1 价，故按依赖
- * 顺序链式执行；逐步进度反馈由工具统一提示，全部成功后才刷新表格。
- */
-async function handleSync() {
-  if (syncLoading.value) return;
-  syncLoading.value = true;
-  try {
-    const res = await executeMarketChain();
-    if (res.ok) await fetchData();
-  } finally {
-    syncLoading.value = false;
-  }
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
@@ -249,12 +236,6 @@ onMounted(() => {
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="syncLoading" @click="handleSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            一键行情更新
-          </NButton>
         </NFormItem>
       </NForm>
     </NCard>

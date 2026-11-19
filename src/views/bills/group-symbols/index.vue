@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, h } from 'vue';
 import { NButton, NSelect, NTag, NTooltip } from 'naive-ui';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import {
   fetchGroupSymbols,
   fetchGroupSymbolsCoverage,
   fetchUnderlyingMonitors,
-  syncGroup,
   updateGroupSymbolUnderlying
 } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
 import { usePageState } from '@/hooks/common/page-state';
@@ -18,8 +16,14 @@ import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'BillsGroupSymbolsPage' });
 
+/**
+ * 独立页面记忆槽的 key（2026-11-19）：仅当本组件被嵌进别的页面（如 /risk 的底部抽屉）时传入，
+ * 避免与宿主页的 usePageState 共用 route.name 槽互相覆盖筛选条件 / 分页。
+ * 不传（独立路由页）时行为完全不变，仍按 route.name 记忆。
+ */
+const props = defineProps<{ stateKey?: string }>();
+
 const route = useRoute();
-const router = useRouter();
 const billsStore = useBillsStore();
 // 代码远程搜索（NAutoComplete，防抖 300ms）
 const { symbolOptions: rawSymbolOptions, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
@@ -36,8 +40,6 @@ function renderSymbolLabel(option: any) {
 }
 
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bills.GroupSymbol[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -71,8 +73,8 @@ const searchParams = reactive<{
   mapped: null,
   underlying_symbol: null
 });
-// 会话记忆：切回本页时恢复筛选条件与页码
-usePageState({ searchParams, pagination });
+// 会话记忆：切回本页时恢复筛选条件与页码；嵌入抽屉时用独立 key 隔离
+usePageState({ searchParams, pagination, key: props.stateKey });
 
 // 类别下拉选项（从全局 store 获取）
 const categoryOptions = computed(() => billsStore.getCategoryOptions());
@@ -203,13 +205,6 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-async function handleSync() {
-  // 行情同步会重算派生列，顺手刷一次覆盖计数（underlying_symbol 不受影响，见 group_summary 注释）
-  await executeSync(syncGroup, syncLoading, async () => {
-    await Promise.all([fetchData(), fetchCoverage()]);
-  });
-}
-
 // 金额渲染：保留两位小数，null 显示 '-'
 function renderAmount(row: Api.Bills.GroupSymbol, key: keyof Api.Bills.GroupSymbol) {
   const val = row[key];
@@ -294,8 +289,7 @@ function nonAttachableHint(row: Api.Bills.GroupSymbol) {
 
 // 归属列渲染（列内只读展示，编辑统一走抽屉）：
 // 不可归属 ⇒ 「—」（附原因，不是漏配）；未归属 ⇒ 灰字；
-// 已归属 ⇒ 「代码 名称」链接，跳标的监测页 ?um=SYMBOL 自动开标的档案抽屉
-// （对端 openFromQuery 消费即摘除参数，不会污染标签 fullPath 反复弹抽屉）。
+// 已归属 ⇒ 「代码 名称」纯文本（2026-11-19 取消跳转链接，嵌在 /risk 底部抽屉时点它跳页会打断操作）。
 // 用 span 而不是 NButton：与代码列同理由——naive-ui 按钮样式带 user-select:none，文本没法选中复制
 function renderUnderlyingSymbol(row: Api.Bills.GroupSymbol) {
   if (!isAttachable(row)) {
@@ -308,16 +302,8 @@ function renderUnderlyingSymbol(row: Api.Bills.GroupSymbol) {
     return h('span', { class: 'text-gray-300' }, '未归属');
   }
   const nm = umNameMap.value[row.underlying_symbol] ?? '';
-  const um = row.underlying_symbol;
-  return h(
-    'span',
-    {
-      class: 'text-primary hover:underline cursor-pointer whitespace-nowrap',
-      style: 'user-select: text',
-      onClick: () => router.push({ name: 'irs_underlying-monitors', query: { um } })
-    },
-    `${um} ${nm}`.trim()
-  );
+  // 2026-11-19 去掉蓝色高亮：与其余列一致的普通文字，保留防折行 / 可选中复制
+  return h('span', { class: 'whitespace-nowrap', style: 'user-select: text' }, `${row.underlying_symbol} ${nm}`.trim());
 }
 
 // ---------------- 合约行编辑抽屉（归属标的，GroupSymbol 唯一人工列） ----------------
@@ -552,12 +538,6 @@ onMounted(async () => {
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="syncLoading" @click="handleSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            行情
-          </NButton>
         </NFormItem>
       </NForm>
 

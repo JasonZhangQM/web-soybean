@@ -19,7 +19,6 @@
  * th/td 不折行必须写 :deep()（scoped 属性加不到子组件渲染的单元格上）。
  */
 import { computed, h } from 'vue';
-import { useRouter } from 'vue-router';
 import type { DataTableColumns } from 'naive-ui';
 import { CUM_PNL_NOTES, PF_NOW_NOTES, deltaPnlHeader, fmtMoney, fmtPrice, metricHeader, pnl } from './utils';
 
@@ -53,8 +52,6 @@ interface MergedPosition extends Api.Irs.RiskBoardPosition {
   margin_at: number | null;
   margin_delta: number | null;
 }
-
-const router = useRouter();
 
 /** 逐仓粒度 Δ 盈亏列头口径（自 index.vue 迁入）；与档位 Tab 的「只统计该标的项下持仓」不同，勿照抄 */
 const SIM_POS_DELTA_SCOPE =
@@ -193,16 +190,8 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
     key: 'symbol',
     width: 175,
     fixed: 'left' as const,
-    render: (p: MergedPosition) =>
-      h(
-        'span',
-        {
-          style: 'color: #2080f0; cursor: pointer',
-          title: '去期权行情页同步/查看该合约行情',
-          onClick: goOptionQuote
-        },
-        p.symbol
-      )
+    // 2026-11-19 取消跳转链接：改为普通文字，与「标的」等其余列样式一致
+    render: (p: MergedPosition) => p.symbol
   },
   {
     title: '静态（不随滑块变）',
@@ -333,10 +322,6 @@ function rowKey(p: MergedPosition) {
 function rowProps(r: MergedPosition) {
   return { style: r.changed ? 'background: rgba(93,202,165,0.08);' : '' };
 }
-
-function goOptionQuote() {
-  router.push({ name: 'irs_option-quote' });
-}
 </script>
 
 <template>
@@ -349,7 +334,7 @@ function goOptionQuote() {
  <div class="mb-6px text-11px text-gray-400">
       共 {{ rows.length }} 仓 · 当前假设：{{ levelLabel || '现价' }}（点击档位压力表切换）。
       静态组取风险看板（不随滑块变）、到档组取当前推演（每次改价重算），两组保证金时点不同，不可相加对账；
-      「无上限」为数学上界，非风险预算。点击合约名跳期权行情。
+      「无上限」为数学上界，非风险预算。
     </div> 
 -->
     <NDataTable

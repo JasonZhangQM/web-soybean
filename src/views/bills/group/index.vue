@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, h, onMounted } from 'vue';
-import { fetchGroups, syncGroup, updateGroup } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { fetchGroups, updateGroup } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { useBillsStore } from '@/store/modules/bills';
 import { usePageState } from '@/hooks/common/page-state';
@@ -26,8 +25,6 @@ function renderSymbolLabel(option: any) {
 }
 
 const loading = ref(false);
-// 同步专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
-const syncLoading = ref(false);
 const tableData = ref<Api.Bills.Group[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
@@ -119,10 +116,6 @@ function handlePageSizeChange(pageSize: number) {
   pagination.pageSize = pageSize;
   pagination.page = 1;
   fetchData();
-}
-
-async function handleSync() {
-  await executeSync(syncGroup, syncLoading, fetchData);
 }
 
 // 金额渲染：保留两位小数，null 显示 '-'
@@ -405,12 +398,6 @@ onMounted(() => {
             <NButton @click="handleSearch">搜索</NButton>
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
-        </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="syncLoading" @click="handleSync">
-            <template #icon><SvgIcon icon="mdi:sync" /></template>
-            行情
-          </NButton>
         </NFormItem>
       </NForm>
     </NCard>

@@ -14,6 +14,13 @@ import { createTablePagination } from '@/hooks/common/table';
 defineOptions({ name: 'IrsOptionQuotePage' });
 
 /**
+ * 独立页面记忆槽的 key（2026-11-19）：仅当本组件被嵌进别的页面（如 /risk 的底部抽屉）时传入，
+ * 避免与宿主页的 usePageState 共用 route.name 槽互相覆盖筛选条件 / 分页。
+ * 不传（独立路由页）时行为完全不变，仍按 route.name 记忆。
+ */
+const props = defineProps<{ stateKey?: string }>();
+
+/**
  * 期权 T 型报价（数据源：bds 期权行情 `bds_option_market`，2026-10-29 起替代 irs_option_monitor）
  *
  * - 查询走 `GET /bds/option-market?latest_only=true`：只取当前筛选范围内最新交易日的快照
@@ -73,8 +80,8 @@ async function fetchPositions() {
 
 // 分页配置（复用全局工厂函数）
 const pagination = createTablePagination();
-// 会话记忆：切回本页时恢复筛选条件与页码
-usePageState({ searchParams, pagination });
+// 会话记忆：切回本页时恢复筛选条件与页码；嵌入抽屉时用独立 key 隔离
+usePageState({ searchParams, pagination, key: props.stateKey });
 
 // 数值字段统一保留两位小数，空值显示 '-'（ORM Decimal 序列化为字符串，Number() 兼容）
 const fmt = (v: string | number | null | undefined) => (v != null ? Number(v).toFixed(2) : '-');

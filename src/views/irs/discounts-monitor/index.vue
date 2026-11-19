@@ -8,6 +8,13 @@ import { createTablePagination } from '@/hooks/common/table';
 
 defineOptions({ name: 'IrsDiscountsMonitorPage' });
 
+/**
+ * 独立页面记忆槽的 key（2026-11-19）：仅当本组件被嵌进别的页面（如 /risk 的底部抽屉）时传入，
+ * 避免与宿主页的 usePageState 共用 route.name 槽互相覆盖筛选条件 / 分页。
+ * 不传（独立路由页）时行为完全不变，仍按 route.name 记忆。
+ */
+const props = defineProps<{ stateKey?: string }>();
+
 const loading = ref(false);
 // 同步代码专用 loading：与表格 loading 分离，避免同步过程中表格闪烁
 const syncCodeLoading = ref(false);
@@ -22,8 +29,8 @@ const searchParams = reactive({
   con_name: null as string | null,
   is_main: null as number | null
 });
-// 会话记忆：切回本页时恢复筛选条件与页码
-usePageState({ searchParams, pagination });
+// 会话记忆：切回本页时恢复筛选条件与页码；嵌入抽屉时用独立 key 隔离
+usePageState({ searchParams, pagination, key: props.stateKey });
 
 // 是否主力下拉选项（NSelect 不支持 boolean 值，用 1/0 代替）
 const isMainOptions = [

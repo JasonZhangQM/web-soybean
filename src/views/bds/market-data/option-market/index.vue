@@ -985,7 +985,7 @@ onMounted(() => {
     </NDrawer>
 
     <!-- 行情手工修改弹窗（抽屉左开，合约与日期固定不可改） -->
-    <NDrawer v-model:show="editDrawer" width="520px" placement="left">
+    <NDrawer v-model:show="editDrawer" width="520px" placement="left" :mask-closable="false">
       <NDrawerContent closable>
         <template #header>
           <span>手工修正行情</span>

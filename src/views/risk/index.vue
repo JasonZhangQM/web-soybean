@@ -30,10 +30,13 @@
  * 单标的改价走卡片：拖色带 / 点五档标签（等价于旧滑块），不新增第二个批量入口；
  * 无五档版本的标的才在卡片 footer 保留一个降级 NSlider，否则这类标的无法设假设价。
  * IV / 行情变化时三路一起重算、全部就绪后才刷新两张总表，避免静态列与到档列错配。
+ *
+ * 底部抽屉（2026-11-19）：顶栏「期权监测」「贴水监测」+ ①③ 分节栏「账户汇总」「持仓汇总」
+ * 共四个入口，分别复用对应源页面组件到 placement=bottom 抽屉，按需挂载、独立 stateKey 隔离；
+ * 「保持一致」靠复用整页而非复制列 / 筛选逻辑，零漂移。
  */
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { NAlert, NButton, NEmpty, NSlider, NTag, NTooltip } from 'naive-ui';
+import { NAlert, NButton, NDrawer, NDrawerContent, NEmpty, NSlider, NTag, NTooltip } from 'naive-ui';
 import { fetchRiskBoard, fetchUnderlyingMonitors, simulateIrs, simulateLevels } from '@/service/api';
 import { executeMarketChain } from '@/utils/market-chain';
 import { createTablePagination } from '@/hooks/common/table';
@@ -53,12 +56,20 @@ import ContractTable from '@/views/irs/risk-board/modules/ContractTable.vue';
 import MarginStackChart from '@/views/irs/risk-board/modules/MarginStackChart.vue';
 /** ② 档位压力表：替代旧 11 档涨跌幅情景表 */
 import LevelPressureTable from './modules/LevelPressureTable.vue';
+/**
+ * 底部抽屉：期权 T 型报价 / 贴水监测，直接复用两个源页面组件（2026-11-19）。
+ * 传入独立 stateKey，避免与 /risk 及彼此共用 route.name 记忆槽（🔒4.2 精神 + 页面记忆隔离）。
+ * 展示数据 / 筛选条件 / 列定义完全取自源页面，零复制、零漂移。
+ */
+import OptionQuotePage from '@/views/irs/option-quote/index.vue';
+import DiscountsMonitorPage from '@/views/irs/discounts-monitor/index.vue';
+/** 账户汇总 / 持仓汇总：同样改为底部抽屉复用账单两页（2026-11-19） */
+import GroupAccsPage from '@/views/bills/group-accs/index.vue';
+import GroupSymbolsPage from '@/views/bills/group-symbols/index.vue';
 /** 顶栏行情新鲜度 + ① 到档口径说明：都来自 risk-board/utils，避免文案另写一份 */
 import { ACCOUNT_AT_NOTES, fmtMoneyShort, staleLabel, staleLevel } from '@/views/irs/risk-board/modules/utils';
 
 defineOptions({ name: 'RiskOverviewPage' });
-
-const router = useRouter();
 
 /** 账户视角：唯一页面筛选态，走 usePageState 内存态、不落 localStorage（🔒4.2） */
 const query = reactive({ account: 'ALL' });
@@ -96,6 +107,19 @@ async function load() {
  * 单标的拖档位条需要先展开。
  */
 const showLeft = ref(true);
+
+// ---------------- 底部数据抽屉：期权 T 型报价 / 贴水监测（2026-11-19） ----------------
+/**
+ * 两个抽屉按需挂载（v-if）：打开才渲染源页面组件、才触发其 onMounted 拉数据，
+ * 关闭即销毁，不常驻首屏 —— 避免 /risk 首屏多打两组接口。
+ * 显隐是纯 UI 内存态（不落 localStorage，🔒4.2）；筛选/分页记忆交给各源页面自己的
+ * stateKey 槽（risk_drawer_option_quote / risk_drawer_discounts）。
+ */
+const showOptionQuoteDrawer = ref(false);
+const showDiscountsDrawer = ref(false);
+/** 账户汇总 / 持仓汇总抽屉：由 ① 账户总表 / ③ 逐仓总表分节栏的原跳转链接改来 */
+const showAccsDrawer = ref(false);
+const showSymbolsDrawer = ref(false);
 
 // ---------------- 标的档案抽屉（2026-11-13：跳页改为页内弹窗） ----------------
 /**
@@ -577,6 +601,15 @@ const sortedItems = computed(() => {
       </div>
       <!-- 右侧只留行情相关操作；档位选择统一交给 ② 压力表，避免同一动作两个入口 -->
       <div class="ml-auto flex items-center gap-6px">
+        <!-- 底部数据抽屉入口：期权 T 型报价 / 贴水监测，复用源页面，筛选项与数据完全一致 -->
+        <NButton size="tiny" @click="showOptionQuoteDrawer = true">
+          <template #icon><SvgIcon icon="mdi:table" /></template>
+          期权监测
+        </NButton>
+        <NButton size="tiny" @click="showDiscountsDrawer = true">
+          <template #icon><SvgIcon icon="mdi:trending-down" /></template>
+          贴水监测
+        </NButton>
         <NTooltip trigger="hover">
           <template #trigger>
             <NButton size="tiny" :loading="chainLoading" @click="handleSyncMarketChain">
@@ -705,9 +738,7 @@ const sortedItems = computed(() => {
             </div>
           </NTooltip>
           <template #actions>
-            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-accs' })">
-              账户汇总
-            </NButton>
+            <NButton text type="primary" size="tiny" @click="showAccsDrawer = true">账户汇总</NButton>
           </template>
         </SectionBar>
         <NAlert v-if="boardError" type="warning" :title="boardError" class="mb-16px" />
@@ -726,9 +757,7 @@ const sortedItems = computed(() => {
           <NTag size="tiny" :bordered="false" type="info">当前假设 {{ contractLevelLabel }}</NTag>
           <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价 · 点击合约名跳期权行情</span>
           <template #actions>
-            <NButton text type="primary" size="tiny" @click="router.push({ name: 'bills_group-symbols' })">
-              持仓汇总
-            </NButton>
+            <NButton text type="primary" size="tiny" @click="showSymbolsDrawer = true">持仓汇总</NButton>
           </template>
         </SectionBar>
         <ContractTable
@@ -903,6 +932,53 @@ const sortedItems = computed(() => {
     />
     <!-- 看板页不放删除入口；保存后由 onEditChanged 重拉清单并三路重算 -->
     <EditDrawer v-model:show="showEdit" :row="editRow" :allow-delete="false" @changed="onEditChanged" />
+
+    <!--
+      底部数据抽屉（2026-11-19）：期权 T 型报价 / 贴水监测。
+      placement=bottom 全宽铺开，高度给 65vh 保证 18 列 T 型报价与 13 列贴水表可见；
+      源页面组件按需挂载（只在抽屉打开时 v-if 触发其 onMounted 拉数），关闭即销毁。
+      stateKey 独立隔离，两个抽屉之间、与 /risk 本页的筛选/分页记忆互不干扰。
+    -->
+    <NDrawer v-model:show="showOptionQuoteDrawer" placement="bottom" height="65vh" :mask-closable="true">
+      <NDrawerContent
+        class="monitor-drawer"
+        title="期权监测 · T 型报价（数据源 /irs/option-quote）"
+        closable
+        :native-scrollbar="false"
+      >
+        <OptionQuotePage v-if="showOptionQuoteDrawer" state-key="risk_drawer_option_quote" />
+      </NDrawerContent>
+    </NDrawer>
+    <NDrawer v-model:show="showDiscountsDrawer" placement="bottom" height="65vh" :mask-closable="true">
+      <NDrawerContent
+        class="monitor-drawer"
+        title="贴水监测（数据源 /irs/discounts-monitor）"
+        closable
+        :native-scrollbar="false"
+      >
+        <DiscountsMonitorPage v-if="showDiscountsDrawer" state-key="risk_drawer_discounts" />
+      </NDrawerContent>
+    </NDrawer>
+    <NDrawer v-model:show="showAccsDrawer" placement="bottom" height="65vh" :mask-closable="true">
+      <NDrawerContent
+        class="monitor-drawer"
+        title="账户汇总（数据源 /bills/group-accs）"
+        closable
+        :native-scrollbar="false"
+      >
+        <GroupAccsPage v-if="showAccsDrawer" state-key="risk_drawer_group_accs" />
+      </NDrawerContent>
+    </NDrawer>
+    <NDrawer v-model:show="showSymbolsDrawer" placement="bottom" height="65vh" :mask-closable="true">
+      <NDrawerContent
+        class="monitor-drawer"
+        title="持仓汇总（数据源 /bills/group-symbols）"
+        closable
+        :native-scrollbar="false"
+      >
+        <GroupSymbolsPage v-if="showSymbolsDrawer" state-key="risk_drawer_group_symbols" />
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
 
@@ -912,4 +988,31 @@ const sortedItems = computed(() => {
  * 本页右侧各区块不套 NCard：SectionBar 自带 margin 12px 0 8px + 灰底左色条即为唯一分隔，
  * 底色 / 左色条 / 字号 / 明暗主题适配全由 SectionBar 决定，不另写卡片样式（防样式漂移）。
  */
+</style>
+
+<!--
+  底部数据抽屉紧凑化（2026-11-19）：抽屉内容 teleport 到 body，scoped :deep() 匹配不稳，
+  故用非 scoped 样式块 + 唯一类 .monitor-drawer 前缀，确定命中且绝不污染
+  option-quote / discounts-monitor 独立路由页。三处压缩：
+  ① header 上下 padding（默认 16px 24px → 8px 16px），收掉标题与筛选区之间的大空白；
+  ② 源页面根节点 .p-16px 顶部留白归零（筛选区直接贴 body 顶部）；
+  ③ 筛选卡片 NCard 内边距压缩（默认较大 → 8px 16px）、卡片下边距收窄。
+  表格区与分页不动，避免破坏 T 型报价列布局。
+-->
+<style>
+.monitor-drawer .n-drawer-header {
+  padding: 8px 16px;
+}
+.monitor-drawer .n-drawer-body-content-wrapper {
+  padding-top: 0;
+}
+.monitor-drawer .p-16px {
+  padding: 0 16px 16px;
+}
+.monitor-drawer .card-wrapper {
+  margin-bottom: 8px;
+}
+.monitor-drawer .card-wrapper .n-card__content {
+  padding: 8px 16px;
+}
 </style>
