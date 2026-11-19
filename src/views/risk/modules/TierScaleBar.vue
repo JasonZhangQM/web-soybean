@@ -149,6 +149,18 @@ const dragging = ref(false);
 const hoverPrice = ref<number | null>(null);
 const hoverPct = computed(() => (hoverPrice.value == null ? null : toPct(hoverPrice.value)));
 
+/**
+ * hover 气泡水平定位：居中会让游标靠近两端时气泡越出色带容器、被压缩到换行。
+ * 贴近左端改为左贴边展开、贴近右端改为右贴边展开，中间仍居中（2026-11-19）。
+ */
+const bubbleTransform = computed(() => {
+  const p = hoverPct.value;
+  if (p == null) return 'translateX(-50%)';
+  if (p <= 15) return 'translateX(0)';
+  if (p >= 85) return 'translateX(-100%)';
+  return 'translateX(-50%)';
+});
+
 /** 假设价与某档精确相等时高亮该列（点击档位定位的视觉回执） */
 const pickedIdx = computed(() => {
   const h = props.hypoPrice;
@@ -318,8 +330,8 @@ function fmtPv(v: number | null) {
       <!-- hover 价格气泡：拖动时让位给假设价圆点与读数行 -->
       <div
         v-if="hoverPrice !== null && hoverPct !== null"
-        class="pointer-events-none absolute rounded-4px bg-gray-700 px-4px py-1px text-11px text-white"
-        :style="{ left: `${hoverPct}%`, top: '-24px', transform: 'translateX(-50%)', zIndex: 3 }"
+        class="pointer-events-none absolute whitespace-nowrap rounded-4px bg-gray-700 px-4px py-1px text-11px text-white"
+        :style="{ left: `${hoverPct}%`, top: '-24px', transform: bubbleTransform, zIndex: 3 }"
       >
         {{ fmtPrice(hoverPrice) }}
       </div>

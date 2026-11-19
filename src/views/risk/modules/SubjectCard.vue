@@ -24,10 +24,8 @@ import { type SubjectRow, tierBarOk } from './types';
 
 defineProps<{
   subject: SubjectRow;
-  /** 假设价：传了就在刻度条上叠第二游标并亮「已改动」角标 */
+  /** 假设价：传了就在刻度条上叠第二游标 */
   hypoPrice?: number | null;
-  /** 是否与现价不同（驱动「已改动」角标） */
-  changed?: boolean;
 }>();
 
 /** 档位条定位结果透传给父页 setHypo；回现价由读数行按钮直接调父页 resetHypo */
@@ -86,7 +84,6 @@ function pnlCls(v: number | null | undefined) {
         >
           盈亏 {{ fmtExposure(subject.pf_total) }}
         </span>
-        <NTag v-if="changed" size="tiny" :bordered="false" round class="!text-green-500">已改动</NTag>
       </div>
     </template>
 

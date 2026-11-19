@@ -650,7 +650,6 @@ const sortedItems = computed(() => {
             :key="it.symbol"
             :subject="it"
             :hypo-price="overrides.get(it.symbol) ?? null"
-            :changed="overrides.has(it.symbol)"
             @detail="goDetail(it)"
             @pick="(v: number) => setHypo(it, v)"
           >
