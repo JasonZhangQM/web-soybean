@@ -266,7 +266,7 @@ const columns = computed<DataTableColumns<Row>>(() => [
   {
     title: '到档幅度区间',
     key: 'pct',
-    width: 160,
+    width: 130,
     align: 'right' as const,
     render: pctCell
   },
@@ -288,7 +288,7 @@ const columns = computed<DataTableColumns<Row>>(() => [
     // 2026-11-15：与 ① 账户总表 / ③ 逐仓总表同口径，紧邻到期Δ
     title: metricHeader('到期累计盈亏', LEVEL_CUM_PNL_NOTES),
     key: 'cum_pnl_expiry',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: Row) => pnl(r.cumExpiry)
   },
@@ -323,7 +323,7 @@ const columns = computed<DataTableColumns<Row>>(() => [
   {
     title: atRiskHeader,
     key: 'risk_at',
-    width: 130,
+    width: 110,
     align: 'right' as const,
     render: (r: Row) => ratioPair(r.real, r.exch, isBusted(r.real, r.netAt, r.marginAt))
   },

@@ -49,15 +49,16 @@ export interface SubjectRow {
    */
   risk_exposure: number | null;
   /**
-   * 标的项下持仓市值合计（后端派生 value_total）：
+   * 标的项下在仓持仓市值合计（后端派生 value_total）：
    * bills_group_symbol 按归属标的（显式 underlying_symbol 优先）汇总 SUM(value_total)，
-   * 与 /bills/group-symbols 页面「当前市值」列同源；null = 无数据。
+   * 仅统计在仓行（p_total<>0，2026-11-20 与风险引擎持仓口径对齐，平仓快照不再计入）；
+   * 与 /bills/group-symbols 页面「当前市值」列同源但排除已平仓行；null = 无在仓数据。
    */
   value_total: number | null;
   /**
-   * 标的项下浮动盈亏合计（后端派生 pf_total）：
+   * 标的项下在仓持仓浮动盈亏合计（后端派生 pf_total）：
    * bills_group_symbol 按归属标的汇总 SUM(pf_total)，账面口径（收盘价优先），
-   * 与 /bills/group-symbols 页面「浮动盈亏」列同源；null = 无数据。
+   * 同上仅统计在仓行；null = 无在仓数据。
    */
   pf_total: number | null;
   /** 原始监测行：开抽屉 / 编辑等需要完整字段时用 */

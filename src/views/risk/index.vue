@@ -699,7 +699,7 @@ const sortedItems = computed(() => {
           分节栏标签 2026-11-16 起显示**账户视角**（跟随 ① 账户总表选中行）。
           编号 ①② 是分节代号、不随位置变。
         -->
-        <SectionBar title="档位压力表（全标的同步到同一档）">
+        <SectionBar title="档位压力表(全标的同步到同一档)">
           <NTag size="tiny" :bordered="false" type="info">
             账户视角 {{ query.account === 'ALL' ? '组合' : query.account }}
           </NTag>
@@ -724,7 +724,7 @@ const sortedItems = computed(() => {
         <NEmpty v-else description="档位压力计算中…" class="mb-16px" />
 
         <!-- ① 账户总表：13 列平铺一级表头；点击行切换视角，联动 ② ③ -->
-        <SectionBar title="账户总表（点击行切换视角，空账户不列）">
+        <SectionBar title="账户总表(点击行切换视角，空账户不列)">
           <NTag size="tiny" :bordered="false" type="info">当前档位 {{ activeLevelLabel }}</NTag>
           <span class="text-12px text-gray-400">静态列不随滑块变 · 到档列跟随左栏假设价</span>
           <!-- 列平铺后原分组父列消失，其「到档口径」说明改由分节栏问号承载 -->
@@ -752,7 +752,7 @@ const sortedItems = computed(() => {
         <NEmpty v-else description="账户总表数据准备中…" class="mb-16px" />
 
         <!-- ③ 逐仓总表：与 ①② 一样用 SectionBar 分节、不套卡片；静态组 board.positions + 到档组 sim.position_rows -->
-        <SectionBar title="逐仓总表（按标的敞口聚拢，改价行高亮）">
+        <SectionBar title="逐仓总表(按标的敞口聚拢，改价行高亮)">
           <NTag size="tiny" :bordered="false" type="info">当前假设 {{ contractLevelLabel }}</NTag>
           <span class="text-12px text-gray-400">静态组不随滑块变 · 到档组跟随左栏假设价 · 点击合约名跳期权行情</span>
           <template #actions>
@@ -772,7 +772,7 @@ const sortedItems = computed(() => {
         <!-- ④ 推演区（保证金结构 / 组合推演 / 改价小结）；⓪ 组合快照 2026-11-15 已整节删除 -->
         <NEmpty v-if="simError" :description="simError" class="mt-24px" />
         <template v-else-if="result">
-          <SectionBar title="保证金结构（现价基准）">
+          <SectionBar title="保证金结构(现价基准)">
             <NTag size="tiny" :bordered="false">现价 + 五档</NTag>
             <span class="text-12px text-gray-400">x 轴 = 现价 + 五档，按品种族堆叠</span>
           </SectionBar>
@@ -904,18 +904,6 @@ const sortedItems = computed(() => {
               </div>
             </div>
           </template>
-
-          <!-- 逐仓明细 / 分账户风险指标已并入 ③ 逐仓总表 / ① 账户总表，此处不再重复出表 -->
-          <!-- 口径说明（预留分节，同样不套卡片） -->
-          <!--
- <div>
-            <div class="text-12px text-gray-400">口径与告警（{{ result.warnings.length }} 条）</div>
-            <ul class="mt-4px list-disc pl-18px text-11px text-gray-400 leading-relaxed">
-              <li v-for="(w, i) in result.warnings" :key="i">{{ w }}</li>
-              <li>预算读数为现价基准（0% 与中/低档到档情景、修正锚 = min(档位价, 现价)），不随滑块假设价变化；组合行 = 全组合口径（账户资金可互调）。</li>
-            </ul>
-          </div> 
--->
         </template>
         <NEmpty v-else description="拖动左栏档位条开始推演" class="mt-48px" />
       </div>
@@ -941,7 +929,7 @@ const sortedItems = computed(() => {
     <NDrawer v-model:show="showOptionQuoteDrawer" placement="bottom" height="65vh" :mask-closable="true">
       <NDrawerContent
         class="monitor-drawer"
-        title="期权监测 · T 型报价（数据源 /irs/option-quote）"
+        title="期权监测·T 型报价(/irs/option-quote)"
         closable
         :native-scrollbar="false"
       >
@@ -951,7 +939,7 @@ const sortedItems = computed(() => {
     <NDrawer v-model:show="showDiscountsDrawer" placement="bottom" height="65vh" :mask-closable="true">
       <NDrawerContent
         class="monitor-drawer"
-        title="贴水监测（数据源 /irs/discounts-monitor）"
+        title="贴水监测(/irs/discounts-monitor)"
         closable
         :native-scrollbar="false"
       >
@@ -959,22 +947,12 @@ const sortedItems = computed(() => {
       </NDrawerContent>
     </NDrawer>
     <NDrawer v-model:show="showAccsDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent
-        class="monitor-drawer"
-        title="账户汇总（数据源 /bills/group-accs）"
-        closable
-        :native-scrollbar="false"
-      >
+      <NDrawerContent class="monitor-drawer" title="账户汇总(/bills/group-accs)" closable :native-scrollbar="false">
         <GroupAccsPage v-if="showAccsDrawer" state-key="risk_drawer_group_accs" />
       </NDrawerContent>
     </NDrawer>
     <NDrawer v-model:show="showSymbolsDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent
-        class="monitor-drawer"
-        title="持仓汇总（数据源 /bills/group-symbols）"
-        closable
-        :native-scrollbar="false"
-      >
+      <NDrawerContent class="monitor-drawer" title="持仓汇总(/bills/group-symbols)" closable :native-scrollbar="false">
         <GroupSymbolsPage v-if="showSymbolsDrawer" state-key="risk_drawer_group_symbols" />
       </NDrawerContent>
     </NDrawer>

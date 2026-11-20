@@ -325,14 +325,14 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
   {
     title: '账户',
     key: 'account',
-    width: 60,
+    width: 40,
     fixed: 'left' as const,
     render: (r: AccountRow) => accountCell(r)
   },
   {
     title: metricHeader('风险敞口', ACCOUNT_NOTES.exposure),
     key: 'risk_exposure',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => fmtMoney(r.risk_exposure)
   },
@@ -340,21 +340,21 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
     title: metricHeader('当前盈亏', PF_NOW_NOTES),
     key: 'pf_now',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => pnl(r.pf_now_sim ?? r.pf_now)
   },
   {
     title: deltaPnlHeader('即期', SIM_DELTA_SCOPE),
     key: 'delta_pnl_now',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => pnl(r.at.delta_pnl_now)
   },
   {
     title: deltaPnlHeader('到期', SIM_DELTA_SCOPE),
     key: 'delta_pnl_expiry',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => pnl(r.at.delta_pnl_expiry)
   },
@@ -362,49 +362,49 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与逐仓表共用
     title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
     key: 'cum_pnl_expiry',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => pnl(r.at.cum_pnl_expiry)
   },
   {
     title: atEqHeader,
     key: 'eq_at',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => fmtMoney(r.at.eq_at)
   },
   {
     title: atNetHeader,
     key: 'net_at',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => fmtMoney(r.at.net_at)
   },
   {
     title: atMarginHeader,
     key: 'margin_at',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => fmtMoney(r.at.margin_at)
   },
   {
     title: atMarginDeltaHeader,
     key: 'margin_delta',
-    width: 110,
+    width: 100,
     align: 'right' as const,
     render: (r: AccountRow) => marginDelta(r.at.margin_delta)
   },
   {
     title: atRiskHeader,
     key: 'risk_at',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (r: AccountRow) => ratioPair(r.at.real, r.at.exch, isBusted(r.at.real, r.at.net_at, r.at.margin_at))
   },
   {
     title: metricHeader('覆盖率(R/E)', ACCOUNT_NOTES.coverage),
     key: 'coverage',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (r: AccountRow) => coveragePair(r.at.coverage, r.at.coverage_exch)
   },
@@ -412,7 +412,7 @@ const columns = computed<DataTableColumns<AccountRow>>(() => [
     // 2026-11-16：替换「可开额度」——档位锚定双防线（低R / 极低E，数字版式同「覆盖率(R/E)」）
     title: metricHeader('防线(低R/极低E)', BUDGET_NOTES),
     key: 'budget',
-    width: 120,
+    width: 110,
     align: 'right' as const,
     render: (r: AccountRow) => budgetCell(r)
   }

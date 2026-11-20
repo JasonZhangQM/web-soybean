@@ -124,40 +124,6 @@ const rows = computed<MergedPosition[]>(() => {
   });
 });
 
-/** 品种标签：期货 / 认购 / 认沽 / 其他 */
-function kindLabel(p: MergedPosition): string {
-  if (p.kind === 'fut') return '期货';
-  if (p.kind === 'call') return '认购';
-  if (p.kind === 'put') return '认沽';
-  return '其他';
-}
-
-/**
- * 品种列（2026-11-13 合并）：原「品种 + C/P + 行权价」三列合成一列。
- * 期货 / 证券只显示品种名，不给行权价；期权显示「认购 3.900」这种「品种 + 行权价」。
- * C/P 字母与品种同义（C ⇔ 认购、P ⇔ 认沽），不再单占一列，靠配色保留区分：
- * 认购红（#d03050）、认沽蓝（#2080f0），与旧 C/P 徽标 error / info 同色。
- */
-function renderKind(p: MergedPosition) {
-  const color = p.kind === 'call' ? '#d03050' : p.kind === 'put' ? '#2080f0' : '';
-  const label = h('span', { style: { color } }, kindLabel(p));
-  if (p.strike === null || p.strike === undefined) return label;
-  return h('span', {}, [
-    label,
-    h('span', { style: { marginLeft: '6px', fontVariantNumeric: 'tabular-nums' } }, fmtPrice(p.strike))
-  ]);
-}
-
-/**
- * 保证金效率 = |delta × 名义市值| ÷ 当前保证金；每 1 元保证金换来多少方向敞口，越低越该先平。
- * 分母仍取 margin_now（表内已不出「当前保证金」列，但该字段照样用于本列的比值）。
- */
-function renderEfficiency(p: MergedPosition) {
-  if (!p.margin_now || p.delta === null) return '—';
-  const v = (Math.abs(p.delta) * p.nominal) / p.margin_now;
-  return h('span', { style: v < 1 ? 'color: #d03050; font-weight: 600' : '' }, v.toFixed(2));
-}
-
 /** 保证金变化：占用增加染红、减少染绿，显示带符号原值（不取相反数） */
 function marginDelta(v: number | null | undefined) {
   if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
@@ -173,6 +139,7 @@ function marginDelta(v: number | null | undefined) {
  * 同轮再调：删「方向」列（期权多空可由张数正负读出）；「品种 + C/P + 行权价」三列
  * 并成一列「品种」（期权显示「认购 3.900」，C/P 与品种同义、靠配色区分）。
  * 2026-11-15：标的、合约要冻结 ⇒ 提到顶层（naive-ui fixed 只认顶层列），静态组标题相应改。
+ * 2026-11-20：删「账户」「品种」列——账户视角切换在账户总表完成、品种可由合约代码读出。
  */
 const columns = computed<DataTableColumns<MergedPosition>>(() => [
   // 2026-11-15 冻结「标的」「合约」。⚠️ naive-ui 的 fixed 只认顶层列（use-scroll.mjs
@@ -181,14 +148,14 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
   {
     title: '标的',
     key: 'subject',
-    width: 100,
+    width: 80,
     fixed: 'left' as const,
     render: (r: MergedPosition) => r.subject_name || r.subject || '—'
   },
   {
     title: '合约',
     key: 'symbol',
-    width: 175,
+    width: 170,
     fixed: 'left' as const,
     // 2026-11-19 取消跳转链接：改为普通文字，与「标的」等其余列样式一致
     render: (p: MergedPosition) => p.symbol
@@ -197,16 +164,14 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
     title: '静态（不随滑块变）',
     key: 'g_static',
     children: [
-      { title: '账户', key: 'acct', width: 40 },
-      { title: '品种', key: 'kind', width: 80, render: (p: MergedPosition) => renderKind(p) },
       {
-        title: '到期天数',
+        title: '到期',
         key: 'days',
-        width: 40,
+        width: 30,
         align: 'right' as const,
         render: (p: MergedPosition) => (p.days === null ? '—' : String(p.days))
       },
-      { title: '数量', key: 'qty', width: 80, align: 'right' as const },
+      { title: '数量', key: 'qty', width: 60, align: 'right' as const },
       {
         // 2026-11-13 列名「盯市单价」→「单价」：期货/证券取的并非盯市（结算）价，
         // 原名只对期权成立；口径差异收在 tooltip 里，不占版面
@@ -221,7 +186,7 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
       {
         title: '风险敞口',
         key: 'risk_exposure',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => fmtMoney(r.risk_exposure)
       },
@@ -229,30 +194,23 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         // 2026-11-15：优先显示推演侧模型盯市值（与到期Δ同源），board 账面值仅兜底
         title: metricHeader('当前盈亏', PF_NOW_NOTES),
         key: 'pf_now',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (p: MergedPosition) => pnl(p.pf_now_sim ?? p.pf_now)
       },
       {
         title: 'IV',
         key: 'sigma',
-        width: 80,
+        width: 60,
         align: 'right' as const,
         render: (p: MergedPosition) => (p.sigma === null ? '—' : `${(p.sigma * 100).toFixed(2)}%`)
       },
       {
         title: 'delta',
         key: 'delta',
-        width: 80,
-        align: 'right' as const,
-        render: (p: MergedPosition) => (p.delta === null ? '—' : p.delta.toFixed(3))
-      },
-      {
-        title: '保证金效率',
-        key: 'margin_eff',
         width: 60,
         align: 'right' as const,
-        render: (p: MergedPosition) => renderEfficiency(p)
+        render: (p: MergedPosition) => (p.delta === null ? '—' : p.delta.toFixed(3))
       }
     ]
   },
@@ -270,14 +228,14 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
       {
         title: deltaPnlHeader('即期', SIM_POS_DELTA_SCOPE),
         key: 'delta_pnl_now',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.delta_pnl_now)
       },
       {
         title: deltaPnlHeader('到期', SIM_POS_DELTA_SCOPE),
         key: 'delta_pnl_expiry',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.delta_pnl_expiry)
       },
@@ -285,21 +243,21 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         // 2026-11-15：与「到期Δ」并列，= 当前盈亏 + 到期Δ；口径文案与账户总表共用
         title: metricHeader('到期累计盈亏', CUM_PNL_NOTES),
         key: 'cum_pnl_expiry',
-        width: 130,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => pnl(r.cum_pnl_expiry)
       },
       {
         title: '到档保证金',
         key: 'margin_at',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => fmtMoney(r.margin_at)
       },
       {
         title: '保证金变化',
         key: 'margin_delta',
-        width: 110,
+        width: 100,
         align: 'right' as const,
         render: (r: MergedPosition) => marginDelta(r.margin_delta)
       }
