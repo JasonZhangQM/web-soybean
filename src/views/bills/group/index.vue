@@ -146,7 +146,7 @@ function renderMultiplier(row: Api.Bills.Group) {
   return val != null ? String(val) : '-';
 }
 
-// ===== 编辑弹窗（时间戳 + 风险敞口） =====
+// ===== 风险敞口设置弹窗（2026-11-20：去掉收益试算时间/市值更新时间的修改入口） =====
 
 const editingId = ref<number | null>(null);
 const editingLabel = ref<string>('');
@@ -155,8 +155,6 @@ const showModal = ref(false);
 const submitLoading = ref(false);
 
 const formData = reactive({
-  profit_time: null as string | null,
-  value_time: null as string | null,
   // Decimal 序列化后是 string，统一转 number 供 NInputNumber
   risk_exposure: null as number | null
 });
@@ -190,18 +188,10 @@ function fmtRef(n: number | null): string {
   return n == null ? '-' : n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// 格式化 datetime 字符串：去掉 'T' 换成空格，截取到秒
-function fmtDateTime(s: string | null | undefined): string | null {
-  if (!s) return null;
-  return s.replace('T', ' ').slice(0, 19);
-}
-
 function handleEdit(row: Api.Bills.Group) {
   editingId.value = row.id;
   editingLabel.value = `${row.account ?? ''}·${row.category}·${row.symbol}`;
   editingRow.value = row;
-  formData.profit_time = fmtDateTime(row.profit_time);
-  formData.value_time = fmtDateTime(row.value_time);
   formData.risk_exposure = row.risk_exposure != null ? Number(row.risk_exposure) : null;
   showModal.value = true;
 }
@@ -211,8 +201,6 @@ function handleCancel() {
   editingId.value = null;
   editingLabel.value = '';
   editingRow.value = null;
-  formData.profit_time = null;
-  formData.value_time = null;
   formData.risk_exposure = null;
 }
 
@@ -220,13 +208,9 @@ async function handleSubmit() {
   if (editingId.value === null) return;
   submitLoading.value = true;
   try {
-    const payload: { profit_time?: string | null; value_time?: string | null; risk_exposure: number | null } = {
-      // 风险敞口显式携带即写入（null=清空），保存后后端联动刷新
-      // GroupAcc（按账户）与 GroupSymbol（按标的）的同名列
-      risk_exposure: formData.risk_exposure ?? null
-    };
-    if (formData.profit_time !== null) payload.profit_time = formData.profit_time;
-    if (formData.value_time !== null) payload.value_time = formData.value_time;
+    // 只传风险敞口：后端 PATCH exclude_none，时间戳不传即不修改。
+    // 显式携带即写入（null=清空），保存后联动刷新 GroupAcc / GroupSymbol 同名列。
+    const payload = { risk_exposure: formData.risk_exposure ?? null };
     const { error } = await updateGroup(editingId.value, payload);
     if (!error) {
       window.$message?.success('修改成功');
@@ -240,7 +224,7 @@ async function handleSubmit() {
 
 const columns = [
   {
-    // 代码同时是操作入口：点击打开行编辑弹窗（时间戳 + 风险敞口）。
+    // 代码同时是操作入口：点击打开风险敞口设置弹窗。
     // ⚠️ 用 span 而不是 NButton：naive-ui 按钮样式带 user-select:none，代码没法选中复制
     title: '代码',
     key: 'symbol',
@@ -251,7 +235,7 @@ const columns = [
         {
           class: 'cursor-pointer whitespace-nowrap text-primary hover:underline',
           style: 'user-select: text',
-          title: '点击编辑时间戳（可拖选代码复制）',
+          title: '点击设置风险敞口（可拖选代码复制）',
           onClick: () => {
             // 拖选文字后也会派发 click：有选区就不弹窗，否则选完立刻被弹窗打断
             if (window.getSelection()?.toString()) return;
@@ -417,8 +401,8 @@ onMounted(() => {
       />
     </NCard>
 
-    <!-- ===== Group 行编辑弹窗（时间戳 + 风险敞口） ===== -->
-    <NModal v-model:show="showModal" preset="card" title="编辑" class="w-520px" :mask-closable="false">
+    <!-- ===== Group 风险敞口设置弹窗 ===== -->
+    <NModal v-model:show="showModal" preset="card" title="设置风险敞口" class="w-520px" :mask-closable="false">
       <div style="margin-bottom: 12px; color: #666; font-size: 13px">
         {{ editingLabel }}
       </div>
@@ -460,28 +444,6 @@ onMounted(() => {
         <div style="color: #999; font-size: 12px; margin-top: 4px; padding-left: 120px">
           人工确认的风险敞口，自动汇总（行情同步 / 批量导入）不会覆盖；保存后按账户、
           按标的联动刷新汇总；清空输入框并保存即删除。
-        </div>
-        <NDivider style="margin: 12px 0" />
-        <NFormItem label="收益试算时间">
-          <NDatePicker
-            v-model:formatted-value="formData.profit_time"
-            type="datetime"
-            value-format="yyyy-MM-dd HH:mm:ss"
-            clearable
-            class="w-full"
-          />
-        </NFormItem>
-        <NFormItem label="市值更新时间">
-          <NDatePicker
-            v-model:formatted-value="formData.value_time"
-            type="datetime"
-            value-format="yyyy-MM-dd HH:mm:ss"
-            clearable
-            class="w-full"
-          />
-        </NFormItem>
-        <div style="color: #999; font-size: 12px; margin-top: 4px">
-          注：时间戳为收益试算/市值更新的完成时间，不改变实际盈亏和市值数据。
         </div>
       </NForm>
       <template #footer>

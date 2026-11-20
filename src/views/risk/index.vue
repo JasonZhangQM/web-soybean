@@ -995,7 +995,7 @@ const sortedItems = computed(() => {
   option-quote / discounts-monitor 独立路由页。三处压缩：
   ① header 上下 padding（默认 16px 24px → 8px 16px），收掉标题与筛选区之间的大空白；
   ② 源页面根节点 .p-16px 顶部留白归零（筛选区直接贴 body 顶部）；
-  ③ 筛选卡片 NCard 内边距压缩（默认较大 → 8px 16px）、卡片下边距收窄。
+  ③ 筛选卡片下边距收窄（卡片 content padding 由 global.css 全局规则归零，此处不重复写）。
   表格区与分页不动，避免破坏 T 型报价列布局。
 -->
 <style>
@@ -1010,8 +1010,5 @@ const sortedItems = computed(() => {
 }
 .monitor-drawer .card-wrapper {
   margin-bottom: 8px;
-}
-.monitor-drawer .card-wrapper .n-card__content {
-  padding: 8px 16px;
 }
 </style>

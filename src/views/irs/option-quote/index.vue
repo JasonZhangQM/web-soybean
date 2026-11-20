@@ -40,6 +40,8 @@ interface OptionQuoteRow {
   // 中心轴字段（从 call 或 put 取；行级取值，混月时各行显示自己的到期信息）
   atm_i: number | null;
   price_ud: number | null;
+  /** 行情日期（交易日快照，与合约到期日区分） */
+  trade_date: string | null;
   delisted_date: string | null;
   days_left: number | null;
 }
@@ -174,6 +176,7 @@ function transformToQuoteRows(items: Api.Bds.OptionMarket[]): OptionQuoteRow[] {
         put: null,
         atm_i: null,
         price_ud: null,
+        trade_date: null,
         delisted_date: null,
         days_left: null
       };
@@ -188,6 +191,7 @@ function transformToQuoteRows(items: Api.Bds.OptionMarket[]): OptionQuoteRow[] {
     // 中心轴字段从 call 或 put 取（优先 call）
     row.atm_i = row.call?.atm_i ?? row.put?.atm_i ?? null;
     row.price_ud = row.call?.price_ud ?? row.put?.price_ud ?? null;
+    row.trade_date = (row.call ?? row.put)?.trade_date?.slice(0, 10) ?? null;
     row.delisted_date = (row.call ?? row.put)?.delisted_date?.slice(0, 10) ?? null;
     row.days_left = (row.call ?? row.put)?.days_left ?? null;
   }
@@ -305,14 +309,25 @@ function makeAxisColumn(title: string, field: keyof OptionQuoteRow, width = 90) 
   };
 }
 
+// 行情日期列：交易日快照日期（非合约到期日），取 call/put 的 trade_date
+function makeTradeDateColumn() {
+  return {
+    title: '行情日期',
+    key: 'trade_date',
+    width: 100,
+    className: 'font-bold',
+    render: (row: OptionQuoteRow) => row.trade_date ?? '-'
+  };
+}
+
 // 到期日(剩余天数)列：日期字符串 + 括号天数，不走数值 fmt
 function makeExpiryColumn() {
   return {
     title: '到期日(天数)',
     key: 'delisted_date',
-    width: 130,
+    width: 110,
     className: 'font-bold',
-    render: (row: OptionQuoteRow) => `${row.delisted_date ?? '-'}（${row.days_left ?? '-'}）`
+    render: (row: OptionQuoteRow) => `${row.delisted_date ?? '-'}(${row.days_left ?? '-'})`
   };
 }
 
@@ -322,7 +337,7 @@ function makePriceColumn(side: 'call' | 'put') {
   return {
     title: '期权现价',
     key: isCall ? 'call_price' : 'put_price',
-    width: 130,
+    width: 110,
     render: (row: OptionQuoteRow) => {
       const c = isCall ? row.call : row.put;
       if (!c) return '-';
@@ -337,22 +352,23 @@ const columns = [
   // 认购侧（7 列，从左到右）
   makeCallColumn('内在(%Y)', 'ratio_i_y', 'call_ratio_i_y', 90, fmt, 'font-bold'),
   makeCallColumn('内在(%)', 'ratio_i', 'call_ratio_i'),
-  makeCallColumn('内在价值', 'value_i', 'call_value_i', 100, fmt4),
+  makeCallColumn('内在价值', 'value_i', 'call_value_i', 90, fmt4),
   makeCallColumn('时间(%Y)', 'ratio_t_y', 'call_ratio_t_y', 90, fmt, 'font-bold'),
   makeCallColumn('时间(%)', 'ratio_t', 'call_ratio_t'),
-  makeCallColumn('时间价值', 'value_t', 'call_value_t', 100, fmt4),
+  makeCallColumn('时间价值', 'value_t', 'call_value_t', 90, fmt4),
   makePriceColumn('call'),
-  // 中心轴（4 列）：行权价 → 标的现价 → 平值(%) → 到期日(剩余天数)
+  // 中心轴（5 列）：行权价 → 标的现价 → 平值(%) → 行情日期 → 到期日(剩余天数)
   makeAxisColumn('行权价', 'price_strike'),
   makeAxisColumn('标的现价', 'price_ud'),
-  makeAxisColumn('平值(%)', 'atm_i', 90),
+  makeAxisColumn('平值(%)', 'atm_i', 60),
+  makeTradeDateColumn(),
   makeExpiryColumn(),
   // 认沽侧（7 列，从左到右）
   makePriceColumn('put'),
-  makePutColumn('时间价值', 'value_t', 'put_value_t', 100, fmt4),
+  makePutColumn('时间价值', 'value_t', 'put_value_t', 90, fmt4),
   makePutColumn('时间(%)', 'ratio_t', 'put_ratio_t'),
   makePutColumn('时间(%Y)', 'ratio_t_y', 'put_ratio_t_y', 90, fmt, 'font-bold'),
-  makePutColumn('内在价值', 'value_i', 'put_value_i', 100, fmt4),
+  makePutColumn('内在价值', 'value_i', 'put_value_i', 90, fmt4),
   makePutColumn('内在(%)', 'ratio_i', 'put_ratio_i'),
   makePutColumn('内在(%Y)', 'ratio_i_y', 'put_ratio_i_y', 90, fmt, 'font-bold')
 ];
@@ -419,7 +435,7 @@ onUnmounted(stopPolling);
 </template>
 
 <style scoped>
-/* 表格单元格不换行：18 列的 T 型报价换行会撑高行、破坏紧凑对照布局 */
+/* 表格单元格不换行：19 列的 T 型报价换行会撑高行、破坏紧凑对照布局 */
 :deep(.n-data-table .n-data-table-th),
 :deep(.n-data-table .n-data-table-td) {
   white-space: nowrap;

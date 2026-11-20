@@ -554,7 +554,9 @@ function renderPlan(row: Api.Bills.Bill) {
 // 代码 19（CFFEX.HO2410-C-2700）、名称 19（创业板ETF购12月2950）、交易时间 19 字符、
 // 分类 8（理财申购）、买/卖等 4、归属标的 11（SHSE.000300）、发生额 11（-1000000.00）。
 const columns = [
-  // 交易时间截取前 19 位（去掉毫秒/时区部分），点击编辑
+  // 交易时间截取前 19 位（去掉毫秒/时区部分），点击编辑、文本可选中复制（🔒4.11）。
+  // naive Button 默认 user-select: none，内联 style 覆盖（普通声明、无 !important）；
+  // 拖选后 mouseup 会触发 click，有选中文本时不弹编辑框，否则一复制就弹窗。
   {
     title: '交易时间',
     key: 'trade_time',
@@ -562,7 +564,14 @@ const columns = [
     render: (row: Api.Bills.Bill) =>
       h(
         NButton,
-        { text: true, type: 'primary', onClick: () => handleEdit(row) },
+        {
+          text: true,
+          type: 'primary',
+          style: 'user-select: text; -webkit-user-select: text',
+          onClick: () => {
+            if (!window.getSelection()?.toString()) handleEdit(row);
+          }
+        },
         { default: () => row.trade_time?.slice(0, 19).replace('T', ' ') ?? '-' }
       )
   },

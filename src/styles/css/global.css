@@ -86,3 +86,14 @@ html.dark .n-data-table-tr.row-selected > .n-data-table-td--fixed-right {
 .sync-link:hover {
   color: rgb(var(--primary-color));
 }
+
+/* ===== 全局取消 NCard 内容区 padding（2026-11-19，用户定） ===== */
+/* naive-ui 内容区类名是 .n-card-content（单下划线，cB('card-content') 生成，元素带 role="none"），
+   🔴 不是 .n-card__content（双下划线是 header__extra 那类 element 命名）——类名写错则完全不命中。
+   其默认 padding 取自 --n-padding-left/bottom 变量，搜索卡与表格卡都因此有一圈外留白。
+   这里直接把该元素 padding 归零：
+   - 用 html 前缀抬到 0,1,1，压过 naive 运行时的单类 .n-card-content(0,1,0)，不靠加载顺序；
+   - 只命中 content 本身，有 #header / #footer 的卡片其头尾 padding 不受影响。 */
+html .n-card-content {
+  padding: 0;
+}
