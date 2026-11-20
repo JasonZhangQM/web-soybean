@@ -9,11 +9,12 @@ const message = useMessage();
 
 // ===================== 段定义 =====================
 
-/** 十一个勾选项 = 十个后端同步段 + 一个独立任务（交易明细导入），分「基础数据 / 行情数据 / 宏观数据」三排勾选。
+/** 十二个勾选项 = 十一个后端同步段 + 一个独立任务（交易明细导入），分「基础数据 / 行情数据 / 宏观数据」三排勾选。
  *  2026-11-16 起「标的行情 / 持仓行情」已并入后端 macro_sync 任务（注册表注入执行器），
- *  进度写 result.stages、刷新页面可恢复，与其余八段共用同一张分段摘要表。
- *  后端十段固定为 trade_date → symbol_info → history_market → option_info →
- *  option_market → underlying_quote → position_quote → wscn → daily → gold。
+ *  2026-11-20 补入「标的年度行情」一段，进度写 result.stages、刷新页面可恢复，
+ *  与其余段共用同一张分段摘要表。
+ *  后端十一段固定为 trade_date → symbol_info → history_market → option_info →
+ *  option_market → underlying_hlc → underlying_quote → position_quote → wscn → daily → gold。
  */
 type StageKey =
   | 'trade_date'
@@ -21,6 +22,7 @@ type StageKey =
   | 'history_market'
   | 'option_info'
   | 'option_market'
+  | 'underlying_hlc'
   | 'underlying_quote'
   | 'position_quote'
   | 'bills_import'
@@ -56,7 +58,10 @@ const STAGE_GROUPS: Array<{ name: string; options: StageOption[] }> = [
     options: [
       { label: '历史行情(指数+标的)', value: 'history_market' },
       { label: '期权行情', value: 'option_market' },
-      // 两段行情链紧跟「期权行情」：吃期权快照更新后的价，且后端固定这个顺序
+      // 三段行情链紧跟「期权行情」：吃期权快照更新后的价，且后端固定这个顺序。
+      // 🔴 年度行情必须排在标的行情之前：先写 py_close/y_high/y_low 基准，再改 price，
+      //    钩子才能用新基准算 pv_*（2026-11-20 补入，此前只在手动端点、y_low 长期冻结）
+      { label: '标的年度行情', value: 'underlying_hlc' },
       { label: '标的行情', value: 'underlying_quote' },
       { label: '持仓行情', value: 'position_quote' }
     ]
@@ -80,6 +85,7 @@ const STAGE_LINKS: Record<StageKey, string> = {
   history_market: '/bds/market-data/history-markets',
   option_info: '/bds/option-info',
   option_market: '/bds/market-data/option-market',
+  underlying_hlc: '/irs/underlying-monitors',
   underlying_quote: '/irs/underlying-monitors',
   position_quote: '/bills/group-accs',
   bills_import: '/bills/bills',
@@ -104,7 +110,7 @@ const STAGE_LINKS: Record<StageKey, string> = {
 const MANUAL_ONLY_STAGES: StageKey[] = ['trade_date', 'bills_import', 'gold'];
 
 /**
- * 后端 stages 白名单 = server_fast/app/bds/router.py::SYNC_STAGE_ORDER 的十段。
+ * 后端 stages 白名单 = server_fast/app/bds/router.py::SYNC_STAGE_ORDER 的十一段。
  * TS 侧用类型守卫收窄，避免把 bills_import（独立任务）断言塞给 MacroSyncRequest。
  */
 const MACRO_STAGE_KEYS = [
@@ -113,6 +119,7 @@ const MACRO_STAGE_KEYS = [
   'history_market',
   'option_info',
   'option_market',
+  'underlying_hlc',
   'underlying_quote',
   'position_quote',
   'wscn',
