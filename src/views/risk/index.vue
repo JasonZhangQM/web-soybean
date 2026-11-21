@@ -927,32 +927,34 @@ const sortedItems = computed(() => {
       stateKey 独立隔离，两个抽屉之间、与 /risk 本页的筛选/分页记忆互不干扰。
     -->
     <NDrawer v-model:show="showOptionQuoteDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent
-        class="monitor-drawer"
-        title="期权监测·T 型报价(/irs/option-quote)"
-        closable
-        :native-scrollbar="false"
-      >
+      <NDrawerContent class="monitor-drawer" closable :native-scrollbar="false">
+        <template #header>
+          <RouterLink to="/irs/option-quote" class="hover:underline">期权监测·T 型报价</RouterLink>
+        </template>
         <OptionQuotePage v-if="showOptionQuoteDrawer" state-key="risk_drawer_option_quote" />
       </NDrawerContent>
     </NDrawer>
     <NDrawer v-model:show="showDiscountsDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent
-        class="monitor-drawer"
-        title="贴水监测(/irs/discounts-monitor)"
-        closable
-        :native-scrollbar="false"
-      >
+      <NDrawerContent class="monitor-drawer" closable :native-scrollbar="false">
+        <template #header>
+          <RouterLink to="/irs/discounts-monitor" class="hover:underline">贴水监测</RouterLink>
+        </template>
         <DiscountsMonitorPage v-if="showDiscountsDrawer" state-key="risk_drawer_discounts" />
       </NDrawerContent>
     </NDrawer>
     <NDrawer v-model:show="showAccsDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent class="monitor-drawer" title="账户汇总(/bills/group-accs)" closable :native-scrollbar="false">
+      <NDrawerContent class="monitor-drawer" closable :native-scrollbar="false">
+        <template #header>
+          <RouterLink to="/bills/group-accs" class="hover:underline">账户汇总</RouterLink>
+        </template>
         <GroupAccsPage v-if="showAccsDrawer" state-key="risk_drawer_group_accs" />
       </NDrawerContent>
     </NDrawer>
     <NDrawer v-model:show="showSymbolsDrawer" placement="bottom" height="65vh" :mask-closable="true">
-      <NDrawerContent class="monitor-drawer" title="持仓汇总(/bills/group-symbols)" closable :native-scrollbar="false">
+      <NDrawerContent class="monitor-drawer" closable :native-scrollbar="false">
+        <template #header>
+          <RouterLink to="/bills/group-symbols" class="hover:underline">持仓汇总</RouterLink>
+        </template>
         <GroupSymbolsPage v-if="showSymbolsDrawer" state-key="risk_drawer_group_symbols" />
       </NDrawerContent>
     </NDrawer>

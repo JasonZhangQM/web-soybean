@@ -110,60 +110,152 @@ function fmtRptType(val: number | null) {
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '报告日期', key: 'rpt_date', width: 120 },
-  { title: '发布日期', key: 'pub_date', width: 120 },
-  { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FundBalance) => fmtRptType(row.rpt_type) },
-  { title: '货币资金', key: 'mny_cptl', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.mny_cptl) },
-  { title: '应收账款', key: 'acct_rcv', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.acct_rcv) },
-  { title: '存货', key: 'invt', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.invt) },
+  { title: '股票代码', key: 'symbol', width: 110 },
+  { title: '报告日期', key: 'rpt_date', width: 110 },
+  { title: '发布日期', key: 'pub_date', width: 110 },
+  { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundBalance) => fmtRptType(row.rpt_type) },
+  { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
+  { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
+  {
+    title: '货币资金',
+    key: 'mny_cptl',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.mny_cptl)
+  },
+  {
+    title: '应收账款',
+    key: 'acct_rcv',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.acct_rcv)
+  },
+  {
+    title: '存货',
+    key: 'invt',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.invt)
+  },
   {
     title: '流动资产合计',
     key: 'ttl_cur_ast',
-    width: 120,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_cur_ast)
   },
-  { title: '固定资产', key: 'fix_ast', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.fix_ast) },
+  {
+    title: '固定资产',
+    key: 'fix_ast',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.fix_ast)
+  },
   {
     title: '长期股权投资',
     key: 'lt_eqy_inv',
-    width: 120,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.lt_eqy_inv)
   },
-  { title: '无形资产', key: 'intg_ast', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.intg_ast) },
-  { title: '商誉', key: 'gw', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.gw) },
+  {
+    title: '无形资产',
+    key: 'intg_ast',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.intg_ast)
+  },
+  {
+    title: '商誉',
+    key: 'gw',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.gw)
+  },
   {
     title: '非流动资产合计',
     key: 'ttl_ncur_ast',
-    width: 120,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_ncur_ast)
   },
-  { title: '资产总计', key: 'ttl_ast', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_ast) },
-  { title: '短期借款', key: 'sht_ln', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.sht_ln) },
-  { title: '应付账款', key: 'acct_pay', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.acct_pay) },
+  {
+    title: '资产总计',
+    key: 'ttl_ast',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_ast)
+  },
+  {
+    title: '短期借款',
+    key: 'sht_ln',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.sht_ln)
+  },
+  {
+    title: '应付账款',
+    key: 'acct_pay',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.acct_pay)
+  },
   {
     title: '流动负债合计',
     key: 'ttl_cur_liab',
-    width: 120,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_cur_liab)
   },
-  { title: '长期借款', key: 'lt_ln', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.lt_ln) },
+  {
+    title: '长期借款',
+    key: 'lt_ln',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.lt_ln)
+  },
   {
     title: '非流动负债合计',
     key: 'ttl_ncur_liab',
-    width: 120,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_ncur_liab)
   },
-  { title: '负债合计', key: 'ttl_liab', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_liab) },
-  { title: '资本公积', key: 'cptl_rsv', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.cptl_rsv) },
-  { title: '未分配利润', key: 'ret_prof', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.ret_prof) },
+  {
+    title: '负债合计',
+    key: 'ttl_liab',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_liab)
+  },
+  {
+    title: '资本公积',
+    key: 'cptl_rsv',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.cptl_rsv)
+  },
+  {
+    title: '未分配利润',
+    key: 'ret_prof',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.ret_prof)
+  },
   {
     title: '归母股东权益合计',
     key: 'ttl_eqy_pcom',
-    width: 150,
+    width: 100,
+    align: 'right' as const,
     render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_eqy_pcom)
   },
-  { title: '股东权益合计', key: 'ttl_eqy', width: 120, render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_eqy) }
+  {
+    title: '股东权益合计',
+    key: 'ttl_eqy',
+    width: 100,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundBalance) => fmtNum(row.ttl_eqy)
+  }
 ];
 
 onMounted(() => fetchData());
@@ -231,7 +323,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="3800"
+        :scroll-x="2410"
         :loading="loading"
         remote
         :pagination="pagination"

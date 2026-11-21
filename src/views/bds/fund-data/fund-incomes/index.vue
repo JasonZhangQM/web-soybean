@@ -115,50 +115,152 @@ function fmtRptType(val: number | null) {
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '报告日期', key: 'rpt_date', width: 120 },
-  { title: '发布日期', key: 'pub_date', width: 120 },
-  { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type) },
+  { title: '股票代码', key: 'symbol', width: 110 },
+  { title: '报告日期', key: 'rpt_date', width: 110 },
+  { title: '发布日期', key: 'pub_date', width: 110 },
+  { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type) },
+  { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
+  { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
   {
     title: '营业总收入',
     key: 'ttl_inc_oper',
-    width: 120,
+    width: 110,
+    align: 'right' as const,
     render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_inc_oper)
   },
-  { title: '营业收入', key: 'inc_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_oper) },
+  {
+    title: '营业收入',
+    key: 'inc_oper',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_oper)
+  },
   {
     title: '营业总成本',
     key: 'ttl_cost_oper',
-    width: 120,
+    width: 110,
+    align: 'right' as const,
     render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_cost_oper)
   },
-  { title: '营业成本', key: 'cost_oper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.cost_oper) },
-  { title: '销售费用', key: 'exp_sell', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_sell) },
-  { title: '管理费用', key: 'exp_adm', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_adm) },
-  { title: '研发费用', key: 'exp_rd', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_rd) },
-  { title: '财务费用', key: 'exp_fin', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_fin) },
-  { title: '投资收益', key: 'inc_inv', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_inv) },
-  { title: '公允价值变动', key: 'inc_fv_chg', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_fv_chg) },
-  { title: '营业利润', key: 'oper_prof', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.oper_prof) },
-  { title: '利润总额', key: 'ttl_prof', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_prof) },
-  { title: '所得税费用', key: 'inc_tax', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_tax) },
-  { title: '净利润', key: 'net_prof', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof) },
+  {
+    title: '营业成本',
+    key: 'cost_oper',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.cost_oper)
+  },
+  {
+    title: '销售费用',
+    key: 'exp_sell',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_sell)
+  },
+  {
+    title: '管理费用',
+    key: 'exp_adm',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_adm)
+  },
+  {
+    title: '研发费用',
+    key: 'exp_rd',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_rd)
+  },
+  {
+    title: '财务费用',
+    key: 'exp_fin',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_fin)
+  },
+  {
+    title: '投资收益',
+    key: 'inc_inv',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_inv)
+  },
+  {
+    title: '公允价值变动',
+    key: 'inc_fv_chg',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_fv_chg)
+  },
+  {
+    title: '营业利润',
+    key: 'oper_prof',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.oper_prof)
+  },
+  {
+    title: '利润总额',
+    key: 'ttl_prof',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_prof)
+  },
+  {
+    title: '所得税费用',
+    key: 'inc_tax',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_tax)
+  },
+  {
+    title: '净利润',
+    key: 'net_prof',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof)
+  },
   {
     title: '归母净利润',
     key: 'net_prof_pcom',
-    width: 150,
+    width: 110,
+    align: 'right' as const,
     render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom)
   },
   {
     title: '扣非归母净利润',
     key: 'net_prof_pcom_cut',
-    width: 150,
+    width: 110,
+    align: 'right' as const,
     render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom_cut)
   },
-  { title: '营业外收入', key: 'inc_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_noper) },
-  { title: '营业外支出', key: 'exp_noper', width: 120, render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_noper) },
-  { title: '基本每股收益', key: 'eps_base', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_base) },
-  { title: '稀释每股收益', key: 'eps_dil', width: 120, render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_dil) }
+  {
+    title: '营业外收入',
+    key: 'inc_noper',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_noper)
+  },
+  {
+    title: '营业外支出',
+    key: 'exp_noper',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_noper)
+  },
+  {
+    title: '基本每股收益',
+    key: 'eps_base',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_base)
+  },
+  {
+    title: '稀释每股收益',
+    key: 'eps_dil',
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_dil)
+  }
 ];
 
 onMounted(() => fetchData());
@@ -226,7 +328,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="3900"
+        :scroll-x="2610"
         :loading="loading"
         remote
         :pagination="pagination"

@@ -209,11 +209,11 @@ declare namespace Api {
       /** 数据类型 */
       data_type: number | null;
       /** 主体类型：stock=个股，index=指数成分股聚合 */
-      secType?: string;
+      sec_type?: string;
       /** 快照成分股数量：聚合本行所用的时点成分快照的成分股总数（仅指数行填写） */
-      snapConsCnt?: number;
+      snap_cons_cnt?: number;
       /** 聚合成分股数量：本行实际参与汇总的成分股数量（仅指数行填写） */
-      aggConsCnt?: number;
+      agg_cons_cnt?: number;
       /** 货币资金 */
       mny_cptl: string | null;
       /** 应收账款 */
@@ -293,11 +293,11 @@ declare namespace Api {
       /** 数据类型 */
       data_type: number | null;
       /** 主体类型：stock=个股，index=指数成分股聚合 */
-      secType?: string;
+      sec_type?: string;
       /** 快照成分股数量：聚合本行所用的时点成分快照的成分股总数（仅指数行填写） */
-      snapConsCnt?: number;
+      snap_cons_cnt?: number;
       /** 聚合成分股数量：本行实际参与汇总的成分股数量（仅指数行填写） */
-      aggConsCnt?: number;
+      agg_cons_cnt?: number;
       /** 营业总收入 */
       ttl_inc_oper: string | null;
       /** 营业收入 */
@@ -377,11 +377,11 @@ declare namespace Api {
       /** 数据类型 */
       data_type: number | null;
       /** 主体类型：stock=个股，index=指数成分股聚合 */
-      secType?: string;
+      sec_type?: string;
       /** 快照成分股数量：聚合本行所用的时点成分快照的成分股总数（仅指数行填写） */
-      snapConsCnt?: number;
+      snap_cons_cnt?: number;
       /** 聚合成分股数量：本行实际参与汇总的成分股数量（仅指数行填写） */
-      aggConsCnt?: number;
+      agg_cons_cnt?: number;
       /** 销售商品、提供劳务收到的现金 */
       cash_rcv_sale: string | null;
       /** 经营活动现金流入小计 */
