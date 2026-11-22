@@ -14,6 +14,11 @@ defineOptions({ name: 'UmPctLatestCard' });
 
 const message = useMessage();
 
+/** 串联同步链运行中（父页下发）：本卡启动按钮禁用，防撞全局互斥 409 */
+defineProps<{
+  chainRunning?: boolean;
+}>();
+
 /**
  * 最新估值分位截面表（irs_um_percentile，2026-11-05）
  *
@@ -147,6 +152,16 @@ async function handleStop() {
   }
 }
 
+/** 串联同步链入口（父页经模板 ref 调用）：该卡片无参数，直接整链透传 */
+function getChainEntry():
+  | { entries: Array<{ card: string; params: Record<string, unknown>; risks: string[] }> }
+  | { error: string } {
+  return { entries: [{ card: 'um_pct_latest', params: {}, risks: [] }] };
+}
+
+/** 串联同步链依赖的状态与方法：isRunning 供父页判定全局互斥，getChainEntry 供链卡组参 */
+defineExpose({ isRunning, getChainEntry });
+
 onMounted(() => {
   void loadTask();
   void loadStats();
@@ -161,7 +176,9 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
     <template #header>最新估值分位（/today 与标的监测页的数据源）</template>
     <template #header-extra>
-      <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
+      <NButton size="small" :loading="starting" :disabled="isRunning || chainRunning" @click="handleStart">
+        启动
+      </NButton>
       <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 

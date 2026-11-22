@@ -16,6 +16,7 @@ import {
   type IndexFundAggSyncRequest
 } from '@/service/api';
 import { useBdsStore } from '@/store/modules/bds';
+import ChainedSyncCard from './modules/chained-sync-card.vue';
 import MacroSyncCard from './modules/macro-sync-card.vue';
 import ValuationPctCard from './modules/valuation-pct-card.vue';
 import UmPctLatestCard from './modules/um-pct-latest-card.vue';
@@ -381,6 +382,8 @@ const NON_BATCH_SCOPES = [
   'index_fund_agg',
   // 最新估值分位截面（同上；/today 与标的监测页的数据源）
   'um_pct_latest',
+  // 串联同步链（页面顶部「串联同步」卡片自行按 scope 认领；子任务各自有 scope 不在此列）
+  'chained_sync',
   // 风险情景网格落库（/bills/sync/group 末段自动触发，无人手动轮询；但它会成为「最新任务」，
   // 不排除就会被卡片 1 抢走并误填表单；风险看板已迁至 irs，scope 同步改名）
   'irs_risk'
@@ -1082,6 +1085,157 @@ function stopValuationPolling() {
   }
 }
 
+// ===================== 串联同步链（页面顶部卡片） =====================
+
+/**
+ * 串联同步：单条后端链任务（scope=chained_sync）按固定依赖顺序逐卡执行勾选的卡片。
+ * 本页职责：为链卡片提供各卡片的「校验 + 组参」入口（resolveChainCard），
+ * 并在链运行期间禁用各卡片自身的启动按钮（全局互斥，提前拦比撞 409 体验好）。
+ *
+ * payload 在链启动时一次性收集固化进链任务（后端 scope_params 存档），
+ * 链运行中修改各卡片表单不影响本次链。
+ */
+
+/** 单张卡片的链入口（与 chained-sync-card.vue 内的 ChainCardEntry 结构一致） */
+interface ChainCardEntry {
+  card: string;
+  params: Record<string, unknown>;
+  risks: string[];
+}
+
+const chainRunning = ref(false);
+
+/**
+ * 各内联卡片的「表单锁定」状态：本卡任务运行中 或 串联链运行中 ⇒ 设置不可编辑。
+ * 链启动时 payload 已固化进链任务，锁定仅是防误改的交互保障（改了也不影响本次链）。
+ */
+const batchLocked = computed(() => isRunning.value || chainRunning.value);
+const indexLocked = computed(() => indexIsRunning.value || chainRunning.value);
+const aggLocked = computed(() => aggIsRunning.value || chainRunning.value);
+const valuationLocked = computed(() => valuationIsRunning.value || chainRunning.value);
+
+const macroCardRef = ref<InstanceType<typeof MacroSyncCard> | null>(null);
+const valuationPctCardRef = ref<InstanceType<typeof ValuationPctCard> | null>(null);
+const umPctCardRef = ref<InstanceType<typeof UmPctLatestCard> | null>(null);
+
+/** 任意一张卡片有任务在跑（含三张组件卡的内部任务）⇒ 串联启动按钮禁用 */
+const anyCardRunning = computed(() => {
+  if (isRunning.value || indexIsRunning.value || aggIsRunning.value || valuationIsRunning.value) return true;
+  return (
+    macroCardRef.value?.isRunning === true ||
+    valuationPctCardRef.value?.isRunning === true ||
+    umPctCardRef.value?.isRunning === true
+  );
+});
+
+/** 卡片 1：财务及行情批量同步（校验 + 组参 + 危险项，与 handleStart 同口径） */
+function buildBatchChainEntry(): { entry: ChainCardEntry } | { error: string } {
+  if (form.scope === 'index' && form.index_codes.length === 0) {
+    return { error: '「财务及行情批量同步」请至少选择一个指数' };
+  }
+  if (form.scope === 'industry' && !form.industry) {
+    return { error: '「财务及行情批量同步」请选择行业' };
+  }
+  if (form.scope === 'explicit' && !form.symbols.trim()) {
+    return { error: '「财务及行情批量同步」请输入股票代码清单' };
+  }
+  if (form.tables.length === 0) {
+    return { error: '「财务及行情批量同步」请至少选择一张同步表' };
+  }
+  const payload: BatchSyncRequest = {
+    scope: form.scope,
+    tables: form.tables,
+    mark_synced: form.mark_synced,
+    exclude_synced_since: form.exclude_synced_since,
+    trading_status: form.trading_status as BatchSyncRequest['trading_status'],
+    max_symbols: form.max_symbols,
+    skip_latest_rpt_check: form.skip_latest_rpt_check
+  };
+  if (form.scope === 'index') payload.index_codes = [...form.index_codes];
+  if (form.scope === 'industry') payload.industry = form.industry;
+  if (form.scope === 'explicit') payload.symbols = form.symbols.split(/[\s,，]+/).filter(Boolean);
+  const risks: string[] = [];
+  if (form.tables.includes('history_market')) {
+    risks.push(
+      '财务及行情批量同步含历史行情回填：个股后复权、指数不复权，按标的全量/增量拉取，数据量大、耗时长，且不参与「标记已同步」'
+    );
+  }
+  return { entry: { card: 'batch_sync', params: payload as unknown as Record<string, unknown>, risks } };
+}
+
+/** 逐卡片标识解析链入口（chained-sync-card 的 resolveCard prop 实现） */
+function resolveChainCard(key: string): { entries: ChainCardEntry[] } | { error: string } {
+  switch (key) {
+    case 'macro_sync': {
+      // 宏观卡自行拆分 macro_sync + bills_import 两个链单元（勾了导入段才包含后者）
+      const res = macroCardRef.value?.getChainEntry();
+      if (!res) return { error: '「宏观与基础数据」卡片未就绪，请稍后再试' };
+      return res;
+    }
+    case 'batch_sync': {
+      const res = buildBatchChainEntry();
+      return 'error' in res ? res : { entries: [res.entry] };
+    }
+    case 'index_backfill': {
+      if (indexForm.index_codes.length === 0) return { error: '「指数成分股」请至少选择一个指数' };
+      const payload: IndexConstituentSyncRequest = { index_codes: [...indexForm.index_codes] };
+      if (indexForm.start_date) payload.start_date = indexForm.start_date;
+      return {
+        entries: [{ card: 'index_backfill', params: payload as unknown as Record<string, unknown>, risks: [] }]
+      };
+    }
+    case 'index_fund_agg': {
+      if (aggForm.index_codes.length === 0) return { error: '「指数财务聚合」请至少选择一个指数' };
+      const payload: IndexFundAggSyncRequest = { index_codes: [...aggForm.index_codes] };
+      if (aggForm.start_date) payload.start_date = aggForm.start_date;
+      const rangeDesc = aggForm.start_date ? `${aggForm.start_date} 起的报告期` : '全历史';
+      return {
+        entries: [
+          {
+            card: 'index_fund_agg',
+            params: payload as unknown as Record<string, unknown>,
+            risks: [
+              `指数财务聚合将对所选 ${aggForm.index_codes.length} 个指数重算${rangeDesc}的成分股合并财报并派生财务指标（财报季手动执行，纯库内计算不调 gm），数据量大、耗时长`
+            ]
+          }
+        ]
+      };
+    }
+    case 'index_valuation': {
+      if (valuationForm.index_codes.length === 0) return { error: '「指数估值重算」请至少选择一个指数' };
+      if (valuationForm.end_date && valuationForm.start_date && valuationForm.end_date < valuationForm.start_date) {
+        return { error: '「指数估值重算」结束日期不能早于开始日期' };
+      }
+      const payload: Api.Bds.IndexValuationSyncRequest = {
+        index_codes: [...valuationForm.index_codes],
+        days: valuationForm.days || 5,
+        with_median: valuationForm.with_median
+      };
+      if (valuationForm.start_date) payload.start_date = valuationForm.start_date;
+      if (valuationForm.end_date) payload.end_date = valuationForm.end_date;
+      const risks: string[] = [];
+      if (valuationForm.end_date && !valuationForm.start_date) {
+        risks.push(
+          '指数估值重算未填开始日期 ⇒ 将从各指数「最早成分快照」算起，相当于重算几乎全部历史（5 个指数约 30~40 分钟）'
+        );
+      }
+      return { entries: [{ card: 'index_valuation', params: payload as unknown as Record<string, unknown>, risks }] };
+    }
+    case 'valuation_pct': {
+      const res = valuationPctCardRef.value?.getChainEntry();
+      if (!res) return { error: '「估值分位按日落盘」卡片未就绪，请稍后再试' };
+      return res;
+    }
+    case 'um_pct_latest': {
+      const res = umPctCardRef.value?.getChainEntry();
+      if (!res) return { error: '「最新分位截面」卡片未就绪，请稍后再试' };
+      return res;
+    }
+    default:
+      return { error: `未知卡片：${key}` };
+  }
+}
+
 // ===================== 初始化 =====================
 
 function stopAllPolling() {
@@ -1192,19 +1346,27 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="p-16px">
+    <!-- ===== 串联同步（页面顶部）：勾选卡片 → 汇总一次确认 → 单条后端链任务按依赖顺序执行 ===== -->
+    <ChainedSyncCard
+      :resolve-card="resolveChainCard"
+      :blocked="anyCardRunning"
+      :page-gate="() => pageActive"
+      @running="chainRunning = $event"
+    />
+
     <!-- 显示顺序：宏观与基础数据（卡片 4）置顶，其后是卡片 1/2/3。下方「卡片 N」只是代码里的稳定标识，不代表顺序。 -->
     <!-- ===== 卡片 4：宏观与基础数据同步（六个单段同步入口的集中处） ===== -->
-    <MacroSyncCard />
+    <MacroSyncCard ref="macroCardRef" :chain-running="chainRunning" />
 
     <!-- ===== 卡片 1：财务及行情批量同步 ===== -->
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
       <template #header>财务及行情批量同步</template>
       <template #header-extra>
-        <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
+        <NButton size="small" :loading="starting" :disabled="batchLocked" @click="handleStart">启动</NButton>
         <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
       </template>
 
-      <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning">
+      <NForm inline label-placement="left" :show-feedback="false" :disabled="batchLocked">
         <!-- 第一行：同步范围 + 条件项（指数/行业/清单，三选一） -->
         <NFormItem label="同步范围" label-width="80px">
           <NSelect v-model:value="form.scope" :options="scopeOptions" style="width: 130px" />
@@ -1237,7 +1399,7 @@ onBeforeUnmount(() => {
             secondary
             style="margin-left: 8px"
             :loading="validating"
-            :disabled="isRunning"
+            :disabled="batchLocked"
             @click="handleValidateTargets"
           >
             校验
@@ -1248,7 +1410,7 @@ onBeforeUnmount(() => {
       <!-- 同步表 checkbox -->
       <div style="margin-top: 8px; display: flex; align-items: center; gap: 16px">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">同步表：</span>
-        <NCheckboxGroup v-model:value="form.tables" :disabled="isRunning" style="flex: 1">
+        <NCheckboxGroup v-model:value="form.tables" :disabled="batchLocked" style="flex: 1">
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in TABLE_OPTIONS" :key="opt.value" :value="opt.value">
               {{ opt.label }}
@@ -1256,12 +1418,12 @@ onBeforeUnmount(() => {
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
-        <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllTables">全选</NButton>
-        <NButton size="tiny" secondary :disabled="isRunning" @click="clearTables">清空</NButton>
+        <NButton size="tiny" secondary :disabled="batchLocked" @click="selectAllTables">全选</NButton>
+        <NButton size="tiny" secondary :disabled="batchLocked" @click="clearTables">清空</NButton>
       </div>
 
       <!-- 可选参数 -->
-      <NForm inline label-placement="left" :show-feedback="false" :disabled="isRunning" style="margin-top: 8px">
+      <NForm inline label-placement="left" :show-feedback="false" :disabled="batchLocked" style="margin-top: 8px">
         <NFormItem label="退市口径" label-width="80px">
           <NSelect
             v-model:value="form.trading_status"
@@ -1366,24 +1528,22 @@ onBeforeUnmount(() => {
         <RouterLink to="/bds/index-constituents" class="sync-link" @click.stop>↗</RouterLink>
       </template>
       <template #header-extra>
-        <NButton size="small" :loading="indexStarting" :disabled="indexIsRunning" @click="handleIndexStart">
-          启动
-        </NButton>
+        <NButton size="small" :loading="indexStarting" :disabled="indexLocked" @click="handleIndexStart">启动</NButton>
         <NButton v-if="indexIsRunning" size="small" :loading="indexStopping" @click="handleIndexStop">停止</NButton>
       </template>
 
       <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: indexIsRunning ? 0.6 : 1 }">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
-        <NCheckboxGroup v-model:value="indexForm.index_codes" :disabled="indexIsRunning" style="flex: 1">
+        <NCheckboxGroup v-model:value="indexForm.index_codes" :disabled="indexLocked" style="flex: 1">
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in syncableIndexOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
-        <NButton size="tiny" secondary :disabled="indexIsRunning" @click="selectAllIndices">全选</NButton>
-        <NButton size="tiny" secondary :disabled="indexIsRunning" @click="clearIndices">清空</NButton>
+        <NButton size="tiny" secondary :disabled="indexLocked" @click="selectAllIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="indexLocked" @click="clearIndices">清空</NButton>
       </div>
 
       <!-- 起始日期 + 当前核查水位：水位紧跟日期框，选日期时能直接对照（不另起一块） -->
@@ -1400,7 +1560,7 @@ onBeforeUnmount(() => {
         <span style="font-size: 13px; color: #666; flex-shrink: 0">起始日期：</span>
         <NDatePicker
           v-model:formatted-value="indexForm.start_date"
-          :disabled="indexIsRunning"
+          :disabled="indexLocked"
           type="date"
           value-format="yyyy-MM-dd"
           clearable
@@ -1509,22 +1669,22 @@ onBeforeUnmount(() => {
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
       <template #header>指数财务聚合</template>
       <template #header-extra>
-        <NButton size="small" :loading="aggStarting" :disabled="aggIsRunning" @click="handleAggStart">启动</NButton>
+        <NButton size="small" :loading="aggStarting" :disabled="aggLocked" @click="handleAggStart">启动</NButton>
         <NButton v-if="aggIsRunning" size="small" :loading="aggStopping" @click="handleAggStop">停止</NButton>
       </template>
 
       <!-- 指数选择：checkbox 组（同「指数成分股同步」的样式与选项源） -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: aggIsRunning ? 0.6 : 1 }">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
-        <NCheckboxGroup v-model:value="aggForm.index_codes" :disabled="aggIsRunning" style="flex: 1">
+        <NCheckboxGroup v-model:value="aggForm.index_codes" :disabled="aggLocked" style="flex: 1">
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in syncableIndexOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
-        <NButton size="tiny" secondary :disabled="aggIsRunning" @click="selectAllAggIndices">全选</NButton>
-        <NButton size="tiny" secondary :disabled="aggIsRunning" @click="clearAggIndices">清空</NButton>
+        <NButton size="tiny" secondary :disabled="aggLocked" @click="selectAllAggIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="aggLocked" @click="clearAggIndices">清空</NButton>
       </div>
 
       <!-- 起始日期：不选 = 全历史重算覆盖 -->
@@ -1540,7 +1700,7 @@ onBeforeUnmount(() => {
         <span style="font-size: 13px; color: #666; flex-shrink: 0">起始日期：</span>
         <NDatePicker
           v-model:formatted-value="aggForm.start_date"
-          :disabled="aggIsRunning"
+          :disabled="aggLocked"
           type="date"
           value-format="yyyy-MM-dd"
           clearable
@@ -1619,12 +1779,7 @@ onBeforeUnmount(() => {
         <RouterLink to="/bds/index-valuation" class="sync-link" @click.stop>↗</RouterLink>
       </template>
       <template #header-extra>
-        <NButton
-          size="small"
-          :loading="valuationStarting"
-          :disabled="valuationIsRunning"
-          @click="handleValuationStart()"
-        >
+        <NButton size="small" :loading="valuationStarting" :disabled="valuationLocked" @click="handleValuationStart()">
           启动
         </NButton>
         <NButton v-if="valuationIsRunning" size="small" :loading="valuationStopping" @click="handleValuationStop">
@@ -1642,15 +1797,15 @@ onBeforeUnmount(() => {
         }"
       >
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
-        <NCheckboxGroup v-model:value="valuationForm.index_codes" :disabled="valuationIsRunning" style="flex: 1">
+        <NCheckboxGroup v-model:value="valuationForm.index_codes" :disabled="valuationLocked" style="flex: 1">
           <NSpace :size="12" :wrap="true">
             <NCheckbox v-for="opt in valuationIndexOptions" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </NCheckbox>
           </NSpace>
         </NCheckboxGroup>
-        <NButton size="tiny" secondary :disabled="valuationIsRunning" @click="selectAllValuationIndices">全选</NButton>
-        <NButton size="tiny" secondary :disabled="valuationIsRunning" @click="clearValuationIndices">清空</NButton>
+        <NButton size="tiny" secondary :disabled="valuationLocked" @click="selectAllValuationIndices">全选</NButton>
+        <NButton size="tiny" secondary :disabled="valuationLocked" @click="clearValuationIndices">清空</NButton>
       </div>
 
       <!-- 区间 + 参数 -->
@@ -1667,7 +1822,7 @@ onBeforeUnmount(() => {
         <span style="font-size: 13px; color: #666; flex-shrink: 0">区间：</span>
         <NDatePicker
           v-model:formatted-value="valuationForm.start_date"
-          :disabled="valuationIsRunning"
+          :disabled="valuationLocked"
           type="date"
           value-format="yyyy-MM-dd"
           clearable
@@ -1677,7 +1832,7 @@ onBeforeUnmount(() => {
         <span style="color: #999">~</span>
         <NDatePicker
           v-model:formatted-value="valuationForm.end_date"
-          :disabled="valuationIsRunning"
+          :disabled="valuationLocked"
           type="date"
           value-format="yyyy-MM-dd"
           clearable
@@ -1696,7 +1851,7 @@ onBeforeUnmount(() => {
         <span style="font-size: 12px" :style="{ color: valuationDaysHint.muted ? '#f0a020' : '#999' }">
           {{ valuationDaysHint.text }}
         </span>
-        <NCheckbox v-model:checked="valuationForm.with_median" :disabled="valuationIsRunning">
+        <NCheckbox v-model:checked="valuationForm.with_median" :disabled="valuationLocked">
           算中位数 pe_median（约慢一倍）
         </NCheckbox>
       </div>
@@ -1821,9 +1976,9 @@ onBeforeUnmount(() => {
     </NCard>
 
     <!-- ===== 卡片 5：估值分位按日落盘（独立组件，自行按 scope 认领任务） ===== -->
-    <ValuationPctCard />
+    <ValuationPctCard ref="valuationPctCardRef" :chain-running="chainRunning" />
 
     <!-- ===== 卡片 6：最新估值分位截面（/today 与标的监测页的数据源，范围固定） ===== -->
-    <UmPctLatestCard />
+    <UmPctLatestCard ref="umPctCardRef" :chain-running="chainRunning" />
   </div>
 </template>

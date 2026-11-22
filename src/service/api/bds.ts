@@ -209,6 +209,29 @@ export function startIndexFundAggSync(req: IndexFundAggSyncRequest) {
   });
 }
 
+/** 串联同步的单张卡片项：card 为卡片标识，params 为该卡片原启动端点的请求参数 */
+export interface ChainCardItem {
+  card: string;
+  params: Record<string, unknown>;
+}
+
+/** 串联同步请求体：后端按固定依赖顺序执行，忽略 cards 数组顺序 */
+export interface ChainSyncRequest {
+  cards: ChainCardItem[];
+}
+
+/**
+ * 启动串联同步链（后台线程按固定依赖顺序逐卡执行，失败继续）。
+ * 每张卡作为独立子任务串行执行；链行 result.cards 记各卡结果。
+ */
+export function startChainedSync(req: ChainSyncRequest) {
+  return request<Api.Bds.SyncTask>({
+    url: '/api/v1/bds/run/chained-sync',
+    method: 'post',
+    data: req
+  });
+}
+
 /** 指数累计收益率查询参数 */
 export interface IndexCumReturnQueryParams {
   /** 起始日期（YYYY-MM-DD），默认当前日期前10年 */

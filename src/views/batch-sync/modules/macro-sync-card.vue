@@ -7,6 +7,11 @@ defineOptions({ name: 'MacroSyncCard' });
 
 const message = useMessage();
 
+/** 串联同步链运行中（父页下发）：本卡启动按钮禁用，防撞全局互斥 409 */
+const props = defineProps<{
+  chainRunning?: boolean;
+}>();
+
 // ===================== 段定义 =====================
 
 /** 十二个勾选项 = 十一个后端同步段 + 一个独立任务（交易明细导入），分「基础数据 / 行情数据 / 宏观数据」三排勾选。
@@ -165,6 +170,9 @@ const task = ref<Api.Bds.SyncTask | null>(null);
 const queuedBillsImport = ref(false);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
+
+/** 表单锁定：本卡任务运行中 或 串联链运行中 ⇒ 勾选/按钮不可编辑（防误改，链参数已固化） */
+const formLocked = computed(() => isRunning.value || !!props.chainRunning);
 const progressValue = computed(() => Number(task.value?.progress || 0));
 const errorList = computed(() => task.value?.errors || []);
 
@@ -391,6 +399,31 @@ async function handleStop() {
   }
 }
 
+/** 串联同步链入口（父页经模板 ref 调用）：拆分 macro_sync + bills_import 两个链单元 */
+function getChainEntry():
+  | { entries: Array<{ card: string; params: Record<string, unknown>; risks: string[] }> }
+  | { error: string } {
+  if (selectedStages.value.length === 0) {
+    return { error: '「宏观与基础数据」请至少选择一个同步段' };
+  }
+  const macroStages = selectedStages.value.filter(isMacroStage);
+  const entries: Array<{ card: string; params: Record<string, unknown>; risks: string[] }> = [];
+  if (macroStages.length > 0) {
+    // 单卡启动的「结束后自动接跑导入」前端接续在串联下由链统一编排，不再排队
+    entries.push({ card: 'macro_sync', params: { stages: macroStages }, risks: [] });
+  }
+  if (selectedStages.value.includes('bills_import')) {
+    entries.push({ card: 'bills_import', params: {}, risks: [] });
+  }
+  if (entries.length === 0) {
+    return { error: '「宏观与基础数据」没有可执行的同步段' };
+  }
+  return { entries };
+}
+
+/** 串联同步链依赖的状态与方法：isRunning 供父页判定全局互斥，getChainEntry 供链卡组参 */
+defineExpose({ isRunning, getChainEntry });
+
 // ===================== 初始化 =====================
 
 onMounted(async () => {
@@ -420,14 +453,14 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card">
     <template #header>宏观与基础数据同步</template>
     <template #header-extra>
-      <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
+      <NButton size="small" :loading="starting" :disabled="formLocked" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
     <!-- 段选择：分「基础数据 / 行情数据 / 宏观数据」三排，组内与跨组顺序即后端执行顺序 -->
     <div style="display: flex; gap: 16px; align-items: flex-start">
       <span style="font-size: 13px; color: #666; flex-shrink: 0; line-height: 24px">同步段：</span>
-      <NCheckboxGroup v-model:value="selectedStages" :disabled="isRunning" style="flex: 1">
+      <NCheckboxGroup v-model:value="selectedStages" :disabled="formLocked" style="flex: 1">
         <div
           v-for="g in STAGE_GROUPS"
           :key="g.name"
@@ -444,11 +477,11 @@ onBeforeUnmount(() => {
       </NCheckboxGroup>
       <NTooltip trigger="hover" :style="{ maxWidth: '320px' }">
         <template #trigger>
-          <NButton size="tiny" secondary :disabled="isRunning" @click="selectAllStages">全选</NButton>
+          <NButton size="tiny" secondary :disabled="formLocked" @click="selectAllStages">全选</NButton>
         </template>
         全选 = 常用 8 段；交易日历、交易明细导入、黄金储备不勾，需要时手动点选
       </NTooltip>
-      <NButton size="tiny" secondary :disabled="isRunning" @click="clearStages">清空</NButton>
+      <NButton size="tiny" secondary :disabled="formLocked" @click="clearStages">清空</NButton>
     </div>
 
     <div style="margin-top: 6px; font-size: 12px; color: #999; line-height: 1.6">

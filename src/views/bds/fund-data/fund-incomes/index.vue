@@ -114,6 +114,42 @@ function fmtRptType(val: number | null) {
   return map[val] || String(val);
 }
 
+// 数值科目配置：key 与 title 对齐 ORM comment，一行一条；默认 fmtNum，EPS 列用 fmtEps
+const incomeFieldConfigs: Array<{ key: keyof Api.Bds.FundIncome; title: string; formatter?: (v: unknown) => string }> =
+  [
+    { key: 'ttl_inc_oper', title: '营业总收入' },
+    { key: 'inc_oper', title: '营业收入' },
+    { key: 'ttl_cost_oper', title: '营业总成本' },
+    { key: 'cost_oper', title: '营业成本' },
+    { key: 'exp_sell', title: '销售费用' },
+    { key: 'exp_adm', title: '管理费用' },
+    { key: 'exp_rd', title: '研发费用' },
+    { key: 'exp_fin', title: '财务费用' },
+    { key: 'inc_inv', title: '投资收益' },
+    { key: 'inc_fv_chg', title: '公允价值变动' },
+    { key: 'oper_prof', title: '营业利润' },
+    { key: 'ttl_prof', title: '利润总额' },
+    { key: 'inc_tax', title: '所得税费用' },
+    { key: 'net_prof', title: '净利润' },
+    { key: 'net_prof_pcom', title: '归母净利润' },
+    { key: 'net_prof_pcom_cut', title: '扣非归母净利润' },
+    { key: 'inc_noper', title: '营业外收入' },
+    { key: 'exp_noper', title: '营业外支出' },
+    { key: 'eps_base', title: '基本每股收益', formatter: fmtEps },
+    { key: 'eps_dil', title: '稀释每股收益', formatter: fmtEps }
+  ];
+
+// 数值列工厂：统一宽度 110、右对齐、默认 fmtNum 渲染（与财务指标页 makeDerivColumn 同构）
+function makeNumColumn(cfg: { key: keyof Api.Bds.FundIncome; title: string; formatter?: (v: unknown) => string }) {
+  return {
+    title: cfg.title,
+    key: cfg.key,
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundIncome) => (cfg.formatter ?? fmtNum)(row[cfg.key])
+  };
+}
+
 const columns = [
   { title: '股票代码', key: 'symbol', width: 110 },
   { title: '报告日期', key: 'rpt_date', width: 110 },
@@ -121,146 +157,7 @@ const columns = [
   { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type) },
   { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
   { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
-  {
-    title: '营业总收入',
-    key: 'ttl_inc_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_inc_oper)
-  },
-  {
-    title: '营业收入',
-    key: 'inc_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_oper)
-  },
-  {
-    title: '营业总成本',
-    key: 'ttl_cost_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_cost_oper)
-  },
-  {
-    title: '营业成本',
-    key: 'cost_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.cost_oper)
-  },
-  {
-    title: '销售费用',
-    key: 'exp_sell',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_sell)
-  },
-  {
-    title: '管理费用',
-    key: 'exp_adm',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_adm)
-  },
-  {
-    title: '研发费用',
-    key: 'exp_rd',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_rd)
-  },
-  {
-    title: '财务费用',
-    key: 'exp_fin',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_fin)
-  },
-  {
-    title: '投资收益',
-    key: 'inc_inv',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_inv)
-  },
-  {
-    title: '公允价值变动',
-    key: 'inc_fv_chg',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_fv_chg)
-  },
-  {
-    title: '营业利润',
-    key: 'oper_prof',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.oper_prof)
-  },
-  {
-    title: '利润总额',
-    key: 'ttl_prof',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.ttl_prof)
-  },
-  {
-    title: '所得税费用',
-    key: 'inc_tax',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_tax)
-  },
-  {
-    title: '净利润',
-    key: 'net_prof',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof)
-  },
-  {
-    title: '归母净利润',
-    key: 'net_prof_pcom',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom)
-  },
-  {
-    title: '扣非归母净利润',
-    key: 'net_prof_pcom_cut',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.net_prof_pcom_cut)
-  },
-  {
-    title: '营业外收入',
-    key: 'inc_noper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.inc_noper)
-  },
-  {
-    title: '营业外支出',
-    key: 'exp_noper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtNum(row.exp_noper)
-  },
-  {
-    title: '基本每股收益',
-    key: 'eps_base',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_base)
-  },
-  {
-    title: '稀释每股收益',
-    key: 'eps_dil',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundIncome) => fmtEps(row.eps_dil)
-  }
+  ...incomeFieldConfigs.map(makeNumColumn)
 ];
 
 onMounted(() => fetchData());
@@ -328,7 +225,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="2610"
+        :scroll-x="2760"
         :loading="loading"
         remote
         :pagination="pagination"

@@ -134,20 +134,21 @@ const derivFieldConfigs: Array<{ key: keyof Api.Bds.FinanceDeriv; title: string 
   { key: 'ttl_asset_yoy', title: '总资产同比增长率' }
 ];
 
-// 由配置生成数值列：统一 render 与宽度
+// 由配置生成数值列：统一 render、宽度 110（与资产负债表数值列一致）并右对齐
 function makeDerivColumn(cfg: { key: keyof Api.Bds.FinanceDeriv; title: string }) {
   return {
     title: cfg.title,
     key: cfg.key,
-    width: 120,
+    width: 110,
+    align: 'right' as const,
     render: (row: Api.Bds.FinanceDeriv) => fmtPct(row[cfg.key])
   };
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '报告日期', key: 'rpt_date', width: 120 },
-  { title: '发布日期', key: 'pub_date', width: 120 },
+  { title: '股票代码', key: 'symbol', width: 110 },
+  { title: '报告日期', key: 'rpt_date', width: 110 },
+  { title: '发布日期', key: 'pub_date', width: 110 },
   { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FinanceDeriv) => fmtRptType(row.rpt_type) },
   ...derivFieldConfigs.map(makeDerivColumn)
 ];
@@ -217,7 +218,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="2900"
+        :scroll-x="2310"
         :loading="loading"
         remote
         :pagination="pagination"

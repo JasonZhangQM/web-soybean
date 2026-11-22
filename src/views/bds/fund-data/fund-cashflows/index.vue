@@ -109,6 +109,41 @@ function fmtRptType(val: number | null) {
   return map[val] || String(val);
 }
 
+// 数值科目配置：key 与 title 对齐 ORM comment，一行一条；渲染统一走 makeNumColumn
+const cashflowFieldConfigs: Array<{ key: keyof Api.Bds.FundCashflow; title: string }> = [
+  { key: 'cash_rcv_sale', title: '销售商品、提供劳务收到的现金' },
+  { key: 'cf_in_oper', title: '经营活动现金流入小计' },
+  { key: 'cash_pur_gds_svc', title: '购买商品、接受劳务支付的现金' },
+  { key: 'cash_pay_emp', title: '支付给职工以及为职工支付的现金' },
+  { key: 'cash_pay_tax', title: '支付的各项税费' },
+  { key: 'cf_out_oper', title: '经营活动现金流出小计' },
+  { key: 'net_cf_oper', title: '经营活动产生的现金流量净额' },
+  { key: 'cash_rcv_sale_inv', title: '收回投资收到的现金' },
+  { key: 'cf_in_inv', title: '投资活动现金流入小计' },
+  { key: 'pur_fix_intg_ast', title: '购建固定资产、无形资产和其他长期资产支付的现金' },
+  { key: 'net_cf_inv', title: '投资活动产生的现金流量净额' },
+  { key: 'brw_rcv', title: '取得借款收到的现金' },
+  { key: 'cf_in_fin', title: '筹资活动现金流入小计' },
+  { key: 'cash_rpay_brw', title: '偿还债务支付的现金' },
+  { key: 'net_cf_fin', title: '筹资活动产生的现金流量净额' },
+  { key: 'net_prof', title: '净利润' },
+  { key: 'efct_er_chg_cash', title: '汇率变动对现金及现金等价物的影响' },
+  { key: 'net_incr_cash_eq', title: '现金及现金等价物净增加额' },
+  { key: 'cash_cash_eq_bgn', title: '期初现金及现金等价物余额' },
+  { key: 'cash_cash_eq_end', title: '期末现金及现金等价物余额' }
+];
+
+// 数值列工厂：统一宽度 110、右对齐、fmtNum 渲染（与财务指标页 makeDerivColumn 同构）
+function makeNumColumn(cfg: { key: keyof Api.Bds.FundCashflow; title: string }) {
+  return {
+    title: cfg.title,
+    key: cfg.key,
+    width: 110,
+    align: 'right' as const,
+    render: (row: Api.Bds.FundCashflow) => fmtNum(row[cfg.key])
+  };
+}
+
 const columns = [
   { title: '股票代码', key: 'symbol', width: 110 },
   { title: '报告日期', key: 'rpt_date', width: 110 },
@@ -116,146 +151,7 @@ const columns = [
   { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundCashflow) => fmtRptType(row.rpt_type) },
   { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
   { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
-  {
-    title: '销售商品、提供劳务收到的现金',
-    key: 'cash_rcv_sale',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_rcv_sale)
-  },
-  {
-    title: '经营活动现金流入小计',
-    key: 'cf_in_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cf_in_oper)
-  },
-  {
-    title: '购买商品、接受劳务支付的现金',
-    key: 'cash_pur_gds_svc',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_pur_gds_svc)
-  },
-  {
-    title: '支付给职工以及为职工支付的现金',
-    key: 'cash_pay_emp',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_pay_emp)
-  },
-  {
-    title: '支付的各项税费',
-    key: 'cash_pay_tax',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_pay_tax)
-  },
-  {
-    title: '经营活动现金流出小计',
-    key: 'cf_out_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cf_out_oper)
-  },
-  {
-    title: '经营活动产生的现金流量净额',
-    key: 'net_cf_oper',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.net_cf_oper)
-  },
-  {
-    title: '收回投资收到的现金',
-    key: 'cash_rcv_sale_inv',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_rcv_sale_inv)
-  },
-  {
-    title: '投资活动现金流入小计',
-    key: 'cf_in_inv',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cf_in_inv)
-  },
-  {
-    title: '购建固定资产、无形资产和其他长期资产支付的现金',
-    key: 'pur_fix_intg_ast',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.pur_fix_intg_ast)
-  },
-  {
-    title: '投资活动产生的现金流量净额',
-    key: 'net_cf_inv',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.net_cf_inv)
-  },
-  {
-    title: '取得借款收到的现金',
-    key: 'brw_rcv',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.brw_rcv)
-  },
-  {
-    title: '筹资活动现金流入小计',
-    key: 'cf_in_fin',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cf_in_fin)
-  },
-  {
-    title: '偿还债务支付的现金',
-    key: 'cash_rpay_brw',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_rpay_brw)
-  },
-  {
-    title: '筹资活动产生的现金流量净额',
-    key: 'net_cf_fin',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.net_cf_fin)
-  },
-  {
-    title: '净利润',
-    key: 'net_prof',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.net_prof)
-  },
-  {
-    title: '汇率变动对现金及现金等价物的影响',
-    key: 'efct_er_chg_cash',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.efct_er_chg_cash)
-  },
-  {
-    title: '现金及现金等价物净增加额',
-    key: 'net_incr_cash_eq',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.net_incr_cash_eq)
-  },
-  {
-    title: '期初现金及现金等价物余额',
-    key: 'cash_cash_eq_bgn',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_cash_eq_bgn)
-  },
-  {
-    title: '期末现金及现金等价物余额',
-    key: 'cash_cash_eq_end',
-    width: 110,
-    align: 'right' as const,
-    render: (row: Api.Bds.FundCashflow) => fmtNum(row.cash_cash_eq_end)
-  }
+  ...cashflowFieldConfigs.map(makeNumColumn)
 ];
 
 onMounted(() => fetchData());
@@ -323,7 +219,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="2610"
+        :scroll-x="2760"
         :loading="loading"
         remote
         :pagination="pagination"

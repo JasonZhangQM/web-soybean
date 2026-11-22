@@ -15,6 +15,11 @@ defineOptions({ name: 'ValuationPctCard' });
 const message = useMessage();
 const dialog = useDialog();
 
+/** 串联同步链运行中（父页下发）：本卡启动/单标的按钮禁用，防撞全局互斥 409 */
+const props = defineProps<{
+  chainRunning?: boolean;
+}>();
+
 /**
  * 估值分位按日落盘（2026-11-04 P2）
  *
@@ -64,6 +69,9 @@ const defaultCount = computed(() => subjectList.value.filter(item => item.in_def
 const defaultPlaceholder = computed(() => `不选 = 标的监测表全部有效标的（当前 ${defaultCount.value} 个）`);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
+
+/** 表单锁定：本卡任务运行中 或 串联链运行中 ⇒ 模式/标的/开关不可编辑（防误改，链参数已固化） */
+const formLocked = computed(() => isRunning.value || !!props.chainRunning);
 const result = computed(() => (task.value?.result as Api.Bds.ValuationPctResult | null) ?? null);
 
 /** 任务摘要：本任务 total_count 是「待算 as_of 行数」，不是标的数，必须写明 */
@@ -209,6 +217,27 @@ async function handleStart() {
   await doStart();
 }
 
+/** 串联同步链入口（父页经模板 ref 调用）：校验 + 组参 + 危险项，与 handleStart/doStart 同口径 */
+function getChainEntry():
+  | { entries: Array<{ card: string; params: Record<string, unknown>; risks: string[] }> }
+  | { error: string } {
+  if (mode.value === 'M3' && !fromDate.value) {
+    return { error: '「估值分位按日落盘」M3 需要填写修订起始日（YYYY-MM-DD）' };
+  }
+  const payload: Api.Bds.ValuationPctSyncRequest = { mode: mode.value };
+  if (mode.value === 'M3') payload.from_date = fromDate.value;
+  if (selectedSubjects.value.length) payload.subjects = selectedSubjects.value;
+  if (prune.value) payload.prune_orphans = true;
+  const risks: string[] = [];
+  if (prune.value && !selectedSubjects.value.length) {
+    risks.push('估值分位按日落盘将清理孤儿标的（删除不在标的监测白名单内的历史行，不可撤销）');
+  }
+  return { entries: [{ card: 'valuation_pct', params: payload as unknown as Record<string, unknown>, risks }] };
+}
+
+/** 串联同步链依赖的状态与方法：isRunning 供父页判定全局互斥，getChainEntry 供链卡组参 */
+defineExpose({ isRunning, getChainEntry });
+
 async function handleStop() {
   if (!task.value) return;
   stopping.value = true;
@@ -239,7 +268,7 @@ onBeforeUnmount(() => {
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
     <template #header>估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）</template>
     <template #header-extra>
-      <NButton size="small" :loading="starting" :disabled="isRunning" @click="handleStart">启动</NButton>
+      <NButton size="small" :loading="starting" :disabled="formLocked" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
     </template>
 
@@ -268,7 +297,7 @@ onBeforeUnmount(() => {
         filterable
         clearable
         :options="subjectOptions"
-        :disabled="isRunning"
+        :disabled="formLocked"
         :placeholder="defaultPlaceholder"
         style="width: 420px"
       />
@@ -283,19 +312,19 @@ onBeforeUnmount(() => {
         tag
         clearable
         :options="subjectOptions"
-        :disabled="isRunning"
+        :disabled="formLocked"
         placeholder="选择或输入标的代码"
         style="width: 260px"
       />
-      <NButton :loading="starting" :disabled="isRunning || !singleSymbol" @click="handleSingle">
+      <NButton :loading="starting" :disabled="formLocked || !singleSymbol" @click="handleSingle">
         按单个标的落盘（M1 增量）
       </NButton>
       <span class="text-12px" style="color: #999">只补该标的新增交易日；上游历史修订请跑 M2 全量</span>
     </NSpace>
 
     <NSpace align="center" :size="10" wrap style="margin-top: 8px">
-      <NSelect v-model:value="mode" :options="MODE_OPTIONS" :disabled="isRunning" style="width: 300px" />
-      <NCheckbox v-model:checked="prune" :disabled="isRunning">
+      <NSelect v-model:value="mode" :options="MODE_OPTIONS" :disabled="formLocked" style="width: 300px" />
+      <NCheckbox v-model:checked="prune" :disabled="formLocked">
         <span style="color: #d03050">清理孤儿标的（危险，默认关）</span>
       </NCheckbox>
       <span v-if="selectedSubjects.length && prune" class="text-12px" style="color: #d03050">
