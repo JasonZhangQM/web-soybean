@@ -30,7 +30,6 @@ declare module "@elegant-router/types" {
     "bds_fund-data_fund-cashflows": "/bds/fund-data/fund-cashflows";
     "bds_fund-data_fund-incomes": "/bds/fund-data/fund-incomes";
     "bds_index-constituents": "/bds/index-constituents";
-    "bds_index-valuation": "/bds/index-valuation";
     "bds_macro-research": "/bds/macro-research";
     "bds_macro-research_daily-indicators": "/bds/macro-research/daily-indicators";
     "bds_macro-research_economic-indicators": "/bds/macro-research/economic-indicators";
@@ -39,6 +38,7 @@ declare module "@elegant-router/types" {
     "bds_market-data_daily-mktvalues": "/bds/market-data/daily-mktvalues";
     "bds_market-data_daily-valuations": "/bds/market-data/daily-valuations";
     "bds_market-data_history-markets": "/bds/market-data/history-markets";
+    "bds_market-data_index-valuation": "/bds/market-data/index-valuation";
     "bds_market-data_option-market": "/bds/market-data/option-market";
     "bds_option-info": "/bds/option-info";
     "bds_symbol-infos": "/bds/symbol-infos";
@@ -133,13 +133,13 @@ declare module "@elegant-router/types" {
     | "bds_fund-data_fund-cashflows"
     | "bds_fund-data_fund-incomes"
     | "bds_index-constituents"
-    | "bds_index-valuation"
     | "bds_macro-research_daily-indicators"
     | "bds_macro-research_economic-indicators"
     | "bds_macro-research_gold-reserves"
     | "bds_market-data_daily-mktvalues"
     | "bds_market-data_daily-valuations"
     | "bds_market-data_history-markets"
+    | "bds_market-data_index-valuation"
     | "bds_market-data_option-market"
     | "bds_option-info"
     | "bds_symbol-infos"

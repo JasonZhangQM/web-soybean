@@ -19,7 +19,7 @@ defineOptions({ name: 'IrsValuationPercentPage' });
 /**
  * 估值分位（IRs 决策区）——指数 / 个股双模式
  *
- * 分工：本页只做**图表与判断**，原始数据表在 `/bds/index-valuation`。
+ * 分工：本页只做**图表与判断**，原始数据表在 /bds/market-data/index-valuation。
  * 与「中国宏观」同构——`/irs/macro-framework` 是纯图表，`/bds/macro-research/economic-indicators` 是纯表。
  *
  * 指数模式：数据源 `/api/v1/bds/index-*`（5 个宽基整体法估值，成分聚合在 bds 已算好）。
@@ -263,7 +263,7 @@ function handleModeChange(m: 'index' | 'stock') {
 
 /** 跳回 bds 原始数据页（该页自己有 page-state 记忆，会保留上次筛选） */
 function goRawData() {
-  router.push({ name: 'bds_index-valuation' });
+  router.push({ name: 'bds_market-data_index-valuation' });
 }
 
 onMounted(fetchData);

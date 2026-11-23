@@ -236,7 +236,7 @@ const local: App.I18n.Schema = {
     'bds_trade-dates': '交易日历',
     'bds_symbol-infos': '证券信息',
     'bds_index-constituents': '指数成分',
-    'bds_index-valuation': '指数估值',
+    'bds_market-data_index-valuation': '指数估值',
     'bds_fund-data': '财务数据',
     'bds_fund-data_fund-balances': '资产负债表',
     'bds_fund-data_fund-incomes': '利润表',

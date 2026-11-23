@@ -128,17 +128,6 @@ export const generatedRoutes = [
         }
       },
       {
-        name: 'bds_index-valuation',
-        path: '/bds/index-valuation',
-        component: 'view.bds_index-valuation',
-        meta: {
-          title: 'bds_index-valuation',
-          i18nKey: 'route.bds_index-valuation',
-          order: 5,
-          constant: true
-        }
-      },
-      {
         name: 'bds_macro-research',
         path: '/bds/macro-research',
         component: 'layout.base',
@@ -221,6 +210,16 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_history-markets',
               i18nKey: 'route.bds_market-data_history-markets',
+              constant: true
+            }
+          },
+          {
+            name: 'bds_market-data_index-valuation',
+            path: '/bds/market-data/index-valuation',
+            component: 'view.bds_market-data_index-valuation',
+            meta: {
+              title: 'bds_market-data_index-valuation',
+              i18nKey: 'route.bds_market-data_index-valuation',
               constant: true
             }
           },

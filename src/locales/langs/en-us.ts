@@ -240,7 +240,7 @@ const local: App.I18n.Schema = {
     'bds_trade-dates': 'Trade Dates',
     'bds_symbol-infos': 'Symbol Infos',
     'bds_index-constituents': 'Index Constituents',
-    'bds_index-valuation': 'Index Valuation Data',
+    'bds_market-data_index-valuation': 'Index Valuation Data',
     'bds_fund-data': 'Financial Data',
     'bds_fund-data_fund-balances': 'Balance Sheet',
     'bds_fund-data_fund-incomes': 'Income Statement',

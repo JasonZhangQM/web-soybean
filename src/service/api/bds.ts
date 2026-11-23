@@ -544,7 +544,7 @@ export function stopBatchSync(taskId: number) {
 // ============================================================================
 
 /**
- * 获取指数估值原始数据（行式分页，供 `/bds/index-valuation` 表格页）
+ * 获取指数估值原始数据（行式分页，供 /bds/market-data/index-valuation 表格页）
  *
  * 与 `fetchIndexValuations` 的分工：那个返回 pivot 给图表画线，
  * 这里一行 = 一个指数的一天，带 n_loss / snapshot_date / calc_at 等中间量。

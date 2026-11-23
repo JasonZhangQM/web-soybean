@@ -156,7 +156,7 @@ async function fetchData() {
 }
 
 /**
- * 搜索触发策略（与 /bds/index-valuation 一致）：
+ * 搜索触发策略（与 /bds/market-data/index-valuation 一致）：
  * - 类别 / 持仓 / 归属：值一变就搜（模板里直接挂 @update:value → handleSearch），不必点按钮
  * - 代码：输入过程中只在本地拉候选（handleSymbolSearch 防抖 300ms），
  *   必须点「搜索」才发请求，避免每敲一个字符打一次库
