@@ -225,7 +225,6 @@ const subjectLabel = computed(() => {
           <div class="mt-8px text-12px op-60">
             股息率数字为原始分位、染色按便宜度反向（高股息=便宜）。锚点 {{ stats.percentile.as_of ?? '—' }} · 上游末日
             {{ stats.percentile.source_as_of ?? '—' }} · 落盘 {{ stats.percentile.calc_at ?? '—' }}
-            <template v-if="stats.percentile.status_note">· {{ stats.percentile.status_note }}</template>
           </div>
         </section>
         <NAlert v-else-if="stats.coverage.price || stats.coverage.valuation" type="info" class="mb-12px">

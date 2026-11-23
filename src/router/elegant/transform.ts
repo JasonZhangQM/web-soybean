@@ -186,6 +186,7 @@ const routeMap: RouteMap = {
   "bds_market-data_history-markets": "/bds/market-data/history-markets",
   "bds_market-data_index-valuation": "/bds/market-data/index-valuation",
   "bds_market-data_option-market": "/bds/market-data/option-market",
+  "bds_market-data_percentile": "/bds/market-data/percentile",
   "bds_option-info": "/bds/option-info",
   "bds_symbol-infos": "/bds/symbol-infos",
   "bds_trade-dates": "/bds/trade-dates",

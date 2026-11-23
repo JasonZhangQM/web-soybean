@@ -190,6 +190,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_daily-mktvalues',
               i18nKey: 'route.bds_market-data_daily-mktvalues',
+              order: 1,
               constant: true
             }
           },
@@ -200,6 +201,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_daily-valuations',
               i18nKey: 'route.bds_market-data_daily-valuations',
+              order: 2,
               constant: true
             }
           },
@@ -210,6 +212,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_history-markets',
               i18nKey: 'route.bds_market-data_history-markets',
+              order: 5,
               constant: true
             }
           },
@@ -220,6 +223,7 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_index-valuation',
               i18nKey: 'route.bds_market-data_index-valuation',
+              order: 3,
               constant: true
             }
           },
@@ -230,6 +234,18 @@ export const generatedRoutes = [
             meta: {
               title: 'bds_market-data_option-market',
               i18nKey: 'route.bds_market-data_option-market',
+              order: 6,
+              constant: true
+            }
+          },
+          {
+            name: 'bds_market-data_percentile',
+            path: '/bds/market-data/percentile',
+            component: 'view.bds_market-data_percentile',
+            meta: {
+              title: 'bds_market-data_percentile',
+              i18nKey: 'route.bds_market-data_percentile',
+              order: 4,
               constant: true
             }
           }

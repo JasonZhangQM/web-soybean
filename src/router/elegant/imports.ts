@@ -34,6 +34,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "bds_market-data_history-markets": () => import("@/views/bds/market-data/history-markets/index.vue"),
   "bds_market-data_index-valuation": () => import("@/views/bds/market-data/index-valuation/index.vue"),
   "bds_market-data_option-market": () => import("@/views/bds/market-data/option-market/index.vue"),
+  "bds_market-data_percentile": () => import("@/views/bds/market-data/percentile/index.vue"),
   "bds_option-info": () => import("@/views/bds/option-info/index.vue"),
   "bds_symbol-infos": () => import("@/views/bds/symbol-infos/index.vue"),
   "bds_trade-dates": () => import("@/views/bds/trade-dates/index.vue"),

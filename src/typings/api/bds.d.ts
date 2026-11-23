@@ -938,6 +938,51 @@ declare namespace Api {
       update_time: string;
     }
 
+    /** 估值分位落盘行（bds_valuation_percentile，一行 = 标的 × 观察日；窗口口径 A：n<250 的窗口为 null） */
+    interface ValuationPercentileRow {
+      /** index / stock */
+      subject_type: string;
+      /** gm 格式代码 */
+      symbol: string;
+      /** 观察日（YYYY-MM-DD） */
+      as_of: string;
+      pe_pct_3y: string | null;
+      pe_pct_5y: string | null;
+      pe_pct_10y: string | null;
+      pb_pct_3y: string | null;
+      pb_pct_5y: string | null;
+      pb_pct_10y: string | null;
+      ps_pct_3y: string | null;
+      ps_pct_5y: string | null;
+      ps_pct_10y: string | null;
+      dy_pct_3y: string | null;
+      dy_pct_5y: string | null;
+      dy_pct_10y: string | null;
+      /** ok / loss / no_data（当日值有效性，与窗口样本量解耦） */
+      status_pe: string;
+      status_pb: string;
+      status_ps: string;
+      status_dy: string;
+      /** 上游源末日（读取侧新鲜度） */
+      source_as_of: string | null;
+      /** 源序列指纹（修订审计） */
+      input_fp: string | null;
+      /** 本行计算时间（重算会刷新） */
+      calc_at: string | null;
+    }
+
+    /** 估值分位落盘查询参数 */
+    interface ValuationPercentilePagedParams {
+      /** index / stock，不传=全部 */
+      subject_type?: string;
+      /** 标的 gm 代码（多值） */
+      symbols?: string[];
+      start_date?: string;
+      end_date?: string;
+      limit?: number;
+      offset?: number;
+    }
+
     /** 指数估值原始数据查询参数 */
     interface IndexValuationPagedParams {
       /** 指数代码（多值，走 qs 的 repeat 序列化，FastAPI `List[str]` 直通） */

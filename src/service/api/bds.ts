@@ -566,6 +566,15 @@ export function fetchIndexValuations(params?: Api.Bds.IndexValuationSeriesParams
   });
 }
 
+/** 获取估值分位落盘原始数据（行式分页，/bds/market-data/percentile 表格页） */
+export function fetchValuationPercentiles(params?: Api.Bds.ValuationPercentilePagedParams) {
+  return request<Api.Common.PageResponse<Api.Bds.ValuationPercentileRow>>({
+    url: '/api/v1/bds/valuation-percentiles',
+    method: 'get',
+    params
+  });
+}
+
 /** 获取指数分位汇总（分位由后端实时计算，前端零计算） */
 export function fetchIndexValuationPercentiles(params?: { metric?: string }) {
   return request<Api.Bds.IndexValuationPercentileResponse>({

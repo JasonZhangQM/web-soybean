@@ -865,9 +865,6 @@ declare namespace Api {
       as_of: string | null;
       source_as_of: string | null;
       calc_at: string | null;
-      first_date: string | null;
-      raw_n: number | null;
-      status_note: string | null;
       /** 4 指标当前值 */
       current: Record<string, number | null>;
       /** 4 指标 × 3 窗口分位 */
