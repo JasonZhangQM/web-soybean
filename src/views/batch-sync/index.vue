@@ -4,6 +4,7 @@ import { useDialog, useMessage } from 'naive-ui';
 import {
   startBatchSync,
   fetchLatestSyncTask,
+  fetchSyncTasks,
   fetchSyncTask,
   stopBatchSync,
   startIndexConstituentSync,
@@ -1300,37 +1301,51 @@ onMounted(async () => {
   valuationForm.days = vStored?.days ?? 5;
   valuationForm.with_median = vStored?.with_median ?? true;
 
-  // fetchLatestSyncTask 只返回最新一条，根据 scope 分派到对应卡片
-  const { data, error } = await fetchLatestSyncTask();
-  if (!error && data) {
-    if (data.scope === 'index_backfill') {
-      indexTask.value = data;
+  // 认领：从最近 20 条任务里按 scope 各自查找（对齐估值分位/最新分位两张卡的机制）。
+  // 不能用 fetchLatestSyncTask：串联链运行中（乃至结束后）最新一条是 scope='chained_sync'
+  // 的链任务行，按「latest 一条」分派会让其余卡片认领不到自己的子任务，
+  // 连单卡历史结果回显都被链行遮住（2026-11-24 修复）。
+  const { data: tasks, error } = await fetchSyncTasks(20);
+  if (!error && Array.isArray(tasks)) {
+    // 各卡 scope 独立认领：找到自己 scope 的最新一条（列表按创建时间倒序）
+    const claim = (scope: string) => tasks.find(item => item.scope === scope) || null;
+
+    const backfillTask = claim('index_backfill');
+    if (backfillTask) {
+      indexTask.value = backfillTask;
       if (indexIsRunning.value) {
         // 运行中：任务参数优先于默认/记忆的勾选
-        fillIndexFormFromTask(data);
+        fillIndexFormFromTask(backfillTask);
         startIndexPolling();
       }
-    } else if (data.scope === 'index_fund_agg') {
-      aggTask.value = data;
+    }
+
+    const aggTask0 = claim('index_fund_agg');
+    if (aggTask0) {
+      aggTask.value = aggTask0;
       if (aggIsRunning.value) {
-        fillAggFormFromTask(data);
+        fillAggFormFromTask(aggTask0);
         startAggPolling();
       }
-    } else if (data.scope === 'index_valuation') {
-      valuationTask.value = data;
+    }
+
+    const valTask = claim('index_valuation');
+    if (valTask) {
+      valuationTask.value = valTask;
       if (valuationIsRunning.value) {
-        fillValuationFormFromTask(data);
+        fillValuationFormFromTask(valTask);
         startValuationPolling();
       }
-    } else if (data.scope === 'macro_sync' || data.scope === 'bills_import') {
-      // 卡片 4（宏观与基础数据同步，含交易明细导入）在组件内自行拉 latest 并接管，这里什么都不做
-    } else if (!NON_BATCH_SCOPES.includes(data.scope)) {
-      // 用「不在排除清单」而不是逐个列举：以后再加属于别的页面的 scope，
-      // 只要进 NON_BATCH_SCOPES 就自动不被卡片 1 认领，不用回来改这里
-      task.value = data;
+    }
+
+    // 卡片 4（宏观与基础数据同步，含交易明细导入）在组件内自行认领，这里不处理
+    // 卡片 1（批量同步）兜底：找最近一条不在排除清单里的任务
+    const batchTask = tasks.find(item => !NON_BATCH_SCOPES.includes(item.scope));
+    if (batchTask) {
+      task.value = batchTask;
       // 运行中锁定 form
       if (isRunning.value) {
-        fillFormFromTask(data);
+        fillFormFromTask(batchTask);
         startPolling();
       }
     }

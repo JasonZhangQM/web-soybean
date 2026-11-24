@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useMessage } from 'naive-ui';
-import { fetchLatestSyncTask, fetchSyncTask, startMacroSync, startBillsImportTask, stopBatchSync } from '@/service/api';
+import {
+  fetchLatestSyncTask,
+  fetchSyncTask,
+  fetchSyncTasks,
+  startMacroSync,
+  startBillsImportTask,
+  stopBatchSync
+} from '@/service/api';
 
 defineOptions({ name: 'MacroSyncCard' });
 
@@ -288,10 +295,16 @@ async function loadTask(id?: number) {
       }
       task.value = data;
 
-      // 运行中用任务参数回填勾选，避免"显示跑了 3 段、勾选只有 2 段"的错位
+      // 运行中用任务参数回填勾选，避免"显示跑了 3 段、勾选只有 2 段"的错位。
+      // ⚠️ 后端 stages 只含宏观段（bills_import 是独立任务不进参数）——回填时必须
+      // 保留前端段勾选，否则轮询第一 tick 后「交易明细导入」显示未勾选（实际仍在
+      // queuedBillsImport 排队、结束后照常接跑，纯展示错位，2026-11-24 修复）。
       if (isRunning.value) {
         const st = ((data.scope_params || {}) as Record<string, unknown>).stages;
-        if (Array.isArray(st) && st.length > 0) selectedStages.value = st as StageKey[];
+        if (Array.isArray(st) && st.length > 0) {
+          const frontKeys = selectedStages.value.filter(s => NON_MACRO_STAGE_KEYS.includes(s));
+          selectedStages.value = [...(st as StageKey[]), ...frontKeys];
+        }
       } else {
         stopPolling();
         // 串联接续：只剩「交易明细导入」；手动停止 status='stopped' 视为撤销排队
@@ -427,12 +440,19 @@ defineExpose({ isRunning, getChainEntry });
 // ===================== 初始化 =====================
 
 onMounted(async () => {
-  const { data, error } = await fetchLatestSyncTask();
+  // 认领：从最近 20 条任务里找本卡 scope 的最新一条（列表按创建时间倒序）。
+  // 不能用 fetchLatestSyncTask：串联链运行中/结束后最新一条是 scope='chained_sync'
+  // 的链任务行，latest 会让本卡认领不到自己的子任务（2026-11-24 修复，对齐两张 pct 卡）。
   // 宏观任务（macro_sync）与导入任务（bills_import）都归本卡片接管
-  if (!error && data && (data.scope === 'macro_sync' || data.scope === 'bills_import')) {
-    task.value = data;
+  const { data, error } = await fetchSyncTasks(20);
+  const mine =
+    !error && Array.isArray(data)
+      ? data.find(item => item.scope === 'macro_sync' || item.scope === 'bills_import')
+      : null;
+  if (mine) {
+    task.value = mine;
     if (isRunning.value) {
-      const st = ((data.scope_params || {}) as Record<string, unknown>).stages;
+      const st = ((mine.scope_params || {}) as Record<string, unknown>).stages;
       if (Array.isArray(st) && st.length > 0) {
         // 后端 stages 不含 bills_import；回填时保留它在页面上的勾选，
         // 否则会出现「排队了导入任务、勾选框却是空的」的错位
