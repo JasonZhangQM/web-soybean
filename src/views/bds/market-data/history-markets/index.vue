@@ -4,6 +4,7 @@ import { fetchHistoryMarkets, fetchSymbolInfos } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
 import { usePageState } from '@/hooks/common/page-state';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
 defineOptions({ name: 'HistoryMarketsPage' });
@@ -13,43 +14,17 @@ const tableData = ref<Api.Bds.HistoryMarket[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 代码下拉：远程搜索（数据源 bds_symbol_info，按代码/名称/拼音模糊匹配）
-const symbolOptions = ref<Array<{ label: string; value: string }>>([]);
-const symbolLoading = ref(false);
-
-// 标的类型选项：不选 = 全部（个股 + 指数）
-const typeOptions = [
-  { label: '个股', value: 'stock' as const },
-  { label: '指数', value: 'index' as const }
-];
+// 代码下拉：远程搜索（数据源 bds_symbol_info，展示 "代码 名称 (行业)"），与其它 market-data 页共用 composable
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 const searchParams = reactive<{
   symbol?: string | null;
-  sec_type?: 'stock' | 'index' | null;
   date_range?: [string, string] | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
 
-/** 远程搜索证券信息，最多返回 50 条作为下拉候选 */
-async function handleSymbolSearch(query: string) {
-  if (!query) {
-    symbolOptions.value = [];
-    return;
-  }
-  symbolLoading.value = true;
-  try {
-    const { data, error } = await fetchSymbolInfos({ keyword: query, limit: 50 });
-    if (!error) {
-      symbolOptions.value = (data.items ?? []).map(item => ({
-        label: `${item.symbol} ${item.name}`,
-        value: item.symbol
-      }));
-    }
-  } finally {
-    symbolLoading.value = false;
-  }
-}
+/** 远程搜索逻辑见 useSymbolSearch composable */
 
 /** 回填当前选中代码的显示名（会话恢复/刷新后 NSelect 需要对应的 option 才显示） */
 async function ensureSelectedSymbolOption() {
@@ -57,7 +32,7 @@ async function ensureSelectedSymbolOption() {
   const { data, error } = await fetchSymbolInfos({ symbol: searchParams.symbol, limit: 1 });
   const item = !error ? data.items?.[0] : null;
   if (item) {
-    symbolOptions.value = [{ label: `${item.symbol} ${item.name}`, value: item.symbol }];
+    symbolOptions.value = [{ label: `${item.symbol} ${item.name} (${item.industry ?? '-'})`, value: item.symbol }];
   }
 }
 
@@ -69,7 +44,6 @@ async function fetchData() {
     const { data, error } = await fetchHistoryMarkets({
       // NSelect 清空返回 null，转为 undefined 避免传给后端
       symbol: searchParams.symbol || undefined,
-      sec_type: searchParams.sec_type || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       limit: pagination.pageSize,
@@ -95,9 +69,8 @@ function handleSearch() {
 // 重置搜索条件并刷新
 function handleReset() {
   searchParams.symbol = null;
-  searchParams.sec_type = null;
   searchParams.date_range = null;
-  symbolOptions.value = [];
+  clearSymbolOptions();
   pagination.page = 1;
   fetchData();
 }
@@ -194,7 +167,7 @@ onMounted(async () => {
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
-        <NFormItem label="代码">
+        <NFormItem label="个股/指数代码">
           <NSelect
             v-model:value="searchParams.symbol"
             :options="symbolOptions"
@@ -203,18 +176,8 @@ onMounted(async () => {
             remote
             clearable
             placeholder="输入代码 / 名称搜索"
-            style="width: 220px"
+            style="width: 260px"
             @search="handleSymbolSearch"
-            @update:value="handleSearch"
-          />
-        </NFormItem>
-        <NFormItem label="类型">
-          <NSelect
-            v-model:value="searchParams.sec_type"
-            :options="typeOptions"
-            clearable
-            placeholder="全部"
-            style="width: 120px"
             @update:value="handleSearch"
           />
         </NFormItem>

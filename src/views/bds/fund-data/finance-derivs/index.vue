@@ -14,12 +14,11 @@ const tableData = ref<Api.Bds.FinanceDeriv[]>([]);
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 
-// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，sec_type 主体类型（默认不筛选），
+// 搜索参数：symbol 模糊匹配，rpt_type 报表类型，
 // date_range 报告期间 [起, 止]（同指数估值页交易日期，两端点闭区间）
 const searchParams = reactive<{
   symbol?: string | null;
   rpt_type?: number | null;
-  sec_type?: 'stock' | 'index' | null;
   date_range?: [string, string] | null;
 }>({});
 // 会话记忆：切回本页时恢复筛选条件与页码
@@ -31,12 +30,6 @@ const rptTypeOptions = [
   { label: '中报', value: 6 },
   { label: '前三季报', value: 9 },
   { label: '年报', value: 12 }
-];
-
-// 主体类型下拉选项：默认不筛选；清空 = 不过滤（同时返回个股与指数聚合行）
-const secTypeOptions = [
-  { label: '个股', value: 'stock' },
-  { label: '指数', value: 'index' }
 ];
 
 // 代码远程搜索（NSelect remote，防抖 300ms）；数据更新统一走批量同步，本页无同步入口
@@ -51,8 +44,6 @@ async function fetchData() {
       symbol: searchParams.symbol || undefined,
       // rpt_type 为 null 时传 undefined，避免向后端发送 null
       rpt_type: searchParams.rpt_type ?? undefined,
-      // sec_type 为 null（清空）时传 undefined = 不过滤主体类型
-      sec_type: searchParams.sec_type || undefined,
       start_date: startDate || undefined,
       end_date: endDate || undefined,
       // 后端使用 limit/offset 分页，offset 由 page 转换
@@ -79,8 +70,6 @@ function handleSearch() {
 function handleReset() {
   searchParams.symbol = null;
   searchParams.rpt_type = null;
-  // 主体类型恢复默认不筛选
-  searchParams.sec_type = null;
   searchParams.date_range = null;
   clearSymbolOptions();
   pagination.page = 1;
@@ -146,7 +135,13 @@ function makeDerivColumn(cfg: { key: keyof Api.Bds.FinanceDeriv; title: string }
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 110 },
+  { title: '代码', key: 'symbol', width: 110 },
+  {
+    title: '类型',
+    key: 'sec_type',
+    width: 70,
+    render: (row: Api.Bds.FinanceDeriv) => (row.sec_type === 'index' ? '指数' : '个股')
+  },
   { title: '报告日期', key: 'rpt_date', width: 110 },
   { title: '发布日期', key: 'pub_date', width: 110 },
   { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FinanceDeriv) => fmtRptType(row.rpt_type) },
@@ -161,7 +156,7 @@ onMounted(() => fetchData());
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <!-- 筛选表单：flex-wrap 允许窄屏自动换行，gap 控制项间距；同步统一走批量同步页 -->
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
-        <NFormItem label="股票代码">
+        <NFormItem label="个股/指数代码">
           <NSelect
             v-model:value="searchParams.symbol"
             :options="symbolOptions"
@@ -182,16 +177,6 @@ onMounted(() => fetchData());
             clearable
             placeholder="全部"
             style="width: 150px"
-            @update:value="handleSearch"
-          />
-        </NFormItem>
-        <NFormItem label="主体类型">
-          <NSelect
-            v-model:value="searchParams.sec_type"
-            :options="secTypeOptions"
-            clearable
-            placeholder="全部"
-            style="width: 130px"
             @update:value="handleSearch"
           />
         </NFormItem>
@@ -218,7 +203,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="2310"
+        :scroll-x="2380"
         :loading="loading"
         remote
         :pagination="pagination"

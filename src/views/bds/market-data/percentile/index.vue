@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue';
 import { useMessage } from 'naive-ui';
-import { fetchValuationPercentiles } from '@/service/api';
+import { fetchValuationPercentiles, fetchSymbolInfos } from '@/service/api';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
-import { useBdsStore } from '@/store/modules/bds';
 import { usePageState } from '@/hooks/common/page-state';
+import { useSymbolSearch } from '@/hooks/common/symbol-search';
 import { createTablePagination, setPaginationTotal } from '@/hooks/common/table';
 
 defineOptions({ name: 'ValuationPercentilePage' });
@@ -21,27 +21,34 @@ defineOptions({ name: 'ValuationPercentilePage' });
  * 当日值有效性（ok / loss / no_data），与窗口样本量解耦。
  */
 
-const bdsStore = useBdsStore();
 const message = useMessage();
 
-// 标的代码下拉：与指数估值页同一数据源；tag 模式允许手输个股 gm 代码（如 SZSE.300750）
-bdsStore.loadIndexCodes();
-const symbolOptions = bdsStore.getIndexCodeOptions();
+// 代码下拉：远程搜索（数据源 bds_symbol_info，展示 "代码 名称 (行业)"），与其它 market-data 页共用 composable
+const { symbolOptions, symbolLoading, handleSymbolSearch, clearSymbolOptions } = useSymbolSearch();
 
 const loading = ref(false);
 const tableData = ref<Api.Bds.ValuationPercentileRow[]>([]);
 
-// 搜索参数：subject_type 单选、symbols 多选（可手输 gm 代码）、date_range 为 [起, 止]
+// 搜索参数：symbol 单选（远程搜索证券信息）、date_range 为 [起, 止]
 // ⚠️ 须在 pagination 之前声明（§4.2：反序会报 TS2448）
 const searchParams = reactive<{
-  subject_type?: string | null;
-  symbols?: string[] | null;
+  symbol?: string | null;
   date_range?: [string, string] | null;
 }>({});
 // 分页配置（remote 模式，使用全局工厂函数）
 const pagination = createTablePagination();
 // 会话记忆：切回本页时恢复筛选条件与页码
 usePageState({ searchParams, pagination });
+
+/** 回填当前选中代码的显示名（会话恢复/刷新后 NSelect 需要对应的 option 才显示） */
+async function ensureSelectedSymbolOption() {
+  if (!searchParams.symbol) return;
+  const { data, error } = await fetchSymbolInfos({ symbol: searchParams.symbol, limit: 1 });
+  const item = !error ? data.items?.[0] : null;
+  if (item) {
+    symbolOptions.value = [{ label: `${item.symbol} ${item.name} (${item.industry ?? '-'})`, value: item.symbol }];
+  }
+}
 
 /** 数值格式化：Pydantic 把 Decimal 序列化为字符串，一律 Number() 后再判空 */
 function fmtNum(v: unknown, digits = 1): string {
@@ -95,13 +102,13 @@ function renderStatus(row: Api.Bds.ValuationPercentileRow) {
 }
 
 const columns = [
+  { title: '代码', key: 'symbol', width: 115 },
   {
     title: '类型',
     key: 'subject_type',
     width: 55,
     render: (r: Api.Bds.ValuationPercentileRow) => TYPE_LABEL[r.subject_type] || r.subject_type
   },
-  { title: '标的', key: 'symbol', width: 115 },
   { title: '观察日', key: 'as_of', width: 90 },
   ...pctFieldConfigs.map(makePctColumn),
   { title: '状态', key: 'status', width: 130, render: renderStatus },
@@ -124,8 +131,7 @@ async function fetchData() {
   try {
     const [start, end] = searchParams.date_range || [];
     const { data, error } = await fetchValuationPercentiles({
-      subject_type: searchParams.subject_type || undefined,
-      symbols: searchParams.symbols?.length ? searchParams.symbols : undefined,
+      symbols: searchParams.symbol ? [searchParams.symbol] : undefined,
       start_date: start || undefined,
       end_date: end || undefined,
       limit: pagination.pageSize,
@@ -148,9 +154,9 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.subject_type = null;
-  searchParams.symbols = null;
+  searchParams.symbol = null;
   searchParams.date_range = null;
+  clearSymbolOptions();
   pagination.page = 1;
   fetchData();
 }
@@ -166,37 +172,27 @@ function handlePageSizeChange(pageSize: number) {
   fetchData();
 }
 
-onMounted(() => fetchData());
+onMounted(async () => {
+  await ensureSelectedSymbolOption();
+  await fetchData();
+});
 </script>
 
 <template>
   <div class="p-16px">
     <NCard :bordered="false" class="card-wrapper mb-16px" size="small">
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
-        <NFormItem label="类型">
+        <NFormItem label="个股/指数代码">
           <NSelect
-            v-model:value="searchParams.subject_type"
-            clearable
-            :options="[
-              { label: '指数', value: 'index' },
-              { label: '个股', value: 'stock' }
-            ]"
-            placeholder="全部"
-            style="width: 110px"
-            @update:value="handleSearch"
-          />
-        </NFormItem>
-        <NFormItem label="标的">
-          <NSelect
-            v-model:value="searchParams.symbols"
-            multiple
-            clearable
-            filterable
-            tag
+            v-model:value="searchParams.symbol"
             :options="symbolOptions"
-            placeholder="全部（可手输 gm 代码）"
-            style="min-width: 280px"
-            max-tag-count="responsive"
+            :loading="symbolLoading"
+            filterable
+            remote
+            clearable
+            placeholder="输入代码 / 名称搜索"
+            style="width: 260px"
+            @search="handleSymbolSearch"
             @update:value="handleSearch"
           />
         </NFormItem>
