@@ -22,6 +22,14 @@ import { computed, h } from 'vue';
 import type { DataTableColumns } from 'naive-ui';
 import { CUM_PNL_NOTES, PF_NOW_NOTES, deltaPnlHeader, fmtMoney, fmtPrice, metricHeader, pnl } from './utils';
 
+/** 基准价→情景价专用：最多 2 位小数、去尾零（2026-11-24 用户定稿），不改全站 fmtPrice 的 4 位口径 */
+function fmtPrice2(v: number | null | undefined): string {
+  if (v == null || Number.isNaN(Number(v))) return '-';
+  return Number(v)
+    .toFixed(2)
+    .replace(/\.?0+$/, '');
+}
+
 defineOptions({ name: 'ContractTable' });
 
 const props = defineProps<{
@@ -223,7 +231,7 @@ const columns = computed<DataTableColumns<MergedPosition>>(() => [
         key: 'price',
         width: 150,
         align: 'right' as const,
-        render: (r: MergedPosition) => `${fmtPrice(r.price_now)}→${fmtPrice(r.price_at)}`
+        render: (r: MergedPosition) => `${fmtPrice2(r.price_now)}→${fmtPrice2(r.price_at)}`
       },
       {
         title: deltaPnlHeader('即期', SIM_POS_DELTA_SCOPE),

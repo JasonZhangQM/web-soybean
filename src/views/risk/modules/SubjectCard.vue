@@ -31,11 +31,11 @@ defineProps<{
 /** 档位条定位结果透传给父页 setHypo；回现价由读数行按钮直接调父页 resetHypo */
 const emit = defineEmits<{ detail: []; pick: [number] }>();
 
-/** 价格：去尾零，最多 4 位（与全站 fmtPrice 同口径，此处内联避免引 risk-board 工具） */
+/** 实时行情价：最多 2 位小数、去尾零（2026-11-24 用户定稿）；空值显示 — */
 function fmtPrice(v: number | null | undefined) {
   if (v == null) return '—';
   return Number(v)
-    .toFixed(4)
+    .toFixed(2)
     .replace(/\.?0+$/, '');
 }
 
