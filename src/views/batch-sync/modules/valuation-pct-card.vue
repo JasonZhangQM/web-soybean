@@ -76,12 +76,12 @@ const showTradingStatus = computed(() => ['all', 'stock', 'industry'].includes(s
 const subjectOptions = computed(() =>
   subjectList.value.map(item => {
     const flags = [
-      item.in_default ? '监测' : '',
+      item.in_default ? '默认档' : '',
       item.has_data ? '' : '无估值数据·不落盘',
       item.orphan_in_store ? '监测表已移除·待清理' : ''
     ].filter(Boolean);
     return {
-      label: `${item.symbol} · ${item.in_store ? `${item.row_count} 行` : '未落盘'}${flags.length ? ` · ${flags.join(' · ')}` : ''}`,
+      label: `${item.symbol} · ${item.in_store ? `${item.first_date} 起落盘` : '未落盘'}${flags.length ? ` · ${flags.join(' · ')}` : ''}`,
       value: item.symbol
     };
   })
