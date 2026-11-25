@@ -36,10 +36,10 @@ const indexOptions = computed(() => bdsStore.getIndexCodeOptions());
 const loading = ref(false);
 const tableData = ref<Api.Bds.IndexValuationRow[]>([]);
 
-// 搜索参数：index_codes 多选精确匹配，date_range 为 [起, 止]
+// 搜索参数：index_code 单选精确匹配，date_range 为 [起, 止]
 // ⚠️ 须在 pagination 之前声明（§4.2：反序会报 TS2448）
 const searchParams = reactive<{
-  index_codes?: string[] | null;
+  index_code?: string | null;
   date_range?: [string, string] | null;
 }>({});
 // 分页配置（remote 模式，使用全局工厂函数）
@@ -218,7 +218,8 @@ async function fetchData() {
   try {
     const [start, end] = searchParams.date_range || [];
     const { data, error } = await fetchIndexValuationsPaged({
-      index_codes: searchParams.index_codes?.length ? searchParams.index_codes : undefined,
+      // 后端 index_codes 仍为数组参数，单选值包装为单元素列表
+      index_codes: searchParams.index_code ? [searchParams.index_code] : undefined,
       start_date: start || undefined,
       end_date: end || undefined,
       limit: pagination.pageSize,
@@ -242,7 +243,7 @@ function handleSearch() {
 }
 
 function handleReset() {
-  searchParams.index_codes = null;
+  searchParams.index_code = null;
   searchParams.date_range = null;
   pagination.page = 1;
   fetchData();
@@ -271,7 +272,7 @@ function goRecalc() {
 
 /** 跳 IRs 图表页；把当前筛选的指数带过去，避免跳过去还要重选 */
 function goChart() {
-  const codes = searchParams.index_codes?.length ? searchParams.index_codes.join(',') : undefined;
+  const codes = searchParams.index_code || undefined;
   router.push({ name: 'irs_valuation-percent', query: codes ? { index_codes: codes } : {} });
 }
 
@@ -284,14 +285,12 @@ onMounted(() => fetchData());
       <NForm inline label-placement="left" :show-feedback="false" class="flex flex-wrap gap-12px">
         <NFormItem label="指数">
           <NSelect
-            v-model:value="searchParams.index_codes"
-            multiple
+            v-model:value="searchParams.index_code"
             clearable
             filterable
             :options="indexOptions"
             placeholder="全部"
-            style="min-width: 300px"
-            max-tag-count="responsive"
+            style="min-width: 60px"
             @update:value="handleSearch"
           />
         </NFormItem>
