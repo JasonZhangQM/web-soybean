@@ -8,12 +8,14 @@ import {
   startValuationPctSync,
   stopBatchSync
 } from '@/service/api';
+import { useBdsStore } from '@/store/modules/bds';
 import SyncTaskPanel from './sync-task-panel.vue';
 
 defineOptions({ name: 'ValuationPctCard' });
 
 const message = useMessage();
 const dialog = useDialog();
+const bdsStore = useBdsStore();
 
 /** 串联同步链运行中（父页下发）：本卡启动/单标的按钮禁用，防撞全局互斥 409 */
 const props = defineProps<{
@@ -30,30 +32,51 @@ const props = defineProps<{
  */
 // 不能用 as const：NSelect 的 options 是可变数组，readonly 元组会报 TS4104
 const MODE_OPTIONS: Array<{ label: string; value: 'M1' | 'M2' | 'M3' | 'auto' }> = [
-  { label: 'M2 全量重建（推荐，兜底一切）', value: 'M2' },
+  { label: 'auto 按源序列指纹自动（推荐，默认）', value: 'auto' },
   { label: 'M1 增量追加（只补新增交易日）', value: 'M1' },
-  { label: 'M3 修订区间重算（需起始日）', value: 'M3' },
-  { label: 'auto 按源序列指纹自动', value: 'auto' }
+  { label: 'M2 全量重建（兜底一切）', value: 'M2' },
+  { label: 'M3 修订区间重算（需起始日）', value: 'M3' }
 ];
 
-const mode = ref<'M1' | 'M2' | 'M3' | 'auto'>('M2');
+// 标的范围档（2026-11-24 起由 SymbolInfo 驱动，取代监测表默认清单）：
+// all=A股指数∪A股个股 / index=仅A股指数 / stock=仅A股个股 / industry=指定行业个股；
+// manual=手写清单（走 subjects 显式参数，可含指数，后端不做二次过滤）
+type PctScope = 'all' | 'index' | 'stock' | 'industry' | 'manual';
+const SCOPE_OPTIONS: Array<{ label: string; value: PctScope }> = [
+  { label: '全部有效标的（A股指数 ∪ A股个股）', value: 'all' },
+  { label: '仅 A股指数', value: 'index' },
+  { label: '仅 A股个股', value: 'stock' },
+  { label: '指定行业（个股）', value: 'industry' },
+  { label: '手写清单', value: 'manual' }
+];
+const TRADING_STATUS_OPTIONS: Array<{ label: string; value: 'trading' | 'delisted' | 'all' }> = [
+  { label: '仅在市', value: 'trading' },
+  { label: '仅退市', value: 'delisted' },
+  { label: '全部（含退市）', value: 'all' }
+];
+
+const mode = ref<'M1' | 'M2' | 'M3' | 'auto'>('auto');
+const scope = ref<PctScope>('all');
+const tradingStatus = ref<'trading' | 'delisted' | 'all'>('trading');
+const industryValue = ref<string | null>(null);
+const manualSubjects = ref<string[]>([]);
 const fromDate = ref<string | null>(null);
 // P0-1：孤儿清理默认关闭且需二次确认；传 subjects 的单标的/子集重算后端一律忽略
 const prune = ref(false);
-// 候选清单不硬编码，从 GET /bds/valuation-percentile/subjects 现取（后端运行时读标的监测表）
+// 候选清单不硬编码，从 GET /bds/valuation-percentile/subjects 现取（供手写清单下拉提示）
 const subjectList = ref<Api.Bds.ValuationPctSubject[]>([]);
-/** 空 = 不传 subjects，后端运行时从标的监测表推导默认清单（过滤无估值数据的标的） */
-const selectedSubjects = ref<string[]>([]);
-/** 单标的快捷按钮：filterable + tag 允许输入候选清单外的代码 */
-const singleSymbol = ref<string | null>(null);
 const starting = ref(false);
 const stopping = ref(false);
 const task = ref<Api.Bds.SyncTask | null>(null);
 
+const industryOptions = computed(() => bdsStore.getIndustryOptions());
+/** 退市口径仅作用个股档：all / stock / industry 显示，index / manual 隐藏 */
+const showTradingStatus = computed(() => ['all', 'stock', 'industry'].includes(scope.value));
+
 const subjectOptions = computed(() =>
   subjectList.value.map(item => {
     const flags = [
-      item.in_default ? '默认' : '',
+      item.in_default ? '监测' : '',
       item.has_data ? '' : '无估值数据·不落盘',
       item.orphan_in_store ? '监测表已移除·待清理' : ''
     ].filter(Boolean);
@@ -63,10 +86,6 @@ const subjectOptions = computed(() =>
     };
   })
 );
-
-/** 当前运行时默认清单数量；监测表变更后重跑一次任务即会刷新 */
-const defaultCount = computed(() => subjectList.value.filter(item => item.in_default).length);
-const defaultPlaceholder = computed(() => `不选 = 标的监测表全部有效标的（当前 ${defaultCount.value} 个）`);
 
 const isRunning = computed(() => task.value?.status === 'running' || task.value?.status === 'pending');
 
@@ -89,14 +108,38 @@ const taskStats = computed(() => [
   { label: '失败', value: task.value?.error_count ?? 0, color: '#d03050' }
 ]);
 
-const sourceBySubjectText = computed(() => {
-  const m = result.value?.source_as_of_by_subject;
-  return m
-    ? Object.entries(m)
-        .map(([k, v]) => `${k} ${v ?? '—'}`)
-        .join(' · ')
-    : '';
-});
+const SOURCE_DISPLAY_CAP = 20;
+const sourceBySubjectEntries = computed(() => Object.entries(result.value?.source_as_of_by_subject ?? {}));
+/** 全市场量级下逐标的明细不展示（后端超 200 截断为 null，前端超 20 只显示计数） */
+const sourceBySubjectText = computed(() =>
+  sourceBySubjectEntries.value.length && sourceBySubjectEntries.value.length <= SOURCE_DISPLAY_CAP
+    ? sourceBySubjectEntries.value.map(([k, v]) => `${k} ${v ?? '—'}`).join(' · ')
+    : ''
+);
+const sourceBySubjectOverflow = computed(() => (result.value?.source_as_of_by_subject_count ?? 0) > SOURCE_DISPLAY_CAP);
+
+/** 按当前表单组装请求体：手写清单走 subjects（显式清单，优先级最高），其余走 scope 范围档 */
+function buildPayload(): Api.Bds.ValuationPctSyncRequest {
+  const payload: Api.Bds.ValuationPctSyncRequest = { mode: mode.value };
+  if (mode.value === 'M3') payload.from_date = fromDate.value;
+  if (scope.value === 'manual') {
+    payload.subjects = manualSubjects.value;
+  } else {
+    payload.scope = scope.value;
+    if (scope.value === 'industry') payload.industry = industryValue.value;
+    if (showTradingStatus.value) payload.trading_status = tradingStatus.value;
+  }
+  if (prune.value) payload.prune_orphans = true;
+  return payload;
+}
+
+/** 启动前的表单校验：M3 起始日、手写清单非空、指定行业已选；返回错误文案或 null */
+function validateForm(): string | null {
+  if (mode.value === 'M3' && !fromDate.value) return 'M3 需要填写修订起始日（YYYY-MM-DD）';
+  if (scope.value === 'manual' && !manualSubjects.value.length) return '手写清单需至少选择或输入一个标的代码';
+  if (scope.value === 'industry' && !industryValue.value) return '指定行业档需先选择行业';
+  return null;
+}
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -156,12 +199,8 @@ async function loadSubjects() {
 async function doStart() {
   starting.value = true;
   try {
-    const payload: Api.Bds.ValuationPctSyncRequest = { mode: mode.value };
-    if (mode.value === 'M3') payload.from_date = fromDate.value;
-    // 空 = 不传 subjects ⇒ 后端运行时读标的监测表；非空（含单标的）一律不删别人的历史行
-    if (selectedSubjects.value.length) payload.subjects = selectedSubjects.value;
-    if (prune.value) payload.prune_orphans = true;
-    const { data, error } = await startValuationPctSync(payload);
+    // 空 subjects + 范围档 ⇒ 后端运行时按证券信息表解析清单；显式清单一律不删别人的历史行
+    const { data, error } = await startValuationPctSync(buildPayload());
     if (error) {
       message.error(error.message || '启动失败');
       return;
@@ -174,38 +213,19 @@ async function doStart() {
   }
 }
 
-/** 按单个标的落盘：固定 M1 + subjects=[symbol]（P1-5 预裁定） */
-async function handleSingle() {
-  const code = singleSymbol.value?.trim();
-  if (!code) {
-    message.warning('请先选择或输入标的代码');
-    return;
-  }
-  starting.value = true;
-  try {
-    const { data, error } = await startValuationPctSync({ mode: 'M1', subjects: [code] });
-    if (error) {
-      message.error(error.message || '启动失败');
-      return;
-    }
-    message.success(`已启动单标的增量落盘 #${data.id}（${code}）`);
-    await loadTask(data.id);
-    startPolling();
-  } finally {
-    starting.value = false;
-  }
-}
+/** 按单个标的落盘（M1 + subjects=[code]）已删除：统一走范围档/手写清单入口（2026-11-24） */
 
 async function handleStart() {
-  if (mode.value === 'M3' && !fromDate.value) {
-    message.warning('M3 需要填写修订起始日（YYYY-MM-DD）');
+  const formError = validateForm();
+  if (formError) {
+    message.warning(formError);
     return;
   }
   if (prune.value) {
     dialog.warning({
       title: '确认清理孤儿标的',
       content:
-        '此操作会删除不在标的白名单内的所有历史行，不可撤销。仅在「不指定标的 + M2/auto」模式下生效；单标的/子集重算后端会自动忽略该开关。',
+        '此操作会删除不在范围白名单（证券信息表 A股指数 ∪ A股个股）之外的所有历史行，不可撤销。仅在「手写清单未启用 + M2/auto」模式下生效；手写清单重算后端会自动忽略该开关。',
       positiveText: '确认执行',
       negativeText: '取消',
       onPositiveClick: () => {
@@ -221,16 +241,15 @@ async function handleStart() {
 function getChainEntry():
   | { entries: Array<{ card: string; params: Record<string, unknown>; risks: string[] }> }
   | { error: string } {
-  if (mode.value === 'M3' && !fromDate.value) {
-    return { error: '「估值分位按日落盘」M3 需要填写修订起始日（YYYY-MM-DD）' };
-  }
-  const payload: Api.Bds.ValuationPctSyncRequest = { mode: mode.value };
-  if (mode.value === 'M3') payload.from_date = fromDate.value;
-  if (selectedSubjects.value.length) payload.subjects = selectedSubjects.value;
-  if (prune.value) payload.prune_orphans = true;
+  const formError = validateForm();
+  if (formError) return { error: `「估值分位按日落盘」${formError}` };
+  const payload = buildPayload();
   const risks: string[] = [];
-  if (prune.value && !selectedSubjects.value.length) {
-    risks.push('估值分位按日落盘将清理孤儿标的（删除不在标的监测白名单内的历史行，不可撤销）');
+  if (prune.value && scope.value !== 'manual') {
+    risks.push('估值分位按日落盘将清理孤儿标的（删除不在范围白名单内的历史行，不可撤销）');
+  }
+  if (scope.value === 'all' && mode.value === 'M2') {
+    risks.push('估值分位按日落盘为全市场 M2 全量重建：首跑约 2,000 万行、耗时数小时');
   }
   return { entries: [{ card: 'valuation_pct', params: payload as unknown as Record<string, unknown>, risks }] };
 }
@@ -266,7 +285,10 @@ onBeforeUnmount(() => {
 
 <template>
   <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
-    <template #header>估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）</template>
+    <template #header>
+      估值分位按日落盘（PE / PB / PS / 股息率 × 3 / 5 / 10 年）
+      <RouterLink to="/bds/market-data/percentile" class="sync-link" title="查看估值分位数据" @click.stop>↗</RouterLink>
+    </template>
     <template #header-extra>
       <NButton size="small" :loading="starting" :disabled="formLocked" @click="handleStart">启动</NButton>
       <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
@@ -278,11 +300,10 @@ onBeforeUnmount(() => {
       回溯（如观察日 2025-10-23 的 10 年窗口左界 2015-10-23），
       锚点是各标的最后一个有值交易日；分位值恒定，时间推移只追加新行。
       <br />
-      默认范围
-      <b>运行时从标的监测表读取</b>
-      （自动过滤无估值数据的标的，如 SPX / GC00Y）； 监测表增删标的后
-      <b>需重跑一次本任务</b>
-      才会跟上，不会自动触发。
+      标的范围
+      <b>运行时从证券信息表读取</b>
+      （A股指数 ∪ A股个股，外盘/商品如 SPX / GC00Y 天然排除）；无估值数据的标的逐只跳过
+      （no_data，非失败）。全市场首跑约 2,000 万行、耗时数小时，建议过夜执行； 之后每日 auto 增量仅分钟级。
       <br />
       ⚠️ 与批量同步共用全局任务锁：请按「批量同步 → 成分增量 → 指数估值增量 →
       <b>本任务最后</b>
@@ -291,35 +312,39 @@ onBeforeUnmount(() => {
 
     <NSpace align="center" :size="10" wrap style="margin-top: 8px">
       <span class="text-12px" style="color: #666">标的范围</span>
+      <NSelect v-model:value="scope" :options="SCOPE_OPTIONS" :disabled="formLocked" style="width: 280px" />
       <NSelect
-        v-model:value="selectedSubjects"
-        multiple
+        v-if="showTradingStatus"
+        v-model:value="tradingStatus"
+        :options="TRADING_STATUS_OPTIONS"
+        :disabled="formLocked"
+        style="width: 140px"
+      />
+      <NSelect
+        v-if="scope === 'industry'"
+        v-model:value="industryValue"
         filterable
         clearable
-        :options="subjectOptions"
+        :options="industryOptions"
         :disabled="formLocked"
-        :placeholder="defaultPlaceholder"
-        style="width: 420px"
+        placeholder="选择行业"
+        style="width: 220px"
       />
-      <span class="text-12px" style="color: #999">仅重算选中标的；单标的 / 子集重算永不删其它标的历史行</span>
-    </NSpace>
-
-    <NSpace align="center" :size="10" wrap style="margin-top: 8px">
-      <span class="text-12px" style="color: #666">单标的落盘</span>
       <NSelect
-        v-model:value="singleSymbol"
+        v-if="scope === 'manual'"
+        v-model:value="manualSubjects"
+        multiple
         filterable
         tag
         clearable
         :options="subjectOptions"
         :disabled="formLocked"
-        placeholder="选择或输入标的代码"
-        style="width: 260px"
+        placeholder="选择或输入代码，可含指数"
+        style="width: 420px"
       />
-      <NButton :loading="starting" :disabled="formLocked || !singleSymbol" @click="handleSingle">
-        按单个标的落盘（M1 增量）
-      </NButton>
-      <span class="text-12px" style="color: #999">只补该标的新增交易日；上游历史修订请跑 M2 全量</span>
+      <span class="text-12px" style="color: #999">
+        清单运行时按证券信息表解析；手写清单外的重算永不删其它标的历史行
+      </span>
     </NSpace>
 
     <NSpace align="center" :size="10" wrap style="margin-top: 8px">
@@ -327,8 +352,8 @@ onBeforeUnmount(() => {
       <NCheckbox v-model:checked="prune" :disabled="formLocked">
         <span style="color: #d03050">清理孤儿标的（危险，默认关）</span>
       </NCheckbox>
-      <span v-if="selectedSubjects.length && prune" class="text-12px" style="color: #d03050">
-        本次指定了标的，后端会忽略该开关
+      <span v-if="scope === 'manual' && prune" class="text-12px" style="color: #d03050">
+        手写清单重算，后端会忽略该开关
       </span>
       <NInput v-if="mode === 'M3'" v-model:value="fromDate" placeholder="修订起始日 YYYY-MM-DD" style="width: 200px" />
     </NSpace>
@@ -340,7 +365,10 @@ onBeforeUnmount(() => {
           ——上游历史修订或口径变更时会发生，请核对。
         </div>
         <div class="text-12px" style="color: #666; line-height: 1.8; margin-top: 8px">
-          模式 {{ result.mode }} · 窗口 {{ result.window_mode }} · 源末日 {{ result.source_as_of ?? '—' }} · 区间
+          模式 {{ result.mode }} · 范围 {{ result.scope ?? '—' }} · 清单来源 {{ result.subject_source ?? '—' }} · 标的
+          {{ result.subject_count ?? result.subjects?.length ?? '—' }}
+          （指数 {{ result.index_count ?? '—' }} / 个股 {{ result.stock_count ?? '—' }}） · 窗口
+          {{ result.window_mode }} · 源末日 {{ result.source_as_of ?? '—' }} · 区间
           {{ result.as_of_range?.[0] ?? '—' }} ~ {{ result.as_of_range?.[1] ?? '—' }}
           <br />
           写入 {{ result.rows_upserted }} 行 · 变更 {{ result.audit.changed }} · 新增 {{ result.audit.appeared }} · 消失
@@ -369,22 +397,15 @@ onBeforeUnmount(() => {
             <br />
             各标的源末日：{{ sourceBySubjectText }}
           </template>
-          <template v-if="result.default_subjects">
+          <template v-else-if="sourceBySubjectOverflow">
             <br />
-            默认清单 {{ result.default_subjects.length }} 个（来源：{{ result.subject_source ?? '标的监测表' }}）
-            <template v-if="result.excluded_no_data?.length">
-              · 无估值数据被过滤：{{ result.excluded_no_data.join('、') }}
-            </template>
-            <template v-if="result.orphan_in_store?.length">
-              <br />
-              ⚠️ 监测表已移除但落表仍有历史行：{{
-                result.orphan_in_store.join('、')
-              }}（默认保留；需显式勾选「清理孤儿标的」才删）
-            </template>
+            各标的源末日明细共 {{ result.source_as_of_by_subject_count }} 个标的，全市场量级不逐项展示
           </template>
-          <template v-if="result.monitor_fallback">
+          <template v-if="result.orphan_in_store?.length">
             <br />
-            ⚠️ 标的监测表读取失败，本次已回退兜底常量，请检查数据库
+            ⚠️ 落表有历史行但不在范围白名单内：{{
+              result.orphan_in_store.join('、')
+            }}（默认保留；需显式勾选「清理孤儿标的」才删）
           </template>
         </div>
       </div>

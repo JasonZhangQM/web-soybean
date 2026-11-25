@@ -1159,9 +1159,18 @@ declare namespace Api {
 
     /** 估值分位按日落盘重算请求体（POST /bds/sync/valuation-percentile，2026-11-04 P2） */
     interface ValuationPctSyncRequest {
-      /** M1 增量追加 / M2 全量重建（默认、推荐） / M3 区间重算 / auto 按 input_fp 自动 */
+      /** M1 增量追加 / M2 全量重建 / M3 区间重算 / auto 按 input_fp 自动（默认，推荐） */
       mode?: 'M1' | 'M2' | 'M3' | 'auto';
-      /** 标的代码清单；不传 = 运行时从标的监测表推导（过滤无估值数据的标的） */
+      /**
+       * 标的范围档（运行时从证券信息表 bds_symbol_info 解析，2026-11-24 取代监测表默认清单）：
+       * all=A股指数∪A股个股（默认）/ index=仅A股指数 / stock=仅A股个股 / industry=指定行业个股
+       */
+      scope?: 'all' | 'index' | 'stock' | 'industry';
+      /** scope=industry 时必填：个股行业精确匹配 */
+      industry?: string | null;
+      /** 退市口径（仅作用个股档）：trading 仅在市 / delisted 仅退市 / all 全部，默认 trading */
+      trading_status?: 'trading' | 'delisted' | 'all';
+      /** 显式标的代码清单；传了则忽略 scope（单标的落盘 / 子集重算 / 手写清单） */
       subjects?: string[];
       /** M3 的修订起始日（含当日），M3 必填 */
       from_date?: string | null;
@@ -1193,21 +1202,24 @@ declare namespace Api {
       metrics: string[];
       windows: string[];
       source_as_of: string | null;
-      /** 各 subject 所属源表末日（指数 / 个股可能不同，P1-6） */
-      source_as_of_by_subject?: Record<string, string | null>;
-      subjects: string[];
-      /** 默认清单来源：irs_underlying_monitor / L1_fallback（监测表读取失败时） */
+      /**
+       * 各 subject 所属源表末日（指数 / 个股可能不同，P1-6）；
+       * 标的数超 AUDIT_CAP(200) 时截断为 null，只看 source_as_of_by_subject_count
+       */
+      source_as_of_by_subject?: Record<string, string | null> | null;
+      source_as_of_by_subject_count?: number;
+      /** 本次运行清单（超 AUDIT_CAP(200) 截断为 null，规模看 subject_count） */
+      subjects?: string[] | null;
+      subject_count?: number;
+      /** 清单来源：symbol_info:all/index/stock/industry（范围档）或 explicit（显式清单） */
       subject_source?: string;
-      /** 本次运行时默认清单（监测表全部标的过滤掉无估值数据后） */
-      default_subjects?: string[];
-      /** 监测表原始全部标的（含 SPX / GC00Y 这类无数据的） */
-      monitor_subjects?: string[];
-      /** 因上游无估值数据被过滤、不落盘的标的 */
-      excluded_no_data?: string[];
-      /** 落表有历史行但监测表已移除的标的（默认保留，需显式 prune 才删） */
+      /** 本次范围档：all / index / stock / industry / explicit */
+      scope?: string;
+      /** 指数 / 个股标的数（按 subject_type 实际解析结果统计） */
+      index_count?: number;
+      stock_count?: number;
+      /** 落表有历史行但不在范围白名单内的标的（默认保留，需显式 prune 才删；超 200 截断） */
       orphan_in_store?: string[];
-      /** 监测表读取失败 / 空表，已回退兜底常量 */
-      monitor_fallback?: boolean;
       as_of_range: (string | null)[];
       rows_total: number;
       rows_upserted: number;
@@ -1226,7 +1238,7 @@ declare namespace Api {
       fp_changed_subjects: string[];
       /** 因口径陈旧或 fp 变化被强制全量的标的数（去重） */
       forced_full_count: number;
-      /** 本次是否真的执行了孤儿清理（需显式开启 + 默认清单 + M2/auto） */
+      /** 本次是否真的执行了孤儿清理（需显式开启 + 范围档清单 + M2/auto） */
       prune_orphans: boolean;
       /** 请求是否显式传了 subjects（传了就永不删孤儿） */
       subjects_explicit: boolean;
@@ -1237,7 +1249,9 @@ declare namespace Api {
         vanished: number;
         samples: any[];
       };
-      input_fp: Record<string, string>;
+      /** 逐标的输入指纹（超 AUDIT_CAP(200) 截断为 null，规模看 input_fp_count） */
+      input_fp?: Record<string, string> | null;
+      input_fp_count?: number;
       duration_ms: number;
     }
 
