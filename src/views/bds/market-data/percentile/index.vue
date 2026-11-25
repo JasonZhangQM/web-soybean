@@ -91,14 +91,16 @@ function makePctColumn(cfg: { key: keyof Api.Bds.ValuationPercentileRow; title: 
   };
 }
 
-/** 状态列：4 指标状态汇总，非 ok 的以橙色 tag 点名（loss=当日无值 / no_data=全序列无样本） */
+/** 状态列：4 指标状态汇总，非 ok 的以橙色 tag 点名（loss=当日无值 / no_data=全序列无样本）。
+ * 单行显示：不允许换行，超宽省略号，悬停 title 看完整状态 */
 function renderStatus(row: Api.Bds.ValuationPercentileRow) {
   const bad = (['pe', 'pb', 'ps', 'dy'] as const)
     .filter(k => row[`status_${k}`] !== 'ok')
     .map(k => `${k.toUpperCase()} ${row[`status_${k}`]}`);
+  const style = 'display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px';
   return bad.length
-    ? h('span', { style: 'color: #ef9f27; font-size: 12px' }, bad.join('；'))
-    : h('span', { style: 'color: #999; font-size: 12px' }, 'ok');
+    ? h('span', { style: `${style}; color: #ef9f27`, title: bad.join('；') }, bad.join('；'))
+    : h('span', { style: `${style}; color: #999` }, 'ok');
 }
 
 const columns = [
@@ -213,18 +215,12 @@ onMounted(async () => {
             <NButton @click="handleReset">重置</NButton>
           </NSpace>
         </NFormItem>
-        <NFormItem class="ml-auto">
-          <NButton :loading="loading" @click="fetchData">
-            <template #icon><SvgIcon icon="mdi:refresh" /></template>
-            刷新
-          </NButton>
-        </NFormItem>
       </NForm>
       <div class="mt-8px text-12px" style="color: #999">
         本表是
         <b>按日落盘的估值分位</b>
         （一行 = 标的 × 观察日），由「批量同步 → 估值分位落盘」任务生成，与标的监测抽屉的分位同一内核产出。窗口口径：
-        <b>有效样本不足 250（约一年交易日）的窗口不保存分位</b>
+        <b>窗口左界早于标的最早交易日，或有效样本不足 250（约一年交易日）的窗口不保存分位</b>
         ，显示「—」（新股早期窗口 / 股息率当日无值）；「状态」列只描述当日估值值有效性 （loss = 当日无有效值，no_data =
         全序列无样本），与窗口样本量无关。窗口左界为日历对日回溯 3/5/10 年；曲线与实时分位见 IRs →「估值分位专页」。
       </div>
