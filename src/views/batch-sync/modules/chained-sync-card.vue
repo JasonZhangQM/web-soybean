@@ -40,7 +40,7 @@ const emit = defineEmits<{ running: [boolean] }>();
 /** 页面卡片（固定依赖顺序；宏观卡在链中可能拆出 bills_import 单元，见 UNIT_LABELS） */
 const PAGE_CARDS = [
   { key: 'macro_sync', label: '宏观与基础数据' },
-  { key: 'batch_sync', label: '财务及行情批量同步' },
+  { key: 'batch_sync', label: '个股财务及行情批量同步' },
   { key: 'index_backfill', label: '指数成分股' },
   { key: 'index_fund_agg', label: '指数财务聚合' },
   { key: 'index_valuation', label: '指数估值重算' },
@@ -52,7 +52,7 @@ const PAGE_CARDS = [
 const UNIT_LABELS: Record<string, string> = {
   macro_sync: '宏观与基础数据',
   bills_import: '交易明细导入',
-  batch_sync: '财务及行情批量同步',
+  batch_sync: '个股财务及行情批量同步',
   index_backfill: '指数成分股',
   index_fund_agg: '指数财务聚合',
   index_valuation: '指数估值重算',

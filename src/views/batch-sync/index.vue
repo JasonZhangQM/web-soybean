@@ -49,7 +49,7 @@ const syncableIndexOptions = computed(() =>
     .map(item => ({ label: item.sec_name, value: item.code }))
 );
 
-// ===================== 卡片 1：财务及行情批量同步 =====================
+// ===================== 卡片 1：个股财务及行情批量同步 =====================
 
 const TABLE_OPTIONS = [
   { label: '资产负债表', value: 'fund-balance' },
@@ -653,9 +653,11 @@ const aggForm = reactive<{ index_codes: string[]; start_date: string | null }>({
   start_date: null
 });
 
-/** 全选 / 清空（选项与「指数成分股同步」同源：gm 支持的指数清单） */
+/** 全选 / 清空（选项与「指数成分股同步」同源：gm 支持的指数清单；全选剔除上证指数，需要时手动勾选） */
 function selectAllAggIndices() {
-  aggForm.index_codes = syncableIndexOptions.value.map(option => option.value);
+  aggForm.index_codes = syncableIndexOptions.value
+    .map(option => option.value)
+    .filter(code => !DEFAULT_SKIP_INDEX_CODES.includes(code));
 }
 function clearAggIndices() {
   aggForm.index_codes = [];
@@ -1129,19 +1131,19 @@ const anyCardRunning = computed(() => {
   );
 });
 
-/** 卡片 1：财务及行情批量同步（校验 + 组参 + 危险项，与 handleStart 同口径） */
+/** 卡片 1：个股财务及行情批量同步（校验 + 组参 + 危险项，与 handleStart 同口径） */
 function buildBatchChainEntry(): { entry: ChainCardEntry } | { error: string } {
   if (form.scope === 'index' && form.index_codes.length === 0) {
-    return { error: '「财务及行情批量同步」请至少选择一个指数' };
+    return { error: '「个股财务及行情批量同步」请至少选择一个指数' };
   }
   if (form.scope === 'industry' && !form.industry) {
-    return { error: '「财务及行情批量同步」请选择行业' };
+    return { error: '「个股财务及行情批量同步」请选择行业' };
   }
   if (form.scope === 'explicit' && !form.symbols.trim()) {
-    return { error: '「财务及行情批量同步」请输入股票代码清单' };
+    return { error: '「个股财务及行情批量同步」请输入股票代码清单' };
   }
   if (form.tables.length === 0) {
-    return { error: '「财务及行情批量同步」请至少选择一张同步表' };
+    return { error: '「个股财务及行情批量同步」请至少选择一张同步表' };
   }
   const payload: BatchSyncRequest = {
     scope: form.scope,
@@ -1158,7 +1160,7 @@ function buildBatchChainEntry(): { entry: ChainCardEntry } | { error: string } {
   const risks: string[] = [];
   if (form.tables.includes('history_market')) {
     risks.push(
-      '财务及行情批量同步含历史行情回填：个股后复权、指数不复权，按标的全量/增量拉取，数据量大、耗时长，且不参与「标记已同步」'
+      '个股财务及行情批量同步含历史行情回填：个股后复权、指数不复权，按标的全量/增量拉取，数据量大、耗时长，且不参与「标记已同步」'
     );
   }
   return { entry: { card: 'batch_sync', params: payload as unknown as Record<string, unknown>, risks } };
@@ -1373,9 +1375,9 @@ onBeforeUnmount(() => {
     <!-- ===== 卡片 4：宏观与基础数据同步（六个单段同步入口的集中处） ===== -->
     <MacroSyncCard ref="macroCardRef" :chain-running="chainRunning" />
 
-    <!-- ===== 卡片 1：财务及行情批量同步 ===== -->
+    <!-- ===== 卡片 1：个股财务及行情批量同步 ===== -->
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
-      <template #header>财务及行情批量同步</template>
+      <template #header>个股财务及行情批量同步</template>
       <template #header-extra>
         <NButton size="small" :loading="starting" :disabled="batchLocked" @click="handleStart">启动</NButton>
         <NButton v-if="isRunning" size="small" :loading="stopping" @click="handleStop">停止</NButton>
@@ -1547,7 +1549,7 @@ onBeforeUnmount(() => {
         <NButton v-if="indexIsRunning" size="small" :loading="indexStopping" @click="handleIndexStop">停止</NButton>
       </template>
 
-      <!-- 指数选择：checkbox 组（参照财务及行情批量同步"同步表"样式） -->
+      <!-- 指数选择：checkbox 组（参照个股财务及行情批量同步"同步表"样式） -->
       <div :style="{ display: 'flex', alignItems: 'center', gap: '16px', opacity: indexIsRunning ? 0.6 : 1 }">
         <span style="font-size: 13px; color: #666; flex-shrink: 0">指数：</span>
         <NCheckboxGroup v-model:value="indexForm.index_codes" :disabled="indexLocked" style="flex: 1">
@@ -1791,7 +1793,7 @@ onBeforeUnmount(() => {
     <NCard size="small" class="bds-sync-card" style="margin-top: 16px">
       <template #header>
         指数估值重算
-        <RouterLink to="/bds/index-valuation" class="sync-link" @click.stop>↗</RouterLink>
+        <RouterLink to="/bds/market-data/index-valuation" class="sync-link" @click.stop>↗</RouterLink>
       </template>
       <template #header-extra>
         <NButton size="small" :loading="valuationStarting" :disabled="valuationLocked" @click="handleValuationStart()">

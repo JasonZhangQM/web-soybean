@@ -9,7 +9,7 @@ import {
   fetchDailyIndicatorCodes
 } from '@/service/api/bds';
 
-/** 批量同步（卡片 1 财务及行情）表单快照 */
+/** 批量同步（卡片 1 个股财务及行情）表单快照 */
 export interface BatchSyncFormState {
   scope: string;
   /** scope=index 时的指数代码清单（多选，后端取成分合集） */

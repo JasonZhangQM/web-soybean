@@ -111,7 +111,7 @@ const columns = [
   },
   { title: '观察日', key: 'as_of', width: 90 },
   ...pctFieldConfigs.map(makePctColumn),
-  { title: '状态', key: 'status', width: 130, render: renderStatus },
+  { title: '状态', key: 'status', width: 50, render: renderStatus },
   {
     title: '源末日',
     key: 'source_as_of',
