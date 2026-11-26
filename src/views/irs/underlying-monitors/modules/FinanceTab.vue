@@ -6,9 +6,11 @@
  * 前端零口径计算——单季差分、TTM、净现比、扣非占比、覆盖率全部后端算好，
  * 这里只做染色、格式化（元→亿）和画图（与估值与走势 Tab 的约定一致）。
  *
- * 双口径（v8）：freq=latest 近 12 个报告期（默认，含单季差分）/ freq=annual 近 N 年年报。
- * 「归母净利润」卡为东财式设计：报告期=累计柱+同比线；单季度=按年分组 Q1-Q4
- * 四色柱（红渐变深→浅，借鉴东方财富净利润分析）。
+ * 双口径（v8，2026-11-26 窗口扩为 10 年）：freq=latest 近 10 年报告期（默认，含单季差分）/
+ * freq=annual 近 N 年年报。
+ * 「归母净利润」卡为东财式设计（2026-11-26 修订）：柱按年并列 Q1-Q4(FY) 四色
+ * （C1-C4 蓝/青/绿/橙，与其他图表主色一致）；四条同比线与柱一一对应、颜色相同
+ * （单季度=单季同比 / 报告期=累计同比），每根柱悬停显示「年份+报告期：值（同比%）」。
  *
  * 个股与指数零分流：统一 symbol 查询；指数行多出覆盖率徽标与口径注释。
  * 外盘标的（SPX / GC00Y）无财务数据走空态卡，不猜数。
@@ -32,9 +34,9 @@ const YEARS_OPTIONS = [
   { label: '近 10 年年报', value: 10 }
 ];
 
-/** 口径选项（方案 v8）：报告期=近 12 期含单季差分（默认）/ 年报=近 N 年 */
+/** 口径选项（方案 v8，2026-11-26 报告期窗口改为 10 年）：报告期=近 10 年含单季差分（默认）/ 年报=近 N 年 */
 const FREQ_OPTIONS = [
-  { label: '报告期(12期)', value: 'latest' },
+  { label: '报告期(10年)', value: 'latest' },
   { label: '年报', value: 'annual' }
 ];
 
@@ -148,47 +150,71 @@ const profitCompareSeries = computed(() => [
 
 // ---------- 东财式「归母净利润」卡（方案 v8，借鉴东方财富净利润分析） ----------
 
-/** 单季度四色（红渐变深→浅，与东财 Q1-Q4 配色习惯一致） */
-const PROFIT_Q_COLORS = ['#b03a2e', '#e24b4a', '#ef6e4e', '#f5a08c'];
+/** Q1-Q4(FY) 四色：取本 Tab 通用系列色 C1-C4（蓝/青/绿/橙），与其他图表主色习惯一致（同比线与柱同色） */
+const PROFIT_Q_COLORS = [C1, C2, C3, C4];
+/** 柱系列名：单季度=Q1-Q4 单季值 / 报告期=各期累计值，两组共用同一套四色与 tag 顺序 */
 const PROFIT_Q_NAMES = ['一季度', '二季度', '三季度', '四季度'];
+const PROFIT_RPT_NAMES = ['一季报', '中报', '三季报', '年报'];
+/** 报告期 tag：i=3 为年报 FY，其余 Q1-Q3（后端 q_tag 约定） */
+const PROFIT_TAGS = ['Q1', 'Q2', 'Q3', 'FY'];
 
+/** 当期模式的柱系列名（柱与同比线一一对应，颜色相同） */
+const profitPeriodNames = computed(() => (profitMode.value === 'quarter' ? PROFIT_Q_NAMES : PROFIT_RPT_NAMES));
+
+/** 当期模式的取数字段：柱=单季值/累计值，同比线=单季同比/累计同比 */
+function profitKeys() {
+  return profitMode.value === 'quarter'
+    ? { valueKey: 'sq_net_prof' as const, yoyKey: 'sq_net_prof_yoy' as const }
+    : { valueKey: 'net_prof' as const, yoyKey: 'net_prof_pcom_yoy' as const };
+}
+
+/** 按年分组：一年的四根柱并列（q_tag + 年份定位序列行） */
 const profitTrendDates = computed(() => {
   const list = stats.value?.series ?? [];
-  if (profitMode.value === 'quarter') {
-    return [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
-  }
-  return list.map(p => p.rpt_label ?? p.rpt_date);
+  return [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
 });
 
 const profitTrendSeries = computed(() => {
   const list = stats.value?.series ?? [];
-  if (profitMode.value === 'quarter') {
-    // 按年分组 Q1-Q4 四色并列柱；FY 期的 sq_* 即 Q4 单季（后端约定）
-    const yearLabels = [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
-    return PROFIT_Q_NAMES.map((name, i) => {
-      const tag = i === 3 ? 'FY' : `Q${i + 1}`;
-      return {
-        name,
-        color: PROFIT_Q_COLORS[i],
-        type: 'bar' as const,
-        data: yearLabels.map(y => {
-          const p = list.find(x => (x.q_tag ?? '') === tag && (x.rpt_label ?? '').startsWith(y));
-          return p ? toYi(p.sq_net_prof) : null;
-        })
-      };
-    });
-  }
-  return [
-    { name: '归母净利润(亿)', color: '#b03a2e', type: 'bar' as const, data: list.map(p => toYi(p.net_prof)) },
-    {
-      name: '同比(%)',
-      color: '#9a9a9a',
-      type: 'line' as const,
-      data: list.map(p => p.net_prof_pcom_yoy ?? null),
-      axisIndex: 1
-    }
-  ];
+  const yearLabels = [...new Set(list.map(p => (p.rpt_label ?? p.rpt_date).slice(0, 4)))];
+  const { valueKey, yoyKey } = profitKeys();
+  const rowOf = (tag: string, y: string) =>
+    list.find(x => (x.q_tag ?? '') === tag && (x.rpt_label ?? '').startsWith(y));
+  // 四个柱系列：按年并列，Q1-Q4(FY) 四色
+  const barSeries = profitPeriodNames.value.map((name, i) => ({
+    name,
+    color: PROFIT_Q_COLORS[i],
+    type: 'bar' as const,
+    data: yearLabels.map(y => {
+      const p = rowOf(PROFIT_TAGS[i], y);
+      return p ? toYi(p[valueKey]) : null;
+    })
+  }));
+  // 四条同比线：与柱一一对应、颜色一致（每条线每年一个点，右轴 %）
+  const yoySeries = profitPeriodNames.value.map((name, i) => ({
+    name: `${name}同比`,
+    color: PROFIT_Q_COLORS[i],
+    type: 'line' as const,
+    data: yearLabels.map(y => {
+      const p = rowOf(PROFIT_TAGS[i], y);
+      return p ? (p[yoyKey] ?? null) : null;
+    }),
+    axisIndex: 1 as const
+  }));
+  return [...barSeries, ...yoySeries];
 });
+
+/** tooltip 行格式：柱值后直接跟该柱同比 → 「2026年一季报：12707.81（35.21%）」；
+ * 空值行与四条同比线行（括号内已有，避免重复）返回 null 隐藏 */
+function profitTipLine(axisLabel: string, seriesName: string, value: number | null) {
+  if (value == null || seriesName.endsWith('同比')) return null;
+  const { yoyKey } = profitKeys();
+  const idx = profitPeriodNames.value.indexOf(seriesName);
+  const tag = idx >= 0 ? PROFIT_TAGS[idx] : '';
+  const p = (stats.value?.series ?? []).find(x => (x.q_tag ?? '') === tag && (x.rpt_label ?? '').startsWith(axisLabel));
+  const yoy = p ? p[yoyKey] : null;
+  return `${axisLabel}年${seriesName}：${value.toFixed(2)}（${yoy == null ? '—' : `${yoy.toFixed(2)}%`}）`;
+}
 
 const cashflowSeries = computed(() => [
   { name: '净现比(倍)', color: C2, type: 'line' as const, data: seriesData('net_cash_ratio') },
@@ -254,7 +280,7 @@ const snapshotRatios = computed(() => {
     <div class="flex flex-wrap items-center gap-12px">
       <NSelect v-model:value="freq" :options="FREQ_OPTIONS" class="w-130px" />
       <NSelect v-if="freq === 'annual'" v-model:value="years" :options="YEARS_OPTIONS" class="w-130px" />
-      <span v-else class="text-12px op-60">近 12 个报告期 · 含单季度</span>
+      <span v-else class="text-12px op-60">近 10 年报告期 · 含单季度</span>
       <NButton size="small" :loading="syncLoading" @click="handleSync">同步财务数据</NButton>
       <NTag size="small" :bordered="false" :type="isIndex ? 'info' : 'default'">
         {{ isIndex ? '指数成分聚合（整体法）' : '个股财报（gm 口径）' }}
@@ -310,17 +336,18 @@ const snapshotRatios = computed(() => {
             </div>
           </section>
 
-          <!-- 东财式归母净利润（方案 v8）：报告期=累计柱+同比线 / 单季度=按年分组四色柱 -->
+          <!-- 东财式归母净利润：柱按年并列 Q1-Q4(FY) 四色；四条同比线与柱一一对应同色；tooltip 柱值后直接跟该柱同比 -->
           <FinanceChartCard
             title="归母净利润"
             :tip="
               profitMode === 'quarter'
-                ? '单季净利润（亿元）= 本期累计 − 上季累计，Q1 即一季报累计'
-                : '柱=累计归母净利润（亿元），线=同比（%）'
+                ? '柱=单季净利润（亿元）=本期累计−上季累计（Q1 即一季报累计），线=各季度单季同比（%，颜色与柱对应）'
+                : '柱=各报告期累计归母净利润（亿元），线=各报告期累计同比（%，颜色与柱对应）'
             "
             :dates="profitTrendDates"
             :series="profitTrendSeries"
-            :y-axes="profitMode === 'quarter' ? ['亿元'] : ['亿元', '%']"
+            :y-axes="['亿元', '%']"
+            :tip-line-formatter="profitTipLine"
           >
             <template #actions>
               <NRadioGroup v-if="freq === 'latest'" v-model:value="profitMode" size="small">

@@ -22,6 +22,13 @@ interface FinanceSeries {
   axisIndex?: number;
 }
 
+/** ECharts tooltip formatter 参数中本卡用到的字段 */
+interface TooltipParam {
+  axisValue?: string;
+  seriesName?: string;
+  value: unknown;
+}
+
 interface Props {
   title: string;
   /** 标题右侧灰字（口径说明） */
@@ -33,6 +40,11 @@ interface Props {
   yAxes?: string[];
   /** 卡片底部口径注释（如指数行的整体法说明） */
   note?: string;
+  /**
+   * 自定义 tooltip 行格式（可选）：轴标签 + 系列名 + 数值 → 行文本，返回 null 隐藏该行。
+   * 缺省走内置 valueFormatter（仅数值两位小数）。归母净利润卡用它实现「柱值后直接跟同比」。
+   */
+  tipLineFormatter?: (axisLabel: string, seriesName: string, value: number | null) => string | null;
 }
 
 const props = defineProps<Props>();
@@ -85,6 +97,20 @@ function refresh() {
       lineStyle: s.type === 'line' ? { width: 1.8 } : undefined,
       data: s.data
     })) as never;
+    // 自定义 tooltip 行：逐系列映射为文本行，null 值（错位柱空位/断点）直接隐藏
+    const fmt = props.tipLineFormatter;
+    (opts.tooltip as unknown as { formatter?: unknown }).formatter = fmt
+      ? (params: unknown) => {
+          const arr = Array.isArray(params) ? (params as TooltipParam[]) : ([params] as TooltipParam[]);
+          return arr
+            .map(p => {
+              const v = p.value == null || !Number.isFinite(Number(p.value)) ? null : Number(p.value);
+              return fmt(String(p.axisValue ?? ''), String(p.seriesName ?? ''), v);
+            })
+            .filter(Boolean)
+            .join('<br/>');
+        }
+      : undefined;
     return opts;
   });
 }
