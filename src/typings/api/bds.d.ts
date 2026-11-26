@@ -1215,6 +1215,15 @@ declare namespace Api {
       subject_source?: string;
       /** 本次范围档：all / index / stock / industry / explicit */
       scope?: string;
+      /** 运行中实时统计（on_progress 写入，结束时被完整 result 覆盖） */
+      live?: {
+        /** 已跳过标的数（短路闸 + 恒定性 skip） */
+        skipped: number;
+        /** 已写入行数 */
+        rows: number;
+        /** 被强制全量的标的数 */
+        forced_full: number;
+      };
       /** 指数 / 个股标的数（按 subject_type 实际解析结果统计） */
       index_count?: number;
       stock_count?: number;

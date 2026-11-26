@@ -93,18 +93,25 @@ const isRunning = computed(() => task.value?.status === 'running' || task.value?
 const formLocked = computed(() => isRunning.value || !!props.chainRunning);
 const result = computed(() => (task.value?.result as Api.Bds.ValuationPctResult | null) ?? null);
 
-/** 任务摘要：本任务 total_count 是「待算 as_of 行数」，不是标的数，必须写明 */
+/** 任务摘要：total_count 已改为「待算标的数」（2026-11-26 与进度推进口径对齐） */
 const taskDescription = computed(() => {
   if (!task.value) return '';
   const scopedMode = (task.value.scope_params as Record<string, any> | null)?.mode;
-  return `任务 #${task.value.id}${scopedMode ? ` · 模式 ${scopedMode}` : ''} · 进度按「待算 as_of 行数」计`;
+  return `任务 #${task.value.id}${scopedMode ? ` · 模式 ${scopedMode}` : ''} · 进度按标的数计`;
 });
 
-/** 统计格：写入行数与标的数分开，跳过标的来自 result（运行中尚无值） */
+/** 实时统计：运行中读 result.live（on_progress 写入），结束后顶层字段覆盖 */
+const live = computed(() => (result.value as any)?.live ?? null);
+
+/** 统计格：标的数进度与写入行数分开，运行中读 live、结束后读顶层 result */
 const taskStats = computed(() => [
-  { label: '已完成 / 待算行数', value: `${task.value?.done_count ?? 0} / ${task.value?.total_count ?? 0}` },
-  { label: '写入行数', value: task.value?.success_count ?? 0, color: '#18a058' },
-  { label: '跳过标的（非失败）', value: result.value?.skipped_count ?? 0 },
+  { label: '已完成 / 待算标的数', value: `${task.value?.done_count ?? 0} / ${task.value?.total_count ?? 0}` },
+  {
+    label: '写入行数',
+    value: result.value?.rows_upserted ?? live.value?.rows ?? 0,
+    color: '#18a058'
+  },
+  { label: '跳过标的（非失败）', value: result.value?.skipped_count ?? live.value?.skipped ?? 0 },
   { label: '失败', value: task.value?.error_count ?? 0, color: '#d03050' }
 ]);
 
@@ -157,6 +164,24 @@ function startPolling() {
     if (task.value) loadTask(task.value.id);
   }, 3000);
 }
+
+/** 页面从后台回到前台时立即补拉：轮询在 document.hidden 期间空转（3s 回调节流），
+ * 任务可能在后台推进/跑完，回到前台时页面会停留在启动时快照——进度不动、
+ * 强制刷新才更新（2026-11-26 用户反馈），故回前台主动补拉一次 */
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    void loadTask(task.value?.id);
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  stopPolling();
+});
 
 async function loadTask(id?: number) {
   try {

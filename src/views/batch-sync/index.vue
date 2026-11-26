@@ -648,9 +648,21 @@ const indexErrorColumns = [
  * start_date 不传 = 全历史重算覆盖（幂等）；传日期 = 仅三表聚合该日及之后的报告期，
  * 更早报告期的已有聚合行保持不动（财务指标派生始终全历史重算）。
  */
+/** 最近一个季度季末日（≤ 今天，YYYY-MM-DD）：财报聚合起始日的默认值——
+ * 起点设为最近已结束的报告期，把「忘记选日期导致全历史重算」误伤面压到最小，
+ * 同时保证最新一季（可能晚于报告期数月发布）一定落在重算范围内 */
+function latestQuarterEnd(): string {
+  const today = new Date();
+  const y = today.getFullYear();
+  const todayStr = `${y}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const cands = [`${y}-03-31`, `${y}-06-30`, `${y}-09-30`, `${y}-12-31`];
+  if (todayStr < `${y}-03-31`) cands.unshift(`${y - 1}-12-31`);
+  return cands.filter(c => c <= todayStr).at(-1) ?? `${y - 1}-12-31`;
+}
+
 const aggForm = reactive<{ index_codes: string[]; start_date: string | null }>({
   index_codes: [],
-  start_date: null
+  start_date: latestQuarterEnd()
 });
 
 /** 全选 / 清空（选项与「指数成分股同步」同源：gm 支持的指数清单；全选剔除上证指数，需要时手动勾选） */
