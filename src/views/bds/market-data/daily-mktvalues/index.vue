@@ -110,8 +110,8 @@ function makeMktvalueColumn(cfg: { key: keyof Api.Bds.DailyMktvalue; title: stri
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '交易日期', key: 'trade_date', width: 120 },
+  { title: '股票代码', key: 'symbol', width: 120, fixed: 'left' as const },
+  { title: '交易日期', key: 'trade_date', width: 120, fixed: 'left' as const },
   ...mktvalueFieldConfigs.map(makeMktvalueColumn)
 ];
 

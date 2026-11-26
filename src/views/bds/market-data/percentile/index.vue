@@ -104,20 +104,21 @@ function renderStatus(row: Api.Bds.ValuationPercentileRow) {
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 115 },
+  { title: '代码', key: 'symbol', width: 110, fixed: 'left' as const },
   {
     title: '类型',
     key: 'subject_type',
     width: 55,
+    fixed: 'left' as const,
     render: (r: Api.Bds.ValuationPercentileRow) => TYPE_LABEL[r.subject_type] || r.subject_type
   },
-  { title: '观察日', key: 'as_of', width: 90 },
+  { title: '观察日', key: 'as_of', width: 100, fixed: 'left' as const },
   ...pctFieldConfigs.map(makePctColumn),
   { title: '状态', key: 'status', width: 50, render: renderStatus },
   {
     title: '源末日',
     key: 'source_as_of',
-    width: 90,
+    width: 100,
     render: (r: Api.Bds.ValuationPercentileRow) => r.source_as_of || '-'
   },
   { title: '计算时间', key: 'calc_at', width: 100, render: (r: Api.Bds.ValuationPercentileRow) => fmtCalcAt(r.calc_at) }
@@ -234,7 +235,7 @@ onMounted(async () => {
         remote
         :pagination="pagination"
         :row-key="rowKey"
-        :scroll-x="1360"
+        :scroll-x="1220"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

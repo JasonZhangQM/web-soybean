@@ -86,9 +86,9 @@ function fmtCalcAt(v: string | null): string {
 }
 
 const columns = [
-  { title: '指数代码', key: 'index_code', width: 100 },
-  { title: '指数名称', key: 'sec_name', width: 90 },
-  { title: '交易日期', key: 'trade_date', width: 100 },
+  { title: '指数代码', key: 'index_code', width: 110, fixed: 'left' as const },
+  { title: '指数名称', key: 'sec_name', width: 90, fixed: 'left' as const },
+  { title: '交易日期', key: 'trade_date', width: 100, fixed: 'left' as const },
   {
     title: '收盘价',
     key: 'close',
@@ -346,7 +346,7 @@ onMounted(() => fetchData());
         remote
         :pagination="pagination"
         :row-key="rowKey"
-        :scroll-x="1860"
+        :scroll-x="1565"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

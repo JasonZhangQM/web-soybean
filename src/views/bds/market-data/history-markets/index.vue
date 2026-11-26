@@ -97,15 +97,16 @@ function typeLabel(row: Api.Bds.HistoryMarket) {
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 130 },
-  { title: '名称', key: 'sec_name', width: 130 },
+  { title: '代码', key: 'symbol', width: 130, fixed: 'left' as const },
+  { title: '名称', key: 'sec_name', width: 130, fixed: 'left' as const },
   {
     title: '类型',
     key: 'sec_type',
     width: 90,
+    fixed: 'left' as const,
     render: (row: Api.Bds.HistoryMarket) => typeLabel(row)
   },
-  { title: '交易日期', key: 'trade_date', width: 120 },
+  { title: '交易日期', key: 'trade_date', width: 120, fixed: 'left' as const },
   {
     title: '开盘价',
     key: 'open',

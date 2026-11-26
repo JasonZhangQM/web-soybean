@@ -143,6 +143,7 @@ const columns = [
     title: '行情日期',
     key: 'trade_date',
     width: 110,
+    fixed: 'left' as const,
     render: (r: Api.Bds.OptionMarket) =>
       h(
         'a',
@@ -158,6 +159,7 @@ const columns = [
     title: '合约ID',
     key: 'contract_id',
     width: 160,
+    fixed: 'left' as const,
     // 唯一身份：三品种写法统一（IO2611-P-4000 / au2612P840 / 10012562）。
     // 交易所标准码不在本页展示 —— 行情表既不存也不返回它，要看去「合约字典」。
     render: (r: Api.Bds.OptionMarket) => h('span', { style: 'font-family: monospace' }, r.contract_id)
@@ -167,6 +169,7 @@ const columns = [
     title: '类型',
     key: 'option_type',
     width: 60,
+    fixed: 'left' as const,
     render: (r: Api.Bds.OptionMarket) => optionTypeText(r.option_type)
   },
   {
@@ -174,6 +177,7 @@ const columns = [
     key: 'price_strike',
     width: 95,
     align: 'right' as const,
+    fixed: 'left' as const,
     render: (r: Api.Bds.OptionMarket) => fmtStrike(r.price_strike)
   },
   { title: '到期日', key: 'delisted_date', width: 110, render: (r: Api.Bds.OptionMarket) => r.delisted_date || '-' },

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
+import type { DataTableColumns } from 'naive-ui';
 import { fetchFinanceDerivs } from '@/service/api';
 import { trimSearchParams } from '@/utils/common';
 import { dateRangeShortcuts } from '@/utils/date-shortcuts';
@@ -99,32 +100,64 @@ function fmtRptType(val: number | null) {
   return map[val] || String(val);
 }
 
-// 财务指标列配置：20 个数值字段统一 fmtPct 格式化、宽度 120
-const derivFieldConfigs: Array<{ key: keyof Api.Bds.FinanceDeriv; title: string }> = [
-  { key: 'roe', title: '净资产收益率ROE(摊薄)' },
-  { key: 'roe_weight', title: '净资产收益率ROE(加权)' },
-  { key: 'roe_avg', title: '净资产收益率ROE(平均)' },
-  { key: 'roa', title: '总资产报酬率ROA' },
-  { key: 'roic', title: '投入资本回报率ROIC' },
-  { key: 'sale_gpm', title: '销售毛利率' },
-  { key: 'sale_npm', title: '销售净利率' },
-  { key: 'ebitda_toi', title: 'EBITDA/营业总收入' },
-  { key: 'ebit_toi', title: '息税前利润/营业总收入' },
-  { key: 'ast_liab_rate', title: '资产负债率' },
-  { key: 'curr_rate', title: '流动比率' },
-  { key: 'quick_rate', title: '速动比率' },
-  { key: 'liab_eqy_rate', title: '产权比率' },
-  { key: 'ttl_ast_turnover_rate', title: '总资产周转率' },
-  { key: 'acct_rcv_turnover_days', title: '应收账款周转天数(含应收票据)' },
-  { key: 'inv_turnover_days', title: '存货周转天数' },
-  { key: 'net_prof_pcom_yoy', title: '归属母公司股东的净利润同比增长率' },
-  { key: 'ttl_inc_oper_yoy', title: '营业总收入同比增长率' },
-  { key: 'net_prof_yoy', title: '净利润同比增长率' },
-  { key: 'ttl_asset_yoy', title: '总资产同比增长率' }
+// data_type 格式化：gm 数据类型无稳定枚举映射，直接展示原始数值
+function fmtDataType(val: number | null) {
+  return val != null ? String(val) : '-';
+}
+
+// 财务指标列配置：20 个数值字段统一 fmtPct 格式化、宽度 110，
+// 分组顺序与后端 ORM 模型注释一致（收益/盈利/偿债/营运/增长五大维度）
+type DerivFieldConfig = { key: keyof Api.Bds.FinanceDeriv; title: string };
+const derivFieldGroups: Array<{ groupTitle: string; fields: DerivFieldConfig[] }> = [
+  {
+    groupTitle: '收益率',
+    fields: [
+      { key: 'roe', title: 'ROE(摊薄)' },
+      { key: 'roe_weight', title: 'ROE(加权)' },
+      { key: 'roe_avg', title: 'ROE(平均)' },
+      { key: 'roa', title: '总资产报酬率ROA' },
+      { key: 'roic', title: '投入资本回报率ROIC' }
+    ]
+  },
+  {
+    groupTitle: '盈利能力',
+    fields: [
+      { key: 'sale_gpm', title: '销售毛利率' },
+      { key: 'sale_npm', title: '销售净利率' },
+      { key: 'ebitda_toi', title: 'EBITDA/营业总收入' },
+      { key: 'ebit_toi', title: '息税前利润/营业总收入' }
+    ]
+  },
+  {
+    groupTitle: '偿债能力',
+    fields: [
+      { key: 'ast_liab_rate', title: '资产负债率' },
+      { key: 'curr_rate', title: '流动比率' },
+      { key: 'quick_rate', title: '速动比率' },
+      { key: 'liab_eqy_rate', title: '产权比率' }
+    ]
+  },
+  {
+    groupTitle: '营运能力',
+    fields: [
+      { key: 'ttl_ast_turnover_rate', title: '总资产周转率' },
+      { key: 'acct_rcv_turnover_days', title: '应收账款周转天数' },
+      { key: 'inv_turnover_days', title: '存货周转天数' }
+    ]
+  },
+  {
+    groupTitle: '增长能力',
+    fields: [
+      { key: 'net_prof_pcom_yoy', title: '归母净利润同比' },
+      { key: 'ttl_inc_oper_yoy', title: '营业总收入同比' },
+      { key: 'net_prof_yoy', title: '净利润同比' },
+      { key: 'ttl_asset_yoy', title: '总资产同比' }
+    ]
+  }
 ];
 
 // 由配置生成数值列：统一 render、宽度 110（与资产负债表数值列一致）并右对齐
-function makeDerivColumn(cfg: { key: keyof Api.Bds.FinanceDeriv; title: string }) {
+function makeDerivColumn(cfg: DerivFieldConfig) {
   return {
     title: cfg.title,
     key: cfg.key,
@@ -134,18 +167,38 @@ function makeDerivColumn(cfg: { key: keyof Api.Bds.FinanceDeriv; title: string }
   };
 }
 
-const columns = [
-  { title: '代码', key: 'symbol', width: 110 },
+// 基础元数据列 + 五大能力维度分组列（完整覆盖 FinanceDeriv 模型全部业务字段）
+// 前 5 个元数据列 fixed: 'left' 冻结，横向滚动时保持可见
+const columns: DataTableColumns<Api.Bds.FinanceDeriv> = [
+  { title: '代码', key: 'symbol', width: 110, fixed: 'left' },
   {
     title: '类型',
     key: 'sec_type',
-    width: 70,
+    width: 60,
+    fixed: 'left',
     render: (row: Api.Bds.FinanceDeriv) => (row.sec_type === 'index' ? '指数' : '个股')
   },
-  { title: '报告日期', key: 'rpt_date', width: 110 },
-  { title: '发布日期', key: 'pub_date', width: 110 },
-  { title: '报表类型', key: 'rpt_type', width: 100, render: (row: Api.Bds.FinanceDeriv) => fmtRptType(row.rpt_type) },
-  ...derivFieldConfigs.map(makeDerivColumn)
+  { title: '报告日期', key: 'rpt_date', width: 100, fixed: 'left' },
+  { title: '发布日期', key: 'pub_date', width: 100, fixed: 'left' },
+  {
+    title: '报表类型',
+    key: 'rpt_type',
+    width: 100,
+    fixed: 'left',
+    render: (row: Api.Bds.FinanceDeriv) => fmtRptType(row.rpt_type)
+  },
+  {
+    title: '数据类型',
+    key: 'data_type',
+    width: 80,
+    align: 'right' as const,
+    render: (row: Api.Bds.FinanceDeriv) => fmtDataType(row.data_type)
+  },
+  ...derivFieldGroups.map(group => ({
+    title: group.groupTitle,
+    key: `group_${group.groupTitle}`,
+    children: group.fields.map(makeDerivColumn)
+  }))
 ];
 
 onMounted(() => fetchData());
@@ -203,7 +256,7 @@ onMounted(() => fetchData());
       <NDataTable
         :columns="columns"
         :data="tableData"
-        :scroll-x="2380"
+        :scroll-x="2800"
         :loading="loading"
         remote
         :pagination="pagination"

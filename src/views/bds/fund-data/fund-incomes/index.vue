@@ -91,9 +91,9 @@ function fmtNum(val: unknown) {
   return val != null ? (Number(val) / 1e8).toFixed(2) : '-';
 }
 
-// 每股收益格式化：保留原值 4 位小数（不除以 1e8）
+// 每股收益格式化：单位为元/股（不除以 1e8），与其他列统一保留 2 位小数
 function fmtEps(val: unknown) {
-  return val != null ? Number(val).toFixed(4) : '-';
+  return val != null ? Number(val).toFixed(2) : '-';
 }
 
 // rpt_type 格式化：数值映射为报表类型名称
@@ -140,16 +140,23 @@ function makeNumColumn(cfg: { key: keyof Api.Bds.FundIncome; title: string; form
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 110 },
+  { title: '代码', key: 'symbol', width: 110, fixed: 'left' as const },
   {
     title: '类型',
     key: 'sec_type',
-    width: 70,
+    width: 60,
+    fixed: 'left' as const,
     render: (row: Api.Bds.FundIncome) => (row.sec_type === 'index' ? '指数' : '个股')
   },
-  { title: '报告日期', key: 'rpt_date', width: 110 },
-  { title: '发布日期', key: 'pub_date', width: 110 },
-  { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type) },
+  { title: '报告日期', key: 'rpt_date', width: 100, fixed: 'left' as const },
+  { title: '发布日期', key: 'pub_date', width: 100, fixed: 'left' as const },
+  {
+    title: '报表类型',
+    key: 'rpt_type',
+    width: 100,
+    fixed: 'left' as const,
+    render: (row: Api.Bds.FundIncome) => fmtRptType(row.rpt_type)
+  },
   { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
   { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
   ...incomeFieldConfigs.map(makeNumColumn)

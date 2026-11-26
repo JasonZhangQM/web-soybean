@@ -134,16 +134,23 @@ function makeNumColumn(cfg: { key: keyof Api.Bds.FundCashflow; title: string }) 
 }
 
 const columns = [
-  { title: '代码', key: 'symbol', width: 110 },
+  { title: '代码', key: 'symbol', width: 110, fixed: 'left' as const },
   {
     title: '类型',
     key: 'sec_type',
-    width: 70,
+    width: 60,
+    fixed: 'left' as const,
     render: (row: Api.Bds.FundCashflow) => (row.sec_type === 'index' ? '指数' : '个股')
   },
-  { title: '报告日期', key: 'rpt_date', width: 110 },
-  { title: '发布日期', key: 'pub_date', width: 110 },
-  { title: '报表类型', key: 'rpt_type', width: 110, render: (row: Api.Bds.FundCashflow) => fmtRptType(row.rpt_type) },
+  { title: '报告日期', key: 'rpt_date', width: 100, fixed: 'left' as const },
+  { title: '发布日期', key: 'pub_date', width: 100, fixed: 'left' as const },
+  {
+    title: '报表类型',
+    key: 'rpt_type',
+    width: 100,
+    fixed: 'left' as const,
+    render: (row: Api.Bds.FundCashflow) => fmtRptType(row.rpt_type)
+  },
   { title: '快照数', key: 'snap_cons_cnt', width: 60, align: 'right' as const },
   { title: '聚合数', key: 'agg_cons_cnt', width: 60, align: 'right' as const },
   ...cashflowFieldConfigs.map(makeNumColumn)

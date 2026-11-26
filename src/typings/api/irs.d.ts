@@ -1026,7 +1026,7 @@ declare namespace Api {
         agg_cons_cnt?: number;
         coverage_pct?: number;
       };
-      /** 财务序列（freq=annual 年报 / latest 近 12 个报告期含单季差分，方案 v8 由 annual 改名） */
+      /** 财务序列（freq=annual 年报 / latest 近 10 年报告期含单季差分，2026-11-26 由 12 期扩为 10 年） */
       series: UmFinancePeriod[];
       latest: UmFinanceLatest | null;
       /** 空态 / 覆盖不足时的人话说明 */

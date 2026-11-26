@@ -115,8 +115,8 @@ function makeValuationColumn(cfg: { key: keyof Api.Bds.DailyValuation; title: st
 }
 
 const columns = [
-  { title: '股票代码', key: 'symbol', width: 120 },
-  { title: '交易日期', key: 'trade_date', width: 100 },
+  { title: '股票代码', key: 'symbol', width: 120, fixed: 'left' as const },
+  { title: '交易日期', key: 'trade_date', width: 100, fixed: 'left' as const },
   ...valuationFieldConfigs.map(makeValuationColumn)
 ];
 
