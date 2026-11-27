@@ -3,8 +3,10 @@
  * 研究与复盘 Tab（2026-11-09 逻辑并入 + 研究录入改左侧抽屉；2026-11-27 复盘 Tab 并入）
  *
  * 语义同档位：**选新日期 = 新建一版，选已有日期 = 改那一版**。
- * 系统只存「决策与执行状态」（摘要 ≤800 字、单条逻辑/风险 ≤200 字、研究过程 ≤2000 字），
- * 报告正文留在知识库——所以这里的字段全是短的，长文请写进 research_note 指向知识库。
+ * 系统只存「决策所需的最小结构化信息」，一个职责只归一个字段：
+ * 核心论点 ≤80（买什么）、最大风险 ≤120（含时点+阈值）、前提条件 ≤200（只写标的层阈值）、
+ * 摘要 ≤500（当时怎么想，不写价格快照——价格由 data_asof 回放）。
+ * 报告正文留在知识库，report_ref 存文件名作双向链；预期差不单列字段（论证归报告 §5）。
  *
  * 录入统一走左侧抽屉（与 VersionTab / LogicTab / PlanTab / ReviewTab 同规格 520px）：
  * 顶部「新增一版研究」+ 行内「编辑」/「沿用新建」共用；编辑锁**定稿日**，避免按日期 upsert 时
@@ -58,36 +60,35 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** 后端校验的长度上限（超了会 400，前端先拦，避免白跑一趟） */
+/** 后端校验的长度上限（与 DB 列宽逐位一致，超了会 400，前端先拦） */
 const LIMITS = {
-  thesis: 200,
-  conclusion: 200,
-  max_risk: 200,
-  expectation_gap: 200,
+  thesis: 80,
+  max_risk: 120,
   pre_condition: 200,
-  research_brief: 800
+  research_brief: 500,
+  report_ref: 128
 } as const;
 
 const form = reactive<{
   research_date: string | null;
+  data_asof: string | null;
   thesis: string;
   /** 结论改为下拉选项（clearable），清空时为 null */
   conclusion: string | null;
   max_risk: string;
-  expectation_gap: string;
   pre_condition: string;
   next_review: string | null;
-  research_note: string;
+  report_ref: string;
   research_brief: string;
 }>({
   research_date: today(),
+  data_asof: null,
   thesis: '',
   conclusion: '',
   max_risk: '',
-  expectation_gap: '',
   pre_condition: '',
   next_review: null,
-  research_note: '',
+  report_ref: '',
   research_brief: ''
 });
 
@@ -109,24 +110,24 @@ const dateHint = computed(() => {
 /** 用某一版回填表单 */
 function loadVersion(r: Api.Irs.UnderlyingResearch) {
   form.research_date = r.research_date;
+  form.data_asof = r.data_asof ?? null;
   form.thesis = r.thesis ?? '';
   form.conclusion = r.conclusion ?? '';
   form.max_risk = r.max_risk ?? '';
-  form.expectation_gap = r.expectation_gap ?? '';
   form.pre_condition = r.pre_condition ?? '';
   form.next_review = r.next_review;
-  form.research_note = r.research_note ?? '';
+  form.report_ref = r.report_ref ?? '';
   form.research_brief = r.research_brief ?? '';
 }
 
 function clearForm() {
+  form.data_asof = null;
   form.thesis = '';
   form.conclusion = '';
   form.max_risk = '';
-  form.expectation_gap = '';
   form.pre_condition = '';
   form.next_review = null;
-  form.research_note = '';
+  form.report_ref = '';
   form.research_brief = '';
   form.research_date = today();
 }
@@ -171,13 +172,13 @@ function doSave(force = false) {
     try {
       const { data, error } = await saveUnderlyingResearch(props.umId, {
         research_date: form.research_date as string,
+        data_asof: form.data_asof || null,
         thesis: form.thesis || null,
         conclusion: form.conclusion || null,
         max_risk: form.max_risk || null,
-        expectation_gap: form.expectation_gap || null,
         pre_condition: form.pre_condition || null,
         next_review: form.next_review || null,
-        research_note: form.research_note || null,
+        report_ref: form.report_ref || null,
         research_brief: form.research_brief || null
       });
       if (!error) {
@@ -445,6 +446,16 @@ onMounted(() => {
               style="width: 160px"
             />
           </NFormItem>
+          <NFormItem label="数据截止">
+            <NDatePicker
+              v-model:formatted-value="form.data_asof"
+              type="date"
+              value-format="yyyy-MM-dd"
+              clearable
+              style="width: 160px"
+            />
+            <span class="ml-8px text-12px text-gray-400">摘要不必写价格，靠这个日期回放当时行情</span>
+          </NFormItem>
           <NFormItem label="结论">
             <NSelect
               v-model:value="form.conclusion"
@@ -469,16 +480,8 @@ onMounted(() => {
               type="textarea"
               :autosize="{ minRows: 1, maxRows: 3 }"
               :maxlength="LIMITS.max_risk"
-              placeholder="最可能让我亏钱的那件事，要具体"
-            />
-          </NFormItem>
-          <NFormItem label="预期差">
-            <NInput
-              v-model:value="form.expectation_gap"
-              type="textarea"
-              :autosize="{ minRows: 1, maxRows: 3 }"
-              :maxlength="LIMITS.expectation_gap"
-              placeholder="我与市场看法不同在哪"
+              show-count
+              placeholder="最可能让我亏钱的那件事，须写清时点与阈值"
             />
           </NFormItem>
           <NFormItem label="前提条件">
@@ -487,7 +490,7 @@ onMounted(() => {
               type="textarea"
               :autosize="{ minRows: 1, maxRows: 3 }"
               :maxlength="LIMITS.pre_condition"
-              placeholder="逻辑成立必须先满足什么（如贴水不收敛、政策不变）"
+              placeholder="只写标的层阈值（价格/毛利/现金流）；风险度、保证金、安全垫归 /risk 实时口径，不写这里"
             />
           </NFormItem>
           <NFormItem label="下次复核">
@@ -500,8 +503,12 @@ onMounted(() => {
             />
             <span class="ml-8px text-12px text-gray-400">到期后本页「复核」列标红</span>
           </NFormItem>
-          <NFormItem label="研究笔记">
-            <NInput v-model:value="form.research_note" placeholder="知识库文件名或编号（报告正文不进系统）" />
+          <NFormItem label="报告文件">
+            <NInput
+              v-model:value="form.report_ref"
+              :maxlength="LIMITS.report_ref"
+              placeholder="知识库报告文件名，不含 .md（如 宁德时代深度研究_2026-11-27）"
+            />
           </NFormItem>
           <NFormItem label="摘要">
             <NInput
@@ -510,7 +517,7 @@ onMounted(() => {
               :autosize="{ minRows: 2, maxRows: 5 }"
               :maxlength="LIMITS.research_brief"
               show-count
-              placeholder="给三个月后的自己看：当时为什么这么判断（换锚/推翻过程写进知识库报告 §10.2，不进系统）"
+              placeholder="给三个月后的自己看：当时怎么想、为什么这么判断。不写价格（由数据截止日回放）；换锚/推翻过程写报告 §10.2"
             />
           </NFormItem>
         </NForm>

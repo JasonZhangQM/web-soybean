@@ -5,11 +5,12 @@
  * 数据全部来自瘦身版 `GET /underlying-monitors/{id}/detail`（概览最小集）。
  * 各 Tab 明细走懒加载接口（versions/research/logic/plans/groups）。
  */
-import { computed, h, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { NButton, NTag } from 'naive-ui';
 import {
   fetchUnderlyingGroups,
+  fetchUnderlyingLogic,
   fetchUmBudget,
   type UmBudget,
   type UnderlyingGroup,
@@ -17,11 +18,16 @@ import {
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import SectionBar from './SectionBar.vue';
+import TierScaleBar from '@/views/risk/modules/TierScaleBar.vue';
+import { tierBarOk, toSubjectRow } from '@/views/risk/modules/types';
 import { STATUS_TYPE, triggerText } from './planFormat';
 
 defineOptions({ name: 'UnderlyingOverviewTab' });
 
-const props = defineProps<{ detail: UnderlyingMonitorDetail }>();
+const props = defineProps<{
+  detail: UnderlyingMonitorDetail;
+  /** DetailDrawer 写操作计数，+1 时重拉逻辑只读表 */ logicVersion?: number;
+}>();
 const emit = defineEmits<{ (e: 'goto', tab: string): void }>();
 
 const router = useRouter();
@@ -103,6 +109,7 @@ function resetGroupFilters() {
 onMounted(() => {
   loadGroups(1);
   loadBudget();
+  loadLogic();
 });
 
 // ---- 加仓额度（改造 4）：能不能加、还能加几手、卡在哪个约束 ----
@@ -127,6 +134,54 @@ const budgetTag = computed(() => {
 
 /** 概览只展示生效剧本（暂停的留给「剧本与成交」Tab 看全量） */
 const activePlans = computed(() => props.detail.plans_preview.filter(p => !p.is_cancelled));
+
+// ---- 投资逻辑（只读）：懒加载全量条目，编辑入口在「研究与复盘」Tab ----
+const logicList = ref<Api.Irs.UnderlyingLogic[]>([]);
+
+async function loadLogic() {
+  const { data, error } = await fetchUnderlyingLogic(props.detail.um.id);
+  if (!error && data) logicList.value = data;
+}
+
+// 逻辑增删改后 DetailDrawer 的 markDirty 会 +1 logicVersion，概览只读表随之重拉
+watch(
+  () => props.logicVersion,
+  v => {
+    if (v) loadLogic();
+  }
+);
+
+/** 逻辑状态只读展示配色（编辑用行内下拉在「研究与复盘」Tab） */
+function stateTagType(state: string) {
+  if (state === '破坏') return 'error' as const;
+  if (state === '减弱') return 'warning' as const;
+  return 'success' as const;
+}
+
+/** 只读列：序 / 逻辑 / 定价依据 / 状态；无操作列 */
+const logicColumns = [
+  { title: '序', key: 'seq', width: 15 },
+  {
+    title: '投资逻辑',
+    key: 'content',
+    width: 600,
+    ellipsis: { tooltip: true },
+    render: (r: Api.Irs.UnderlyingLogic) => r.content
+  },
+  {
+    title: '定价依据',
+    key: 'pricing',
+    width: 60,
+    render: (r: Api.Irs.UnderlyingLogic) => r.pricing || '-'
+  },
+  {
+    title: '状态',
+    key: 'state',
+    width: 40,
+    render: (r: Api.Irs.UnderlyingLogic) =>
+      h(NTag, { size: 'small', bordered: false, type: stateTagType(r.state) }, { default: () => r.state })
+  }
+];
 
 function fmtNum(v: number | null | undefined) {
   if (v == null) return '-';
@@ -252,7 +307,11 @@ const groupColumns = [
   }
 ];
 
-// ---- 档位表格：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 ----
+// ---- 档位摘要：展示方式与 /risk 左栏标的卡片的档位刻度条同源（TierScaleBar 只读） ----
+// 归一化复用 /risk 的 toSubjectRow（pp/pv varchar → 数字），不许另写一份口径
+const subjectRow = computed(() => toSubjectRow(props.detail.um));
+/** 五档齐全且现价有效才用刻度条；缺档退回旧五档横排表 */
+const levelBarOk = computed(() => tierBarOk(subjectRow.value));
 const LEVEL_META = [
   { key: 'pp_el', label: '极低' },
   { key: 'pp_l', label: '低' },
@@ -300,40 +359,42 @@ const levelColumns = LEVEL_META.map(m => ({
       （只有 label-style / label-class），不给宽度时 th 按内容争抢，会被压到只剩一个字。
       92px = 四个汉字 56px + th 左右 padding 24px（8px 12px）再留 12px 余量，
       所以「核心论点」「前提条件」这类四字 label 也单行，不会折成两行。
+      column=4：结论行（结论/数据截止/下次复核/报告文件）四个短字段并排一行，
+      长文行（核心论点等）span=4 占满整行。
     -->
     <NDescriptions
       v-if="latestResearch"
-      :column="2"
+      :column="4"
       label-placement="left"
       bordered
       size="small"
       :label-style="{ width: '92px' }"
       class="mb-16px"
     >
-      <NDescriptionsItem label="结论" :span="2">
+      <NDescriptionsItem label="结论">
         <span class="font-500">{{ latestResearch.conclusion || '未填' }}</span>
       </NDescriptionsItem>
-      <NDescriptionsItem label="核心论点" :span="2">
-        {{ latestResearch.thesis || '未填' }}
-      </NDescriptionsItem>
-      <NDescriptionsItem label="最大风险">
-        {{ latestResearch.max_risk || '未填' }}
-      </NDescriptionsItem>
-      <NDescriptionsItem label="预期差">
-        {{ latestResearch.expectation_gap || '未填' }}
-      </NDescriptionsItem>
-      <NDescriptionsItem label="前提条件" :span="2">
-        {{ latestResearch.pre_condition || '未填' }}
+      <NDescriptionsItem label="数据截止">
+        {{ latestResearch.data_asof || '未填' }}
       </NDescriptionsItem>
       <NDescriptionsItem label="下次复核">
         <span :class="reviewOverdue ? 'text-red-500' : ''">
           {{ latestResearch.next_review || '未填' }}
         </span>
       </NDescriptionsItem>
-      <NDescriptionsItem label="研究笔记">
-        {{ latestResearch.research_note || '未填' }}
+      <NDescriptionsItem label="报告文件">
+        {{ latestResearch.report_ref || '未填' }}
       </NDescriptionsItem>
-      <NDescriptionsItem label="摘要" :span="2">
+      <NDescriptionsItem label="核心论点" :span="4">
+        {{ latestResearch.thesis || '未填' }}
+      </NDescriptionsItem>
+      <NDescriptionsItem label="最大风险" :span="4">
+        {{ latestResearch.max_risk || '未填' }}
+      </NDescriptionsItem>
+      <NDescriptionsItem label="前提条件" :span="4">
+        {{ latestResearch.pre_condition || '未填' }}
+      </NDescriptionsItem>
+      <NDescriptionsItem label="摘要" :span="4">
         <div style="white-space: pre-wrap">{{ latestResearch.research_brief || '未填' }}</div>
       </NDescriptionsItem>
     </NDescriptions>
@@ -352,8 +413,19 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag size="small" :bordered="false" :type="detail.logic_total_count < 2 ? 'warning' : 'default'">
         逻辑 {{ detail.logic_total_count }} 条
       </NTag>
-      <span class="text-12px text-gray-400">明细在「研究与复盘」Tab 维护</span>
+      <span class="text-12px text-gray-400">只读展示；明细在「研究与复盘」Tab 维护</span>
+      <template #actions>
+        <NButton size="tiny" text @click="emit('goto', 'research')">去研究与复盘 Tab 维护</NButton>
+      </template>
     </SectionBar>
+    <!-- 投资逻辑只读表：无操作列，编辑/改状态在「研究与复盘」Tab -->
+    <UnderlyingDataTable
+      v-if="logicList.length"
+      :columns="logicColumns"
+      :data="logicList"
+      :page-size="0"
+      class="mb-16px"
+    />
 
     <!-- 档位摘要 -->
     <SectionBar title="当前档位">
@@ -365,14 +437,22 @@ const levelColumns = LEVEL_META.map(m => ({
       </template>
     </SectionBar>
 
-    <!-- 档位摘要：五档横排，UnderlyingDataTable 样式与剧本 / 对应交易代码统一 -->
-    <UnderlyingDataTable
-      v-if="currentVersion"
-      :columns="levelColumns"
-      :data="levelRows"
-      :page-size="0"
-      class="mb-16px"
-    />
+    <!--
+      档位摘要：刻度条展示（与 /risk 左栏标的卡片同款），只读——现价游标 + 所在档高亮，
+      不给拖动 / 点档定位（假设价入口在 /risk）。
+      五档缺失或现价无效时退回五档横排表，保证信息不丢。
+    -->
+    <div v-if="currentVersion" class="mb-16px">
+      <TierScaleBar
+        v-if="levelBarOk"
+        readonly
+        :pp="subjectRow.pp"
+        :pv="subjectRow.pv"
+        :price="subjectRow.price"
+        class="mx-0"
+      />
+      <UnderlyingDataTable v-else :columns="levelColumns" :data="levelRows" :page-size="0" />
+    </div>
 
     <!-- 加仓额度：R2 的执行前提。档位说到「到价加仓」，这里回答「钱够不够」 -->
     <SectionBar title="加仓额度">

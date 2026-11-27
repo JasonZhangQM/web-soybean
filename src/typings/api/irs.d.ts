@@ -173,22 +173,23 @@ declare namespace Api {
     interface UnderlyingResearch {
       id: number;
       symbol: string;
+      /** 研究定稿日（版本键） */
       research_date: string;
-      /** 核心论点（≤200 字） */
+      /** 数据截止日（回放当时的价与估值） */
+      data_asof: string | null;
+      /** 核心论点：买什么（≤80 字，不写价格/估值/档位） */
       thesis: string | null;
-      /** 结论（≤200 字） */
+      /** 结论（枚举：买入/增持/持有/观望/减持/卖出） */
       conclusion: string | null;
-      /** 最大风险（≤200 字） */
+      /** 最大风险（≤120 字，含时点+阈值） */
       max_risk: string | null;
-      /** 预期差 */
-      expectation_gap: string | null;
-      /** 前提条件（≤200 字） */
+      /** 前提条件（≤200 字，只写标的层阈值，组合约束不写） */
       pre_condition: string | null;
       /** 下次复核日 */
       next_review: string | null;
-      /** 研究笔记（知识库链接/编号） */
-      research_note: string | null;
-      /** 摘要（≤800 字） */
+      /** 报告文件名（唯一双向链，不含 .md） */
+      report_ref: string | null;
+      /** 摘要（≤500 字，不写价格快照） */
       research_brief: string | null;
       create_time: string;
       update_time: string;

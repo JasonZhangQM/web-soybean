@@ -453,21 +453,22 @@ export function fetchUnderlyingResearch(id: number) {
 /** 研究保存参数（按 (symbol, research_date) upsert，未传字段保持不变） */
 export interface UnderlyingResearchSaveParams {
   research_date: string;
+  data_asof?: string | null;
   thesis?: string | null;
   conclusion?: string | null;
   max_risk?: string | null;
-  expectation_gap?: string | null;
   pre_condition?: string | null;
   next_review?: string | null;
-  research_note?: string | null;
+  report_ref?: string | null;
   research_brief?: string | null;
 }
 
 /**
  * 保存一版研究（选新日期=新建，选历史日期=改那一版；前端须二次确认"将改写 X 日"）
  *
- * 文本长度上限（后端校验）：thesis / max_risk / pre_condition ≤200，
- * research_brief ≤800。报告正文与换锚/推翻过程留在知识库，系统只存结构化决策摘要。
+ * 文本长度上限（后端 + DB 列宽逐位一致）：thesis ≤80、max_risk ≤120、
+ * pre_condition ≤200、research_brief ≤500、report_ref ≤128。
+ * 一个职责只归一个字段：论证归报告、组合实时状态归 /risk，都不进这里。
  */
 export function saveUnderlyingResearch(id: number, params: UnderlyingResearchSaveParams) {
   return request<{ status: string; action: string; research_date: string }>({

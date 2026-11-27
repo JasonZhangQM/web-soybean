@@ -170,24 +170,24 @@ function handleDeleteLogic(row: Api.Irs.UnderlyingLogic) {
 // ---------------------------------------------------------------- 表格列
 /** 全部列用 width（不用 minWidth），UnderlyingDataTable 才能按列宽和自动喂 scroll-x */
 const logicColumns = [
-  { title: '序', key: 'seq', width: 50 },
+  { title: '序', key: 'seq', width: 30 },
   {
     title: '投资逻辑',
     key: 'content',
-    width: 300,
+    width: 600,
     ellipsis: { tooltip: true },
     render: (r: Api.Irs.UnderlyingLogic) => r.content
   },
   {
     title: '定价依据',
     key: 'pricing',
-    width: 100,
+    width: 80,
     render: (r: Api.Irs.UnderlyingLogic) => r.pricing || '-'
   },
   {
     title: '状态',
     key: 'state',
-    width: 110,
+    width: 80,
     // 行内下拉：改 state 是周级高频动作，点一下即存（后端有 state_at 留痕）
     render: (r: Api.Irs.UnderlyingLogic) =>
       h(NSelect, {
@@ -202,20 +202,20 @@ const logicColumns = [
   {
     title: '状态变更',
     key: 'state_at',
-    width: 140,
+    width: 110,
     render: (r: Api.Irs.UnderlyingLogic) => (r.state_at ? r.state_at.replace('T', ' ').slice(0, 16) : '-')
   },
   {
     title: '证据',
     key: 'evidence',
-    width: 200,
+    width: 110,
     ellipsis: { tooltip: true },
     render: (r: Api.Irs.UnderlyingLogic) => r.evidence || '-'
   },
   {
     title: '操作',
     key: 'action',
-    width: 110,
+    width: 60,
     render: (r: Api.Irs.UnderlyingLogic) =>
       h('div', { class: 'flex gap-8px' }, [
         h(

@@ -37,6 +37,8 @@ const props = defineProps<{
   price: number | null;
   /** 假设价：叠加第二游标，与现价游标同轴；空/未传不渲染 */
   hypoPrice?: number | null;
+  /** 只读展示：不响应拖动 / 点击档位（概览摘要等场景），档名照常高亮所在档 */
+  readonly?: boolean;
 }>();
 
 /** 定位结果：假设价（精确数值）。回现价由卡片读数行的按钮负责，不经本组件 */
@@ -136,8 +138,9 @@ const step = computed(() => {
   return 0.01;
 });
 
-/** 可交互条件：轴有效 + 有正现价（父级已判五档齐全，这里再兜一层） */
+/** 可交互条件：非只读 + 轴有效 + 有正现价（父级已判五档齐全，这里再兜一层） */
 const interactive = computed(() => {
+  if (props.readonly) return false;
   const a = axis.value;
   return a !== null && a.hi > a.lo && (priceVal.value ?? 0) > 0;
 });

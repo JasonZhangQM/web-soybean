@@ -41,6 +41,8 @@ const loading = ref(false);
 const quoteLoading = ref(false);
 /** 行情同步成功次数：传给档位 Tab，联动重算到档情景（基准价 um.price 变了） */
 const priceVersion = ref(0);
+/** 写操作计数：通知概览 Tab 重拉投资逻辑只读表（增删改逻辑后概览明细要跟上） */
+const logicVersion = ref(0);
 const detail = ref<UnderlyingMonitorDetail | null>(null);
 const tab = ref('overview');
 /** 抽屉打开期间有无任何写操作 — 决定关闭时要不要 emit('changed') */
@@ -120,6 +122,8 @@ function markDirty() {
   dirty = true;
   // 幂等：抽屉还开着就重拉一次概览数据（PlanTab 改剧本后概览的生效数会变）
   if (visible.value) load();
+  // 通知概览 Tab 重拉投资逻辑只读表（LogicTab 增删改逻辑后 emit('dirty') 走到这里）
+  logicVersion.value += 1;
 }
 
 watch(
@@ -197,7 +201,7 @@ defineExpose({ refresh: () => load(false) });
         <NTabs v-else v-model:value="tab" type="line">
           <!-- 概览：首屏直接渲染，跟 detail 接口一起秒开 -->
           <NTabPane name="overview" tab="概览" display-directive="show">
-            <OverviewTab :detail="detail" @goto="goTab" />
+            <OverviewTab :detail="detail" :logic-version="logicVersion" @goto="goTab" />
           </NTabPane>
           <!-- 估值与走势（2026-11-08）：懒加载，一次拉分位/估值/收益/回撤；关联键用 symbol -->
           <NTabPane name="market" tab="估值与走势" display-directive="show:lazy">
