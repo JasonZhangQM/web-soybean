@@ -266,13 +266,14 @@ declare namespace Api {
     /** 状态变更审计日志行（append-only，复盘回放） */
     interface UnderlyingStateLog {
       id: number;
-      /** logic=逻辑（历史行或有 invalidate，证伪已删除） */
-      subject_type: 'logic' | 'invalidate';
+      /** logic=逻辑状态演化；logic_pricing=定价情况演化（历史行或有 invalidate，证伪已删除） */
+      subject_type: 'logic' | 'logic_pricing' | 'invalidate';
       subject_id: number;
       symbol: string;
       from_state: string | null;
       to_state: string;
-      changed_at: string;
+      /** 变更日期（append-only 行创建即变更；前端只取日期部分） */
+      create_time: string;
       note: string | null;
     }
 

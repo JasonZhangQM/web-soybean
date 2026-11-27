@@ -47,20 +47,12 @@ const STATE_OPTIONS = [
 ];
 const PRICING_OPTIONS = [
   { value: '未定价', label: '未定价' },
-  { value: '部分', label: '部分' },
-  { value: '已充分', label: '已充分' }
+  { value: '部分定价', label: '部分定价' },
+  { value: '充分定价', label: '充分定价' }
 ];
 
 const saving = ref(false);
 const deletingLogicSeq = ref<number | null>(null);
-/** 正在改状态的 seq（同一行下拉显示 loading） */
-const stateSavingSeq = ref<number | null>(null);
-/**
- * 状态草稿：提交后到 `refresh` 回来之间，避免下拉弹回旧值造成闪烁。
- * 用 Map 而不是普通对象，是因为要在失败时删除键——`delete obj[key]` 过不了
- * `@typescript-eslint/no-dynamic-delete`，且 Map 的增删天然是响应式的。
- */
-const stateDraft = ref(new Map<number, string>());
 
 // ---------------------------------------------------------------- 投资逻辑
 const showLogicModal = ref(false);
@@ -71,13 +63,13 @@ const logicForm = reactive<{
   pricing: string | null;
   state: string;
   evidence: string;
-}>({ seq: 1, content: '', pricing: null, state: '完好', evidence: '' });
+}>({ seq: 1, content: '', pricing: '未定价', state: '完好', evidence: '' });
 
 function openLogicNew() {
   const maxSeq = logic.value.reduce((m, l) => Math.max(m, l.seq), 0);
   logicForm.seq = maxSeq + 1;
   logicForm.content = '';
-  logicForm.pricing = null;
+  logicForm.pricing = '未定价';
   logicForm.state = '完好';
   logicForm.evidence = '';
   showLogicModal.value = true;
@@ -119,30 +111,11 @@ async function saveLogic() {
   }
 }
 
-/** 行内改状态：立刻落库（有 state_at 留痕，改错能改回，所以不做二次确认） */
-async function changeLogicState(row: Api.Irs.UnderlyingLogic, state: string) {
-  if (!state || state === row.state) return;
-  stateDraft.value.set(row.seq, state);
-  stateSavingSeq.value = row.seq;
-  try {
-    // 全字段回填：后端无条件覆盖 content/pricing/evidence，漏了就清空
-    const { error } = await saveUnderlyingLogic(props.umId, {
-      seq: row.seq,
-      content: row.content,
-      pricing: row.pricing,
-      state,
-      evidence: row.evidence
-    });
-    if (error) {
-      stateDraft.value.delete(row.seq);
-      return;
-    }
-    window.$message?.success(`第 ${row.seq} 条状态改为「${state}」`);
-    await loadLogic();
-    emit('dirty');
-  } finally {
-    stateSavingSeq.value = null;
-  }
+/** 逻辑状态只读配色：破坏=红、减弱=琥珀、完好/其他=绿 */
+function stateCls(s: string) {
+  if (s === '破坏') return 'text-red-500';
+  if (s === '减弱') return 'text-amber-500';
+  return 'text-green-600';
 }
 
 function handleDeleteLogic(row: Api.Irs.UnderlyingLogic) {
@@ -174,36 +147,22 @@ const logicColumns = [
   {
     title: '投资逻辑',
     key: 'content',
-    width: 600,
+    width: 800,
     ellipsis: { tooltip: true },
     render: (r: Api.Irs.UnderlyingLogic) => r.content
   },
   {
-    title: '定价依据',
-    key: 'pricing',
-    width: 80,
-    render: (r: Api.Irs.UnderlyingLogic) => r.pricing || '-'
-  },
-  {
-    title: '状态',
+    title: '逻辑状态',
     key: 'state',
-    width: 80,
-    // 行内下拉：改 state 是周级高频动作，点一下即存（后端有 state_at 留痕）
-    render: (r: Api.Irs.UnderlyingLogic) =>
-      h(NSelect, {
-        value: stateDraft.value.get(r.seq) ?? r.state,
-        options: STATE_OPTIONS,
-        size: 'small',
-        consistentMenuWidth: false,
-        loading: stateSavingSeq.value === r.seq,
-        onUpdateValue: (v: string) => changeLogicState(r, v)
-      })
+    width: 60,
+    // 只读展示：状态修改走编辑抽屉，变更自动追加到概览「状态演化」链
+    render: (r: Api.Irs.UnderlyingLogic) => h('span', { class: stateCls(r.state) }, r.state)
   },
   {
-    title: '状态变更',
-    key: 'state_at',
-    width: 110,
-    render: (r: Api.Irs.UnderlyingLogic) => (r.state_at ? r.state_at.replace('T', ' ').slice(0, 16) : '-')
+    title: '定价情况',
+    key: 'pricing',
+    width: 60,
+    render: (r: Api.Irs.UnderlyingLogic) => r.pricing || '-'
   },
   {
     title: '证据',
@@ -283,7 +242,14 @@ const logicWeakenedCount = computed(() => logic.value.filter(l => l.state === '�
               placeholder="逻辑 → 影响路径 → 是否已定价"
             />
           </NFormItem>
-          <NFormItem label="定价依据">
+          <NFormItem label="证据">
+            <NInput v-model:value="logicForm.evidence" :maxlength="200" placeholder="报告章节 / 数据代码 / 指标" />
+          </NFormItem>
+          <NFormItem label="逻辑状态">
+            <NSelect v-model:value="logicForm.state" :options="STATE_OPTIONS" style="width: 160px" />
+            <span class="ml-8px text-12px text-gray-400">每次变化都会被记录</span>
+          </NFormItem>
+          <NFormItem label="定价情况">
             <NSelect
               v-model:value="logicForm.pricing"
               :options="PRICING_OPTIONS"
@@ -291,13 +257,7 @@ const logicWeakenedCount = computed(() => logic.value.filter(l => l.state === '�
               placeholder="是否已被市场定价"
               style="width: 160px"
             />
-          </NFormItem>
-          <NFormItem label="状态">
-            <NSelect v-model:value="logicForm.state" :options="STATE_OPTIONS" style="width: 160px" />
-            <span class="ml-8px text-12px text-gray-400">状态变化时才写「状态变更」时间</span>
-          </NFormItem>
-          <NFormItem label="证据">
-            <NInput v-model:value="logicForm.evidence" :maxlength="200" placeholder="报告章节 / 数据代码 / 指标" />
+            <span class="ml-8px text-12px text-gray-400">每次变化都会被记录</span>
           </NFormItem>
         </NForm>
         <template #footer>

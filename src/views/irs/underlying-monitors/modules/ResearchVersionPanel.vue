@@ -19,6 +19,7 @@
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
 import {
+  fetchUnderlyingLogic,
   fetchUnderlyingResearch,
   saveUnderlyingResearch,
   deleteUnderlyingResearch,
@@ -46,6 +47,7 @@ const editingDate = ref<string | null>(null);
 /** 逻辑状态变更会追加 state_log，合并后同屏可见 ⇒ 顺手重拉时间线 */
 function onChildDirty() {
   loadStateLog();
+  loadLogicRows();
   emit('dirty');
 }
 
@@ -282,13 +284,87 @@ const attribution = ref<Api.Bills.AttributionByPlan | null>(null);
 const allPlans = ref<Api.Irs.UnderlyingPlan[]>([]);
 const attributionLoading = ref(false);
 
-function subjectLabel(t: string) {
-  return t === 'logic' ? '逻辑' : '证伪(已下线)';
+/** 逻辑清单：状态演化按逻辑分组需要 seq / content 标注（LogicTab 内部数据，这里轻量重拉一份） */
+const logicRows = ref<Api.Irs.UnderlyingLogic[]>([]);
+async function loadLogicRows() {
+  const { data } = await fetchUnderlyingLogic(props.umId);
+  if (data) logicRows.value = data;
 }
 
-/** 状态演化：本标的逻辑 state 的 append-only 日志，正序回放「首次 → 当前」。
- * 证伪已删除（2026-11-27），历史 state_log 行中残留的 invalidate 记录过滤不显示 */
-const logicStateLog = computed(() => stateLog.value.filter(l => l.subject_type === 'logic'));
+/**
+ * 状态演化：按逻辑分组，每条逻辑两行成对——
+ *   状态行  逻辑1：完好(2026-09-01) → 减弱(2026-10-15) → 破坏(2026-11-20)
+ *   定价行  逻辑1 · 定价：未定价(2026-09-01) → 充分定价(2026-11-20)
+ * 首节点 = 逻辑标注 + 首次登记的状态合成一步；日期只展示日期部分。
+ * 证伪已删除（2026-11-27），残留 invalidate 行过滤；subject_id 找不到对应逻辑
+ * （逻辑被删）时回退用 逻辑#id 标注，演化记录不丢。
+ */
+function buildChains(logs: Api.Irs.UnderlyingStateLog[]) {
+  if (!logs.length) return new Map<number, { head: ChainNode; steps: ChainStep[] }>();
+  const seqOf = new Map(logicRows.value.map(r => [r.id, r]));
+  const byId = new Map<number, Api.Irs.UnderlyingStateLog[]>();
+  for (const l of logs) {
+    const arr = byId.get(l.subject_id) ?? [];
+    arr.push(l);
+    byId.set(l.subject_id, arr);
+  }
+  const out = new Map<number, { head: ChainNode; steps: ChainStep[] }>();
+  for (const [id, arr] of byId) {
+    const row = seqOf.get(id);
+    // 首节点 = 逻辑标注与首次登记的状态合成一步，格式「逻辑1：完好(2026-11-27)」
+    const head: ChainNode = {
+      label: row ? `逻辑${row.seq}` : `逻辑#${id}（已删除）`,
+      tip: row?.content ?? '',
+      state: arr[0].to_state,
+      date: arr[0].create_time.slice(0, 10)
+    };
+    const steps = arr.slice(1).map(l => ({
+      label: l.to_state,
+      tip: l.note ?? '',
+      date: l.create_time.slice(0, 10)
+    }));
+    out.set(id, { head, steps });
+  }
+  return out;
+}
+
+interface ChainNode {
+  label: string;
+  tip: string;
+  state: string;
+  date: string;
+}
+
+/** 后续变更节点：直接用 label 渲染，无首登记语义 */
+interface ChainStep {
+  label: string;
+  tip: string;
+  date: string;
+}
+
+const stateChainMap = computed(() => buildChains(stateLog.value.filter(l => l.subject_type === 'logic')));
+const pricingChainMap = computed(() => buildChains(stateLog.value.filter(l => l.subject_type === 'logic_pricing')));
+
+/** 演化行：状态链与定价链按逻辑 id 成对；两类日志都没有的逻辑不出现 */
+const evolutionRows = computed(() => {
+  const ids = new Set([...stateChainMap.value.keys(), ...pricingChainMap.value.keys()]);
+  return [...ids]
+    .sort((a, b) => {
+      const sa = logicRows.value.find(r => r.id === a)?.seq ?? 9999;
+      const sb = logicRows.value.find(r => r.id === b)?.seq ?? 9999;
+      if (sa !== sb) return sa - sb;
+      return a - b;
+    })
+    .map(id => ({ id, state: stateChainMap.value.get(id) ?? null, pricing: pricingChainMap.value.get(id) ?? null }));
+});
+
+/** 节点配色：破坏/充分定价=红、减弱/部分定价=琥珀、完好/未定价/其他=绿 */
+function stateCls(s: string) {
+  if (s === '破坏' || s === '充分定价') return 'text-red-500';
+  if (s === '减弱' || s === '部分定价') return 'text-amber-500';
+  return 'text-green-600';
+}
+
 async function loadStateLog() {
   const { data } = await fetchUnderlyingStateLog(props.umId);
   if (data) stateLog.value = data;
@@ -370,6 +446,7 @@ const attributionColumns = [
 onMounted(() => {
   loadResearch();
   loadStateLog();
+  loadLogicRows();
   loadAttribution();
 });
 </script>
@@ -392,22 +469,48 @@ onMounted(() => {
     <!-- 复盘（原独立 Tab，2026-11-27 并入，紧跟逻辑之后） -->
     <ReviewTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" />
 
-    <!-- 复盘视图：状态演化（P2-3）+ 剧本盈亏归因（P3-3） -->
+    <!-- 复盘视图：状态演化（逻辑状态 + 定价情况两行成对）+ 剧本盈亏归因（P3-3） -->
     <SectionBar title="状态演化">
-      <span class="text-12px text-gray-400">逻辑 state 的追加日志，改一次记一条，不复写旧值</span>
+      <span class="text-12px text-gray-400">
+        每条逻辑两行：逻辑状态 + 定价情况；首节点即首次登记，日期括号缀在状态后
+      </span>
     </SectionBar>
-    <NEmpty v-if="!logicStateLog.length" size="small" description="还没有状态变更记录" class="my-8px" />
-    <NTimeline v-else class="mt-8px">
-      <NTimelineItem
-        v-for="l in logicStateLog"
-        :key="l.id"
-        :type="l.to_state === '破坏' ? 'error' : l.to_state === '减弱' ? 'warning' : 'success'"
-        :title="`${subjectLabel(l.subject_type)}：${l.from_state ?? '（首次登记）'} → ${l.to_state}`"
-        :time="l.changed_at"
-      >
-        {{ l.note || '' }}
-      </NTimelineItem>
-    </NTimeline>
+    <NEmpty v-if="!evolutionRows.length" size="small" description="还没有状态变更记录" class="my-8px" />
+    <div v-else class="mt-8px flex flex-col gap-6px">
+      <!-- 每条逻辑一行：左半状态链、右半定价链 -->
+      <div v-for="r in evolutionRows" :key="r.id" class="flex items-start gap-x-8px">
+        <!-- 左：状态链 -->
+        <div v-if="r.state" class="flex min-w-0 flex-1 flex-wrap items-start gap-x-4px gap-y-2px">
+          <span class="text-13px" :title="r.state.head.tip">
+            <span class="text-gray-500">{{ r.state.head.label }} · 状态：</span>
+            <span class="font-500" :class="stateCls(r.state.head.state)">{{ r.state.head.state }}</span>
+            <span class="text-gray-400">({{ r.state.head.date }})</span>
+          </span>
+          <template v-for="(s, i) in r.state.steps" :key="`s-${r.id}-${i}`">
+            <span class="text-13px leading-20px text-gray-400">→</span>
+            <span class="text-13px font-500" :class="stateCls(s.label)" :title="s.tip">
+              {{ s.label }}
+              <span class="text-gray-400 font-400">({{ s.date }})</span>
+            </span>
+          </template>
+        </div>
+        <!-- 右：定价链（有定价变更日志才显示） -->
+        <div v-if="r.pricing" class="flex min-w-0 flex-1 flex-wrap items-start gap-x-4px gap-y-2px">
+          <span class="text-13px" :title="r.pricing.head.tip">
+            <span class="text-gray-500">{{ r.pricing.head.label }} · 定价：</span>
+            <span class="font-500" :class="stateCls(r.pricing.head.state)">{{ r.pricing.head.state }}</span>
+            <span class="text-gray-400">({{ r.pricing.head.date }})</span>
+          </span>
+          <template v-for="(s, i) in r.pricing.steps" :key="`p-${r.id}-${i}`">
+            <span class="text-13px leading-20px text-gray-400">→</span>
+            <span class="text-13px font-500" :class="stateCls(s.label)" :title="s.tip">
+              {{ s.label }}
+              <span class="text-gray-400 font-400">({{ s.date }})</span>
+            </span>
+          </template>
+        </div>
+      </div>
+    </div>
 
     <SectionBar title="剧本盈亏归因">
       <span class="text-12px text-gray-400">只统计本标的的剧本（underlying_symbol 过滤）；未归因成交显式标注</span>
