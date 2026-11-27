@@ -18,7 +18,6 @@ import OverviewTab from './OverviewTab.vue';
 import MarketStatsTab from './MarketStatsTab.vue';
 import FinanceTab from './FinanceTab.vue';
 import ResearchVersionPanel from './ResearchVersionPanel.vue';
-import ReviewTab from './ReviewTab.vue';
 import VersionTab from './VersionTab.vue';
 import PlanTab from './PlanTab.vue';
 
@@ -209,12 +208,9 @@ defineExpose({ refresh: () => load(false) });
             <FinanceTab :symbol="detail.um.symbol" />
           </NTabPane>
           <!-- 其他 Tab：show:lazy = 第一次激活才 mount，之后保持挂载（v-show），切回零等待 -->
-          <!-- 研究 + 逻辑与证伪（2026-11-09 合并；逻辑/证伪作为子组件嵌在 ResearchVersionPanel 内） -->
-          <NTabPane name="research" tab="研究与逻辑" display-directive="show:lazy">
+          <!-- 研究与复盘（2026-11-27 合并）：逻辑、复盘作为子组件嵌在 ResearchVersionPanel 内 -->
+          <NTabPane name="research" tab="研究与复盘" display-directive="show:lazy">
             <ResearchVersionPanel :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
-          </NTabPane>
-          <NTabPane name="review" tab="复盘" display-directive="show:lazy">
-            <ReviewTab :um-id="detail.um.id" :symbol="detail.um.symbol" @dirty="markDirty" />
           </NTabPane>
           <!-- 档位 + 到档情景（2026-11-09 合并；2026-11-10 起情景在档位 Tab 内直接展示） -->
           <NTabPane name="version" tab="档位" display-directive="show:lazy">

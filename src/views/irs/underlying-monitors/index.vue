@@ -475,7 +475,7 @@ onMounted(async () => {
       />
     </NCard>
 
-    <!-- 标的档案抽屉：概览 / 研究 / 档位 / 逻辑与证伪 / 计划与成交 -->
+    <!-- 标的档案抽屉：概览 / 研究与复盘 / 档位 / 剧本与成交 -->
     <DetailDrawer
       ref="detailDrawerRef"
       v-model:show="showDrawer"

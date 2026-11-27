@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 研究与逻辑 Tab（2026-11-09 两个 Tab 合并 + 研究录入改左侧抽屉）
+ * 研究与复盘 Tab（2026-11-09 逻辑并入 + 研究录入改左侧抽屉；2026-11-27 复盘 Tab 并入）
  *
  * 语义同档位：**选新日期 = 新建一版，选已有日期 = 改那一版**。
  * 系统只存「决策与执行状态」（摘要 ≤800 字、单条逻辑/风险 ≤200 字、研究过程 ≤2000 字），
@@ -10,9 +10,9 @@
  * 顶部「新增一版研究」+ 行内「编辑」/「沿用新建」共用；编辑锁**定稿日**，避免按日期 upsert 时
  * 静默复制成新一版。保存成功才关抽屉，失败保留已填内容。
  *
- * 「逻辑与证伪」不再单独占一个 Tab，作为子组件插在研究版本表之后、状态演化之前；
- * 软校验的条数改由子组件实时上报，不再吃概览透传的轻量计数（合并的实收益）。
- * 内容顺序：研究版本表 → 逻辑/证伪 → 状态演化 → 剧本盈亏归因。
+ * 「逻辑」「复盘」不再单独占 Tab，作为子组件依次插在研究版本表之后；
+ * 内容顺序：研究版本表 → 逻辑 → 复盘 → 状态演化 → 剧本盈亏归因。
+ * 证伪条件已于 2026-11-27 移出系统（只在研报文件中维护），保存时不再做证伪条数软校验。
  */
 import { ref, reactive, computed, h, onMounted } from 'vue';
 import { NButton, NTag } from 'naive-ui';
@@ -26,6 +26,7 @@ import {
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
 import LogicTab from './LogicTab.vue';
+import ReviewTab from './ReviewTab.vue';
 import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingResearchVersionPanel' });
@@ -39,15 +40,8 @@ const deleting = ref(false);
 /** 左侧录入抽屉：editingDate=null 表示新增，非 null 表示改写该日版本（定稿日锁定） */
 const showDrawer = ref(false);
 const editingDate = ref<string | null>(null);
-/** 逻辑/证伪条数由子组件实时上报；写完一条立刻反映到保存软校验 */
-const logicCounts = reactive({ logic: 0, invalidate: 0 });
 
-function onCounts(v: { logic: number; invalidate: number }) {
-  logicCounts.logic = v.logic;
-  logicCounts.invalidate = v.invalidate;
-}
-
-/** 逻辑/证伪状态变更会追加 state_log，合并后同屏可见 ⇒ 顺手重拉时间线 */
+/** 逻辑状态变更会追加 state_log，合并后同屏可见 ⇒ 顺手重拉时间线 */
 function onChildDirty() {
   loadStateLog();
   emit('dirty');
@@ -71,21 +65,20 @@ const LIMITS = {
   max_risk: 200,
   expectation_gap: 200,
   pre_condition: 200,
-  research_brief: 800,
-  research_log: 2000
+  research_brief: 800
 } as const;
 
 const form = reactive<{
   research_date: string | null;
   thesis: string;
-  conclusion: string;
+  /** 结论改为下拉选项（clearable），清空时为 null */
+  conclusion: string | null;
   max_risk: string;
   expectation_gap: string;
   pre_condition: string;
   next_review: string | null;
   research_note: string;
   research_brief: string;
-  research_log: string;
 }>({
   research_date: today(),
   thesis: '',
@@ -95,9 +88,11 @@ const form = reactive<{
   pre_condition: '',
   next_review: null,
   research_note: '',
-  research_brief: '',
-  research_log: ''
+  research_brief: ''
 });
+
+/** 结论下拉选项：与后端 UnderlyingResearch.CONCLUSION_CHOICES 保持一致 */
+const CONCLUSION_OPTIONS = ['买入', '增持', '持有', '观望', '减持', '卖出'].map(v => ({ label: v, value: v }));
 
 /** 当前日期命中的已有版本 */
 const hit = computed(() => research.value.find(r => r.research_date === form.research_date) ?? null);
@@ -122,7 +117,6 @@ function loadVersion(r: Api.Irs.UnderlyingResearch) {
   form.next_review = r.next_review;
   form.research_note = r.research_note ?? '';
   form.research_brief = r.research_brief ?? '';
-  form.research_log = r.research_log ?? '';
 }
 
 function clearForm() {
@@ -134,7 +128,6 @@ function clearForm() {
   form.next_review = null;
   form.research_note = '';
   form.research_brief = '';
-  form.research_log = '';
   form.research_date = today();
 }
 
@@ -163,7 +156,7 @@ function overLimit() {
   return bad;
 }
 
-function doSave(force = false, skipSoft = false) {
+function doSave(force = false) {
   if (!form.research_date) {
     window.$message?.warning('请选择研究定稿日');
     return;
@@ -171,22 +164,6 @@ function doSave(force = false, skipSoft = false) {
   const bad = overLimit();
   if (bad.length) {
     window.$message?.warning(`字段超长：${bad.join('；')}`);
-    return;
-  }
-  // 软校验：纲领要求证伪 ≥3 条且覆盖第五章每条。**只提示不阻断**——
-  // 合并后证伪就在同一 Tab 下方，点「先补证伪」可就地补；硬拦会让人为凑数写废话判据。
-  const soft =
-    logicCounts.invalidate < 3
-      ? `本标的目前只有 ${logicCounts.invalidate} 条证伪条件（纲领要求 ≥3 条，且覆盖研究报告第五章每条）`
-      : null;
-  if (soft && !skipSoft) {
-    window.$dialog?.warning({
-      title: '证伪条数不足',
-      content: `${soft}。研究可以照存，但这份结论暂时没有可证伪的判据——将来无法判断逻辑坏没坏。`,
-      positiveText: '仍然保存',
-      negativeText: '先补证伪',
-      onPositiveClick: () => doSave(force, true)
-    });
     return;
   }
   const run = async () => {
@@ -201,8 +178,7 @@ function doSave(force = false, skipSoft = false) {
         pre_condition: form.pre_condition || null,
         next_review: form.next_review || null,
         research_note: form.research_note || null,
-        research_brief: form.research_brief || null,
-        research_log: form.research_log || null
+        research_brief: form.research_brief || null
       });
       if (!error) {
         window.$message?.success(data?.action === 'created' ? '已新建一版研究' : '已改写该日研究');
@@ -306,10 +282,12 @@ const allPlans = ref<Api.Irs.UnderlyingPlan[]>([]);
 const attributionLoading = ref(false);
 
 function subjectLabel(t: string) {
-  return t === 'logic' ? '逻辑' : '证伪';
+  return t === 'logic' ? '逻辑' : '证伪(已下线)';
 }
 
-/** 状态演化：本标的逻辑/证伪的 append-only 日志，正序回放「首次 → 当前」 */
+/** 状态演化：本标的逻辑 state 的 append-only 日志，正序回放「首次 → 当前」。
+ * 证伪已删除（2026-11-27），历史 state_log 行中残留的 invalidate 记录过滤不显示 */
+const logicStateLog = computed(() => stateLog.value.filter(l => l.subject_type === 'logic'));
 async function loadStateLog() {
   const { data } = await fetchUnderlyingStateLog(props.umId);
   if (data) stateLog.value = data;
@@ -393,14 +371,6 @@ onMounted(() => {
   loadStateLog();
   loadAttribution();
 });
-
-// 字数提示：接近上限时变黄，超了变红
-function countClass(k: keyof typeof LIMITS, v: string) {
-  const max = LIMITS[k];
-  if (v.length > max) return 'text-red-500';
-  if (v.length > max * 0.9) return 'text-orange-500';
-  return 'text-gray-400';
-}
 </script>
 
 <template>
@@ -415,21 +385,22 @@ function countClass(k: keyof typeof LIMITS, v: string) {
     </SectionBar>
     <UnderlyingDataTable :columns="columns" :data="research" :page-size="5" hide-when-fit />
 
-    <!-- 逻辑与证伪（原独立 Tab，2026-11-09 并入；内部两张表 + 两个左侧抽屉自治） -->
-    <LogicTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" @counts="onCounts" />
+    <!-- 投资逻辑（2026-11-09 并入；证伪已于 2026-11-27 移出系统，只在研报文件中维护） -->
+    <LogicTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" />
+
+    <!-- 复盘（原独立 Tab，2026-11-27 并入，紧跟逻辑之后） -->
+    <ReviewTab :um-id="umId" :symbol="symbol" @dirty="onChildDirty" />
 
     <!-- 复盘视图：状态演化（P2-3）+ 剧本盈亏归因（P3-3） -->
     <SectionBar title="状态演化">
-      <span class="text-12px text-gray-400">逻辑 state / 证伪 status 的追加日志，改一次记一条，不复写旧值</span>
+      <span class="text-12px text-gray-400">逻辑 state 的追加日志，改一次记一条，不复写旧值</span>
     </SectionBar>
-    <NEmpty v-if="!stateLog.length" size="small" description="还没有状态变更记录" class="my-8px" />
+    <NEmpty v-if="!logicStateLog.length" size="small" description="还没有状态变更记录" class="my-8px" />
     <NTimeline v-else class="mt-8px">
       <NTimelineItem
-        v-for="l in stateLog"
+        v-for="l in logicStateLog"
         :key="l.id"
-        :type="
-          l.to_state === '破坏' || l.to_state === '已触发' ? 'error' : l.to_state === '减弱' ? 'warning' : 'success'
-        "
+        :type="l.to_state === '破坏' ? 'error' : l.to_state === '减弱' ? 'warning' : 'success'"
         :title="`${subjectLabel(l.subject_type)}：${l.from_state ?? '（首次登记）'} → ${l.to_state}`"
         :time="l.changed_at"
       >
@@ -456,7 +427,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
       <b>{{ fmtPl(attribution.unattributed.total_pl) }}</b>
     </NAlert>
 
-    <!-- 研究录入抽屉（左侧），与逻辑 / 证伪 / 档位 / 剧本 / 复盘抽屉同规格 -->
+    <!-- 研究录入抽屉（左侧），与逻辑 / 档位 / 剧本 / 复盘抽屉同规格 -->
     <NDrawer v-model:show="showDrawer" placement="left" width="520px" :mask-closable="false">
       <NDrawerContent
         :title="editingDate ? `编辑 ${editingDate} 这一版研究` : '新增一版研究'"
@@ -475,14 +446,13 @@ function countClass(k: keyof typeof LIMITS, v: string) {
             />
           </NFormItem>
           <NFormItem label="结论">
-            <NInput
+            <NSelect
               v-model:value="form.conclusion"
-              placeholder="如：维持观望 / 下调至回避 / 加仓"
-              :maxlength="LIMITS.conclusion"
+              :options="CONCLUSION_OPTIONS"
+              placeholder="选择结论评级"
+              clearable
+              style="width: 160px"
             />
-            <span class="ml-8px text-12px" :class="countClass('conclusion', form.conclusion)">
-              {{ form.conclusion.length }}/{{ LIMITS.conclusion }}
-            </span>
           </NFormItem>
           <NFormItem label="核心论点">
             <NInput
@@ -540,17 +510,7 @@ function countClass(k: keyof typeof LIMITS, v: string) {
               :autosize="{ minRows: 2, maxRows: 5 }"
               :maxlength="LIMITS.research_brief"
               show-count
-              placeholder="给三个月后的自己看：当时为什么这么判断"
-            />
-          </NFormItem>
-          <NFormItem label="研究过程">
-            <NInput
-              v-model:value="form.research_log"
-              type="textarea"
-              :autosize="{ minRows: 3, maxRows: 8 }"
-              :maxlength="LIMITS.research_log"
-              show-count
-              placeholder="看过哪些数据、排除了哪些可能、怎么定的档位"
+              placeholder="给三个月后的自己看：当时为什么这么判断（换锚/推翻过程写进知识库报告 §10.2，不进系统）"
             />
           </NFormItem>
         </NForm>

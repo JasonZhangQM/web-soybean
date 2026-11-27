@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 复盘 Tab（标的层）
+ * 复盘（标的层子组件；2026-11-27 起并入「研究与复盘」Tab，紧跟证伪条件之后）
  *
  * 复盘回答的是「这版研究的结论兑现了没有」，所以每条复盘都必须锚定一版研究
  * （`research_id` → `irs_um_research`）；同一版本可以多次复盘，落笔日期
@@ -15,6 +15,7 @@ import {
   updateUnderlyingReview,
   type UnderlyingReview
 } from '@/service/api';
+import SectionBar from './SectionBar.vue';
 
 defineOptions({ name: 'UnderlyingReviewTab' });
 
@@ -153,11 +154,13 @@ async function handleDelete(r: UnderlyingReview) {
 
 <template>
   <div>
-    <div class="mb-12px flex flex-wrap items-center gap-8px">
+    <!-- 标题样式与其他区块（研究版本/投资逻辑）同款 SectionBar -->
+    <SectionBar :title="`复盘（${reviews.length} 条）`">
       <span class="text-12px text-gray-400">复盘回答的是：这版研究的结论兑现了没有；同一版本可多次复盘</span>
-      <span class="ml-auto text-12px text-gray-400">{{ symbol }}</span>
-      <NButton size="tiny" :disabled="!researchList.length" @click="openNew">写复盘</NButton>
-    </div>
+      <template #actions>
+        <NButton size="tiny" :disabled="!researchList.length" @click="openNew">写复盘</NButton>
+      </template>
+    </SectionBar>
 
     <NAlert v-if="!researchList.length" type="warning" :bordered="false" :show-icon="false" class="mb-12px">
       这个标的还没有研究版本：复盘必须锚定一版研究，请先去「研究」tab 写一版。

@@ -99,13 +99,13 @@ export function deleteUnderlyingMonitor(id: number, cascade = false) {
 }
 
 // =========================================================================
-// v3：标的档案（档位版本 / 研究定稿 / 计划委托 / 逻辑 / 证伪）
+// v3：标的档案（档位版本 / 研究定稿 / 计划委托 / 逻辑；证伪已下线）
 // =========================================================================
 
 /** 详情抽屉首屏（一次给全，避免开抽屉连打 5 个请求） */
 /**
  * 2026-10-30 瘦身版：只返回概览 Tab 最小集。
- * 各 Tab 数据改为切到时懒加载（versions/research/logic/invalidate/plans/trades/groups）。
+ * 各 Tab 数据改为切到时懒加载（versions/research/logic/plans/trades/groups）。
  */
 export interface UnderlyingMonitorDetail {
   um: Api.Irs.UnderlyingMonitor;
@@ -119,7 +119,6 @@ export interface UnderlyingMonitorDetail {
   plans_active_count: number;
   plans_total_count: number;
   logic_total_count: number;
-  invalidate_total_count: number;
   group_rows: number;
   bill_rows: number;
 }
@@ -462,14 +461,13 @@ export interface UnderlyingResearchSaveParams {
   next_review?: string | null;
   research_note?: string | null;
   research_brief?: string | null;
-  research_log?: string | null;
 }
 
 /**
  * 保存一版研究（选新日期=新建，选历史日期=改那一版；前端须二次确认"将改写 X 日"）
  *
  * 文本长度上限（后端校验）：thesis / max_risk / pre_condition ≤200，
- * research_brief ≤800，research_log ≤2000。报告正文留在知识库，系统只存决策摘要。
+ * research_brief ≤800。报告正文与换锚/推翻过程留在知识库，系统只存结构化决策摘要。
  */
 export function saveUnderlyingResearch(id: number, params: UnderlyingResearchSaveParams) {
   return request<{ status: string; action: string; research_date: string }>({
@@ -619,55 +617,16 @@ export function saveUnderlyingLogic(id: number, params: UnderlyingLogicSaveParam
   });
 }
 
-/** 删除一条投资逻辑（后端会把引用它的证伪 logic_id 置 NULL，返回被摘掉引用的条数） */
+/** 删除一条投资逻辑 */
 export function deleteUnderlyingLogic(id: number, seq: number) {
-  return request<{ status: string; message: string; unlinked_invalidates: number }>({
+  return request<{ status: string; message: string }>({
     url: `/api/v1/irs/underlying-monitors/${id}/logic/${seq}`,
     method: 'delete'
   });
 }
 
-/** 查询证伪条件清单（quantified=false 表示 signal 里没有数字阈值，应标红） */
-export function fetchUnderlyingInvalidate(id: number) {
-  return request<Api.Irs.UnderlyingInvalidate[]>({
-    url: `/api/v1/irs/underlying-monitors/${id}/invalidate`,
-    method: 'get'
-  });
-}
-
-/** 证伪条件保存参数（按 seq upsert；只登记，不自动计算触发） */
-export interface UnderlyingInvalidateSaveParams {
-  seq: number;
-  proposition: string;
-  /** 信号：必须可量化（出现「比较符+数字」或「数字%」），否则判为未填 */
-  signal: string;
-  logic_id?: number | null;
-  source?: string | null;
-  action?: string | null;
-  /** 判定类别：price / percentile / discount / manual */
-  judge?: string | null;
-  /** 判据表达式（如 price<=3900、pe_pct>=0.8） */
-  judge_expr?: string | null;
-  status?: string;
-  triggered_at?: string | null;
-}
-
-/** 保存一条证伪条件（不可量化不阻断，返回值带 quantified + warning） */
-export function saveUnderlyingInvalidate(id: number, params: UnderlyingInvalidateSaveParams) {
-  return request<{ status: string; action: string; id: number; quantified: boolean; warning: string | null }>({
-    url: `/api/v1/irs/underlying-monitors/${id}/invalidate`,
-    method: 'put',
-    data: params
-  });
-}
-
-/** 删除一条证伪条件（按 seq） */
-export function deleteUnderlyingInvalidate(id: number, seq: number) {
-  return request<{ status: string; message: string }>({
-    url: `/api/v1/irs/underlying-monitors/${id}/invalidate/${seq}`,
-    method: 'delete'
-  });
-}
+// 证伪条件的查询/保存/删除接口已于 2026-11-27 删除：证伪只在研报文件中维护，
+// irs_um_invalidate 表已随 DDL（scripts/ddl_drop_um_invalidate_20261127.py）删除。
 
 // ---------------------------------------------------------------- 横切
 /** 全量计划（跨标的），供归因表 plan_id → 剧本名/标的映射 */
@@ -678,7 +637,7 @@ export function fetchAllPlans() {
   });
 }
 
-/** 某标的状态演化时间轴（逻辑 state + 证伪 status 的 append-only 日志） */
+/** 某标的状态演化时间轴（逻辑 state 的 append-only 日志；证伪已下线，历史记录仍会返回） */
 export function fetchUnderlyingStateLog(id: number) {
   return request<Api.Irs.UnderlyingStateLog[]>({
     url: `/api/v1/irs/underlying-monitors/${id}/state-log`,

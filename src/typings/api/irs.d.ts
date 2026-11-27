@@ -190,8 +190,6 @@ declare namespace Api {
       research_note: string | null;
       /** 摘要（≤800 字） */
       research_brief: string | null;
-      /** 研究过程日志（≤2000 字） */
-      research_log: string | null;
       create_time: string;
       update_time: string;
     }
@@ -246,30 +244,6 @@ declare namespace Api {
       update_time: string;
     }
 
-    /** 证伪条件（对应 UnderlyingInvalidateOut） */
-    interface UnderlyingInvalidate {
-      id: number;
-      symbol: string;
-      logic_id: number | null;
-      seq: number;
-      /** 命题 */
-      proposition: string;
-      /** 信号（须可量化） */
-      signal: string;
-      source: string | null;
-      action: string | null;
-      /** 判定类别：price / percentile / discount / manual */
-      judge: string | null;
-      /** 判据表达式（如 price<=3900、pe_pct>=0.8） */
-      judge_expr: string | null;
-      status: string;
-      triggered_at: string | null;
-      create_time: string;
-      update_time: string;
-      /** 派生：signal 里没有数字阈值 -> 前端标红 */
-      quantified: boolean;
-    }
-
     /** 归属覆盖率行（每个标的的合约行数与成交笔数） */
     interface UnderlyingCoverageRow {
       symbol: string;
@@ -291,7 +265,7 @@ declare namespace Api {
     /** 状态变更审计日志行（append-only，复盘回放） */
     interface UnderlyingStateLog {
       id: number;
-      /** logic=逻辑；invalidate=证伪 */
+      /** logic=逻辑（历史行或有 invalidate，证伪已删除） */
       subject_type: 'logic' | 'invalidate';
       subject_id: number;
       symbol: string;

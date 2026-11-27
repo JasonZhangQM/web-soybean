@@ -216,7 +216,6 @@ async function handleDelete() {
       version: '档位版本',
       research: '研究版本',
       logic: '投资逻辑',
-      invalidate: '证伪条件',
       plan: '剧本'
     };
     const detailText = Object.entries(counts)

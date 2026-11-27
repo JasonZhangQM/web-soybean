@@ -1,29 +1,25 @@
 <script setup lang="ts">
 /**
- * 逻辑与证伪（批次二：可编辑；2026-11-09 起并入「研究与逻辑」Tab，不再是顶层 TabPane）
+ * 投资逻辑（2026-11-09 起并入「研究与复盘」Tab，不再是顶层 TabPane）
  *
  * 两条数据模型事实决定了这里的交互：
- * 1. **不是版本化的**：`irs_um_logic` / `irs_um_invalidate` 的唯一键是 (symbol, seq)，
- *    只有当前态，不像研究那样按日期留史。所以这里改的是"现在怎么认为"，不是"当时怎么认为"。
+ * 1. **不是版本化的**：`irs_um_logic` 的唯一键是 (symbol, seq)，只有当前态，
+ *    不像研究那样按日期留史。所以这里改的是"现在怎么认为"，不是"当时怎么认为"。
  * 2. **改 state 是周级动作**：复盘第一步就是"哪条逻辑坏了"。所以状态做成表格里的行内下拉，
  *    点一下即存，不进弹窗（进弹窗要多三次点击，高频动作不能这么贵）。
  *
  * ⚠️ 行内改状态必须回填其余字段：`PUT /logic` 是**全字段覆盖**（后端无条件
  * `row.content = payload.content`），只传 seq+state 会把 content 写成空串。
  *
- * 一条硬规则在这里可视化：**证伪信号必须可量化**。后端按
- * `[><≥≤=]\s*\d` 或 `\d+\s*%` 判定，判定不过的整行标红——"分位偏高"这类说法不算填了。
- * 前端照抄同一条正则做实时提示，但**不阻断保存**：先登记、后补数字是正常节奏。
+ * 证伪条件已于 2026-11-27 删除（只在研报文件中维护），`irs_um_invalidate`
+ * 表与相关 API 已随 DDL 一并移除。
  */
-import { ref, reactive, computed, watch, h, onMounted } from 'vue';
-import { NButton, NDrawerContent, NEllipsis, NInput, NInputNumber, NSelect, NTag } from 'naive-ui';
+import { ref, reactive, computed, h, onMounted } from 'vue';
+import { NButton, NSelect, NTag } from 'naive-ui';
 import {
   fetchUnderlyingLogic,
-  fetchUnderlyingInvalidate,
   saveUnderlyingLogic,
   deleteUnderlyingLogic,
-  saveUnderlyingInvalidate,
-  deleteUnderlyingInvalidate,
   type UnderlyingLogicSaveParams
 } from '@/service/api';
 import UnderlyingDataTable from './UnderlyingDataTable.vue';
@@ -32,34 +28,16 @@ import SectionBar from './SectionBar.vue';
 defineOptions({ name: 'UnderlyingLogicTab' });
 
 const props = defineProps<{ umId: number; symbol: string }>();
-const emit = defineEmits<{
-  (e: 'dirty'): void;
-  /** 合并后由父组件（ResearchVersionPanel）拿去驱动完成度提示与保存软校验 */
-  (e: 'counts', v: { logic: number; invalidate: number }): void;
-}>();
+const emit = defineEmits<{ (e: 'dirty'): void }>();
 
 // 自管数据（懒加载，切到本 Tab 时 onMounted 拉）
 const logic = ref<Api.Irs.UnderlyingLogic[]>([]);
-const invalidate = ref<Api.Irs.UnderlyingInvalidate[]>([]);
-
-/** 条数变化即上报：新增/删除/状态改动后父组件的完成度提示要立刻更新 */
-watch(
-  () => [logic.value.length, invalidate.value.length],
-  () => emit('counts', { logic: logic.value.length, invalidate: invalidate.value.length }),
-  { immediate: true }
-);
 
 async function loadLogic() {
   const { data, error } = await fetchUnderlyingLogic(props.umId);
   if (!error && data) logic.value = data;
 }
-async function loadInvalidate() {
-  const { data, error } = await fetchUnderlyingInvalidate(props.umId);
-  if (!error && data) invalidate.value = data;
-}
-onMounted(async () => {
-  await Promise.all([loadLogic(), loadInvalidate()]);
-});
+onMounted(loadLogic);
 
 /** 状态取值以 `models.UnderlyingLogic.STATE_CHOICES` 为准；这里曾写成「受损」，会让按 state 聚合漏数 */
 const STATE_OPTIONS = [
@@ -72,32 +50,9 @@ const PRICING_OPTIONS = [
   { value: '部分', label: '部分' },
   { value: '已充分', label: '已充分' }
 ];
-const STATUS_OPTIONS = [
-  { value: '未触发', label: '未触发' },
-  { value: '已触发', label: '已触发' },
-  { value: '已失效', label: '已失效' }
-];
-
-/**
- * P2-2 证伪自动判定：judge 字段决定类型，judge_expr 写判据表达式。
- * 格式约定 {metric}{op}{value}，如 price<=3800 / pb_pct>=0.7
- * 手动判定的证伪用 judge=manual 或不填，机器不碰。
- */
-const JUDGE_OPTIONS = [
-  { value: 'manual', label: '手动判定（不自动）' },
-  { value: 'price', label: '价格类（price<=XXX）' },
-  { value: 'percentile', label: '分位类（pb_pct>=XXX）' }
-];
-
-/**
- * 与后端同一正则（router 里读的时候用它算 `quantified`）。
- * 前端只用它做"填的时候就知道会不可量化"的实时提示，不参与保存判断。
- */
-const QUANTIFIED_RE = /[><≥≤=]\s*\d|\d+\s*%/;
 
 const saving = ref(false);
 const deletingLogicSeq = ref<number | null>(null);
-const deletingInvalidateSeq = ref<number | null>(null);
 /** 正在改状态的 seq（同一行下拉显示 loading） */
 const stateSavingSeq = ref<number | null>(null);
 /**
@@ -191,14 +146,9 @@ async function changeLogicState(row: Api.Irs.UnderlyingLogic, state: string) {
 }
 
 function handleDeleteLogic(row: Api.Irs.UnderlyingLogic) {
-  const refs = invalidate.value.filter(i => i.logic_id === row.id).map(i => i.seq);
-  const content = refs.length
-    ? `第 ${refs.join('、')} 条证伪条件引用了这条逻辑，删除后这些证伪的「对应逻辑」会变成空引用。` +
-      `如果只是这条逻辑坏了，把状态改成「破坏」比删除好。`
-    : '删了就查不到当时怎么想的。如果只是这条逻辑坏了，把状态改成「破坏」比删除好。';
   window.$dialog?.warning({
     title: `删除第 ${row.seq} 条逻辑？`,
-    content,
+    content: '删了就查不到当时怎么想的。如果只是这条逻辑坏了，把状态改成「破坏」比删除好。',
     positiveText: '仍要删除',
     negativeText: '取消',
     onPositiveClick: async () => {
@@ -212,130 +162,6 @@ function handleDeleteLogic(row: Api.Irs.UnderlyingLogic) {
         }
       } finally {
         deletingLogicSeq.value = null;
-      }
-    }
-  });
-}
-
-// ---------------------------------------------------------------- 证伪条件
-const showInvModal = ref(false);
-
-const invForm = reactive<{
-  seq: number;
-  proposition: string;
-  signal: string;
-  logic_id: number | null;
-  source: string;
-  action: string;
-  status: string;
-  triggered_at: string | null;
-  judge: string | null;
-  judge_expr: string;
-}>({
-  seq: 1,
-  proposition: '',
-  signal: '',
-  logic_id: null,
-  source: '',
-  action: '',
-  status: '未触发',
-  triggered_at: null,
-  judge: null,
-  judge_expr: ''
-});
-
-/** 可量化实时提示（不阻断） */
-const signalQuantified = computed(() => QUANTIFIED_RE.test(invForm.signal || ''));
-
-/** 「对应逻辑」下拉：label 带序号和截断内容，选中后 v-model 拿的是 value（= logic.id） */
-const logicOptions = computed(() =>
-  logic.value.map(l => ({
-    value: l.id,
-    label: `第${l.seq}条 ${l.content.length > 20 ? `${l.content.slice(0, 20)}…` : l.content}`
-  }))
-);
-
-function openInvNew() {
-  const maxSeq = invalidate.value.reduce((m, i) => Math.max(m, i.seq), 0);
-  invForm.seq = maxSeq + 1;
-  invForm.proposition = '';
-  invForm.signal = '';
-  invForm.logic_id = null;
-  invForm.source = '';
-  invForm.action = '';
-  invForm.status = '未触发';
-  invForm.triggered_at = null;
-  invForm.judge = null;
-  invForm.judge_expr = '';
-  showInvModal.value = true;
-}
-
-function openInvEdit(row: Api.Irs.UnderlyingInvalidate) {
-  invForm.seq = row.seq;
-  invForm.proposition = row.proposition;
-  invForm.signal = row.signal;
-  invForm.logic_id = row.logic_id;
-  invForm.source = row.source ?? '';
-  invForm.action = row.action ?? '';
-  invForm.status = row.status;
-  invForm.triggered_at = row.triggered_at;
-  invForm.judge = (row as any).judge ?? null;
-  invForm.judge_expr = (row as any).judge_expr ?? '';
-  showInvModal.value = true;
-}
-
-async function saveInv() {
-  if (!invForm.proposition.trim()) {
-    window.$message?.warning('命题不能为空——写清「我原来认为什么」');
-    return;
-  }
-  if (!invForm.signal.trim()) {
-    window.$message?.warning('证伪信号不能为空——没有判据的证伪等于没登记');
-    return;
-  }
-  saving.value = true;
-  try {
-    const { data, error } = await saveUnderlyingInvalidate(props.umId, {
-      seq: invForm.seq,
-      proposition: invForm.proposition.trim(),
-      signal: invForm.signal.trim(),
-      logic_id: invForm.logic_id,
-      source: invForm.source.trim() || null,
-      action: invForm.action.trim() || null,
-      status: invForm.status,
-      triggered_at: invForm.triggered_at,
-      judge: invForm.judge || null,
-      judge_expr: invForm.judge_expr.trim() || null
-    });
-    if (!error) {
-      if (data?.warning) window.$message?.warning(data.warning);
-      else window.$message?.success(data?.action === 'created' ? '已新增一条证伪' : '已保存');
-      showInvModal.value = false;
-      await loadInvalidate();
-      emit('dirty');
-    }
-  } finally {
-    saving.value = false;
-  }
-}
-
-function handleDeleteInv(row: Api.Irs.UnderlyingInvalidate) {
-  window.$dialog?.warning({
-    title: `删除第 ${row.seq} 条证伪条件？`,
-    content: `证伪信号：${row.signal}。如果判据已经不再适用（比如标的逻辑变了），改状态为「已失效」比删除好——将来复盘能看到"当时以为会怎么坏"。`,
-    positiveText: '仍要删除',
-    negativeText: '取消',
-    onPositiveClick: async () => {
-      deletingInvalidateSeq.value = row.seq;
-      try {
-        const { error } = await deleteUnderlyingInvalidate(props.umId, row.seq);
-        if (!error) {
-          window.$message?.success('已删除');
-          await loadInvalidate();
-          emit('dirty');
-        }
-      } finally {
-        deletingInvalidateSeq.value = null;
       }
     }
   });
@@ -412,131 +238,13 @@ const logicColumns = [
   }
 ];
 
-const invalidateColumns = [
-  { title: '序', key: 'seq', width: 50 },
-  {
-    title: '命题',
-    key: 'proposition',
-    width: 240,
-    // 列级 ellipsis 在 UnderlyingDataTable 内未生效，与「证伪信号」列同款：flex + NEllipsis 强制收缩
-    render: (r: Api.Irs.UnderlyingInvalidate) =>
-      h('div', { class: 'flex items-center' }, [h(NEllipsis, { class: 'flex-1' }, { default: () => r.proposition })])
-  },
-  {
-    title: '证伪信号',
-    key: 'signal',
-    width: 300,
-    render: (r: Api.Irs.UnderlyingInvalidate) =>
-      h('div', { class: 'flex items-center gap-6px' }, [
-        // 自定义 render 下列级 ellipsis 不生效，用 NEllipsis 截断（hover 显示完整内容）
-        h(NEllipsis, { class: `flex-1${r.quantified ? '' : ' text-red-500'}` }, { default: () => r.signal }),
-        r.quantified ? null : h(NTag, { size: 'tiny', bordered: false, type: 'error' }, { default: () => '不可量化' })
-      ])
-  },
-  {
-    title: '自动判定',
-    key: 'auto_judged',
-    width: 200,
-    render: (r: Api.Irs.UnderlyingInvalidate & { auto_judged?: any }) => {
-      const aj = r.auto_judged;
-      if (!aj) return h('span', { class: 'text-gray-300' }, '—');
-      if (aj.candidate) {
-        // 候选触发：红色 + 当前值 vs 阈值
-        return h('div', { class: 'flex items-center gap-4px' }, [
-          h(NTag, { size: 'tiny', bordered: false, type: 'error', round: true }, { default: () => '候选触发' }),
-          h('span', { class: 'text-12px text-red-500' }, `${aj.metric} ${aj.current_value} ${aj.op} ${aj.threshold}`)
-        ]);
-      }
-      // 未触发但可算：绿色小标签 + 当前值
-      return h('div', { class: 'flex items-center gap-4px' }, [
-        h(NTag, { size: 'tiny', bordered: false, type: 'success', round: true }, { default: () => '安全' }),
-        h('span', { class: 'text-12px text-gray-500' }, `${aj.metric}=${aj.current_value}${aj.op}${aj.threshold}`)
-      ]);
-    }
-  },
-  {
-    title: '对应逻辑',
-    key: 'logic_id',
-    width: 100,
-    render: (r: Api.Irs.UnderlyingInvalidate) => {
-      const l = logic.value.find(x => x.id === r.logic_id);
-      return l ? `第${l.seq}条` : '-';
-    }
-  },
-  {
-    title: '来源',
-    key: 'source',
-    width: 130,
-    ellipsis: { tooltip: true },
-    render: (r: Api.Irs.UnderlyingInvalidate) => r.source || '-'
-  },
-  {
-    title: '动作',
-    key: 'action',
-    width: 130,
-    ellipsis: { tooltip: true },
-    render: (r: Api.Irs.UnderlyingInvalidate) => r.action || '-'
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 90,
-    render: (r: Api.Irs.UnderlyingInvalidate) =>
-      h(
-        NTag,
-        {
-          size: 'small',
-          bordered: false,
-          type: r.status === '已触发' ? 'error' : r.status === '已失效' ? 'default' : 'warning'
-        },
-        { default: () => r.status }
-      )
-  },
-  {
-    title: '触发日',
-    key: 'triggered_at',
-    width: 110,
-    render: (r: Api.Irs.UnderlyingInvalidate) => r.triggered_at || '-'
-  },
-  {
-    title: '操作',
-    key: 'action2',
-    width: 110,
-    render: (r: Api.Irs.UnderlyingInvalidate) =>
-      h('div', { class: 'flex gap-8px' }, [
-        h(
-          NButton,
-          { text: true, size: 'tiny', type: 'primary', onClick: () => openInvEdit(r) },
-          { default: () => '编辑' }
-        ),
-        h(
-          NButton,
-          {
-            text: true,
-            size: 'tiny',
-            type: 'error',
-            loading: deletingInvalidateSeq.value === r.seq,
-            onClick: () => handleDeleteInv(r)
-          },
-          { default: () => '删除' }
-        )
-      ])
-  }
-];
-
 /** 状态标签用（逻辑表的 state 现在是下拉，这里只保留给摘要复用） */
 const logicBrokenCount = computed(() => logic.value.filter(l => l.state === '破坏').length);
 const logicWeakenedCount = computed(() => logic.value.filter(l => l.state === '减弱').length);
-const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status === '已触发').length);
 </script>
 
 <template>
   <div>
-    <NAlert type="warning" :bordered="false" class="mb-12px">
-      证伪信号必须可量化（出现「比较符 + 数字」或「数字%」）。「分位偏高」不算填了——它的阈值
-      不可判定，标「不可量化」并标红。
-    </NAlert>
-
     <SectionBar :title="`投资逻辑（${logic.length} 条）`">
       <NTag v-if="logicWeakenedCount" size="small" :bordered="false" type="warning">减弱 {{ logicWeakenedCount }}</NTag>
       <NTag v-if="logicBrokenCount" size="small" :bordered="false">破坏 {{ logicBrokenCount }}</NTag>
@@ -546,16 +254,6 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
       </template>
     </SectionBar>
     <UnderlyingDataTable :columns="logicColumns" :data="logic" :page-size="5" hide-when-fit />
-
-    <SectionBar :title="`证伪条件（${invalidate.length} 条）`">
-      <NTag v-if="invTriggeredCount" size="small" :bordered="false">已触发 {{ invTriggeredCount }}</NTag>
-      <span class="text-12px text-gray-400">纲领要求 ≥3 条且覆盖研究报告第五章每条；只登记，不自动计算触发</span>
-      <template #actions>
-        <NButton size="tiny" @click="openInvNew">新增证伪</NButton>
-      </template>
-    </SectionBar>
-    <UnderlyingDataTable :columns="invalidateColumns" :data="invalidate" :page-size="5" hide-when-fit />
-    <!-- <NEmpty v-if="!invalidate.length" size="small" description="还没有登记证伪条件" class="my-8px" /> -->
 
     <!-- 投资逻辑抽屉（左侧） -->
     <NDrawer v-model:show="showLogicModal" placement="left" width="520px" :mask-closable="false">
@@ -606,104 +304,6 @@ const invTriggeredCount = computed(() => invalidate.value.filter(i => i.status =
           <NSpace justify="end">
             <NButton @click="showLogicModal = false">取消</NButton>
             <NButton :loading="saving" @click="saveLogic">保存</NButton>
-          </NSpace>
-        </template>
-      </NDrawerContent>
-    </NDrawer>
-
-    <!-- 证伪抽屉（左侧），与投资逻辑抽屉同规格 -->
-    <NDrawer v-model:show="showInvModal" placement="left" width="520px" :mask-closable="false">
-      <NDrawerContent title="证伪条件" closable :native-scrollbar="false">
-        <NForm label-placement="left" label-width="90px" :show-feedback="false">
-          <NFormItem label="序号">
-            <NInputNumber v-model:value="invForm.seq" :precision="0" :min="1" style="width: 120px" />
-            <span class="ml-8px text-12px text-gray-400">同标的同序号 = 覆盖</span>
-          </NFormItem>
-          <NFormItem label="命题">
-            <NInput
-              v-model:value="invForm.proposition"
-              :maxlength="200"
-              placeholder="我原来认为什么（会被证伪的那个判断）"
-            />
-          </NFormItem>
-          <NFormItem label="证伪信号">
-            <div class="w-full">
-              <NInput
-                v-model:value="invForm.signal"
-                type="textarea"
-                :autosize="{ minRows: 2, maxRows: 4 }"
-                :maxlength="200"
-                show-count
-                placeholder="必须带数字阈值，如：贴水收敛至 <2% 且持续 5 个交易日"
-              />
-              <div
-                v-if="invForm.signal"
-                class="mt-4px text-12px"
-                :class="signalQuantified ? 'text-green-500' : 'text-red-500'"
-              >
-                {{
-                  signalQuantified
-                    ? '已含数字阈值，可量化'
-                    : '没有数字阈值，会被判为「不可量化」——仍可保存，但复盘时算没填'
-                }}
-              </div>
-            </div>
-          </NFormItem>
-          <NFormItem label="对应逻辑">
-            <NSelect
-              v-model:value="invForm.logic_id"
-              :options="logicOptions"
-              clearable
-              placeholder="可选：这条证伪针对哪条逻辑"
-              style="width: 100%"
-            />
-          </NFormItem>
-          <NFormItem label="来源">
-            <NInput v-model:value="invForm.source" :maxlength="64" placeholder="数据源 / 报告章节" />
-          </NFormItem>
-          <NFormItem label="动作">
-            <NInput v-model:value="invForm.action" :maxlength="32" placeholder="触发后做什么：减仓 / 清仓 / 重估" />
-          </NFormItem>
-          <!-- P2-2 自动判定：judge + judge_expr（只写候选，不改 status） -->
-          <NFormItem label="自动判定">
-            <div class="flex w-full items-center gap-8px">
-              <NSelect
-                v-model:value="invForm.judge"
-                :options="JUDGE_OPTIONS"
-                clearable
-                placeholder="不自动判定"
-                style="width: 170px"
-              />
-              <NInput
-                v-model:value="invForm.judge_expr"
-                :maxlength="64"
-                placeholder="判据表达式，如 price<=3800"
-                style="flex: 1"
-              />
-            </div>
-            <div v-if="invForm.judge && invForm.judge !== 'manual'" class="mt-4px text-12px text-gray-400">
-              机器会每日按此表达式判定候选触发（只在表格标红，**绝不自动改状态**）。 格式约定
-              {metric}{op}{value}：价格类写 price ≤ XXX，分位类写 pb_pct ≥ 0.7（仅指数标的有效）
-            </div>
-          </NFormItem>
-          <NFormItem label="状态">
-            <NSelect v-model:value="invForm.status" :options="STATUS_OPTIONS" style="width: 160px" />
-          </NFormItem>
-          <NFormItem label="触发日">
-            <NDatePicker
-              v-model:formatted-value="invForm.triggered_at"
-              type="date"
-              value-format="yyyy-MM-dd"
-              clearable
-              style="width: 160px"
-            />
-            <span class="ml-8px text-12px text-gray-400">状态选「已触发」时才需要填</span>
-          </NFormItem>
-        </NForm>
-        <template #footer>
-          <NSpace justify="end">
-            <NButton @click="showInvModal = false">取消</NButton>
-            <NButton :loading="saving" @click="saveInv">保存</NButton>
           </NSpace>
         </template>
       </NDrawerContent>

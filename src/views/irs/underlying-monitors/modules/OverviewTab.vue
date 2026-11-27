@@ -3,7 +3,7 @@
  * 概览 Tab：决策卡 + 档位摘要 + 剧本摘要 + 归属合约（分页）
  *
  * 数据全部来自瘦身版 `GET /underlying-monitors/{id}/detail`（概览最小集）。
- * 各 Tab 明细走懒加载接口（versions/research/logic/invalidate/plans/groups）。
+ * 各 Tab 明细走懒加载接口（versions/research/logic/plans/groups）。
  */
 import { computed, h, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -291,7 +291,7 @@ const levelColumns = LEVEL_META.map(m => ({
       <NTag v-else size="small" :bordered="false" type="warning">还没做过研究</NTag>
       <NTag v-if="reviewOverdue" size="small" :bordered="false">复核已到期（{{ latestResearch?.next_review }}）</NTag>
       <template #actions>
-        <NButton size="tiny" text @click="emit('goto', 'research')">去研究与逻辑 Tab 维护</NButton>
+        <NButton size="tiny" text @click="emit('goto', 'research')">去研究与复盘 Tab 维护</NButton>
       </template>
     </SectionBar>
 
@@ -339,22 +339,20 @@ const levelColumns = LEVEL_META.map(m => ({
     </NDescriptions>
 
     <NAlert v-else type="info" :bordered="false" class="mb-16px">
-      这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究与逻辑」Tab 按日期新建一版。
+      这个标的还没有研究版本。概览的 8 项决策卡取自最新一条研究，请到「研究与复盘」Tab 按日期新建一版。
     </NAlert>
 
     <!--
-      逻辑与证伪摘要：研究的结论能不能用，取决于底下挂了什么逻辑、什么判据。
-      概览只展示计数（轻量），状态分布留给「研究与逻辑」Tab 看全量。
-      纲领要求逻辑 2-4 条、证伪 ≥3 条，低于下限标橙（只提示，不阻断录入）。
+      投资逻辑摘要：研究的结论能不能用，取决于底下挂了什么逻辑。
+      概览只展示计数（轻量），状态分布留给「研究与复盘」Tab 看全量。
+      纲领要求逻辑 2-4 条，低于下限标橙（只提示，不阻断录入）。
+      证伪条件已于 2026-11-27 移出系统（只在研报文件中维护）。
     -->
-    <SectionBar title="逻辑与证伪">
+    <SectionBar title="投资逻辑">
       <NTag size="small" :bordered="false" :type="detail.logic_total_count < 2 ? 'warning' : 'default'">
         逻辑 {{ detail.logic_total_count }} 条
       </NTag>
-      <NTag size="small" :bordered="false" :type="detail.invalidate_total_count < 3 ? 'warning' : 'default'">
-        证伪 {{ detail.invalidate_total_count }} 条
-      </NTag>
-      <span class="text-12px text-gray-400">明细在「研究与逻辑」Tab 维护</span>
+      <span class="text-12px text-gray-400">明细在「研究与复盘」Tab 维护</span>
     </SectionBar>
 
     <!-- 档位摘要 -->
