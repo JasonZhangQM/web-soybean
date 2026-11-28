@@ -19,9 +19,8 @@
  * roe_weight / ebitda_toi 恒空；银行不适用毛利率 / 流动比率（招商银行实测为空）。
  */
 import { computed, onMounted, ref, watch } from 'vue';
-import { NButton, NTag } from 'naive-ui';
-import { fetchUmFinanceStats, syncUmFinance } from '@/service/api';
-import { executeSync } from '@/utils/sync-feedback';
+import { NTag } from 'naive-ui';
+import { fetchUmFinanceStats } from '@/service/api';
 import FinanceChartCard from './FinanceChartCard.vue';
 
 defineOptions({ name: 'UnderlyingFinanceTab' });
@@ -49,7 +48,6 @@ const profitMode = ref<'report' | 'quarter'>('report');
 const stats = ref<Api.Irs.UmFinanceStats | null>(null);
 const loading = ref(false);
 const loadError = ref(false);
-const syncLoading = ref(false);
 /** 请求序号：快速切区间时只认最后一次响应，防旧数据覆盖新数据 */
 let seq = 0;
 
@@ -78,10 +76,6 @@ watch(() => [props.symbol, years.value, freq.value], load);
 watch(freq, f => {
   if (f === 'annual') profitMode.value = 'report';
 });
-
-async function handleSync() {
-  await executeSync(() => syncUmFinance(props.symbol), syncLoading, load);
-}
 
 // ---------- 渲染辅助（格式化，非口径计算） ----------
 
@@ -276,12 +270,11 @@ const snapshotRatios = computed(() => {
 
 <template>
   <div class="flex flex-col gap-16px pb-16px">
-    <!-- 控件：口径 / 区间 / 同步 / 主体类型 / 覆盖率 -->
+    <!-- 控件：口径 / 区间 / 主体类型 / 覆盖率 -->
     <div class="flex flex-wrap items-center gap-12px">
       <NSelect v-model:value="freq" :options="FREQ_OPTIONS" class="w-130px" />
       <NSelect v-if="freq === 'annual'" v-model:value="years" :options="YEARS_OPTIONS" class="w-130px" />
       <span v-else class="text-12px op-60">近 10 年报告期 · 含单季度</span>
-      <NButton size="small" :loading="syncLoading" @click="handleSync">同步财务数据</NButton>
       <NTag size="small" :bordered="false" :type="isIndex ? 'info' : 'default'">
         {{ isIndex ? '指数成分聚合（整体法）' : '个股财报（gm 口径）' }}
       </NTag>

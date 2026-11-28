@@ -926,14 +926,3 @@ export function fetchUmFinanceStats(params: UmFinanceStatsQuery) {
     params
   });
 }
-
-/** 按标的触发财务同步（个股 gm 4 函数链 / 指数纯库内聚合，后端判定） */
-export function syncUmFinance(symbol: string) {
-  return request<{ status: string; message: string; subject_type: string | null; errors: string[] }>({
-    url: '/api/v1/irs/um-finance-sync',
-    method: 'post',
-    params: { symbol },
-    // 个股要连打 4 个 gm 接口，放宽超时
-    timeout: 180 * 1000
-  });
-}
