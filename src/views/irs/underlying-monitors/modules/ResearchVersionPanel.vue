@@ -23,7 +23,7 @@ import {
   fetchUnderlyingResearch,
   saveUnderlyingResearch,
   deleteUnderlyingResearch,
-  fetchUnderlyingStateLog,
+  fetchUnderlyingLogicStates,
   fetchAttributionByPlan,
   fetchUnderlyingPlans
 } from '@/service/api';
@@ -46,7 +46,7 @@ const editingDate = ref<string | null>(null);
 
 /** 逻辑状态变更会追加 state_log，合并后同屏可见 ⇒ 顺手重拉时间线 */
 function onChildDirty() {
-  loadStateLog();
+  loadLogicStates();
   loadLogicRows();
   emit('dirty');
 }
@@ -279,7 +279,7 @@ const columns = [
 ];
 
 // ---------------- 复盘视图：状态演化 + 剧本盈亏归因 ----------------
-const stateLog = ref<Api.Irs.UnderlyingStateLog[]>([]);
+const logicStates = ref<Api.Irs.UnderlyingLogicState[]>([]);
 const attribution = ref<Api.Bills.AttributionByPlan | null>(null);
 const allPlans = ref<Api.Irs.UnderlyingPlan[]>([]);
 const attributionLoading = ref(false);
@@ -299,10 +299,10 @@ async function loadLogicRows() {
  * 证伪已删除（2026-11-27），残留 invalidate 行过滤；subject_id 找不到对应逻辑
  * （逻辑被删）时回退用 逻辑#id 标注，演化记录不丢。
  */
-function buildChains(logs: Api.Irs.UnderlyingStateLog[]) {
+function buildChains(logs: Api.Irs.UnderlyingLogicState[]) {
   if (!logs.length) return new Map<number, { head: ChainNode; steps: ChainStep[] }>();
   const seqOf = new Map(logicRows.value.map(r => [r.id, r]));
-  const byId = new Map<number, Api.Irs.UnderlyingStateLog[]>();
+  const byId = new Map<number, Api.Irs.UnderlyingLogicState[]>();
   for (const l of logs) {
     const arr = byId.get(l.subject_id) ?? [];
     arr.push(l);
@@ -342,8 +342,8 @@ interface ChainStep {
   date: string;
 }
 
-const stateChainMap = computed(() => buildChains(stateLog.value.filter(l => l.subject_type === 'logic')));
-const pricingChainMap = computed(() => buildChains(stateLog.value.filter(l => l.subject_type === 'logic_pricing')));
+const stateChainMap = computed(() => buildChains(logicStates.value.filter(l => l.subject_type === 'logic')));
+const pricingChainMap = computed(() => buildChains(logicStates.value.filter(l => l.subject_type === 'logic_pricing')));
 
 /** 演化行：状态链与定价链按逻辑 id 成对；两类日志都没有的逻辑不出现 */
 const evolutionRows = computed(() => {
@@ -365,9 +365,9 @@ function stateCls(s: string) {
   return 'text-green-600';
 }
 
-async function loadStateLog() {
-  const { data } = await fetchUnderlyingStateLog(props.umId);
-  if (data) stateLog.value = data;
+async function loadLogicStates() {
+  const { data } = await fetchUnderlyingLogicStates(props.umId);
+  if (data) logicStates.value = data;
 }
 
 /** 剧本盈亏归因：只统计本标的（传 underlying_symbol），plan_id → 剧本名靠 /irs/plans 映射 */
@@ -445,7 +445,7 @@ const attributionColumns = [
 
 onMounted(() => {
   loadResearch();
-  loadStateLog();
+  loadLogicStates();
   loadLogicRows();
   loadAttribution();
 });

@@ -639,9 +639,9 @@ export function fetchAllPlans() {
 }
 
 /** 某标的状态演化时间轴（逻辑 state 的 append-only 日志；证伪已下线，历史记录仍会返回） */
-export function fetchUnderlyingStateLog(id: number) {
-  return request<Api.Irs.UnderlyingStateLog[]>({
-    url: `/api/v1/irs/underlying-monitors/${id}/state-log`,
+export function fetchUnderlyingLogicStates(id: number) {
+  return request<Api.Irs.UnderlyingLogicState[]>({
+    url: `/api/v1/irs/underlying-monitors/${id}/logic-states`,
     method: 'get'
   });
 }

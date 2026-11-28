@@ -264,7 +264,7 @@ declare namespace Api {
     }
 
     /** 状态变更审计日志行（append-only，复盘回放） */
-    interface UnderlyingStateLog {
+    interface UnderlyingLogicState {
       id: number;
       /** logic=逻辑状态演化；logic_pricing=定价情况演化（历史行或有 invalidate，证伪已删除） */
       subject_type: 'logic' | 'logic_pricing' | 'invalidate';
